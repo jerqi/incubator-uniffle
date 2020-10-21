@@ -50,6 +50,7 @@ public abstract class RssConf<T extends RssConf> implements Iterable<Map.Entry<S
   }
 
   private static final Map<String, TimeUnit> TIME_SUFFIXES;
+
   static {
     TIME_SUFFIXES = new HashMap<>();
     TIME_SUFFIXES.put("us", TimeUnit.MICROSECONDS);
@@ -86,10 +87,28 @@ public abstract class RssConf<T extends RssConf> implements Iterable<Map.Entry<S
     }
   }
 
+  public String get(ConfEntry e) {
+    Object value = get(e, String.class);
+    return (String) (value != null ? value : e.dflt());
+  }
+
   @SuppressWarnings("unchecked")
   public T set(String key, String value) {
     logDeprecationWarning(key);
     config.put(key, value);
+    return (T) this;
+  }
+
+  @SuppressWarnings("unchecked")
+  public T set(ConfEntry e, Object value) {
+    check(typesMatch(value, e.dflt()), "Value doesn't match configuration entry type for %s.",
+      e.key());
+    if (value == null) {
+      config.remove(e.key());
+    } else {
+      logDeprecationWarning(e.key());
+      config.put(e.key(), value.toString());
+    }
     return (T) this;
   }
 
@@ -107,11 +126,6 @@ public abstract class RssConf<T extends RssConf> implements Iterable<Map.Entry<S
       set(e.getKey(), e.getValue());
     }
     return (T) this;
-  }
-
-  public String get(ConfEntry e) {
-    Object value = get(e, String.class);
-    return (String) (value != null ? value : e.dflt());
   }
 
   public boolean getBoolean(ConfEntry e) {
@@ -163,19 +177,6 @@ public abstract class RssConf<T extends RssConf> implements Iterable<Map.Entry<S
 
     return TimeUnit.MILLISECONDS.convert(val,
       suffix != null ? TIME_SUFFIXES.get(suffix) : TimeUnit.MILLISECONDS);
-  }
-
-  @SuppressWarnings("unchecked")
-  public T set(ConfEntry e, Object value) {
-    check(typesMatch(value, e.dflt()), "Value doesn't match configuration entry type for %s.",
-      e.key());
-    if (value == null) {
-      config.remove(e.key());
-    } else {
-      logDeprecationWarning(e.key());
-      config.put(e.key(), value.toString());
-    }
-    return (T) this;
   }
 
   @Override
@@ -240,6 +241,7 @@ public abstract class RssConf<T extends RssConf> implements Iterable<Map.Entry<S
       this.depConf = conf;
     }
   }
+
   private volatile Map<String, ConfPair> altToNewKeyMap = null;
 
   private Map<String, ConfPair> allAlternativeKeys() {
