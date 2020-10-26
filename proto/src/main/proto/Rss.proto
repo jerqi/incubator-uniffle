@@ -4,19 +4,65 @@ option java_outer_classname = "RssProtos";
 option java_generate_equals_and_hash = true;
 package rss.common;
 
-/** An unqiue identifier of shuffle block */
-message ShuffleBlockIdProto {
-  string appId = 1;
-  uint32 upstreamId = 2;
-  uint32 downstreamId = 3;
-  uint32 uniqueId = 4;
+
+service ShuffleServer {
+  // Sends a greeting
+  rpc SendShuffleData (SendShuffleDataRequest) returns (SendShuffleDataResponse) {}
+
+  // Sends a greeting
+  rpc commitShuffleTask (ShuffleCommitRequest) returns (ShuffleCommitResponse) {}
 }
 
-/** A structure to represent shuffle server */
-message ShuffleServer {
-  string serverId = 1;
-  string serverIp = 2;
-  uint32 serverPort = 3;
+message SendShuffleDataRequest {
+  string key = 1; // in spark key = appId + "-" + shuffleId + "-" + stageId
+  repeated ShuffleData shuffleData = 2;
+}
+
+message SendShuffleDataResponse {
+  StatusCode status = 1;
+  string retMsg = 2;
+}
+
+message ShuffleData {
+  uint32 partitionId = 1;
+  repeated ShuffleBlock block = 2;
+}
+
+message ShuffleBlock {
+  string blockId = 1;
+  uint32 length = 2;
+  uint64 crc = 3;
+  bytes data = 4;
+}
+
+message ShuffleCommitRequest {
+  string key = 1;
+}
+
+message ShuffleCommitResponse {
+  StatusCode status = 1;
+  string retMsg = 2;
+}
+
+message ServerRegisterRequest {
+  ShuffleServerId serverId = 1;
+}
+
+message ServerRegisterResponse {
+  StatusCode status = 1;
+  string retMsg = 2;
+}
+
+message ShuffleServerHeartBeat {
+  ShuffleServerId serverId = 1;
+  bool available = 2;
+  uint32 usedBuffer = 3;
+}
+
+message ShuffleServerId {
+  uint64 uuid = 1;
+  string ip = 2;
+  uint32 port = 3;
 }
 
 /** Status code to identify the status of response */
@@ -25,62 +71,3 @@ enum StatusCode {
   INTERNAL_ERROR = 1;
   // add more status
 }
-
-/****************** Client / Server requests/reponses ********/
-/** Proto to upload shuffle block to Shuffle Server */
-message ShuffleBlockUploadRequestProto {
-  ShuffleBlockIdProto blockId = 1;
-  bool isFinalBlock = 2;
-  bytes block = 3;
-}
-
-message ShuffleBlockUploadResponseProto {
-  StatusCode status = 1;
-  string retMsg = 2;
-}
-
-/****************** Server / Coordinator requests/reponses ********/
-/** Proto to send Shuffle Server heart message to Coordinator */
-message ServerHeartbeatRequestProto {
-  ShuffleServer server = 1;
-}
-
-/****************** Client / Coordinator requests/reponses ********/
-/** Proto to request candidate Shuffle Server from Coordinator */
-message CandidateShuffleServerRequestProto {
-  string appId = 1;
-  uint32 downstreamId = 2;
-  string clientIp = 3;
-}
-
-message CandidateShuffleServerResponseProto {
-  ShuffleServer server = 1;
-}
-
-/****************** Client / Metadata Server requests/reponses ********/
-message ShuffleBlocksReportRequestProto {
-  repeated ShuffleBlockIdProto blocks = 1;
-}
-
-message UpstreamTaskFinishedRequestProto {
-  uint32 upstreamId = 1;
-}
-
-message UpstreamTaskFinishedResponseProto {
-  uint32 upstreamId = 1;
-  StatusCode status = 2;
-  string retMsg = 3;
-}
-
-/****************** Server / Metadata Server requests/reponses ********/
-message ShuffleBlocksCommitRequestProto {
-  repeated ShuffleBlockIdProto blocks = 1;
-}
-
-
-
-
-
-
-
-

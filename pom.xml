@@ -21,7 +21,8 @@
     <hadoop.version>2.7.3</hadoop.version>
     <hadoop.scope>compile</hadoop.scope>
     <spark2.version>2.4.5</spark2.version>
-    <grpc.version>1.30.0</grpc.version>
+    <grpc.version>1.33.0</grpc.version>
+    <protobuf.version>3.12.0</protobuf.version>
     <commons-codec.version>1.9</commons-codec.version>
     <httpclient.version>4.5.3</httpclient.version>
     <httpcore.version>4.4.4</httpcore.version>
@@ -29,11 +30,11 @@
     <javax.servlet-api.version>3.1.0</javax.servlet-api.version>
     <jetty.version>9.3.24.v20180605</jetty.version>
     <json4s.version>3.2.11</json4s.version>
-    <junit.version>4.11</junit.version>
+    <junit.version>4.12</junit.version>
     <libthrift.version>0.9.3</libthrift.version>
     <kryo.version>2.22</kryo.version>
     <metrics.version>3.1.0</metrics.version>
-    <mockito.version>1.9.5</mockito.version>
+    <mockito.version>1.10.19</mockito.version>
     <netty.spark-2.11.version>4.0.37.Final</netty.spark-2.11.version>
     <netty.version>${netty.spark-2.11.version}</netty.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -46,9 +47,14 @@
     <java.version>1.8</java.version>
     <test.redirectToFile>true</test.redirectToFile>
     <execution.root>${user.dir}</execution.root>
-
+    <copyright.header>""</copyright.header>
+    <skipDeploy>false</skipDeploy>
+    <protoc.version>3.12.0</protoc.version>
     <MaxPermGen>512m</MaxPermGen>
     <CodeCacheSize>512m</CodeCacheSize>
+    <error_prone_annotations.version>2.3.4</error_prone_annotations.version>
+    <tomcat.version>6.0.53</tomcat.version>
+    <slf4j.version>1.7.25</slf4j.version>
 
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -88,7 +94,7 @@
     <module>common</module>
 <!--    <module>coordinator</module>-->
     <module>proto</module>
-<!--    <module>server</module>-->
+    <module>server</module>
 <!--    <module>storage</module>-->
   </modules>
 
@@ -96,21 +102,33 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>${junit.version}</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-all</artifactId>
-      <version>${mockito.version}</version>
-      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.errorprone</groupId>
+      <artifactId>error_prone_annotations</artifactId>
     </dependency>
 
   </dependencies>
 
   <dependencyManagement>
     <dependencies>
+
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java-util</artifactId>
+        <version>${protobuf.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>io.grpc</groupId>
@@ -131,15 +149,52 @@
       </dependency>
 
       <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-testing</artifactId>
+        <version>${grpc.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
-        <version>1.7.25</version>
+        <version>${slf4j.version}</version>
       </dependency>
 
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
         <artifactId>metrics-core</artifactId>
         <version>${metrics.version}</version>
+      </dependency>
+
+      <dependency>
+        <artifactId>rss-proto</artifactId>
+        <groupId>com.tencent.rss</groupId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat</groupId>
+        <artifactId>annotations-api</artifactId>
+        <version>${tomcat.version}</version>
+        <scope>provided</scope> <!-- not needed at runtime -->
+      </dependency>
+      <dependency>
+        <groupId>com.google.errorprone</groupId>
+        <artifactId>error_prone_annotations</artifactId>
+        <version>${error_prone_annotations.version}</version> <!-- prefer to use 2.3.3 or later -->
+      </dependency>
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>${junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-all</artifactId>
+        <version>${mockito.version}</version>
+        <scope>test</scope>
       </dependency>
 
     </dependencies>
@@ -210,7 +265,7 @@
             </systemProperties>
             <redirectTestOutputToFile>${test.redirectToFile}</redirectTestOutputToFile>
             <useFile>${test.redirectToFile}</useFile>
-            <argLine>${argLine} -Xmx2g</argLine>
+            <argLine>-ea -Xmx2g -Xss4m</argLine>
             <failIfNoTests>false</failIfNoTests>
           </configuration>
         </plugin>
@@ -378,10 +433,8 @@
         <artifactId>maven-checkstyle-plugin</artifactId>
         <version>2.17</version>
         <configuration>
-          <verbose>false</verbose>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
-          <failOnWarning>false</failOnWarning>
           <sourceDirectory>${basedir}/src/main/java</sourceDirectory>
           <testSourceDirectory>${basedir}/src/test/java</testSourceDirectory>
           <configLocation>${project.build.directory}/checkstyle.xml</configLocation>
