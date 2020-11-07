@@ -1,23 +1,10 @@
-/*
- * Copyright 2015 The gRPC Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.tencent.rss.server;
 
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
+import com.tencent.rss.proto.RssProtos.SendShuffleDataRequest;
+import com.tencent.rss.proto.RssProtos.SendShuffleDataResponse;
+import com.tencent.rss.proto.RssProtos.ShuffleCommitRequest;
+import com.tencent.rss.proto.RssProtos.ShuffleCommitResponse;
+import com.tencent.rss.proto.ShuffleServerGrpc;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -25,8 +12,9 @@ import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.tencent.rss.proto.ShuffleServerGrpc;
-import com.tencent.rss.proto.RssProtos.*;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
 /**
  * Server that manages startup/shutdown of a {@code Greeter} server.
  */
@@ -34,6 +22,25 @@ public class ShuffleServer {
   private static final Logger logger = LoggerFactory.getLogger(ShuffleServer.class);
 
   private Server server;
+
+  /**
+   * Main launches the server from the command line.
+   */
+  public static void main(String[] args) throws IOException, InterruptedException {
+    if (!SessionManager.instace().init()) {
+      // log fatal
+      System.exit(1);
+    }
+
+    if (!BufferManager.instance().init()) {
+      // log fatal
+      System.exit(1);
+    }
+
+    final ShuffleServer server = new ShuffleServer();
+    server.start();
+    server.blockUntilShutdown();
+  }
 
   private void start() throws IOException {
     /* The port on which the server should run */
@@ -72,25 +79,6 @@ public class ShuffleServer {
     if (server != null) {
       server.awaitTermination();
     }
-  }
-
-  /**
-   * Main launches the server from the command line.
-   */
-  public static void main(String[] args) throws IOException, InterruptedException {
-    if (!SessionManager.instace().init()) {
-      // log fatal
-      System.exit(1);
-    }
-
-    if (!BufferManager.instance().init()) {
-      // log fatal
-      System.exit(1);
-    }
-
-    final ShuffleServer server = new ShuffleServer();
-    server.start();
-    server.blockUntilShutdown();
   }
 
   static class ShuffleServerImpl extends ShuffleServerGrpc.ShuffleServerImplBase {

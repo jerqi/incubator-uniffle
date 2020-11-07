@@ -6,10 +6,7 @@ public class BufferManager {
   private int bufferTTL;
   private int cnt;
 
-  private BufferManager() {}
-
-  private static class LazyHolder {
-    static final BufferManager INSTANCE = new BufferManager();
+  private BufferManager() {
   }
 
   public static BufferManager instance() {
@@ -19,6 +16,10 @@ public class BufferManager {
   public boolean init() {
     // load config and init capacity and buffSize
     return true;
+  }
+
+  private static class LazyHolder {
+    static final BufferManager INSTANCE = new BufferManager();
   }
 
 }

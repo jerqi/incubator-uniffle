@@ -12,7 +12,8 @@ public class Session {
   private ShuffleBuffer buffer;
   private ShuffleDataHandler handler;
 
-  public Session(String key) {}
+  public Session(String key) {
+  }
 
   public String getKey() {
     return key;
@@ -20,6 +21,7 @@ public class Session {
 
   /**
    * Create ShuffleBuffer and ShuffleDataHandler
+   *
    * @return
    */
   public boolean init() {

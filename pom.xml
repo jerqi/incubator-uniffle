@@ -95,7 +95,7 @@
 <!--    <module>coordinator</module>-->
     <module>proto</module>
     <module>server</module>
-<!--    <module>storage</module>-->
+    <module>storage</module>
   </modules>
 
   <dependencies>
@@ -431,17 +431,24 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>2.17</version>
+        <version>3.1.1</version>
         <configuration>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
-          <sourceDirectory>${basedir}/src/main/java</sourceDirectory>
-          <testSourceDirectory>${basedir}/src/test/java</testSourceDirectory>
-          <configLocation>${project.build.directory}/checkstyle.xml</configLocation>
+          <sourceDirectories>${basedir}/src/main/java</sourceDirectories>
+          <testSourceDirectories>${basedir}/src/test/java</testSourceDirectories>
+          <configLocation>checkstyle.xml</configLocation>
           <outputFile>${basedir}/target/checkstyle-output.xml</outputFile>
           <inputEncoding>${project.build.sourceEncoding}</inputEncoding>
           <outputEncoding>${project.reporting.outputEncoding}</outputEncoding>
         </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>8.37</version>
+          </dependency>
+        </dependencies>
         <executions>
           <execution>
             <goals>

@@ -6,7 +6,10 @@ import java.util.Iterator;
 import java.util.List;
 
 public interface ShuffleStorage {
-  List<ShuffleSegment> write(List<ShuffleBlock> shuffleBlocks);
-  Iterator<ShuffleSegment> next();
-  boolean close();
+
+    List<ShuffleSegment> write(List<ShuffleBlock> shuffleBlocks);
+
+    Iterator<ShuffleSegment> next();
+
+    boolean close();
 }
