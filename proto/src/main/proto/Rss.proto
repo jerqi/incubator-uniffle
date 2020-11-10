@@ -29,7 +29,7 @@ message ShuffleData {
 }
 
 message ShuffleBlock {
-  string blockId = 1;
+  uint64 blockId = 1;
   uint32 length = 2;
   uint64 crc = 3;
   bytes data = 4;

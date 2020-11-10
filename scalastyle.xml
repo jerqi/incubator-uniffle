@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scalastyle>
+  <!--
   <check level="error" class="org.scalastyle.file.HeaderMatchesChecker" enabled="true">
     <parameters>
       <parameter name="header"><![CDATA[{{COPYRIGHT_HEADER}}]]></parameter>
     </parameters>
   </check>
+  -->
 
   <check level="error" class="org.scalastyle.file.FileTabChecker" enabled="true"></check>
 
@@ -101,6 +103,7 @@
     scala.collection.JavaConverters._ and use .asScala / .asJava methods</customMessage>
   </check>
 
+  <!--
   <check level="error" class="org.scalastyle.scalariform.ImportOrderChecker" enabled="true">
     <parameters>
       <parameter name="groups">java,scala,3rdParty,livy</parameter>
@@ -110,6 +113,7 @@
       <parameter name="group.livy">org\.apache\.livy\..*</parameter>
     </parameters>
   </check>
+  -->
 
   <check level="error" class="org.scalastyle.scalariform.DisallowSpaceBeforeTokenChecker" enabled="true">
     <parameters>
