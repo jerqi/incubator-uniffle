@@ -7,10 +7,9 @@
     <version>0.1.0-SNAPSHOT</version>
   </parent>
 
-  <groupId>com.tencent.rss</groupId>
   <artifactId>rss-common</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
+  <name>Remote Shuffle Service Common</name>
 
   <dependencies>
 

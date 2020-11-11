@@ -1,9 +1,9 @@
 syntax = "proto3";
+import "google/protobuf/empty.proto";
 option java_package = "com.tencent.rss.proto";
 option java_outer_classname = "RssProtos";
 option java_generate_equals_and_hash = true;
 package rss.common;
-
 
 service ShuffleServer {
   // Sends a greeting
@@ -53,10 +53,24 @@ message ServerRegisterResponse {
   string retMsg = 2;
 }
 
-message ShuffleServerHeartBeat {
+message ServerRemoveRequest {
+  ShuffleServerId serverId = 1;
+}
+
+message ServerRemoveResponse {
+  StatusCode status = 1;
+  string retMsg = 2;
+}
+
+message ShuffleServerHeartBeatRequest {
   ShuffleServerId serverId = 1;
   bool available = 2;
   uint32 usedBuffer = 3;
+}
+
+message ShuffleServerHeartBeatResponse {
+  StatusCode status = 1;
+  string retMsg = 2;
 }
 
 message ShuffleServerId {
@@ -71,3 +85,79 @@ enum StatusCode {
   INTERNAL_ERROR = 1;
   // add more status
 }
+
+
+
+service CoordinatorServer {
+  // Register/Unregister Shuffle Server
+  rpc registerShuffleServer(ServerRegisterRequest) returns (ServerRegisterResponse);
+  rpc removeShuffleServer(ServerRemoveRequest) returns (ServerRemoveResponse);
+
+  // Get Shuffle Server list
+  rpc getShuffleServerList(google.protobuf.Empty) returns (GetShuffleServerListResponse);
+
+  // Count Shuffle Server number
+  rpc getShuffleServerNum(google.protobuf.Empty) returns (GetShuffleServerNumResponse);
+
+  // Ask for a suitable Shuffle Server
+  rpc getShuffleServer(GetShuffleServerRequest) returns (GetShuffleServerResponse);
+
+  // Heartbeat between Shuffle Server and Coordinator Server
+  rpc heartbeat(ShuffleServerHeartBeatRequest) returns (ShuffleServerHeartBeatResponse);
+
+  // Get the global configuration of this Rss-cluster, i.e., data storage info
+  rpc getShuffleDataStorageInfo(google.protobuf.Empty) returns (GetShuffleDataStorageInfoResponse);
+  rpc checkServiceAvailable(google.protobuf.Empty) returns (CheckServiceAvailableResponse);
+
+  // Report a client operation's result to coordinator server
+  rpc reportClientOperation(ReportShuffleClientOpRequest) returns (ReportShuffleClientOpResponse);
+}
+
+message GetShuffleServerListResponse {
+  repeated ShuffleServerId servers = 1;
+}
+
+message GetShuffleServerNumResponse {
+  int32 num = 1;
+}
+
+message GetShuffleServerRequest {
+  string clientHost = 1;
+  string clientPort = 2;
+  string clientProperty = 3;
+  string applicationId = 4;
+  int32 stageId = 5;
+  int32 mapId = 6;
+}
+
+message ShuffleServerIdWithPartitionInfo {
+  ShuffleServerId server = 1;
+  repeated int32 partitions = 2;
+}
+
+message GetShuffleServerResponse {
+  repeated ShuffleServerIdWithPartitionInfo serverInfos = 1;
+}
+
+message ReportShuffleClientOpRequest {
+  string clientHost = 1;
+  int32 clientPort = 2;
+  ShuffleServerId server = 3;
+  string operation = 4;
+}
+
+message ReportShuffleClientOpResponse {
+  StatusCode status = 1;
+  string retMsg = 2;
+}
+
+message GetShuffleDataStorageInfoResponse {
+  string storage = 1;
+  string storagePath = 2;
+  string storagePattern = 3;
+}
+
+message CheckServiceAvailableResponse {
+  bool available = 1;
+}
+

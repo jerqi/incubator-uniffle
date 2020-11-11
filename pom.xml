@@ -101,7 +101,7 @@
     <modules>
         <module>api</module>
         <module>common</module>
-        <!--    <module>coordinator</module>-->
+        <module>coordinator</module>
         <module>proto</module>
         <module>server</module>
         <module>storage</module>
