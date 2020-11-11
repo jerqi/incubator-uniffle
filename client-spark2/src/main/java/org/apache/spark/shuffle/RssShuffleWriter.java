@@ -8,9 +8,10 @@ import org.apache.spark.scheduler.MapStatus;
 import scala.None$;
 import scala.Option;
 import scala.Product2;
+import scala.Some;
 import scala.collection.Iterator;
 
-public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> implements Logging {
+public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
     private int numMaps;
     private ShuffleDependency<K, V, C> shuffleDependency;
@@ -31,7 +32,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> implements Lo
 
     @Override
     public Option<MapStatus> stop(boolean success) {
-        return (Option<MapStatus>) None$.MODULE$;
+        return new Some<MapStatus>(null);
     }
 
     public int getNumMaps() {

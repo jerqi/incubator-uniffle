@@ -6,7 +6,7 @@ import org.apache.spark.internal.Logging;
 import scala.Product2;
 import scala.collection.Iterator;
 
-public class RssShuffleReader<K, V, C> implements ShuffleReader<K, C>, Logging {
+public class RssShuffleReader<K, V, C> implements ShuffleReader<K, C> {
 
     private int startPartition;
     private int endPartition;

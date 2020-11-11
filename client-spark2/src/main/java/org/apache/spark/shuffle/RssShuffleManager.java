@@ -6,7 +6,7 @@ import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.internal.Logging;
 
-public class RssShuffleManager implements ShuffleManager, Logging {
+public class RssShuffleManager implements ShuffleManager {
 
     // This method is called in Spark driver side,
     // and Spark driver will make some decision according to coordinator,
@@ -46,6 +46,11 @@ public class RssShuffleManager implements ShuffleManager, Logging {
         }
     }
 
+    public <K, C> ShuffleReader<K, C> getReader(ShuffleHandle handle, int startPartition,
+            int endPartition, TaskContext context, int startMapId, int endMapId) {
+        return null;
+    }
+
     @Override
     public boolean unregisterShuffle(int shuffleId) {
         return true;
@@ -58,10 +63,5 @@ public class RssShuffleManager implements ShuffleManager, Logging {
     @Override
     public ShuffleBlockResolver shuffleBlockResolver() {
         throw new RuntimeException("RssShuffleManager.shuffleBlockResolver is not implemented");
-    }
-
-    public <K, C> ShuffleReader<K, C> getReader(ShuffleHandle handle, int startPartition,
-            int endPartition, TaskContext context, int startMapId, int endMapId) {
-        return null;
     }
 }

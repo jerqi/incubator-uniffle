@@ -1,6 +1,6 @@
 package org.apache.spark.shuffle;
 
-import com.tecent.rss.client.ShuffleServerHandler;
+import com.tencent.rss.common.ShuffleServerHandler;
 import org.apache.spark.ShuffleDependency;
 
 public class RssShuffleHandle<K, V, C> extends ShuffleHandle {
