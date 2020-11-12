@@ -462,6 +462,14 @@
                 <artifactId>maven-checkstyle-plugin</artifactId>
                 <version>3.1.1</version>
                 <configuration>
+                    <sourceDirectories>
+                        <directory>${basedir}/src/main/java</directory>
+                        <directory>${basedir}/src/main/scala</directory>
+                    </sourceDirectories>
+                    <testSourceDirectories>
+                        <directory>${basedir}/src/test/java</directory>
+                        <directory>${basedir}/src/main/scala</directory>
+                    </testSourceDirectories>
                     <configLocation>checkstyle.xml</configLocation>
                     <encoding>UTF-8</encoding>
                     <consoleOutput>true</consoleOutput>
@@ -470,6 +478,13 @@
                     <failOnViolation>true</failOnViolation>
                     <violationSeverity>warning</violationSeverity>
                 </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>8.37</version>
+                    </dependency>
+                </dependencies>
                 <executions>
                     <execution>
                         <id>validate</id>
@@ -479,14 +494,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-deploy-plugin</artifactId>
-                <configuration>
-                    <skip>${skipDeploy}</skip>
-                </configuration>
             </plugin>
 
             <plugin>

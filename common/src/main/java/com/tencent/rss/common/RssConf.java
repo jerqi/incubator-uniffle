@@ -132,30 +132,6 @@ public abstract class RssConf<T extends RssConf> implements Iterable<Map.Entry<S
         }
     }
 
-    public long getTimeAsMs(ConfEntry e) {
-        String time = get(e, String.class);
-        if (time == null) {
-            check(e.dflt() != null,
-                    "ConfEntry %s doesn't have a default value, cannot convert to time value.", e.key());
-            time = (String) e.dflt();
-        }
-
-        Matcher m = Pattern.compile("(-?[0-9]+)([a-z]+)?").matcher(time.toLowerCase());
-        if (!m.matches()) {
-            throw new IllegalArgumentException("Invalid time string: " + time);
-        }
-
-        long val = Long.parseLong(m.group(1));
-        String suffix = m.group(2);
-
-        if (suffix != null && !TIME_SUFFIXES.containsKey(suffix)) {
-            throw new IllegalArgumentException("Invalid suffix: \"" + suffix + "\"");
-        }
-
-        return TimeUnit.MILLISECONDS.convert(val,
-                suffix != null ? TIME_SUFFIXES.get(suffix) : TimeUnit.MILLISECONDS);
-    }
-
     @Override
     public Iterator<Map.Entry<String, String>> iterator() {
         return config.entrySet().iterator();
