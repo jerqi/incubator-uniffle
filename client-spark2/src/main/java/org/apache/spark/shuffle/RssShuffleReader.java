@@ -3,6 +3,7 @@ package org.apache.spark.shuffle;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.TaskContext;
 import org.apache.spark.internal.Logging;
+import org.apache.spark.serializer.Serializer;
 import scala.Product2;
 import scala.collection.Iterator;
 
@@ -15,9 +16,10 @@ public class RssShuffleReader<K, V, C> implements ShuffleReader<K, C> {
     private ShuffleDependency<K, V, C> shuffleDependency;
     private int numMaps;
     private int timeoutMillis;
+    private Serializer serializer;
 
     public RssShuffleReader(int startPartition, int endPartition, TaskContext context, long[] blockIds,
-            ShuffleDependency<K, V, C> shuffleDependency, int numMaps, int timeoutMillis) {
+            ShuffleDependency<K, V, C> shuffleDependency, int numMaps, int timeoutMillis, Serializer serializer) {
         this.startPartition = startPartition;
         this.endPartition = endPartition;
         this.context = context;
@@ -25,6 +27,12 @@ public class RssShuffleReader<K, V, C> implements ShuffleReader<K, C> {
         this.shuffleDependency = shuffleDependency;
         this.numMaps = numMaps;
         this.timeoutMillis = timeoutMillis;
+        this.serializer = serializer;
+    }
+
+    @Override
+    public Iterator<Product2<K, C>> read() {
+        return null;
     }
 
     public int getStartPartition() {
@@ -83,8 +91,11 @@ public class RssShuffleReader<K, V, C> implements ShuffleReader<K, C> {
         this.timeoutMillis = timeoutMillis;
     }
 
-    @Override
-    public Iterator<Product2<K, C>> read() {
-        return null;
+    public Serializer getSerializer() {
+        return serializer;
+    }
+
+    public void setSerializer(Serializer serializer) {
+        this.serializer = serializer;
     }
 }

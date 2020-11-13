@@ -1,4 +1,4 @@
-package com.tecent.rss.client;
+package org.apache.spark.shuffle.writer;
 
 public class BufferManagerOptions {
 

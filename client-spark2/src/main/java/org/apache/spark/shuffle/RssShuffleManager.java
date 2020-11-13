@@ -1,12 +1,27 @@
 package org.apache.spark.shuffle;
 
-import com.tecent.rss.client.BufferManagerOptions;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
-import org.apache.spark.internal.Logging;
+import org.apache.spark.shuffle.writer.AddBlockEvent;
+import org.apache.spark.shuffle.writer.BufferManagerOptions;
+import org.apache.spark.util.EventLoop;
 
 public class RssShuffleManager implements ShuffleManager {
+
+    private EventLoop eventLoop = new EventLoop<AddBlockEvent>("ShuffleDataQueue") {
+        @Override
+        public void onReceive(AddBlockEvent event) {
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+        }
+
+        @Override
+        public void onStart() {
+        }
+    };
 
     // This method is called in Spark driver side,
     // and Spark driver will make some decision according to coordinator,
@@ -23,11 +38,12 @@ public class RssShuffleManager implements ShuffleManager {
     @Override
     public <K, V> ShuffleWriter<K, V> getWriter(ShuffleHandle handle, int mapId,
             TaskContext context) {
-        SparkEnv.get().executorId();
         if (handle instanceof RssShuffleHandle) {
-            return new RssShuffleWriter(((RssShuffleHandle) handle).getNumMaps(),
-                    ((RssShuffleHandle) handle).getDependency(), context.taskMetrics().shuffleWriteMetrics(),
-                    new BufferManagerOptions(0, 0, 0));
+            RssShuffleHandle rssHandle = (RssShuffleHandle) handle;
+            return new RssShuffleWriter(rssHandle.getShuffleId(), Integer.parseInt(SparkEnv.get().executorId()),
+                    context.taskAttemptId(), rssHandle.getDependency(), context.taskMetrics().shuffleWriteMetrics(),
+                    new BufferManagerOptions(0, 0, 0),
+                    rssHandle.getDependency().serializer());
         } else {
             return null;
         }
@@ -40,7 +56,8 @@ public class RssShuffleManager implements ShuffleManager {
             int startPartition, int endPartition, TaskContext context) {
         if (handle instanceof RssShuffleHandle) {
             return new RssShuffleReader(0, 0, context, null,
-                    ((RssShuffleHandle) handle).getDependency(), ((RssShuffleHandle) handle).getNumMaps(), 0);
+                    ((RssShuffleHandle) handle).getDependency(), ((RssShuffleHandle) handle).getNumMaps(), 0,
+                    ((RssShuffleHandle) handle).getDependency().serializer());
         } else {
             return null;
         }
@@ -63,5 +80,9 @@ public class RssShuffleManager implements ShuffleManager {
     @Override
     public ShuffleBlockResolver shuffleBlockResolver() {
         throw new RuntimeException("RssShuffleManager.shuffleBlockResolver is not implemented");
+    }
+
+    public EventLoop getEventLoop() {
+        return eventLoop;
     }
 }

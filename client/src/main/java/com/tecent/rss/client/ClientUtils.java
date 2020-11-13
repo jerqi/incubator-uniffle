@@ -18,14 +18,4 @@ public class ClientUtils {
     public static int getAtomicInteger() {
         return ATOMIC_INT.getAndIncrement();
     }
-
-    public static void main(String[] args) {
-        //    println(((Int.MaxValue.toLong) << 32) + (Int.MaxValue))
-        //    println((1L << 32) + (Int.MaxValue))
-        //    println((0L << 32) + (Int.MaxValue))
-        //    val autoInt1 = new AtomicInteger(Int.MaxValue)
-        //    println("1:" + autoInt1.getAndIncrement())
-        //    println("2:" + autoInt1.getAndIncrement())
-        //    println("3:" + autoInt1.getAndIncrement())
-    }
 }
