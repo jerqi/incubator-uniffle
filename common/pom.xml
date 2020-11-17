@@ -12,11 +12,9 @@
   <name>Remote Shuffle Service Common</name>
 
   <dependencies>
-
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
+      <artifactId>rss-proto</artifactId>
+      <groupId>com.tencent.rss</groupId>
     </dependency>
-
   </dependencies>
 </project>

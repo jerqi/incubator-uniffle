@@ -6,15 +6,24 @@ option java_generate_equals_and_hash = true;
 package rss.common;
 
 service ShuffleServer {
-  // Sends a greeting
-  rpc SendShuffleData (SendShuffleDataRequest) returns (SendShuffleDataResponse) {}
-
-  // Sends a greeting
+  rpc registerShuffle (ShuffleRegisterRequest) returns (ShuffleRegisterResponse) {}
+  rpc sendShuffleData (SendShuffleDataRequest) returns (SendShuffleDataResponse) {}
   rpc commitShuffleTask (ShuffleCommitRequest) returns (ShuffleCommitResponse) {}
 }
 
-message SendShuffleDataRequest {
+message ShuffleRegisterRequest {
   string key = 1; // in spark key = appId + "-" + shuffleId + "-" + stageId
+  int32 start = 2; // start partition
+  int32 end = 3; // end partition
+}
+
+message ShuffleRegisterResponse {
+  StatusCode status = 1;
+  string retMsg = 2;
+}
+
+message SendShuffleDataRequest {
+  string key = 1;
   repeated ShuffleData shuffleData = 2;
 }
 
@@ -24,14 +33,14 @@ message SendShuffleDataResponse {
 }
 
 message ShuffleData {
-  uint32 partitionId = 1;
+  int32 partitionId = 1;
   repeated ShuffleBlock block = 2;
 }
 
 message ShuffleBlock {
-  uint64 blockId = 1;
-  uint32 length = 2;
-  uint64 crc = 3;
+  int64 blockId = 1;
+  int32 length = 2;
+  int64 crc = 3;
   bytes data = 4;
 }
 
@@ -65,7 +74,7 @@ message ServerRemoveResponse {
 message ShuffleServerHeartBeatRequest {
   ShuffleServerId serverId = 1;
   bool available = 2;
-  uint32 usedBuffer = 3;
+  int32 usedBuffer = 3;
 }
 
 message ShuffleServerHeartBeatResponse {
@@ -74,9 +83,9 @@ message ShuffleServerHeartBeatResponse {
 }
 
 message ShuffleServerId {
-  uint64 uuid = 1;
+  string id = 1;
   string ip = 2;
-  uint32 port = 3;
+  int32 port = 3;
 }
 
 /** Status code to identify the status of response */
