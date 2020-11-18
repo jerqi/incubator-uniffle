@@ -1,7 +1,10 @@
 package com.tencent.rss.common;
 
+import com.google.protobuf.Empty;
 import com.tencent.rss.proto.CoordinatorServerGrpc;
 import com.tencent.rss.proto.CoordinatorServerGrpc.CoordinatorServerBlockingStub;
+import com.tencent.rss.proto.RssProtos;
+import com.tencent.rss.proto.RssProtos.CheckServiceAvailableResponse;
 import com.tencent.rss.proto.RssProtos.ServerRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ServerRegisterResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
@@ -11,7 +14,6 @@ import com.tencent.rss.proto.RssProtos.StatusCode;
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,9 +27,19 @@ public class CoordinatorGrpcClient {
     private boolean usePlaintext;
     private int maxRetryAttempts;
 
-    public CoordinatorGrpcClient() {
-        usePlaintext = true;
-        maxRetryAttempts = 3;
+    public CoordinatorGrpcClient(String host, int port) {
+        this(host, port, 3);
+    }
+
+    public CoordinatorGrpcClient(String host, int port, int maxRetryAttempts) {
+        this(host, port, maxRetryAttempts, true);
+    }
+
+    public CoordinatorGrpcClient(String host, int port, int maxRetryAttempts, boolean usePlaintext) {
+        this.host = host;
+        this.port = port;
+        this.maxRetryAttempts = maxRetryAttempts;
+        this.usePlaintext = usePlaintext;
         init();
     }
 
@@ -35,13 +47,9 @@ public class CoordinatorGrpcClient {
         blockingStub = CoordinatorServerGrpc.newBlockingStub(channel);
     }
 
-    public boolean init() {
-        // load config
-        Map<String, ?> serviceConfig = null;
-
+    public void init() {
         // build channel
         ManagedChannelBuilder<?> channelBuilder = ManagedChannelBuilder.forAddress(host, port);
-        channelBuilder.defaultServiceConfig(serviceConfig);
 
         if (usePlaintext) {
             channelBuilder.usePlaintext();
@@ -53,8 +61,6 @@ public class CoordinatorGrpcClient {
 
         channel = channelBuilder.build();
         blockingStub = CoordinatorServerGrpc.newBlockingStub(channel);
-
-        return true;
     }
 
     public ServerRegisterResponse register(String id, String ip, int port) {
@@ -69,7 +75,6 @@ public class CoordinatorGrpcClient {
 
         return response;
     }
-
 
     public ShuffleServerHeartBeatResponse sendHeartBeat(String id, String ip, int port) {
         ShuffleServerId serverId =
@@ -86,4 +91,21 @@ public class CoordinatorGrpcClient {
         return response;
     }
 
+    public boolean isRssAvailable() {
+        CheckServiceAvailableResponse response = blockingStub.checkServiceAvailable(Empty.getDefaultInstance());
+        return response.getAvailable();
+    }
+
+    public RssProtos.GetShuffleAssignmentsResponse getShuffleAssignments(
+            String appId, int shuffleId, int numMaps, int partitionsPerServer) {
+
+        RssProtos.GetShuffleServerRequest getServerRequest = RssProtos.GetShuffleServerRequest.newBuilder()
+                .setApplicationId(appId)
+                .setShuffleId(shuffleId)
+                .setPartitionNum(numMaps)
+                .setPartitionPerServer(partitionsPerServer)
+                .build();
+
+        return blockingStub.getShuffleAssignments(getServerRequest);
+    }
 }

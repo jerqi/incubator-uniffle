@@ -8,47 +8,31 @@ public class RssShuffleHandle<K, V, C> extends ShuffleHandle {
     private String appId;
     private int numMaps;
     private ShuffleDependency<K, V, C> dependency;
-    private ShuffleServerHandler[] rssServers;
+    private ShuffleServerHandler shuffleServerHandler;
 
     public RssShuffleHandle(int shuffleId, String appId, int numMaps,
-            ShuffleDependency<K, V, C> dependency, ShuffleServerHandler[] rssServers) {
+            ShuffleDependency<K, V, C> dependency, ShuffleServerHandler shuffleServerHandler) {
         super(shuffleId);
         this.appId = appId;
         this.numMaps = numMaps;
         this.dependency = dependency;
-        this.rssServers = rssServers;
+        this.shuffleServerHandler = shuffleServerHandler;
     }
 
     public String getAppId() {
         return appId;
     }
 
-    public void setAppId(String appId) {
-        this.appId = appId;
-    }
-
     public int getNumMaps() {
         return numMaps;
-    }
-
-    public void setNumMaps(int numMaps) {
-        this.numMaps = numMaps;
     }
 
     public ShuffleDependency<K, V, C> getDependency() {
         return dependency;
     }
 
-    public void setDependency(ShuffleDependency<K, V, C> dependency) {
-        this.dependency = dependency;
-    }
-
-    public ShuffleServerHandler[] getRssServers() {
-        return rssServers;
-    }
-
-    public void setRssServers(ShuffleServerHandler[] rssServers) {
-        this.rssServers = rssServers;
+    public ShuffleServerHandler getShuffleServerHandler() {
+        return shuffleServerHandler;
     }
 
     public int getShuffleId() {

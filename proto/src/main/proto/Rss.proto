@@ -108,8 +108,8 @@ service CoordinatorServer {
   // Count Shuffle Server number
   rpc getShuffleServerNum(google.protobuf.Empty) returns (GetShuffleServerNumResponse);
 
-  // Ask for a suitable Shuffle Server
-  rpc getShuffleServer(GetShuffleServerRequest) returns (GetShuffleServerResponse);
+  // Ask for suitable Shuffle Servers with partitions
+  rpc getShuffleAssignments(GetShuffleServerRequest) returns (GetShuffleAssignmentsResponse);
 
   // Heartbeat between Shuffle Server and Coordinator Server
   rpc heartbeat(ShuffleServerHeartBeatRequest) returns (ShuffleServerHeartBeatResponse);
@@ -135,16 +135,17 @@ message GetShuffleServerRequest {
   string clientPort = 2;
   string clientProperty = 3;
   string applicationId = 4;
-  int32 stageId = 5;
-  int32 mapId = 6;
+  int32 shuffleId = 5;
+  int32 partitionNum = 6;
+  int32 partitionPerServer = 7;
 }
 
 message ShuffleServerIdWithPartitionInfo {
-  ShuffleServerId server = 1;
+  repeated ShuffleServerId server = 1;
   repeated int32 partitions = 2;
 }
 
-message GetShuffleServerResponse {
+message GetShuffleAssignmentsResponse {
   repeated ShuffleServerIdWithPartitionInfo serverInfos = 1;
 }
 
