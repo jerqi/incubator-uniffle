@@ -149,7 +149,6 @@ public class RssConf {
      * @param defaultValue
      *        the default value which is returned in case there is no value associated with the given key
      * @return the (default) value associated with the given key
-     * @deprecated use {@link #getLong(ConfigOption, long)} or {@link #getOptional(ConfigOption)}
      */
     public long getLong(String key, long defaultValue) {
         return getRawValue(key)
@@ -209,7 +208,6 @@ public class RssConf {
      * @param key the key pointing to the associated value
      * @param defaultValue the default value which is returned when there is no value associated with the given key
      * @return the (default) value associated with the given key
-     * @deprecated use {@link #getBoolean(ConfigOption, boolean)} or {@link #getOptional(ConfigOption)}
      */
     public boolean getBoolean(String key, boolean defaultValue) {
         return getRawValue(key)

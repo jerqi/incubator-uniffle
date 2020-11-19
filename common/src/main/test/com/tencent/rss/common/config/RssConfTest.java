@@ -1,8 +1,9 @@
 package com.tencent.rss.common.config;
 
-import org.junit.Test;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 public class RssConfTest {
     @Test
@@ -25,6 +26,17 @@ public class RssConfTest {
 
         assertEquals(11, cfg.getInteger(presentIntOption));
         assertEquals("11", cfg.getValue(presentIntOption));
+    }
+
+    @Test
+    public void testSetStringAndGetConcreteType() {
+        RssConf conf = new RssConf();
+        conf.setString("boolean-type", "true");
+        conf.setString("int-type", "1111");
+        conf.setString("long-type", "1000");
+        assertTrue(conf.getBoolean("boolean-type", false));
+        assertEquals(conf.getInteger("int-type", 100), 1111);
+        assertEquals(conf.getLong("long-type", 222L), 1000L);
     }
 
     @Test
