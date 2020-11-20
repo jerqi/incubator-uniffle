@@ -1,9 +1,12 @@
 package org.apache.spark.shuffle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -38,6 +41,7 @@ public class RssShuffleManagerTest {
         CoordinatorGrpcClient clientMock = mock(CoordinatorGrpcClient.class);
         RssShuffleManager managerSpy = spy(MANAGER);
         doReturn(clientMock).when(managerSpy).getCoordinatorClient();
+        doNothing().when(managerSpy).registerShuffleServers(anyString(), anyInt(), any());
         when(clientMock.getShuffleAssignments(anyString(), anyInt(), anyInt(), anyInt())).thenReturn(
                 getMockAssignmentsResponse());
         ShuffleHandle handle = managerSpy.registerShuffle(1, 100, null);
@@ -57,7 +61,7 @@ public class RssShuffleManagerTest {
         assertEquals(Arrays.asList(new ShuffleServerInfo("id3", "0.0.0.3", 100),
                 new ShuffleServerInfo("id4", "0.0.0.4", 100)),
                 ssh.getShuffleServers(3));
-        assertEquals(null, ssh.getShuffleServers(4));
+        assertNull(ssh.getShuffleServers(4));
     }
 
     private RssProtos.GetShuffleAssignmentsResponse getMockAssignmentsResponse() {

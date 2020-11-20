@@ -2,9 +2,13 @@ package org.apache.spark.shuffle;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.tecent.rss.client.ClientUtils;
+import com.tecent.rss.client.ShuffleClientManager;
 import com.tencent.rss.common.CoordinatorGrpcClient;
+import com.tencent.rss.common.ShuffleRegisterInfo;
+import com.tencent.rss.common.ShuffleServerGrpcClient;
 import com.tencent.rss.common.ShuffleServerHandler;
 import com.tencent.rss.proto.RssProtos;
+import java.util.List;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
@@ -56,9 +60,30 @@ public class RssShuffleManager implements ShuffleManager {
         RssProtos.GetShuffleAssignmentsResponse response = coordinatorClient
                 .getShuffleAssignments(appId, shuffleId, numMaps, partitionsPerServer);
 
+        // get all register info according to coordinator's response
+        List<ShuffleRegisterInfo> shuffleRegisterInfos = ClientUtils.getShuffleRegisterInfos(response);
+        // get ShuffleServer client and do register
+        registerShuffleServers(appId, shuffleId, shuffleRegisterInfos);
+
+        // get ShuffleServerHandler which will be used in writer and reader
         ShuffleServerHandler shuffleServerHandler = ClientUtils.toShuffleServerHandler(response);
 
+        coordinatorClient.close();
+
         return new RssShuffleHandle(shuffleId, appId, numMaps, dependency, shuffleServerHandler);
+    }
+
+    @VisibleForTesting
+    protected void registerShuffleServers(String appId, int shuffleId,
+            List<ShuffleRegisterInfo> shuffleRegisterInfos) {
+        if (shuffleRegisterInfos == null || shuffleRegisterInfos.isEmpty()) {
+            return;
+        }
+        shuffleRegisterInfos.parallelStream().forEach(registerInfo -> {
+            ShuffleServerGrpcClient client =
+                    ShuffleClientManager.getInstance().getClient(registerInfo.getShuffleServerInfo());
+            client.registerShuffle(appId, shuffleId, registerInfo.getStart(), registerInfo.getEnd());
+        });
     }
 
     @VisibleForTesting
@@ -80,7 +105,7 @@ public class RssShuffleManager implements ShuffleManager {
                     new BufferManagerOptions(sparkConf),
                     rssHandle.getDependency().serializer());
         } else {
-            return null;
+            throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());
         }
     }
 
@@ -94,7 +119,7 @@ public class RssShuffleManager implements ShuffleManager {
                     ((RssShuffleHandle) handle).getDependency(), ((RssShuffleHandle) handle).getNumMaps(), 0,
                     ((RssShuffleHandle) handle).getDependency().serializer());
         } else {
-            return null;
+            throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());
         }
     }
 
@@ -115,6 +140,11 @@ public class RssShuffleManager implements ShuffleManager {
     @Override
     public ShuffleBlockResolver shuffleBlockResolver() {
         throw new RuntimeException("RssShuffleManager.shuffleBlockResolver is not implemented");
+    }
+
+    // this should be called in ExecutorPlugin.shutdown() to close all rpc clients
+    public void closeClients() {
+        ShuffleClientManager.getInstance().closeClients();
     }
 
     public EventLoop getEventLoop() {

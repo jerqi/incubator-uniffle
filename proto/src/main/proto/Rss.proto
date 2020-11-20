@@ -12,9 +12,10 @@ service ShuffleServer {
 }
 
 message ShuffleRegisterRequest {
-  string key = 1; // in spark key = appId + "-" + shuffleId + "-" + stageId
-  int32 start = 2; // start partition
-  int32 end = 3; // end partition
+  string appId = 1;
+  int32 shuffleId = 2;
+  int32 start = 3; // start partition
+  int32 end = 4; // end partition
 }
 
 message ShuffleRegisterResponse {
@@ -23,8 +24,9 @@ message ShuffleRegisterResponse {
 }
 
 message SendShuffleDataRequest {
-  string key = 1;
-  repeated ShuffleData shuffleData = 2;
+  string appId = 1;
+  int32 shuffleId = 2;
+  repeated ShuffleData shuffleData = 3;
 }
 
 message SendShuffleDataResponse {
@@ -45,7 +47,8 @@ message ShuffleBlock {
 }
 
 message ShuffleCommitRequest {
-  string key = 1;
+  string appId = 1;
+  int32 shuffleId = 2;
 }
 
 message ShuffleCommitResponse {

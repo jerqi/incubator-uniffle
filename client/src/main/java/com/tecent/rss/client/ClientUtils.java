@@ -1,11 +1,14 @@
 package com.tecent.rss.client;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerHandler;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.RssProtos;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
 import com.tencent.rss.proto.RssProtos.ShuffleServerIdWithPartitionInfo;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,7 +35,7 @@ public class ClientUtils {
     // {partition1 -> [server1, server2], partition2 - > [server1, server2]}
     public static ShuffleServerHandler toShuffleServerHandler(
             RssProtos.GetShuffleAssignmentsResponse response) {
-        Map<Integer, List<ShuffleServerInfo>> partitionToServers = new HashMap<>();
+        Map<Integer, List<ShuffleServerInfo>> partitionToServers = Maps.newHashMap();
         List<ShuffleServerIdWithPartitionInfo> assigns = response.getServerInfosList();
         for (ShuffleServerIdWithPartitionInfo assign : assigns) {
             List<ShuffleServerId> shuffleServerIds = assign.getServerList();
@@ -50,5 +53,28 @@ public class ClientUtils {
             throw new RuntimeException("Empty assignment to Shuffle Server");
         }
         return new ShuffleServerHandler(partitionToServers);
+    }
+
+    // get all ShuffleRegisterInfo with [shuffleServer, startPartitionId, endPartitionId]
+    public static List<ShuffleRegisterInfo> getShuffleRegisterInfos(
+            RssProtos.GetShuffleAssignmentsResponse response) {
+        // make the list thread safe, or get incorrect result in parallelStream
+        List<ShuffleRegisterInfo> shuffleRegisterInfos = Collections.synchronizedList(Lists.newArrayList());
+        List<ShuffleServerIdWithPartitionInfo> assigns = response.getServerInfosList();
+        for (ShuffleServerIdWithPartitionInfo assign : assigns) {
+            List<ShuffleServerId> shuffleServerIds = assign.getServerList();
+            List<Integer> partitions = assign.getPartitionsList();
+            if (shuffleServerIds != null && partitions != null) {
+                shuffleServerIds.parallelStream().forEach(ssi -> {
+                            ShuffleServerInfo shuffleServerInfo =
+                                    new ShuffleServerInfo(ssi.getId(), ssi.getIp(), ssi.getPort());
+                            ShuffleRegisterInfo shuffleRegisterInfo = new ShuffleRegisterInfo(shuffleServerInfo,
+                                    Collections.min(partitions), Collections.max(partitions));
+                            shuffleRegisterInfos.add(shuffleRegisterInfo);
+                        }
+                );
+            }
+        }
+        return shuffleRegisterInfos;
     }
 }

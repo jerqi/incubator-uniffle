@@ -11,21 +11,14 @@ import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
 import com.tencent.rss.proto.RssProtos.StatusCode;
-import io.grpc.Channel;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CoordinatorGrpcClient {
+public class CoordinatorGrpcClient extends GrpcClient {
 
     private static final Logger logger = LoggerFactory.getLogger(CoordinatorGrpcClient.class);
-    private ManagedChannel channel;
     private CoordinatorServerBlockingStub blockingStub;
-    private String host;
-    private int port;
-    private boolean usePlaintext;
-    private int maxRetryAttempts;
 
     public CoordinatorGrpcClient(String host, int port) {
         this(host, port, 3);
@@ -36,31 +29,12 @@ public class CoordinatorGrpcClient {
     }
 
     public CoordinatorGrpcClient(String host, int port, int maxRetryAttempts, boolean usePlaintext) {
-        this.host = host;
-        this.port = port;
-        this.maxRetryAttempts = maxRetryAttempts;
-        this.usePlaintext = usePlaintext;
-        init();
-    }
-
-    public CoordinatorGrpcClient(Channel channel) {
+        super(host, port, maxRetryAttempts, usePlaintext);
         blockingStub = CoordinatorServerGrpc.newBlockingStub(channel);
     }
 
-    public void init() {
-        // build channel
-        ManagedChannelBuilder<?> channelBuilder = ManagedChannelBuilder.forAddress(host, port);
-
-        if (usePlaintext) {
-            channelBuilder.usePlaintext();
-        }
-
-        if (maxRetryAttempts > 0) {
-            channelBuilder.enableRetry().maxRetryAttempts(maxRetryAttempts);
-        }
-
-        channel = channelBuilder.build();
-        blockingStub = CoordinatorServerGrpc.newBlockingStub(channel);
+    public CoordinatorGrpcClient(ManagedChannel channel) {
+        super(channel);
     }
 
     public ServerRegisterResponse register(String id, String ip, int port) {

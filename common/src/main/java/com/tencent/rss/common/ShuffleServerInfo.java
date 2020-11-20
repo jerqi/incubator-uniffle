@@ -6,13 +6,13 @@ public class ShuffleServerInfo implements Serializable {
 
     private String id;
 
-    private String address;
+    private String host;
 
     private int port;
 
-    public ShuffleServerInfo(String id, String address, int port) {
+    public ShuffleServerInfo(String id, String host, int port) {
         this.id = id;
-        this.address = address;
+        this.host = host;
         this.port = port;
     }
 
@@ -20,8 +20,8 @@ public class ShuffleServerInfo implements Serializable {
         return id;
     }
 
-    public String getAddress() {
-        return address;
+    public String getHost() {
+        return host;
     }
 
     public int getPort() {
@@ -30,14 +30,14 @@ public class ShuffleServerInfo implements Serializable {
 
     @Override
     public int hashCode() {
-        return address.hashCode();
+        return host.hashCode();
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof ShuffleServerInfo) {
             return id.equals(((ShuffleServerInfo) obj).getId())
-                    && address.equals(((ShuffleServerInfo) obj).getAddress())
+                    && host.equals(((ShuffleServerInfo) obj).getHost())
                     && port == ((ShuffleServerInfo) obj).getPort();
         }
         return false;
