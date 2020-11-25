@@ -1,13 +1,8 @@
 package com.tencent.rss.server;
 
-import com.tencent.rss.proto.RssProtos.SendShuffleDataRequest;
-import com.tencent.rss.proto.RssProtos.SendShuffleDataResponse;
-import com.tencent.rss.proto.RssProtos.ShuffleCommitRequest;
-import com.tencent.rss.proto.RssProtos.ShuffleCommitResponse;
-import com.tencent.rss.proto.ShuffleServerGrpc;
+import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
-import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -20,52 +15,57 @@ public class ShuffleServer {
 
     private static final Logger logger = LoggerFactory.getLogger(ShuffleServer.class);
 
+    private int port;
     private Server server;
+
+    public ShuffleServer(int port) {
+        this(ServerBuilder.forPort(port), port);
+    }
+
+    public ShuffleServer(ServerBuilder<?> serverBuilder, int port) {
+        this.port = port;
+        server = serverBuilder.addService(new RemoteShuffleService()).build();
+    }
 
     /**
      * Main launches the server from the command line.
      */
     public static void main(String[] args) throws IOException, InterruptedException {
-        if (!SessionManager.instace().init()) {
+        if (!ShuffleTaskManager.instance().init()) {
             // log fatal
             System.exit(1);
         }
 
-        if (!BufferManager.instance().init()) {
+        if (!BufferManager.instance().init(0, 0, 0)) {
             // log fatal
             System.exit(1);
         }
 
-        final ShuffleServer server = new ShuffleServer();
+        final ShuffleServer server = new ShuffleServer(8090);
         server.start();
         server.blockUntilShutdown();
     }
 
-    private void start() throws IOException {
-        /* The port on which the server should run */
-        int port = 50051;
-
-        server = ServerBuilder.forPort(port)
-                .addService(new ShuffleServerImpl())
-                .build()
-                .start();
+    public void start() throws IOException {
+        server.start();
         logger.info("Server started, listening on " + port);
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
                 // Use stderr here since the logger may have been reset by its JVM shutdown hook.
-                logger.info("*** shutting down gRPC server since JVM is shutting down");
+                System.err.println("*** shutting down gRPC server since JVM is shutting down");
                 try {
                     ShuffleServer.this.stop();
                 } catch (InterruptedException e) {
                     e.printStackTrace(System.err);
                 }
-                logger.info("*** server shut down");
+                System.err.println("*** server shut down");
             }
         });
     }
 
-    private void stop() throws InterruptedException {
+    @VisibleForTesting
+    void stop() throws InterruptedException {
         if (server != null) {
             server.shutdown().awaitTermination(30, TimeUnit.SECONDS);
         }
@@ -77,25 +77,6 @@ public class ShuffleServer {
     private void blockUntilShutdown() throws InterruptedException {
         if (server != null) {
             server.awaitTermination();
-        }
-    }
-
-    static class ShuffleServerImpl extends ShuffleServerGrpc.ShuffleServerImplBase {
-
-        @Override
-        public void sendShuffleData(SendShuffleDataRequest req,
-                StreamObserver<SendShuffleDataResponse> responseObserver) {
-            SendShuffleDataResponse reply = null;
-            responseObserver.onNext(reply);
-            responseObserver.onCompleted();
-        }
-
-        @Override
-        public void commitShuffleTask(ShuffleCommitRequest request,
-                StreamObserver<ShuffleCommitResponse> responseObserver) {
-            ShuffleCommitResponse reply = null;
-            responseObserver.onNext(reply);
-            responseObserver.onCompleted();
         }
     }
 }

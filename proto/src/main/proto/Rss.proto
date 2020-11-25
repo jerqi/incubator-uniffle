@@ -91,10 +91,19 @@ message ShuffleServerId {
   int32 port = 3;
 }
 
+message ShuffleServerResult {
+  StatusCode status = 1;
+  string retMsg = 2;
+}
+
 /** Status code to identify the status of response */
 enum StatusCode {
   SUCCESS = 0;
-  INTERNAL_ERROR = 1;
+  NO_BUFFER = 1;
+  INVALID_STORAGE = 2;
+  NO_REGISTER = 3;
+  NO_PARTITION = 4;
+  INTERNAL_ERROR = 5;
   // add more status
 }
 
