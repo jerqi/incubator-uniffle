@@ -1,24 +1,24 @@
 package org.apache.spark.shuffle.writer;
 
-import com.tencent.rss.proto.RssProtos.ShuffleBlock;
-import java.util.Map;
+import com.tencent.rss.common.ShuffleBlockInfo;
+import java.util.List;
 
 public class AddBlockEvent {
 
-    private long taskAttemptId;
-    private Map<Integer, ShuffleBlock> shuffleDataInfo;
+    private String taskIdentify;
+    private List<ShuffleBlockInfo> shuffleDataInfo;
 
-    public AddBlockEvent(long taskAttemptId,
-            Map<Integer, ShuffleBlock> shuffleDataInfo) {
-        this.taskAttemptId = taskAttemptId;
+    public AddBlockEvent(String taskIdentify, List<ShuffleBlockInfo> shuffleDataInfo) {
+        this.taskIdentify = taskIdentify;
         this.shuffleDataInfo = shuffleDataInfo;
     }
 
-    public long getTaskAttemptId() {
-        return taskAttemptId;
+    public String getTaskIdentify() {
+        return taskIdentify;
     }
 
-    public Map<Integer, ShuffleBlock> getShuffleDataInfo() {
+    public List<ShuffleBlockInfo> getShuffleDataInfo() {
         return shuffleDataInfo;
     }
+
 }

@@ -1,11 +1,13 @@
 package org.apache.spark.shuffle.writer;
 
+import com.clearspring.analytics.util.Lists;
 import com.esotericsoftware.kryo.io.Output;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.ByteString;
+import com.google.common.collect.Maps;
 import com.tecent.rss.client.ClientUtils;
-import com.tencent.rss.proto.RssProtos;
-import java.util.HashMap;
+import com.tencent.rss.common.ShuffleBlockInfo;
+import com.tencent.rss.common.ShuffleServerInfo;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.spark.serializer.SerializationStream;
@@ -20,24 +22,28 @@ public class WriteBufferManager {
     private int spillSize;
     private long totalBytes;
     private int executorId;
+    private int shuffleId;
     private SerializerInstance instance;
     // cache partition -> records
     private Map<Integer, WriterBuffer> buffers;
+    private Map<Integer, List<ShuffleServerInfo>> partitionToServers;
 
-    public WriteBufferManager(int bufferSize, int maxBufferSize, int spillSize,
-            int executorId, Serializer serializer) {
+    public WriteBufferManager(int shuffleId, int bufferSize, int maxBufferSize, int spillSize,
+            int executorId, Serializer serializer, Map<Integer, List<ShuffleServerInfo>> partitionToServers) {
         this.bufferSize = bufferSize;
         this.maxBufferSize = maxBufferSize;
         this.spillSize = spillSize;
         this.executorId = executorId;
         this.instance = serializer.newInstance();
-        this.buffers = new HashMap<>();
+        this.buffers = Maps.newHashMap();
         this.totalBytes = 0L;
+        this.shuffleId = shuffleId;
+        this.partitionToServers = partitionToServers;
     }
 
     // add record to cache, return [partition, ShuffleBlock] if meet spill condition
-    public Map<Integer, RssProtos.ShuffleBlock> addRecord(int partitionId, Object key, Object value) {
-        Map<Integer, RssProtos.ShuffleBlock> result = new HashMap<>();
+    public List<ShuffleBlockInfo> addRecord(int partitionId, Object key, Object value) {
+        List<ShuffleBlockInfo> result = Lists.newArrayList();
         if (buffers.containsKey(partitionId)) {
             SerializationStream serializeStream = buffers.get(partitionId).getSerializeStream();
             Output output = buffers.get(partitionId).getOutput();
@@ -47,7 +53,7 @@ public class WriteBufferManager {
             serializeStream.flush();
             int newSize = output.position();
             if (newSize >= bufferSize) {
-                result.put(partitionId, createShuffleBlock(output.toBytes()));
+                result.add(createShuffleBlock(partitionId, output.toBytes()));
                 serializeStream.close();
                 buffers.remove(partitionId);
                 totalBytes -= oldSize;
@@ -62,7 +68,7 @@ public class WriteBufferManager {
             serializeStream.flush();
             int newSize = output.position();
             if (newSize >= bufferSize) {
-                result.put(partitionId, createShuffleBlock(output.toBytes()));
+                result.add(createShuffleBlock(partitionId, output.toBytes()));
                 serializeStream.close();
             } else {
                 buffers.put(partitionId, new WriterBuffer(serializeStream, output));
@@ -73,7 +79,7 @@ public class WriteBufferManager {
         // check buffer size > spill threshold
         if (totalBytes >= spillSize) {
             for (Entry<Integer, WriterBuffer> entry : buffers.entrySet()) {
-                result.put(entry.getKey(), createShuffleBlock(entry.getValue().getOutput().toBytes()));
+                result.add(createShuffleBlock(entry.getKey(), entry.getValue().getOutput().toBytes()));
                 entry.getValue().getSerializeStream().close();
             }
             buffers.clear();
@@ -83,11 +89,11 @@ public class WriteBufferManager {
         return result;
     }
 
-    // transform all [partition, records] to [partition, ShuffleBlock] and clear cache
-    public Map<Integer, RssProtos.ShuffleBlock> clear() {
-        Map<Integer, RssProtos.ShuffleBlock> result = new HashMap<>();
+    // transform all [partition, records] to [partition, ShuffleBlockInfo] and clear cache
+    public List<ShuffleBlockInfo> clear() {
+        List<ShuffleBlockInfo> result = Lists.newArrayList();
         for (Entry<Integer, WriterBuffer> entry : buffers.entrySet()) {
-            result.put(entry.getKey(), createShuffleBlock(entry.getValue().getOutput().toBytes()));
+            result.add(createShuffleBlock(entry.getKey(), entry.getValue().getOutput().toBytes()));
             entry.getValue().getSerializeStream().close();
         }
         buffers.clear();
@@ -96,11 +102,12 @@ public class WriteBufferManager {
     }
 
     // transform records to shuffleBlock
-    private RssProtos.ShuffleBlock createShuffleBlock(byte[] data) {
-        return RssProtos.ShuffleBlock.newBuilder().setData(ByteString.copyFrom(data))
-                .setBlockId(ClientUtils.getBlockId(executorId, ClientUtils.getAtomicInteger()))
-                .setCrc(0)
-                .setLength(data.length).build();
+    private ShuffleBlockInfo createShuffleBlock(int partitionId, byte[] data) {
+        // todo: add util for crc32 calculate
+        long crc32 = 0;
+        return new ShuffleBlockInfo(shuffleId, partitionId,
+                ClientUtils.getBlockId(executorId, ClientUtils.getAtomicInteger()),
+                data.length, crc32, data, partitionToServers.get(partitionId));
     }
 
     @VisibleForTesting

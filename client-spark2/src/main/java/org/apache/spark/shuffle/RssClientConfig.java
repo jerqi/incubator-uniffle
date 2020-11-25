@@ -13,4 +13,9 @@ public class RssClientConfig {
     public static String RSS_COORDINATOR_IP = "spark.rss.coordinator.ip";
     public static String RSS_COORDINATOR_PORT = "spark.rss.coordinator.port";
     public static int RSS_COORDINATOR_PORT_DEFAULT_VALUE = 17777;
+    public static String RSS_WRITER_SEND_CHECK_TIMEOUT = "spark.rss.writer.send.check.timeout";
+    public static long RSS_WRITER_SEND_CHECK_TIMEOUT_DEFAULT_VALUE = 10 * 60 * 1000; // 10 min
+    public static String RSS_WRITER_SEND_CHECK_INTERVAL = "spark.rss.writer.send.check.interval";
+    public static long RSS_WRITER_SEND_CHECK_INTERVAL_DEFAULT_VALUE = 1000;
+    public static String RSS_TEST_FLAG = "spark.rss.test";
 }

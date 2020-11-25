@@ -5,16 +5,16 @@ import com.tencent.rss.common.ShuffleServerGrpcClient;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.Map;
 
-public class ShuffleClientManager {
+public class ShuffleServerClientManager {
 
-    private static ShuffleClientManager INSTANCE = new ShuffleClientManager();
+    private static ShuffleServerClientManager INSTANCE = new ShuffleServerClientManager();
 
     private Map<ShuffleServerInfo, ShuffleServerGrpcClient> clientPool = Maps.newHashMap();
 
-    private ShuffleClientManager() {
+    private ShuffleServerClientManager() {
     }
 
-    public static ShuffleClientManager getInstance() {
+    public static ShuffleServerClientManager getInstance() {
         return INSTANCE;
     }
 

@@ -1,17 +1,23 @@
 package org.apache.spark.shuffle;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.tecent.rss.client.ClientUtils;
-import com.tecent.rss.client.ShuffleClientManager;
+import com.tecent.rss.client.ShuffleServerClientManager;
 import com.tencent.rss.common.CoordinatorGrpcClient;
+import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerGrpcClient;
-import com.tencent.rss.common.ShuffleServerHandler;
+import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.RssProtos;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
+import org.apache.spark.SparkContext$;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.shuffle.writer.AddBlockEvent;
@@ -25,10 +31,46 @@ public class RssShuffleManager implements ShuffleManager {
     private static final Logger LOG = LoggerFactory.getLogger(RssShuffleManager.class);
     private SparkConf sparkConf;
     private String appId;
+    private Map<String, Set<Long>> taskToFailedBlockIds;
+    private Map<String, Set<Long>> taskToSuccessBlockIds;
 
     private EventLoop eventLoop = new EventLoop<AddBlockEvent>("ShuffleDataQueue") {
         @Override
         public void onReceive(AddBlockEvent event) {
+            List<ShuffleBlockInfo> shuffleBlockInfos = event.getShuffleDataInfo();
+            String taskIdentify = event.getTaskIdentify();
+            // send shuffle block to shuffle server
+            for (ShuffleBlockInfo sbi : shuffleBlockInfos) {
+                boolean sendSuccessful = false;
+                for (ShuffleServerInfo ssi : sbi.getShuffleServerInfos()) {
+                    try {
+                        ShuffleServerClientManager.getInstance()
+                                .getClient(ssi).sendShuffleData(appId, sbi);
+                        sendSuccessful = true;
+                    } catch (Exception e) {
+                        LOG.warn("Send shuffle data [shuffleId=" + sbi.getShuffleId() + ","
+                                + " blockId=" + sbi.getBlockId()
+                                + " partitionId=" + sbi.getPartitionId()
+                                + " length=" + sbi.getLength() + "] to shuffle server "
+                                + "[host=" + ssi.getHost()
+                                + "port=" + ssi.getPort() + "] for [task="
+                                + taskIdentify + "] failed.");
+                    }
+                }
+                // one data block will be send to multiple server, mark successful if any try success
+                if (sendSuccessful) {
+                    putBlockId(taskToSuccessBlockIds, taskIdentify, sbi.getBlockId());
+                } else {
+                    putBlockId(taskToFailedBlockIds, taskIdentify, sbi.getBlockId());
+                }
+            }
+        }
+
+        private void putBlockId(Map<String, Set<Long>> taskToBlockIds, String taskAttempId, long blockId) {
+            if (taskToBlockIds.get(taskAttempId) == null) {
+                taskToBlockIds.put(taskAttempId, Sets.newHashSet());
+            }
+            taskToBlockIds.get(taskAttempId).add(blockId);
         }
 
         @Override
@@ -42,7 +84,16 @@ public class RssShuffleManager implements ShuffleManager {
 
     public RssShuffleManager(SparkConf sparkConf) {
         this.sparkConf = sparkConf;
+        this.taskToFailedBlockIds = Maps.newHashMap();
+        this.taskToSuccessBlockIds = Maps.newHashMap();
         appId = SparkContext.getOrCreate().applicationId();
+        String executorId = SparkEnv.get().executorId();
+        if (!sparkConf.getBoolean(RssClientConfig.RSS_TEST_FLAG, false)
+                && !SparkContext$.MODULE$.DRIVER_IDENTIFIER().equals(executorId)
+                && !SparkContext$.MODULE$.LEGACY_DRIVER_IDENTIFIER().equals(executorId)) {
+            // for non-driver executor, start a thread for sending shuffle data to shuffle server
+            eventLoop.start();
+        }
     }
 
     // This method is called in Spark driver side,
@@ -66,11 +117,12 @@ public class RssShuffleManager implements ShuffleManager {
         registerShuffleServers(appId, shuffleId, shuffleRegisterInfos);
 
         // get ShuffleServerHandler which will be used in writer and reader
-        ShuffleServerHandler shuffleServerHandler = ClientUtils.toShuffleServerHandler(response);
+        Map<Integer, List<ShuffleServerInfo>> partitionToServers =
+                ClientUtils.getPartitionToServers(response);
 
         coordinatorClient.close();
 
-        return new RssShuffleHandle(shuffleId, appId, numMaps, dependency, shuffleServerHandler);
+        return new RssShuffleHandle(shuffleId, appId, numMaps, dependency, partitionToServers);
     }
 
     @VisibleForTesting
@@ -81,7 +133,7 @@ public class RssShuffleManager implements ShuffleManager {
         }
         shuffleRegisterInfos.parallelStream().forEach(registerInfo -> {
             ShuffleServerGrpcClient client =
-                    ShuffleClientManager.getInstance().getClient(registerInfo.getShuffleServerInfo());
+                    ShuffleServerClientManager.getInstance().getClient(registerInfo.getShuffleServerInfo());
             client.registerShuffle(appId, shuffleId, registerInfo.getStart(), registerInfo.getEnd());
         });
     }
@@ -100,10 +152,17 @@ public class RssShuffleManager implements ShuffleManager {
             TaskContext context) {
         if (handle instanceof RssShuffleHandle) {
             RssShuffleHandle rssHandle = (RssShuffleHandle) handle;
-            return new RssShuffleWriter(rssHandle.getShuffleId(), Integer.parseInt(SparkEnv.get().executorId()),
-                    context.taskAttemptId(), rssHandle.getDependency(), context.taskMetrics().shuffleWriteMetrics(),
+            String taskIdentify = "" + context.taskAttemptId() + "_" + context.attemptNumber();
+            long sendCheckTimeout = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT,
+                    RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT_DEFAULT_VALUE);
+            long sendCheckInterval = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL,
+                    RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL_DEFAULT_VALUE);
+
+            return new RssShuffleWriter(appId, rssHandle.getShuffleId(),
+                    Integer.parseInt(SparkEnv.get().executorId()),
+                    taskIdentify, context.taskMetrics().shuffleWriteMetrics(),
                     new BufferManagerOptions(sparkConf),
-                    rssHandle.getDependency().serializer());
+                    rssHandle, this, sendCheckTimeout, sendCheckInterval);
         } else {
             throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());
         }
@@ -144,10 +203,52 @@ public class RssShuffleManager implements ShuffleManager {
 
     // this should be called in ExecutorPlugin.shutdown() to close all rpc clients
     public void closeClients() {
-        ShuffleClientManager.getInstance().closeClients();
+        ShuffleServerClientManager.getInstance().closeClients();
     }
 
     public EventLoop getEventLoop() {
         return eventLoop;
+    }
+
+    protected void setEventLoop(EventLoop<AddBlockEvent> eventLoop) {
+        this.eventLoop = eventLoop;
+    }
+
+    public Set<Long> getFailedBlockIds(String taskIdentify) {
+        Set<Long> result = taskToFailedBlockIds.get(taskIdentify);
+        if (result == null) {
+            result = Sets.newHashSet();
+        }
+        return result;
+    }
+
+    public Set<Long> getSuccessBlockIds(String taskIdentify) {
+        Set<Long> result = taskToSuccessBlockIds.get(taskIdentify);
+        if (result == null) {
+            result = Sets.newHashSet();
+        }
+        return result;
+    }
+
+    @VisibleForTesting
+    protected void addFailedBlockIds(String taskIdentify, Set<Long> blockIds) {
+        if (taskToFailedBlockIds.get(taskIdentify) == null) {
+            taskToFailedBlockIds.put(taskIdentify, Sets.newHashSet());
+        }
+        taskToFailedBlockIds.get(taskIdentify).addAll(blockIds);
+    }
+
+    @VisibleForTesting
+    protected void addSuccessBlockIds(String taskIdentify, Set<Long> blockIds) {
+        if (taskToSuccessBlockIds.get(taskIdentify) == null) {
+            taskToSuccessBlockIds.put(taskIdentify, Sets.newHashSet());
+        }
+        taskToSuccessBlockIds.get(taskIdentify).addAll(blockIds);
+    }
+
+    @VisibleForTesting
+    protected void clearCachedBlockIds() {
+        taskToSuccessBlockIds.clear();
+        taskToFailedBlockIds.clear();
     }
 }

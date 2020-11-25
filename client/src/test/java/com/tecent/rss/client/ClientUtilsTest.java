@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tencent.rss.common.ShuffleRegisterInfo;
-import com.tencent.rss.common.ShuffleServerHandler;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.RssProtos;
 import com.tencent.rss.proto.RssProtos.GetShuffleAssignmentsResponse;
@@ -13,6 +12,7 @@ import com.tencent.rss.proto.RssProtos.ShuffleServerId;
 import com.tencent.rss.proto.RssProtos.ShuffleServerIdWithPartitionInfo;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 public class ClientUtilsTest {
@@ -38,21 +38,22 @@ public class ClientUtilsTest {
     public void toShuffleServerHandlerTest() {
         GetShuffleAssignmentsResponse testResponse = generateShuffleAssignmentsResponse();
 
-        ShuffleServerHandler ssh = ClientUtils.toShuffleServerHandler(testResponse);
+        Map<Integer, List<ShuffleServerInfo>> partitionToServers =
+                ClientUtils.getPartitionToServers(testResponse);
 
         assertEquals(Arrays.asList(new ShuffleServerInfo("id1", "0.0.0.1", 100),
                 new ShuffleServerInfo("id2", "0.0.0.2", 100)),
-                ssh.getShuffleServers(0));
+                partitionToServers.get(0));
         assertEquals(Arrays.asList(new ShuffleServerInfo("id1", "0.0.0.1", 100),
                 new ShuffleServerInfo("id2", "0.0.0.2", 100)),
-                ssh.getShuffleServers(1));
+                partitionToServers.get(1));
         assertEquals(Arrays.asList(new ShuffleServerInfo("id3", "0.0.0.3", 100),
                 new ShuffleServerInfo("id4", "0.0.0.4", 100)),
-                ssh.getShuffleServers(2));
+                partitionToServers.get(2));
         assertEquals(Arrays.asList(new ShuffleServerInfo("id3", "0.0.0.3", 100),
                 new ShuffleServerInfo("id4", "0.0.0.4", 100)),
-                ssh.getShuffleServers(3));
-        assertNull(ssh.getShuffleServers(4));
+                partitionToServers.get(3));
+        assertNull(partitionToServers.get(4));
     }
 
     @Test

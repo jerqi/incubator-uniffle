@@ -13,12 +13,14 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import com.tencent.rss.common.CoordinatorGrpcClient;
-import com.tencent.rss.common.ShuffleServerHandler;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.RssProtos;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -32,8 +34,14 @@ public class RssShuffleManagerTest {
         conf.setAppName("testApp").setMaster("local[2]")
                 .set("spark.rss.coordinator.ip", "0.0.0.0")
                 .set("spark.rss.coordinator.port", "100");
+        // init SparkContext
         SparkContext sc = new SparkContext(conf);
         MANAGER = new RssShuffleManager(conf);
+    }
+
+    @AfterAll
+    public static void stop() {
+        SparkContext.getOrCreate().stop();
     }
 
     @Test
@@ -46,22 +54,23 @@ public class RssShuffleManagerTest {
                 getMockAssignmentsResponse());
         ShuffleHandle handle = managerSpy.registerShuffle(1, 100, null);
         assertTrue(handle instanceof RssShuffleHandle);
-        ShuffleServerHandler ssh = ((RssShuffleHandle) handle).getShuffleServerHandler();
+        Map<Integer, List<ShuffleServerInfo>> partitionToServers =
+                ((RssShuffleHandle) handle).getPartitionToServers();
         assertEquals(1, ((RssShuffleHandle) handle).getShuffleId());
         assertEquals(100, ((RssShuffleHandle) handle).getNumMaps());
         assertEquals(Arrays.asList(new ShuffleServerInfo("id1", "0.0.0.1", 100),
                 new ShuffleServerInfo("id2", "0.0.0.2", 100)),
-                ssh.getShuffleServers(0));
+                partitionToServers.get(0));
         assertEquals(Arrays.asList(new ShuffleServerInfo("id1", "0.0.0.1", 100),
                 new ShuffleServerInfo("id2", "0.0.0.2", 100)),
-                ssh.getShuffleServers(1));
+                partitionToServers.get(1));
         assertEquals(Arrays.asList(new ShuffleServerInfo("id3", "0.0.0.3", 100),
                 new ShuffleServerInfo("id4", "0.0.0.4", 100)),
-                ssh.getShuffleServers(2));
+                partitionToServers.get(2));
         assertEquals(Arrays.asList(new ShuffleServerInfo("id3", "0.0.0.3", 100),
                 new ShuffleServerInfo("id4", "0.0.0.4", 100)),
-                ssh.getShuffleServers(3));
-        assertNull(ssh.getShuffleServers(4));
+                partitionToServers.get(3));
+        assertNull(partitionToServers.get(4));
     }
 
     private RssProtos.GetShuffleAssignmentsResponse getMockAssignmentsResponse() {

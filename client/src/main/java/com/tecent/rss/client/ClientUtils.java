@@ -3,7 +3,6 @@ package com.tecent.rss.client;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.tencent.rss.common.ShuffleRegisterInfo;
-import com.tencent.rss.common.ShuffleServerHandler;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.RssProtos;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
@@ -33,7 +32,7 @@ public class ClientUtils {
 
     // transform [server1, server2] -> [partition1, partition2] to
     // {partition1 -> [server1, server2], partition2 - > [server1, server2]}
-    public static ShuffleServerHandler toShuffleServerHandler(
+    public static Map<Integer, List<ShuffleServerInfo>> getPartitionToServers(
             RssProtos.GetShuffleAssignmentsResponse response) {
         Map<Integer, List<ShuffleServerInfo>> partitionToServers = Maps.newHashMap();
         List<ShuffleServerIdWithPartitionInfo> assigns = response.getServerInfosList();
@@ -52,7 +51,7 @@ public class ClientUtils {
         if (partitionToServers.isEmpty()) {
             throw new RuntimeException("Empty assignment to Shuffle Server");
         }
-        return new ShuffleServerHandler(partitionToServers);
+        return partitionToServers;
     }
 
     // get all ShuffleRegisterInfo with [shuffleServer, startPartitionId, endPartitionId]

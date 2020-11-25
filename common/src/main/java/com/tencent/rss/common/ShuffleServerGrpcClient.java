@@ -51,7 +51,7 @@ public class ShuffleServerGrpcClient extends GrpcClient {
         }
     }
 
-    public void sendShuffleData(String appId, int shuffleId, ShuffleBlockInfo shuffleBlockInfo) {
+    public void sendShuffleData(String appId, ShuffleBlockInfo shuffleBlockInfo) {
         if (shuffleBlockInfo == null) {
             return;
         }
@@ -65,13 +65,13 @@ public class ShuffleServerGrpcClient extends GrpcClient {
                 .build();
         SendShuffleDataRequest request = SendShuffleDataRequest.newBuilder()
                 .setAppId(appId)
-                .setShuffleId(shuffleId)
+                .setShuffleId(shuffleBlockInfo.getShuffleId())
                 .addAllShuffleData(Arrays.asList(shuffleData))
                 .build();
         SendShuffleDataResponse response = blockingStub.sendShuffleData(request);
         if (response.getStatus() != StatusCode.SUCCESS) {
             throw new RuntimeException("Can't send shuffle data to " + host + ":" + port
-                    + " for [appId=" + appId + ", shuffleId=" + shuffleId
+                    + " for [appId=" + appId + ", shuffleId=" + shuffleBlockInfo.getShuffleId()
                     + ", partitionId=" + shuffleBlockInfo.getPartitionId()
                     + ", blockId=" + shuffleBlockInfo.getBlockId()
                     + ", crc=" + shuffleBlockInfo.getCrc()
