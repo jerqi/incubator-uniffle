@@ -1,11 +1,11 @@
 package com.tencent.rss.server;
 
 import com.tencent.rss.proto.RssProtos.ShuffleData;
-import com.tencent.rss.proto.RssProtos.ShuffleServerResult;
 import com.tencent.rss.proto.RssProtos.StatusCode;
-import com.tencent.rss.storage.HDFSShuffleStorage;
-import com.tencent.rss.storage.ShuffleStorage;
+import com.tencent.rss.storage.FileBasedShuffleWriteHandler;
+import com.tencent.rss.storage.ShuffleStorageWriteHandler;
 import com.tencent.rss.storage.StorageType;
+import java.io.IOException;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +19,7 @@ public class ShuffleEngine {
     private int startPartition;
     private int endPartition;
     private ShuffleBuffer buffer;
-    private ShuffleStorage storage;
+    private ShuffleStorageWriteHandler writer;
 
     public ShuffleEngine(String appId, String shuffleId, int startPartition, int endPartition) {
         this.appId = appId;
@@ -28,25 +28,22 @@ public class ShuffleEngine {
         this.endPartition = endPartition;
     }
 
-    public StatusCode init() {
+    public StatusCode init() throws IOException, IllegalStateException {
         synchronized (this) {
-            ShuffleServerResult.Builder ret = ShuffleServerResult.newBuilder();
             buffer = BufferManager.instance().getBuffer(startPartition, endPartition);
             if (buffer == null) {
                 return StatusCode.NO_BUFFER;
             }
 
-            // TODO: init storage
-            String msg = "";
-            if (ShuffleTaskManager.instance().storageType == StorageType.HDFS) {
-                storage = new HDFSShuffleStorage();
+            if (ShuffleTaskManager.instance().storageType == StorageType.FILE) {
+                writer = new FileBasedShuffleWriteHandler("", null);
             }
 
             return StatusCode.SUCCESS;
         }
     }
 
-    public StatusCode write(List<ShuffleData> shuffleData) {
+    public StatusCode write(List<ShuffleData> shuffleData) throws IOException, IllegalStateException {
         synchronized (this) {
             if (buffer == null) {
                 // is committed
@@ -68,7 +65,7 @@ public class ShuffleEngine {
         }
     }
 
-    private StatusCode write(ShuffleData data) {
+    private StatusCode write(ShuffleData data) throws IOException, IllegalStateException {
         StatusCode ret = buffer.append(data);
         if (ret != StatusCode.SUCCESS) {
             return ret;
@@ -76,19 +73,20 @@ public class ShuffleEngine {
 
         if (buffer.full()) {
             flush();
-
         }
 
         return StatusCode.SUCCESS;
     }
 
-    public StatusCode flush() {
+    public StatusCode flush() throws IOException, IllegalStateException {
         synchronized (this) {
             for (int partition = startPartition; partition <= endPartition; ++partition) {
-                storage.write(buffer.getBlocks(partition));
+                writer.write(buffer.getBlocks(partition));
             }
+
             buffer.clear();
             buffer.setSize(0);
+
             return StatusCode.SUCCESS;
         }
     }

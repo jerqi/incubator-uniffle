@@ -2,33 +2,33 @@ package com.tencent.rss.storage;
 
 import java.util.Objects;
 
-public class HDFSShuffleSegment extends ShuffleSegment {
+public class FileBasedShuffleSegment extends ShuffleSegment {
 
-    private int offset;
-    private int length;
+    private long offset;
+    private long length;
     private long crc;
     private long blockId;
 
-    public HDFSShuffleSegment(int offset, int length, long crc, long blockId) {
+    public FileBasedShuffleSegment(long offset, long length, long crc, long blockId) {
         this.offset = offset;
         this.length = length;
         this.crc = crc;
         this.blockId = blockId;
     }
 
-    public int getOffset() {
+    public long getOffset() {
         return offset;
     }
 
-    public void setOffset(int offset) {
+    public void setOffset(long offset) {
         this.offset = offset;
     }
 
-    public int getLength() {
+    public long getLength() {
         return length;
     }
 
-    public void setLength(int length) {
+    public void setLength(long length) {
         this.length = length;
     }
 
@@ -56,7 +56,7 @@ public class HDFSShuffleSegment extends ShuffleSegment {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        HDFSShuffleSegment that = (HDFSShuffleSegment) o;
+        FileBasedShuffleSegment that = (FileBasedShuffleSegment) o;
         return offset == that.offset
                 && length == that.length
                 && crc == that.crc

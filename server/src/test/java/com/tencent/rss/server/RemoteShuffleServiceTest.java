@@ -1,6 +1,6 @@
 package com.tencent.rss.server;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -20,6 +20,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.testing.GrpcCleanupRule;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.LinkedList;
@@ -81,7 +82,7 @@ public class RemoteShuffleServiceTest {
     }
 
     @Test
-    public void registerTest() {
+    public void registerTest() throws IOException, IllegalStateException {
         when(mockShuffleTaskManager
                 .registerShuffle("", "0", 0, 0))
                 .thenReturn(StatusCode.INTERNAL_ERROR);
@@ -112,13 +113,14 @@ public class RemoteShuffleServiceTest {
     }
 
     @Test
-    public void sendShuffleDataTest() {
+    public void sendShuffleDataTest() throws IOException, IllegalStateException {
         ShuffleEngine mockShuffleEngine = mock(ShuffleEngine.class);
         when(mockShuffleTaskManager
                 .getShuffleEngine("", "0", 0))
                 .thenReturn(mockShuffleEngine);
         List<ShuffleData> shuffleDataList = new LinkedList<>();
         shuffleDataList.add(ShuffleData.newBuilder().build());
+
         when(mockShuffleEngine
                 .write(shuffleDataList))
                 .thenReturn(StatusCode.SUCCESS);
@@ -146,7 +148,8 @@ public class RemoteShuffleServiceTest {
     }
 
     @Test
-    public void commitShuffleTaskTest() {
+    public void commitShuffleTaskTest() throws IOException, IllegalStateException {
+
         when(mockShuffleTaskManager
                 .commitShuffle("", "0"))
                 .thenReturn(StatusCode.SUCCESS);
@@ -159,6 +162,5 @@ public class RemoteShuffleServiceTest {
                 .build();
         assertEquals(expected, actual);
     }
-
 
 }

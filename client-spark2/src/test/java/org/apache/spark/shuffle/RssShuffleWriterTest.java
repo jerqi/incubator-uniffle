@@ -1,8 +1,6 @@
 package org.apache.spark.shuffle;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -28,12 +26,18 @@ import org.apache.spark.serializer.Serializer;
 import org.apache.spark.shuffle.writer.AddBlockEvent;
 import org.apache.spark.shuffle.writer.BufferManagerOptions;
 import org.apache.spark.util.EventLoop;
-import org.junit.jupiter.api.Test;
+import org.hamcrest.core.StringStartsWith;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import scala.Product2;
 import scala.Tuple2;
 import scala.collection.mutable.MutableList;
 
 public class RssShuffleWriterTest {
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void checkBlockSendResultTest() {
@@ -66,19 +70,18 @@ public class RssShuffleWriterTest {
         // case 2: partial blocks aren't sent before spark.rss.writer.send.check.timeout,
         // Runtime exception will be thrown
         manager.addSuccessBlockIds("taskIdentify", Sets.newHashSet(1L, 2L));
-        Exception exception = assertThrows(RuntimeException.class, () -> {
-            rssShuffleWriter.checkBlockSendResult(Sets.newHashSet(1L, 2L, 3L));
-        });
-        assertTrue(exception.getMessage().startsWith("Timeout:"));
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage(StringStartsWith.startsWith("Timeout:"));
+        rssShuffleWriter.checkBlockSendResult(Sets.newHashSet(1L, 2L, 3L));
+
         manager.clearCachedBlockIds();
 
         // case 3: partial blocks are sent failed, Runtime exception will be thrown
         manager.addSuccessBlockIds("taskIdentify", Sets.newHashSet(1L, 2L));
         manager.addFailedBlockIds("taskIdentify", Sets.newHashSet(3L));
-        exception = assertThrows(RuntimeException.class, () -> {
-            rssShuffleWriter.checkBlockSendResult(Sets.newHashSet(1L, 2L, 3L));
-        });
-        assertTrue(exception.getMessage().startsWith("Send failed:"));
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage(StringStartsWith.startsWith("Send failed:"));
+        rssShuffleWriter.checkBlockSendResult(Sets.newHashSet(1L, 2L, 3L));
         manager.clearCachedBlockIds();
 
         sc.stop();

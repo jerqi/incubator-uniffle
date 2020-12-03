@@ -35,6 +35,7 @@ public class CoordinatorGrpcClient extends GrpcClient {
 
     public CoordinatorGrpcClient(ManagedChannel channel) {
         super(channel);
+        blockingStub = CoordinatorServerGrpc.newBlockingStub(channel);
     }
 
     public ServerRegisterResponse register(String id, String ip, int port) {

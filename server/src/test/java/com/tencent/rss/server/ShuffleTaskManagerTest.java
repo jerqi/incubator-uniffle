@@ -1,11 +1,11 @@
 package com.tencent.rss.server;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.tencent.rss.proto.RssProtos.StatusCode;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -22,11 +22,11 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ShuffleTaskManagerTest {
 
-    private ShuffleTaskManager shuffleTaskManager = ShuffleTaskManager.instance();
+    private ShuffleTaskManager shuffleTaskManager;
 
     @Before
     public void setUp() {
-
+        shuffleTaskManager = ShuffleTaskManager.mock();
     }
 
     @After
@@ -35,7 +35,7 @@ public class ShuffleTaskManagerTest {
     }
 
     @Test
-    public void registerShuffleTest() {
+    public void registerShuffleTest() throws IOException, IllegalStateException {
         ShuffleEngineManager mockEngineManager = mock(ShuffleEngineManager.class);
         when(mockEngineManager.registerShuffleEngine(1, 10))
                 .thenReturn(StatusCode.SUCCESS);
@@ -59,7 +59,7 @@ public class ShuffleTaskManagerTest {
     }
 
     @Test
-    public void registerShuffleConcurrentTest() {
+    public void registerShuffleConcurrentTest() throws IOException, InterruptedException, ExecutionException {
         ShuffleEngineManager mockEngineManager = mock(ShuffleEngineManager.class);
         when(mockEngineManager.registerShuffleEngine(1, 10))
                 .thenReturn(StatusCode.SUCCESS);
@@ -78,13 +78,9 @@ public class ShuffleTaskManagerTest {
                     () -> shuffleTaskManager.registerShuffle("test", "1", start, end, mockEngineManager));
         }
 
-        try {
-            List<Future<StatusCode>> results = executorService.invokeAll(calls);
-            for (Future<StatusCode> f : results) {
-                assertEquals(StatusCode.SUCCESS, f.get());
-            }
-        } catch (InterruptedException | ExecutionException e) {
-            fail(e);
+        List<Future<StatusCode>> results = executorService.invokeAll(calls);
+        for (Future<StatusCode> f : results) {
+            assertEquals(StatusCode.SUCCESS, f.get());
         }
 
         String key = ShuffleTaskManager.constructKey("test", "1");
@@ -98,7 +94,7 @@ public class ShuffleTaskManagerTest {
     }
 
     @Test
-    public void getShuffleEngineTest() {
+    public void getShuffleEngineTest() throws IOException, IllegalStateException {
         ShuffleEngineManager mockEngineManager = mock(ShuffleEngineManager.class);
         when(mockEngineManager.registerShuffleEngine(1, 10))
                 .thenReturn(StatusCode.SUCCESS);
@@ -124,7 +120,7 @@ public class ShuffleTaskManagerTest {
     }
 
     @Test
-    public void commitShuffleTest() {
+    public void commitShuffleTest() throws IOException, IllegalStateException {
         ShuffleEngineManager mockEngineManager = mock(ShuffleEngineManager.class);
         when(mockEngineManager.registerShuffleEngine(1, 10))
                 .thenReturn(StatusCode.SUCCESS);
@@ -132,6 +128,7 @@ public class ShuffleTaskManagerTest {
                 .thenReturn(StatusCode.SUCCESS);
         when(mockEngineManager.registerShuffleEngine(21, 30))
                 .thenReturn(StatusCode.SUCCESS);
+
         when(mockEngineManager.commit()).thenReturn(StatusCode.SUCCESS);
 
         shuffleTaskManager.registerShuffle("test", "1", 1, 10, mockEngineManager);

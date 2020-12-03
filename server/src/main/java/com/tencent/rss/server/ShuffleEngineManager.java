@@ -4,6 +4,7 @@ import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
 import com.tencent.rss.proto.RssProtos.StatusCode;
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -32,12 +33,16 @@ public class ShuffleEngineManager {
         isCommitted = false;
     }
 
-    public StatusCode registerShuffleEngine(int startPartition, int endPartition) {
+    public StatusCode registerShuffleEngine(
+            int startPartition, int endPartition) throws IOException, IllegalStateException {
         ShuffleEngine engine = new ShuffleEngine(appId, shuffleId, startPartition, endPartition);
         return registerShuffleEngine(startPartition, endPartition, engine);
     }
 
-    public StatusCode registerShuffleEngine(int startPartition, int endPartition, ShuffleEngine engine) {
+    public StatusCode registerShuffleEngine(
+            int startPartition,
+            int endPartition,
+            ShuffleEngine engine) throws IOException, IllegalStateException {
         String key = ShuffleTaskManager.constructKey(String.valueOf(startPartition), String.valueOf(endPartition));
 
         engineMap.putIfAbsent(key, engine);
@@ -64,15 +69,16 @@ public class ShuffleEngineManager {
         return shuffleEngine;
     }
 
-    public StatusCode commit() {
+    public StatusCode commit() throws IOException, IllegalStateException {
         synchronized (this) {
             if (isCommitted) {
                 return StatusCode.SUCCESS;
             }
 
-            engineMap.forEach((k, v) -> {
-                v.flush();
-            });
+            for (ShuffleEngine engine : engineMap.values()) {
+                engine.flush();
+            }
+
             isCommitted = true;
             return StatusCode.SUCCESS;
         }

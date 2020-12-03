@@ -1,8 +1,8 @@
 package com.tencent.rss.server;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import com.tencent.rss.common.CoordinatorGrpcClient;
 import com.tencent.rss.proto.CoordinatorServerGrpc.CoordinatorServerImplBase;
@@ -70,6 +70,7 @@ public class RegisterHeartBeatTest {
                 };
         serviceRegistry.addService(serviceImpl);
         assertFalse(rh.getIsRegistered());
+
         boolean ret = register(rh);
         assertTrue(ret);
         assertTrue(rh.getIsRegistered());

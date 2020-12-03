@@ -1,7 +1,6 @@
 package com.tencent.rss.server;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -14,7 +13,10 @@ import java.util.concurrent.Future;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
+@RunWith(JUnit4.class)
 public class BufferManagerTest {
 
     private BufferManager bufferManager = BufferManager.instance();
@@ -38,9 +40,9 @@ public class BufferManagerTest {
     }
 
     @Test
-    public void getBufferConcurrentTest() {
+    public void getBufferConcurrentTest() throws InterruptedException, ExecutionException {
 
-        ExecutorService executorService = Executors.newFixedThreadPool(3);
+        ExecutorService executorService = Executors.newFixedThreadPool(9);
         List<Callable<ShuffleBuffer>> calls = new ArrayList<>();
 
         assertEquals(0, bufferManager.getAtomicCount().intValue());
@@ -52,19 +54,17 @@ public class BufferManagerTest {
         }
 
         List<ShuffleBuffer> buffers = new LinkedList<>();
-        try {
-            List<Future<ShuffleBuffer>> results = executorService.invokeAll(calls);
-            for (Future<ShuffleBuffer> f : results) {
-                ShuffleBuffer cur = f.get();
-                if (cur != null) {
-                    buffers.add(cur);
-                }
+
+        List<Future<ShuffleBuffer>> results = executorService.invokeAll(calls);
+        for (Future<ShuffleBuffer> f : results) {
+            ShuffleBuffer cur = f.get();
+            if (cur != null) {
+                buffers.add(cur);
             }
-            assertEquals(3, bufferManager.getAtomicCount().intValue());
-            assertEquals(4, buffers.size());
-        } catch (InterruptedException | ExecutionException e) {
-            fail(e);
         }
+        assertEquals(4, bufferManager.getAtomicCount().intValue());
+        assertEquals(3, buffers.size());
+
     }
 
 }

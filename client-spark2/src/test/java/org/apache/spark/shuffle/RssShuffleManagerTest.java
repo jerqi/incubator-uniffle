@@ -1,8 +1,8 @@
 package org.apache.spark.shuffle;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -20,15 +20,15 @@ import java.util.List;
 import java.util.Map;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class RssShuffleManagerTest {
 
     private static RssShuffleManager MANAGER;
 
-    @BeforeAll
+    @BeforeClass
     public static void init() {
         SparkConf conf = new SparkConf();
         conf.setAppName("testApp").setMaster("local[2]")
@@ -39,7 +39,7 @@ public class RssShuffleManagerTest {
         MANAGER = new RssShuffleManager(conf);
     }
 
-    @AfterAll
+    @AfterClass
     public static void stop() {
         SparkContext.getOrCreate().stop();
     }

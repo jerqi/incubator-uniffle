@@ -1,11 +1,13 @@
 package com.tencent.rss.common.config;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.Test;
 
 public class RssConfTest {
+
     @Test
     public void testOptionWithDefault() {
         RssConf cfg = new RssConf();

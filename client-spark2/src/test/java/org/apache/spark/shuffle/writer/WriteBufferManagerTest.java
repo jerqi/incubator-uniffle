@@ -1,6 +1,6 @@
 package org.apache.spark.shuffle.writer;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.Maps;
 import com.tencent.rss.common.ShuffleBlockInfo;
@@ -9,15 +9,15 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.serializer.JavaSerializer;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.serializer.Serializer;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class WriteBufferManagerTest {
 
     private static WriteBufferManager MANAGER_WITH_KRYO_SER;
     private static WriteBufferManager MANAGER_WITH_JAVA_SER;
 
-    @BeforeAll
+    @BeforeClass
     public static void init() {
         Serializer kryoSerializer = new KryoSerializer(new SparkConf(false));
         MANAGER_WITH_KRYO_SER = new WriteBufferManager(
