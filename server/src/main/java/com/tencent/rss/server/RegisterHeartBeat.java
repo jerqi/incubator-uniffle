@@ -2,8 +2,6 @@ package com.tencent.rss.server;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.common.CoordinatorGrpcClient;
-import com.tencent.rss.proto.RssProtos.ServerRegisterRequest;
-import com.tencent.rss.proto.RssProtos.ServerRegisterResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import org.slf4j.Logger;
@@ -33,9 +31,9 @@ public class RegisterHeartBeat {
   }
 
   public boolean register(String id, String ip, int port) {
-    ServerRegisterRequest request = null;
-    ServerRegisterResponse response = rpcClient.register(id, ip, port);
-    StatusCode status = response.getStatus();
+//    ServerRegisterRequest request = null;
+//    ServerRegisterResponse response = rpcClient.register(id, ip, port);
+    StatusCode status = StatusCode.SUCCESS;
     // TODO: extract info from response
 
     isRegistered = status == StatusCode.SUCCESS;

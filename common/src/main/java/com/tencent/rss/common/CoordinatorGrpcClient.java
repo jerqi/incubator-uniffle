@@ -5,8 +5,6 @@ import com.tencent.rss.proto.CoordinatorServerGrpc;
 import com.tencent.rss.proto.CoordinatorServerGrpc.CoordinatorServerBlockingStub;
 import com.tencent.rss.proto.RssProtos;
 import com.tencent.rss.proto.RssProtos.CheckServiceAvailableResponse;
-import com.tencent.rss.proto.RssProtos.ServerRegisterRequest;
-import com.tencent.rss.proto.RssProtos.ServerRegisterResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
@@ -38,18 +36,18 @@ public class CoordinatorGrpcClient extends GrpcClient {
     blockingStub = CoordinatorServerGrpc.newBlockingStub(channel);
   }
 
-  public ServerRegisterResponse register(String id, String ip, int port) {
-    ShuffleServerId serverId = ShuffleServerId.newBuilder().setId(id).setIp(ip).setPort(port).build();
-    ServerRegisterRequest request = ServerRegisterRequest.newBuilder().setServerId(serverId).build();
-    ServerRegisterResponse response = blockingStub.registerShuffleServer(request);
-
-    StatusCode status = response.getStatus();
-    if (status != StatusCode.SUCCESS) {
-      logger.error("Fail to register {}:{} {}", host, port, status);
-    }
-
-    return response;
-  }
+//  public ServerRegisterResponse register(String id, String ip, int port) {
+//    ShuffleServerId serverId = ShuffleServerId.newBuilder().setId(id).setIp(ip).setPort(port).build();
+//    ServerRegisterRequest request = ServerRegisterRequest.newBuilder().setServerId(serverId).build();
+//    ServerRegisterResponse response = blockingStub.registerShuffleServer(request);
+//
+//    StatusCode status = response.getStatus();
+//    if (status != StatusCode.SUCCESS) {
+//      logger.error("Fail to register {}:{} {}", host, port, status);
+//    }
+//
+//    return response;
+//  }
 
   public ShuffleServerHeartBeatResponse sendHeartBeat(String id, String ip, int port) {
     ShuffleServerId serverId =

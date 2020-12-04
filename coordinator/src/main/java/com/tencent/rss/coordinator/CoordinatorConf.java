@@ -34,11 +34,23 @@ public class CoordinatorConf extends RssConf {
             .defaultValue("partition")
             .withDescription("Data layout in remote shuffle service cluster");
 
+    private static final ConfigOption<Integer> SHUFFLE_SERVER_DATA_REPLICA = ConfigOptions
+            .key("com.tencent.rss.shuffle.data.replica")
+            .intType()
+            .defaultValue(2)
+            .withDescription("Data replica configuration when writing into shuffle server");
+
     private static final ConfigOption<Integer> HEARTBEAT_INTERVAL = ConfigOptions
             .key("com.tencent.rss.heartbeat.interval")
             .intType()
             .defaultValue(60)
             .withDescription("Heartbeat interval (seconds) between shuffle server and coordinator");
+
+    private static final ConfigOption<String> SHUFFLE_SERVER_ASSIGNMENT = ConfigOptions
+            .key("com.tencent.rss.shuffle.server.assignment")
+            .stringType()
+            .defaultValue("basic")
+            .withDescription("Strategy for assigning shuffle server to write partitions");
 
 
     public int getCoordinatorServicePort() {
@@ -57,7 +69,15 @@ public class CoordinatorConf extends RssConf {
         return this.getString(DATA_STORAGE_PATH);
     }
 
+    public int getShuffleServerDataReplica() {
+        return this.getInteger(SHUFFLE_SERVER_DATA_REPLICA);
+    }
+
     public String getDataStoragePattern() {
         return this.getString(DATA_STORAGE_PATTERN);
+    }
+
+    public String getShuffleServerAssignmentStrategy() {
+        return this.getString(SHUFFLE_SERVER_ASSIGNMENT);
     }
 }

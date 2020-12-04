@@ -8,8 +8,8 @@ import com.google.common.collect.Maps;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.RssProtos;
+import com.tencent.rss.proto.RssProtos.PartitionRangeAssignment;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
-import com.tencent.rss.proto.RssProtos.ShuffleServerIdWithPartitionInfo;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,22 +36,22 @@ public class ClientUtils {
         return ATOMIC_INT.getAndIncrement();
     }
 
-    // transform [server1, server2] -> [partition1, partition2] to
+    // transform [startPartition, endPartition] -> [server1, server2] to
     // {partition1 -> [server1, server2], partition2 - > [server1, server2]}
     public static Map<Integer, List<ShuffleServerInfo>> getPartitionToServers(
             RssProtos.GetShuffleAssignmentsResponse response) {
         Map<Integer, List<ShuffleServerInfo>> partitionToServers = Maps.newHashMap();
-        List<ShuffleServerIdWithPartitionInfo> assigns = response.getServerInfosList();
-        for (ShuffleServerIdWithPartitionInfo assign : assigns) {
-            List<ShuffleServerId> shuffleServerIds = assign.getServerList();
-            List<Integer> partitions = assign.getPartitionsList();
-            if (shuffleServerIds != null && partitions != null) {
-                List<ShuffleServerInfo> shuffleServerInfos = shuffleServerIds
-                        .parallelStream()
-                        .map(ss -> new ShuffleServerInfo(ss.getId(), ss.getIp(), ss.getPort()))
-                        .collect(Collectors.toList());
-                partitions.parallelStream()
-                        .forEach(partition -> partitionToServers.put(partition, shuffleServerInfos));
+        List<PartitionRangeAssignment> assigns = response.getAssignmentsList();
+        for (PartitionRangeAssignment partitionRangeAssignment: assigns) {
+            final int startPartition = partitionRangeAssignment.getStartPartition();
+            final int endPartition = partitionRangeAssignment.getEndPartition();
+            final List<ShuffleServerInfo> shuffleServerInfos = partitionRangeAssignment
+                    .getServerList()
+                    .parallelStream()
+                    .map(ss -> new ShuffleServerInfo(ss.getId(), ss.getIp(), ss.getPort()))
+                    .collect(Collectors.toList());
+            for (int i = startPartition; i <= endPartition; i++) {
+                partitionToServers.put(i, shuffleServerInfos);
             }
         }
         if (partitionToServers.isEmpty()) {
@@ -65,16 +65,17 @@ public class ClientUtils {
             RssProtos.GetShuffleAssignmentsResponse response) {
         // make the list thread safe, or get incorrect result in parallelStream
         List<ShuffleRegisterInfo> shuffleRegisterInfos = Collections.synchronizedList(Lists.newArrayList());
-        List<ShuffleServerIdWithPartitionInfo> assigns = response.getServerInfosList();
-        for (ShuffleServerIdWithPartitionInfo assign : assigns) {
+        List<PartitionRangeAssignment> assigns = response.getAssignmentsList();
+        for (PartitionRangeAssignment assign : assigns) {
             List<ShuffleServerId> shuffleServerIds = assign.getServerList();
-            List<Integer> partitions = assign.getPartitionsList();
-            if (shuffleServerIds != null && partitions != null) {
+            final int startPartition = assign.getStartPartition();
+            final int endPartition = assign.getEndPartition();
+            if (shuffleServerIds != null) {
                 shuffleServerIds.parallelStream().forEach(ssi -> {
                             ShuffleServerInfo shuffleServerInfo =
                                     new ShuffleServerInfo(ssi.getId(), ssi.getIp(), ssi.getPort());
                             ShuffleRegisterInfo shuffleRegisterInfo = new ShuffleRegisterInfo(shuffleServerInfo,
-                                    Collections.min(partitions), Collections.max(partitions));
+                                    startPartition, endPartition);
                             shuffleRegisterInfos.add(shuffleRegisterInfo);
                         }
                 );

@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.tencent.rss.common.CoordinatorGrpcClient;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.RssProtos;
+import com.tencent.rss.proto.RssProtos.PartitionRangeAssignment;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -102,20 +103,22 @@ public class RssShuffleManagerTest {
                 .setId("id4")
                 .build();
 
-        RssProtos.ShuffleServerIdWithPartitionInfo assignment1 =
-                RssProtos.ShuffleServerIdWithPartitionInfo.newBuilder()
-                        .addAllPartitions(Arrays.asList(0, 1))
+        PartitionRangeAssignment assignment1 =
+                RssProtos.PartitionRangeAssignment.newBuilder()
+                        .setStartPartition(0)
+                        .setEndPartition(1)
                         .addAllServer(Arrays.asList(ss1, ss2))
                         .build();
 
-        RssProtos.ShuffleServerIdWithPartitionInfo assignment2 =
-                RssProtos.ShuffleServerIdWithPartitionInfo.newBuilder()
-                        .addAllPartitions(Arrays.asList(2, 3))
+        PartitionRangeAssignment assignment2 =
+                RssProtos.PartitionRangeAssignment.newBuilder()
+                        .setStartPartition(2)
+                        .setEndPartition(3)
                         .addAllServer(Arrays.asList(ss3, ss4))
                         .build();
 
         return RssProtos.GetShuffleAssignmentsResponse.newBuilder()
-                .addAllServerInfos(Arrays.asList(assignment1, assignment2))
+                .addAllAssignments(Arrays.asList(assignment1, assignment2))
                 .build();
 
     }
