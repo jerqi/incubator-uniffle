@@ -1,31 +1,36 @@
 package com.tencent.rss.storage;
 
-import com.tencent.rss.proto.RssProtos.ShuffleBlock;
 import java.io.IOException;
 import java.util.List;
 
 public interface ShuffleStorageReaderHandler<T extends ShuffleSegment> {
 
     /**
-     * Read block from storage
+     * Use shuffle segment (aka index) to read data from data file.
      *
-     * @return return null if EOF or 1000 blocks at most
+     * @param shuffleSegment index of the data
+     * @return shuffle data
      * @throws IOException
      * @throws IllegalStateException
      */
-    List<ShuffleBlock> readData() throws IOException, IllegalStateException;
+    byte[] readData(T shuffleSegment) throws IOException, IllegalStateException;
 
     /**
-     * Read at most limit blocks
+     * Read shuffle segments from index file.
      *
-     * @param limit maximum blocks to read
-     * @return return null if EOF or limit blocks at most
+     * @return shuffle segments
      * @throws IOException
      * @throws IllegalStateException
      */
-    List<ShuffleBlock> readData(int limit) throws IOException, IllegalStateException;
-
     List<T> readIndex() throws IOException, IllegalStateException;
 
+    /**
+     * Read limit shuffle segments from index file.
+     *
+     * @param limit the maximum shuffle segments to read once.
+     * @return shuffle segments
+     * @throws IOException
+     * @throws IllegalStateException
+     */
     List<T> readIndex(int limit) throws IOException, IllegalStateException;
 }

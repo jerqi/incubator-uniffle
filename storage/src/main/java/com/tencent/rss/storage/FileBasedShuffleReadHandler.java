@@ -1,17 +1,14 @@
 package com.tencent.rss.storage;
 
-import com.google.protobuf.ByteString;
-import com.tencent.rss.proto.RssProtos.ShuffleBlock;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FileBasedShuffleReadHandler implements ShuffleStorageReaderHandler, Closeable {
+public class FileBasedShuffleReadHandler implements ShuffleStorageReaderHandler<FileBasedShuffleSegment>, Closeable {
 
     private static final Logger logger = LoggerFactory.getLogger(FileBasedShuffleReadHandler.class);
     private final int indexReadLimit;
@@ -61,35 +58,10 @@ public class FileBasedShuffleReadHandler implements ShuffleStorageReaderHandler,
     }
 
     @Override
-    public List<ShuffleBlock> readData() throws IOException, IllegalStateException {
-        int defaultLimit = dataReadLimit;
-        return readData(defaultLimit);
-    }
-
-    @Override
-    public List<ShuffleBlock> readData(int limit) throws IOException, IllegalStateException {
-        List<FileBasedShuffleSegment> fileBasedShuffleSegments = indexReader.readIndex(limit);
-        if (fileBasedShuffleSegments.isEmpty()) {
-            return null;
-        }
-        return readData(fileBasedShuffleSegments);
-    }
-
-    public List<ShuffleBlock> readData(List<FileBasedShuffleSegment> segments)
+    public byte[] readData(FileBasedShuffleSegment segment)
             throws IOException, IllegalStateException {
-        List<ShuffleBlock> ret = new LinkedList<>();
-
-        for (FileBasedShuffleSegment segment : segments) {
-            byte[] data = dataReader.readData(segment);
-            ShuffleBlock block = ShuffleBlock
-                    .newBuilder()
-                    .setBlockId(segment.getBlockId())
-                    .setCrc(segment.getCrc())
-                    .setData(ByteString.copyFrom(data)).build();
-            ret.add(block);
-        }
-
-        return ret;
+        byte[] data = dataReader.readData(segment);
+        return data;
     }
 
     public int getIndexReadLimit() {
