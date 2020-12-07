@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.RssProtos;
@@ -13,6 +15,7 @@ import com.tencent.rss.proto.RssProtos.ShuffleServerIdWithPartitionInfo;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.Test;
 
 public class ClientUtilsTest {
@@ -69,6 +72,17 @@ public class ClientUtilsTest {
         for (ShuffleRegisterInfo sri : expected) {
             assertTrue(shuffleRegisterInfos.contains(sri));
         }
+    }
+
+    @Test
+    public void transformTest() throws Exception {
+        Map<Integer, Set<Long>> partitionToBlockIds = Maps.newHashMap();
+        partitionToBlockIds.put(1, Sets.newHashSet(1L, 2L, 3L));
+        partitionToBlockIds.put(2, Sets.newHashSet(4L, 5L, 6L));
+        partitionToBlockIds.put(3, Sets.newHashSet(7L, 8L, 9L));
+        String jsonStr = ClientUtils.transBlockIdsToJson(partitionToBlockIds);
+        Map<Integer, Set<Long>> actualMap = ClientUtils.getBlockIdsFromJson(jsonStr);
+        assertEquals(partitionToBlockIds, actualMap);
     }
 
     private GetShuffleAssignmentsResponse generateShuffleAssignmentsResponse() {

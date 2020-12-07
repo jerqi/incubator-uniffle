@@ -177,6 +177,11 @@ public class RssShuffleWriterTest {
                 throw new Exception("Shouldn't be here");
             }
         }
+        Map<Integer, Set<Long>> partitionToBlockIds = rssShuffleWriterSpy.getPartitionToBlockIds();
+        assertEquals(2, partitionToBlockIds.get(0).size());
+        assertEquals(2, partitionToBlockIds.get(1).size());
+        assertEquals(2, partitionToBlockIds.get(2).size());
+        partitionToBlockIds.clear();
 
         // case2
         shuffleBlockInfos.clear();
@@ -203,6 +208,11 @@ public class RssShuffleWriterTest {
                 throw new Exception("Shouldn't be here");
             }
         }
+        partitionToBlockIds = rssShuffleWriterSpy.getPartitionToBlockIds();
+        assertEquals(1, partitionToBlockIds.get(0).size());
+        assertEquals(1, partitionToBlockIds.get(1).size());
+        assertEquals(1, partitionToBlockIds.get(2).size());
+        partitionToBlockIds.clear();
 
         sc.stop();
     }

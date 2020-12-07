@@ -1,5 +1,8 @@
 package com.tecent.rss.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.tencent.rss.common.ShuffleRegisterInfo;
@@ -7,9 +10,12 @@ import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.RssProtos;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
 import com.tencent.rss.proto.RssProtos.ShuffleServerIdWithPartitionInfo;
+import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -75,5 +81,19 @@ public class ClientUtils {
             }
         }
         return shuffleRegisterInfos;
+    }
+
+    public static String transBlockIdsToJson(Map<Integer, Set<Long>> partitionToBlockIds)
+            throws JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.writeValueAsString(partitionToBlockIds);
+    }
+
+    public static Map<Integer, Set<Long>> getBlockIdsFromJson(String jsonStr) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        TypeReference<HashMap<Integer, Set<Long>>> typeRef
+                = new TypeReference<HashMap<Integer, Set<Long>>>() {
+        };
+        return mapper.readValue(jsonStr, typeRef);
     }
 }
