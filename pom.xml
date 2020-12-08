@@ -60,6 +60,8 @@
         <tomcat.version>6.0.53</tomcat.version>
         <slf4j.version>1.7.25</slf4j.version>
         <fasterxml.jackson.version>2.9.8</fasterxml.jackson.version>
+        <picocli.version>4.5.2</picocli.version>
+        <system-rules.version>1.19.0</system-rules.version>
 
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -352,6 +354,19 @@
                         <artifactId>netty</artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>info.picocli</groupId>
+                <artifactId>picocli</artifactId>
+                <version>${picocli.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.github.stefanbirkner</groupId>
+                <artifactId>system-rules</artifactId>
+                <version>${system-rules.version}</version>
+                <scope>test</scope>
             </dependency>
 
         </dependencies>

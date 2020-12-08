@@ -14,7 +14,7 @@ public class ShuffleTaskManager {
     public static final String KEY_DELIMITER = "~";
     private static final Logger logger = LoggerFactory.getLogger(ShuffleEngine.class);
     private static final ShuffleTaskManager INSTANCE = new ShuffleTaskManager();
-    protected StorageType storageType = StorageType.FILE;
+    protected StorageType storageType;
     private Map<String, ShuffleEngineManager> shuffleTaskEngines;
 
     private ShuffleTaskManager() {
@@ -34,7 +34,8 @@ public class ShuffleTaskManager {
         return new ShuffleTaskManager();
     }
 
-    public boolean init() {
+    public boolean init(ShuffleServerConf conf) {
+        storageType = StorageType.valueOf(conf.getDataStorageType());
         return true;
     }
 

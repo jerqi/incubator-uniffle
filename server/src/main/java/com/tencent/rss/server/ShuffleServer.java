@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
 
 /**
  * Server that manages startup/shutdown of a {@code Greeter} server.
@@ -17,6 +18,10 @@ public class ShuffleServer {
 
     private int port;
     private Server server;
+
+    public ShuffleServer(ShuffleServerConf conf) {
+        this(conf.getServerPort());
+    }
 
     public ShuffleServer(int port) {
         this(ServerBuilder.forPort(port), port);
@@ -31,17 +36,24 @@ public class ShuffleServer {
      * Main launches the server from the command line.
      */
     public static void main(String[] args) throws IOException, InterruptedException {
-        if (!ShuffleTaskManager.instance().init()) {
-            // log fatal
+        Arguments arguments = new Arguments();
+        CommandLine commandLine = new CommandLine(arguments);
+        commandLine.parseArgs(args);
+
+        ShuffleServerConf serverConf = new ShuffleServerConf();
+        if (!serverConf.loadConfFromFile(arguments.getConfigFile())) {
             System.exit(1);
         }
 
-        if (!BufferManager.instance().init(0, 0, 0)) {
-            // log fatal
+        if (!ShuffleTaskManager.instance().init(serverConf)) {
             System.exit(1);
         }
 
-        final ShuffleServer server = new ShuffleServer(8090);
+        if (!BufferManager.instance().init(serverConf)) {
+            System.exit(1);
+        }
+
+        final ShuffleServer server = new ShuffleServer(serverConf);
         server.start();
         server.blockUntilShutdown();
     }
@@ -79,4 +91,5 @@ public class ShuffleServer {
             server.awaitTermination();
         }
     }
+
 }

@@ -23,6 +23,10 @@ public class BufferManager {
         return INSTANCE;
     }
 
+    public boolean init(ShuffleServerConf conf) {
+        return init(conf.getBufferCapacity(), conf.getBufferSize(), 0);
+    }
+
     public boolean init(int capacity, int bufferSize, int bufferTTL) {
         this.capacity = capacity;
         this.bufferSize = bufferSize;
