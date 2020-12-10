@@ -1,6 +1,6 @@
 package com.tencent.rss.storage;
 
-import com.tencent.rss.proto.RssProtos.ShuffleBlock;
+import com.tencent.rss.common.ShufflePartitionedBlock;
 import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
@@ -33,18 +33,18 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
         fileSystem.mkdirs(path);
     }
 
-    public void write(List<ShuffleBlock> shuffleBlocks) throws IOException, IllegalStateException {
+    public void write(List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException {
         String dataFileName = generateFileName("data");
         String indexFileName = generateFileName("index");
         try (
                 FileBasedShuffleWriter dataWriter = createWriter(dataFileName);
                 FileBasedShuffleWriter indexWriter = createWriter(indexFileName)) {
 
-            for (ShuffleBlock block : shuffleBlocks) {
+            for (ShufflePartitionedBlock block : shuffleBlocks) {
                 long blockId = block.getBlockId();
                 long crc = block.getCrc();
                 long startOffset = dataWriter.nextOffset();
-                dataWriter.writeData(block.getData().asReadOnlyByteBuffer());
+                dataWriter.writeData(block.getData());
 
                 long endOffset = dataWriter.nextOffset();
                 long len = endOffset - startOffset;

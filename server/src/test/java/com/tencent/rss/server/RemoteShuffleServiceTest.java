@@ -1,6 +1,7 @@
 package com.tencent.rss.server;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -118,11 +119,11 @@ public class RemoteShuffleServiceTest {
         when(mockShuffleTaskManager
                 .getShuffleEngine("", "0", 0))
                 .thenReturn(mockShuffleEngine);
+
         List<ShuffleData> shuffleDataList = new LinkedList<>();
         shuffleDataList.add(ShuffleData.newBuilder().build());
-
         when(mockShuffleEngine
-                .write(shuffleDataList))
+                .write(any()))
                 .thenReturn(StatusCode.SUCCESS);
 
         SendShuffleDataRequest req = SendShuffleDataRequest.newBuilder().build();
@@ -143,7 +144,7 @@ public class RemoteShuffleServiceTest {
         assertEquals(expected, actual);
         verify(mockShuffleTaskManager, atLeastOnce()).getShuffleEngine(
                 "", "0", 0);
-        verify(mockShuffleEngine, atLeastOnce()).write(shuffleDataList);
+        verify(mockShuffleEngine, atLeastOnce()).write(any());
 
     }
 

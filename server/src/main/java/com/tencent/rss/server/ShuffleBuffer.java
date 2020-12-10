@@ -1,8 +1,8 @@
 package com.tencent.rss.server;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.tencent.rss.proto.RssProtos.ShuffleBlock;
-import com.tencent.rss.proto.RssProtos.ShuffleData;
+import com.tencent.rss.common.ShufflePartitionedBlock;
+import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -18,7 +18,7 @@ public class ShuffleBuffer {
     private int start; // start partition
     private int end; // end partition
     private int size;
-    private Map<Integer, List<ShuffleBlock>> partitionBuffers;
+    private Map<Integer, List<ShufflePartitionedBlock>> partitionBuffers;
 
     public ShuffleBuffer(int capacity, int ttl, int start, int end) {
         this.capacity = capacity;
@@ -38,11 +38,11 @@ public class ShuffleBuffer {
         }
     }
 
-    public StatusCode append(ShuffleData data) {
+    public StatusCode append(ShufflePartitionedData data) {
         int partition = data.getPartitionId();
-        List<ShuffleBlock> cur = partitionBuffers.get(partition);
+        List<ShufflePartitionedBlock> cur = partitionBuffers.get(partition);
 
-        for (ShuffleBlock block : data.getBlockList()) {
+        for (ShufflePartitionedBlock block : data.getBlockList()) {
             cur.add(block);
             size += block.getLength() + BLOCK_HEAD_SIZE;
         }
@@ -50,7 +50,7 @@ public class ShuffleBuffer {
         return StatusCode.SUCCESS;
     }
 
-    public List<ShuffleBlock> getBlocks(int partition) {
+    public List<ShufflePartitionedBlock> getBlocks(int partition) {
         return partitionBuffers.get(partition);
     }
 

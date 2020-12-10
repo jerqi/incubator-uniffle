@@ -1,15 +1,21 @@
 package com.tencent.rss.server;
 
+import com.tencent.rss.common.ShufflePartitionedBlock;
+import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.proto.RssProtos.SendShuffleDataRequest;
 import com.tencent.rss.proto.RssProtos.SendShuffleDataResponse;
+import com.tencent.rss.proto.RssProtos.ShuffleBlock;
 import com.tencent.rss.proto.RssProtos.ShuffleCommitRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleCommitResponse;
+import com.tencent.rss.proto.RssProtos.ShuffleData;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerImplBase;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +73,7 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
                 ret = StatusCode.NO_REGISTER;
             } else {
                 try {
-                    ret = shuffleEngine.write(req.getShuffleDataList());
+                    ret = shuffleEngine.write(toPartitionedData(req));
                 } catch (IOException | IllegalStateException e) {
                     ret = StatusCode.INTERNAL_ERROR;
                     msg = e.getMessage();
@@ -107,5 +113,31 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
         reply = ShuffleCommitResponse.newBuilder().setStatus(status).setRetMsg(msg).build();
         responseObserver.onNext(reply);
         responseObserver.onCompleted();
+    }
+
+    private List<ShufflePartitionedData> toPartitionedData(SendShuffleDataRequest req) {
+        List<ShufflePartitionedData> ret = new LinkedList<>();
+
+        for (ShuffleData data : req.getShuffleDataList()) {
+            ret.add(new ShufflePartitionedData(
+                    data.getPartitionId(),
+                    toPartitionedBlock(data.getBlockList())));
+        }
+
+        return ret;
+    }
+
+    private List<ShufflePartitionedBlock> toPartitionedBlock(List<ShuffleBlock> blocks) {
+        List<ShufflePartitionedBlock> ret = new LinkedList<>();
+
+        for (ShuffleBlock block : blocks) {
+            ret.add(new ShufflePartitionedBlock(
+                    block.getLength(),
+                    block.getCrc(),
+                    block.getBlockId(),
+                    block.getData().asReadOnlyByteBuffer()));
+        }
+
+        return ret;
     }
 }

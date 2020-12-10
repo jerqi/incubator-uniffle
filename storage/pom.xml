@@ -14,8 +14,14 @@
 
   <dependencies>
     <dependency>
-      <artifactId>rss-proto</artifactId>
+      <artifactId>rss-common</artifactId>
       <groupId>com.tencent.rss</groupId>
+      <exclusions>
+        <exclusion>
+          <artifactId>rss-proto</artifactId>
+          <groupId>com.tencent.rss</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>

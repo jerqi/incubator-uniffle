@@ -4,8 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.tencent.rss.proto.RssProtos.ShuffleBlock;
-import com.tencent.rss.proto.RssProtos.ShuffleData;
+import com.tencent.rss.common.ShufflePartitionedBlock;
+import com.tencent.rss.common.ShufflePartitionedData;
 import java.util.LinkedList;
 import java.util.List;
 import org.junit.After;
@@ -28,17 +28,17 @@ public class ShuffleBufferTest {
 
     @Test
     public void appendAndGetTest() {
-        List<ShuffleData> shuffleData = new LinkedList<>();
-        ShuffleBlock shuffleBlock1 = ShuffleBlock.newBuilder().setBlockId(1L).setLength(10).build();
-        ShuffleBlock shuffleBlock2 = ShuffleBlock.newBuilder().setBlockId(3L).setLength(20).build();
-        ShuffleBlock shuffleBlock3 = ShuffleBlock.newBuilder().setBlockId(5L).setLength(30).build();
+        List<ShufflePartitionedData> shuffleData = new LinkedList<>();
+        ShufflePartitionedBlock shuffleBlock1 = new ShufflePartitionedBlock(10, 1, 1);
+        ShufflePartitionedBlock shuffleBlock2 = new ShufflePartitionedBlock(20, 3, 3);
+        ShufflePartitionedBlock shuffleBlock3 = new ShufflePartitionedBlock(30, 5, 5);
 
-        shuffleData.add(ShuffleData.newBuilder().setPartitionId(1).addBlock(shuffleBlock1).build());
-        shuffleData.add(ShuffleData.newBuilder().setPartitionId(100).addBlock(shuffleBlock2).build());
-        shuffleData.add(ShuffleData.newBuilder().setPartitionId(23).addBlock(shuffleBlock3).build());
+        shuffleData.add(new ShufflePartitionedData(1, shuffleBlock1));
+        shuffleData.add(new ShufflePartitionedData(100, shuffleBlock2));
+        shuffleData.add(new ShufflePartitionedData(23, shuffleBlock3));
 
         shuffleData.forEach(d -> shuffleBuffer.append(d));
-        List<ShuffleBlock> a = shuffleBuffer.getBlocks(1);
+        //List<ShuffleBlock> a = shuffleBuffer.getBlocks(1);
 
         assertEquals(1, shuffleBuffer.getBlocks(1).size());
         assertEquals(1, shuffleBuffer.getBlocks(100).size());
@@ -52,8 +52,8 @@ public class ShuffleBufferTest {
         assertEquals(expected, shuffleBuffer.getSize());
         assertFalse(shuffleBuffer.full());
 
-        ShuffleBlock shuffleBlock4 = ShuffleBlock.newBuilder().setBlockId(25L).setLength(10).build();
-        shuffleBuffer.append(ShuffleData.newBuilder().addBlock(shuffleBlock4).setPartitionId(23).build());
+        ShufflePartitionedBlock shuffleBlock4 = new ShufflePartitionedBlock(10, 25, 25);
+        shuffleBuffer.append(new ShufflePartitionedData(23, shuffleBlock4));
         assertTrue(shuffleBuffer.full());
         assertEquals(2, shuffleBuffer.getBlocks(23).size());
         assertEquals(25, shuffleBuffer.getBlocks(23).get(1).getBlockId());

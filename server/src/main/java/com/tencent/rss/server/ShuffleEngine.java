@@ -1,6 +1,6 @@
 package com.tencent.rss.server;
 
-import com.tencent.rss.proto.RssProtos.ShuffleData;
+import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.storage.FileBasedShuffleWriteHandler;
 import com.tencent.rss.storage.ShuffleStorageWriteHandler;
@@ -43,7 +43,7 @@ public class ShuffleEngine {
         }
     }
 
-    public StatusCode write(List<ShuffleData> shuffleData) throws IOException, IllegalStateException {
+    public StatusCode write(List<ShufflePartitionedData> shuffleData) throws IOException, IllegalStateException {
         synchronized (this) {
             if (buffer == null) {
                 // is committed
@@ -54,7 +54,7 @@ public class ShuffleEngine {
                 }
             }
 
-            for (ShuffleData data : shuffleData) {
+            for (ShufflePartitionedData data : shuffleData) {
                 StatusCode ret = write(data);
                 if (ret != StatusCode.SUCCESS) {
                     return ret;
@@ -65,7 +65,7 @@ public class ShuffleEngine {
         }
     }
 
-    private StatusCode write(ShuffleData data) throws IOException, IllegalStateException {
+    private StatusCode write(ShufflePartitionedData data) throws IOException, IllegalStateException {
         StatusCode ret = buffer.append(data);
         if (ret != StatusCode.SUCCESS) {
             return ret;

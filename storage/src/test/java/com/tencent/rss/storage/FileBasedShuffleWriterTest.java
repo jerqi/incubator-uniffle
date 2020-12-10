@@ -69,10 +69,6 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
 
     @Test
     public void createStreamDirectory() throws IOException {
-        byte[] data = new byte[32];
-        new Random().nextBytes(data);
-        ByteString byteString = ByteString.copyFrom(data);
-
         // create a file and fill 32 bytes
         Path path = new Path(HDFS_URI, "createStreamDirectory");
         fs.mkdirs(path);
@@ -92,13 +88,15 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
     public void createStreamTest() throws IOException {
         byte[] data = new byte[32];
         new Random().nextBytes(data);
-        ByteString byteString = ByteString.copyFrom(data);
+        ByteBuffer buf = ByteBuffer.allocate(32);
+        buf.put(data);
         Path path = new Path(HDFS_URI, "createStreamTest");
 
         try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
             writer.createStream();
             assertEquals(0, writer.nextOffset());
-            writer.writeData(byteString.asReadOnlyByteBuffer());
+            buf.flip();
+            writer.writeData(buf);
             assertEquals(32, writer.nextOffset());
         }
 

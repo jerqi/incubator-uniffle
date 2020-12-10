@@ -1,6 +1,6 @@
 package com.tencent.rss.storage;
 
-import com.tencent.rss.proto.RssProtos.ShuffleBlock;
+import com.tencent.rss.common.ShufflePartitionedBlock;
 import java.io.IOException;
 import java.util.List;
 
@@ -13,5 +13,5 @@ public interface ShuffleStorageWriteHandler {
      * @throws IOException
      * @throws IllegalStateException
      */
-    void write(List<ShuffleBlock> shuffleBlocks) throws IOException, IllegalStateException;
+    void write(List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException;
 }

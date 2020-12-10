@@ -4,10 +4,8 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.protobuf.ByteString;
-import com.tencent.rss.proto.RssProtos.ShuffleBlock;
+import com.tencent.rss.common.ShufflePartitionedBlock;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -36,9 +34,7 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
     public void writeTest() throws IOException, IllegalStateException {
         String basePath = HDFS_URI + "writeTest";
         FileBasedShuffleWriteHandler writeHandler = new FileBasedShuffleWriteHandler(basePath, conf);
-
-        List<ByteString> data = new ArrayList<>();
-        List<ShuffleBlock> blocks = new LinkedList<>();
+        List<ShufflePartitionedBlock> blocks = new LinkedList<>();
         List<byte[]> expectedData = new LinkedList<>();
         List<FileBasedShuffleSegment> expectedIndex = new LinkedList<>();
 
@@ -47,9 +43,7 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
             byte[] buf = new byte[i * 8];
             new Random().nextBytes(buf);
             expectedData.add(buf);
-            ByteString bs = ByteString.copyFrom(buf);
-            data.add(bs);
-            blocks.add(ShuffleBlock.newBuilder().setBlockId(i).setCrc(i).setData(bs).build());
+            blocks.add(new ShufflePartitionedBlock(i * 8, i, i, buf));
             expectedIndex.add(new FileBasedShuffleSegment(pos, i * 8, i, i));
             pos += i * 8;
         }
@@ -62,14 +56,12 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
         compareDataAndIndex(basePath, expectedData, expectedIndex);
 
         // append the exist data and index files
-        List<ShuffleBlock> blocksAppend = new LinkedList<>();
+        List<ShufflePartitionedBlock> blocksAppend = new LinkedList<>();
         for (int i = 13; i < 23; ++i) {
             byte[] buf = new byte[i * 8];
             new Random().nextBytes(buf);
-            ByteString bs = ByteString.copyFrom(buf);
-            data.add(bs);
             expectedData.add(buf);
-            blocksAppend.add(ShuffleBlock.newBuilder().setBlockId(i).setCrc(i).setData(bs).build());
+            blocksAppend.add(new ShufflePartitionedBlock(i * 8, i, i, buf));
             expectedIndex.add(new FileBasedShuffleSegment(pos, i * 8, i, i));
             pos += i * 8;
         }
