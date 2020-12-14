@@ -18,6 +18,7 @@ import com.tencent.rss.proto.RssProtos;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.junit.AfterClass;
@@ -52,7 +53,10 @@ public class RssShuffleManagerTest {
         doNothing().when(managerSpy).registerShuffleServers(anyString(), anyInt(), any());
         when(clientMock.getShuffleAssignments(anyString(), anyInt(), anyInt(), anyInt())).thenReturn(
                 getMockAssignmentsResponse());
-        ShuffleHandle handle = managerSpy.registerShuffle(1, 100, null);
+        ShuffleDependency dependencyMock = mock(ShuffleDependency.class);
+        when(dependencyMock.mapSideCombine()).thenReturn(false);
+
+        ShuffleHandle handle = managerSpy.registerShuffle(1, 100, dependencyMock);
         assertTrue(handle instanceof RssShuffleHandle);
         Map<Integer, List<ShuffleServerInfo>> partitionToServers =
                 ((RssShuffleHandle) handle).getPartitionToServers();

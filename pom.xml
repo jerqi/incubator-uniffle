@@ -36,8 +36,7 @@
         <libthrift.version>0.9.3</libthrift.version>
         <kryo.version>2.22</kryo.version>
         <metrics.version>3.1.0</metrics.version>
-        <mockito.core.version>2.21.0</mockito.core.version>
-        <mockito.junit.version>2.23.0</mockito.junit.version>
+        <mockito.inline.version>3.5.15</mockito.inline.version>
         <netty.spark-2.11.version>4.0.37.Final</netty.spark-2.11.version>
         <netty.version>${netty.spark-2.11.version}</netty.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -130,12 +129,6 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
         </dependency>
-
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-        </dependency>
-
     </dependencies>
 
     <dependencyManagement>
@@ -213,6 +206,17 @@
                 <groupId>com.tencent.rss</groupId>
                 <artifactId>rss-client</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.tencent.rss</groupId>
+                <artifactId>shuffle-storage</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.tencent.rss</groupId>
+                <artifactId>shuffle-storage</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
             </dependency>
 
             <dependency>
@@ -307,6 +311,14 @@
                         <groupId>com.google.code.findbugs</groupId>
                         <artifactId>jsr305</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>com.google.protobuf</groupId>
+                        <artifactId>protobuf-java</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.code.gson</groupId>
+                        <artifactId>gson</artifactId>
+                    </exclusion>
                 </exclusions>
             </dependency>
 
@@ -342,8 +354,8 @@
 
             <dependency>
                 <groupId>org.mockito</groupId>
-                <artifactId>mockito-core</artifactId>
-                <version>${mockito.core.version}</version>
+                <artifactId>mockito-inline</artifactId>
+                <version>${mockito.inline.version}</version>
                 <scope>test</scope>
             </dependency>
 
@@ -360,6 +372,14 @@
                     <exclusion>
                         <groupId>com.google.code.findbugs</groupId>
                         <artifactId>jsr305</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.protobuf</groupId>
+                        <artifactId>protobuf-java</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.code.gson</groupId>
+                        <artifactId>gson</artifactId>
                     </exclusion>
                 </exclusions>
             </dependency>

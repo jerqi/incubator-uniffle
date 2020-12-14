@@ -1,5 +1,6 @@
 package com.tencent.rss.storage;
 
+import com.tencent.rss.common.util.Constants;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -26,5 +27,13 @@ public class ShuffleStorageUtils {
             logger.error("Fail to get filesystem of {}", path);
             throw e;
         }
+    }
+
+    public static String generateDataFileName(String fileNamePrefix) {
+        return fileNamePrefix + Constants.SHUFFLE_DATA_FILE_SUFFIX;
+    }
+
+    public static String generateIndexFileName(String fileNamePrefix) {
+        return fileNamePrefix + Constants.SHUFFLE_INDEX_FILE_SUFFIX;
     }
 }

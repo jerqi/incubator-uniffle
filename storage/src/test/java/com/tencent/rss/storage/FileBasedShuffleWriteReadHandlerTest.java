@@ -25,7 +25,7 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
     @Test
     public void initTest() throws IOException {
         String basePath = HDFS_URI + "test_base";
-        new FileBasedShuffleWriteHandler(basePath, conf);
+        new FileBasedShuffleWriteHandler(basePath, "test", conf);
         Path path = new Path(basePath);
         assertTrue(fs.isDirectory(path));
     }
@@ -33,7 +33,8 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
     @Test
     public void writeTest() throws IOException, IllegalStateException {
         String basePath = HDFS_URI + "writeTest";
-        FileBasedShuffleWriteHandler writeHandler = new FileBasedShuffleWriteHandler(basePath, conf);
+        FileBasedShuffleWriteHandler writeHandler =
+                new FileBasedShuffleWriteHandler(basePath, "test", conf);
         List<ShufflePartitionedBlock> blocks = new LinkedList<>();
         List<byte[]> expectedData = new LinkedList<>();
         List<FileBasedShuffleSegment> expectedIndex = new LinkedList<>();
@@ -50,10 +51,10 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
         writeHandler.write(blocks);
 
         // a data file and a index is created after writing
-        fs.isFile(new Path(basePath, "data"));
-        fs.isFile(new Path(basePath, "index"));
+        fs.isFile(new Path(basePath, "test.data"));
+        fs.isFile(new Path(basePath, "test.index"));
 
-        compareDataAndIndex(basePath, expectedData, expectedIndex);
+        compareDataAndIndex(basePath, "test", expectedData, expectedIndex);
 
         // append the exist data and index files
         List<ShufflePartitionedBlock> blocksAppend = new LinkedList<>();
@@ -67,21 +68,22 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
         }
         writeHandler.write(blocksAppend);
 
-        compareDataAndIndex(basePath, expectedData, expectedIndex);
+        compareDataAndIndex(basePath, "test", expectedData, expectedIndex);
     }
 
     private void compareDataAndIndex(
             String path,
+            String filenamePrefix,
             List<byte[]> expectedData,
             List<FileBasedShuffleSegment> index) throws IOException, IllegalStateException {
         // read directly and compare
-        try (FileBasedShuffleReadHandler readHandler = new FileBasedShuffleReadHandler(path, conf)) {
+        try (FileBasedShuffleReadHandler readHandler = new FileBasedShuffleReadHandler(path, filenamePrefix, conf)) {
             List<byte[]> actual = readData(readHandler);
             compareBytes(expectedData, actual);
         }
 
         // read index and use the index to read data
-        try (FileBasedShuffleReadHandler readHandler = new FileBasedShuffleReadHandler(path, conf)) {
+        try (FileBasedShuffleReadHandler readHandler = new FileBasedShuffleReadHandler(path, filenamePrefix, conf)) {
             assertEquals(1024 * 1024, readHandler.getIndexReadLimit());
             assertEquals(1024, readHandler.getDataReadLimit());
             List<FileBasedShuffleSegment> actualIndex = readHandler.readIndex();

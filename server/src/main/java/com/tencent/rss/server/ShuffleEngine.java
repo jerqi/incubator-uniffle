@@ -36,7 +36,7 @@ public class ShuffleEngine {
             }
 
             if (ShuffleTaskManager.instance().storageType == StorageType.FILE) {
-                writer = new FileBasedShuffleWriteHandler("", null);
+                writer = new FileBasedShuffleWriteHandler("", "", null);
             }
 
             return StatusCode.SUCCESS;

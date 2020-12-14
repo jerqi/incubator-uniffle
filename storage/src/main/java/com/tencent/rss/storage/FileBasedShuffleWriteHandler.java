@@ -14,30 +14,39 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
     private static final Logger logger = LoggerFactory.getLogger(FileBasedShuffleWriteHandler.class);
     private Configuration hadoopConf;
     private String basePath;
+    private String fileNamePrefix;
 
     public FileBasedShuffleWriteHandler(
-            String basePath, Configuration hadoopConf) throws IOException, IllegalStateException {
+            String basePath, String fileNamePrefix, Configuration hadoopConf)
+            throws IOException, IllegalStateException {
         this.basePath = basePath;
         this.hadoopConf = hadoopConf;
+        this.fileNamePrefix = fileNamePrefix;
         createBasePath();
     }
 
     private void createBasePath() throws IOException, IllegalStateException {
         Path path = new Path(basePath);
         FileSystem fileSystem = ShuffleStorageUtils.getFileSystemForPath(path, hadoopConf);
-        if (fileSystem.exists(path)) {
-            String msg = path + " is already exist.";
-            logger.error(msg);
-            throw new IllegalStateException(msg);
+        // check if shuffle folder exist
+        if (!fileSystem.exists(path)) {
+            try {
+                // try to create folder, it may be created by other Shuffle Server
+                fileSystem.mkdirs(path);
+            } catch (IOException ioe) {
+                // if folder exist, ignore the exception
+                if (!fileSystem.exists(path)) {
+                    logger.error("Can't create shuffle folder:" + basePath, ioe);
+                    throw ioe;
+                }
+            }
         }
-        fileSystem.mkdirs(path);
     }
 
     public void write(List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException {
-        String dataFileName = generateFileName("data");
-        String indexFileName = generateFileName("index");
-        try (
-                FileBasedShuffleWriter dataWriter = createWriter(dataFileName);
+        String dataFileName = ShuffleStorageUtils.generateDataFileName(fileNamePrefix);
+        String indexFileName = ShuffleStorageUtils.generateIndexFileName(fileNamePrefix);
+        try (FileBasedShuffleWriter dataWriter = createWriter(dataFileName);
                 FileBasedShuffleWriter indexWriter = createWriter(indexFileName)) {
 
             for (ShufflePartitionedBlock block : shuffleBlocks) {
@@ -53,10 +62,6 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
                 indexWriter.writeIndex(segment);
             }
         }
-    }
-
-    private String generateFileName(String ref) {
-        return ref;
     }
 
     private FileBasedShuffleWriter createWriter(String fileName) throws IOException, IllegalStateException {

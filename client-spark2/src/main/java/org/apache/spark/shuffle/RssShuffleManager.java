@@ -14,6 +14,7 @@ import com.tencent.rss.proto.RssProtos;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
@@ -103,6 +104,10 @@ public class RssShuffleManager implements ShuffleManager {
     // pass that ShuffleHandle to executors (getWriter/getReader).
     @Override
     public <K, V, C> ShuffleHandle registerShuffle(int shuffleId, int numMaps, ShuffleDependency<K, V, C> dependency) {
+        if (dependency.mapSideCombine()) {
+            throw new RuntimeException("MapSideCombine is not supported in Rss");
+        }
+
         CoordinatorGrpcClient coordinatorClient = getCoordinatorClient();
         // ask coordinator for ShuffleServerHandler
         int partitionsPerServer = sparkConf.getInt(RssClientConfig.RSS_PARTITIONS_PER_SERVER,
@@ -174,9 +179,15 @@ public class RssShuffleManager implements ShuffleManager {
     public <K, C> ShuffleReader<K, C> getReader(ShuffleHandle handle,
             int startPartition, int endPartition, TaskContext context) {
         if (handle instanceof RssShuffleHandle) {
-            return new RssShuffleReader(0, 0, context, null,
-                    ((RssShuffleHandle) handle).getDependency(), ((RssShuffleHandle) handle).getNumMaps(), 0,
-                    ((RssShuffleHandle) handle).getDependency().serializer());
+            String shuffleDataBasePath = sparkConf.get(RssClientConfig.RSS_BASE_PATH);
+            if (StringUtils.isEmpty(shuffleDataBasePath)) {
+                throw new RuntimeException("Can't get shuffle base path");
+            }
+            return new RssShuffleReader<K, C>(startPartition, endPartition, context,
+                    (RssShuffleHandle) handle, 0, shuffleDataBasePath,
+                    sparkConf.getInt(RssClientConfig.RSS_INDEX_READ_LIMIT,
+                            RssClientConfig.RSS_INDEX_READ_LIMIT_DEFAULT_VALUE),
+                    SparkContext.getOrCreate().hadoopConfiguration());
         } else {
             throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());
         }

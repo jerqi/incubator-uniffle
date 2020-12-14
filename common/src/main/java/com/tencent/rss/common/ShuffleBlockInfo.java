@@ -4,7 +4,6 @@ import java.util.List;
 
 public class ShuffleBlockInfo {
 
-
     private int partitionId;
     private long blockId;
     private int length;

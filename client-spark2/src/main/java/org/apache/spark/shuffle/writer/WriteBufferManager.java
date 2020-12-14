@@ -7,6 +7,7 @@ import com.google.common.collect.Maps;
 import com.tecent.rss.client.ClientUtils;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
+import com.tencent.rss.common.util.ChecksumUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -103,8 +104,7 @@ public class WriteBufferManager {
 
     // transform records to shuffleBlock
     private ShuffleBlockInfo createShuffleBlock(int partitionId, byte[] data) {
-        // todo: add util for crc32 calculate
-        long crc32 = 0;
+        long crc32 = ChecksumUtils.getCrc32(data);
         return new ShuffleBlockInfo(shuffleId, partitionId,
                 ClientUtils.getBlockId(executorId, ClientUtils.getAtomicInteger()),
                 data.length, crc32, data, partitionToServers.get(partitionId));

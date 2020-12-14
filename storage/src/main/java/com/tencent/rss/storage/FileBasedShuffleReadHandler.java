@@ -10,19 +10,22 @@ import org.slf4j.LoggerFactory;
 
 public class FileBasedShuffleReadHandler implements ShuffleStorageReaderHandler<FileBasedShuffleSegment>, Closeable {
 
-    private static final Logger logger = LoggerFactory.getLogger(FileBasedShuffleReadHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FileBasedShuffleReadHandler.class);
     private final int indexReadLimit;
     private final int dataReadLimit;
     private Configuration hadoopConf;
     private String basePath;
+    private String fileNamePrefix;
     private FileBasedShuffleReader dataReader;
     private FileBasedShuffleReader indexReader;
 
     public FileBasedShuffleReadHandler(
             String basePath,
+            String fileNamePrefix,
             Configuration hadoopConf) throws IOException, IllegalStateException {
         this(
                 basePath,
+                fileNamePrefix,
                 hadoopConf,
                 1024 * 1024, // the segments size would be 32MB
                 1024 // 32K index and 1k blocks at most
@@ -31,11 +34,13 @@ public class FileBasedShuffleReadHandler implements ShuffleStorageReaderHandler<
 
     public FileBasedShuffleReadHandler(
             String basePath,
+            String fileNamePrefix,
             Configuration hadoopConf,
             int indexReadLimit,
             int dataReadLimit) throws IOException, IllegalStateException {
         this.basePath = basePath;
         this.hadoopConf = hadoopConf;
+        this.fileNamePrefix = fileNamePrefix;
         this.indexReadLimit = indexReadLimit;
         this.dataReadLimit = dataReadLimit;
         init();
@@ -43,18 +48,12 @@ public class FileBasedShuffleReadHandler implements ShuffleStorageReaderHandler<
 
     @Override
     public List<FileBasedShuffleSegment> readIndex() throws IOException, IllegalStateException {
-        int defaultLimit = indexReadLimit;
-        return readIndex(defaultLimit);
+        return readIndex(indexReadLimit);
     }
 
     @Override
     public List<FileBasedShuffleSegment> readIndex(int limit) throws IOException, IllegalStateException {
-        List<FileBasedShuffleSegment> fileBasedShuffleSegments = indexReader.readIndex(limit);
-        if (fileBasedShuffleSegments.isEmpty()) {
-            return null;
-        }
-
-        return fileBasedShuffleSegments;
+        return indexReader.readIndex(limit);
     }
 
     @Override
@@ -74,17 +73,30 @@ public class FileBasedShuffleReadHandler implements ShuffleStorageReaderHandler<
 
     @Override
     public synchronized void close() throws IOException {
-        dataReader.close();
-        indexReader.close();
+        try {
+            if (dataReader != null) {
+                dataReader.close();
+            }
+        } catch (IOException ioe) {
+            String message = "Error happened when close dataReader";
+            LOG.error(message, ioe);
+            throw new IOException(message, ioe);
+        }
+
+        try {
+            if (indexReader != null) {
+                indexReader.close();
+            }
+        } catch (IOException ioe) {
+            String message = "Error happened when close indexReader";
+            LOG.error(message, ioe);
+            throw new IOException(message, ioe);
+        }
     }
 
     private void init() throws IOException, IllegalStateException {
-        dataReader = createReader(generateFileName("data"));
-        indexReader = createReader(generateFileName("index"));
-    }
-
-    private String generateFileName(String ref) {
-        return ref;
+        dataReader = createReader(ShuffleStorageUtils.generateDataFileName(fileNamePrefix));
+        indexReader = createReader(ShuffleStorageUtils.generateIndexFileName(fileNamePrefix));
     }
 
     private FileBasedShuffleReader createReader(String fileName) throws IOException, IllegalStateException {
