@@ -6,38 +6,38 @@ import java.util.Objects;
 
 public class ShufflePartitionedData {
 
-    private int partitionId;
-    private List<ShufflePartitionedBlock> blockList;
+  private int partitionId;
+  private List<ShufflePartitionedBlock> blockList;
 
-    public ShufflePartitionedData(int partitionId, List<ShufflePartitionedBlock> blockList) {
-        this.partitionId = partitionId;
-        this.blockList = blockList;
-    }
+  public ShufflePartitionedData(int partitionId, List<ShufflePartitionedBlock> blockList) {
+    this.partitionId = partitionId;
+    this.blockList = blockList;
+  }
 
-    public ShufflePartitionedData(int partitionId, ShufflePartitionedBlock blockList) {
-        this.partitionId = partitionId;
-        Objects.requireNonNull(blockList);
-        this.blockList = Collections.singletonList(blockList);
-    }
+  public ShufflePartitionedData(int partitionId, ShufflePartitionedBlock blockList) {
+    this.partitionId = partitionId;
+    Objects.requireNonNull(blockList);
+    this.blockList = Collections.singletonList(blockList);
+  }
 
-    @Override
-    public String toString() {
-        return "ShufflePartitionedData{partitionId=" + partitionId + ", blockList=" + blockList + '}';
-    }
+  @Override
+  public String toString() {
+    return "ShufflePartitionedData{partitionId=" + partitionId + ", blockList=" + blockList + '}';
+  }
 
-    public int getPartitionId() {
-        return partitionId;
-    }
+  public int getPartitionId() {
+    return partitionId;
+  }
 
-    public void setPartitionId(int partitionId) {
-        this.partitionId = partitionId;
-    }
+  public void setPartitionId(int partitionId) {
+    this.partitionId = partitionId;
+  }
 
-    public List<ShufflePartitionedBlock> getBlockList() {
-        return blockList;
-    }
+  public List<ShufflePartitionedBlock> getBlockList() {
+    return blockList;
+  }
 
-    public void setBlockList(List<ShufflePartitionedBlock> blockList) {
-        this.blockList = blockList;
-    }
+  public void setBlockList(List<ShufflePartitionedBlock> blockList) {
+    this.blockList = blockList;
+  }
 }

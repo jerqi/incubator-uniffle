@@ -4,83 +4,83 @@ import java.util.Objects;
 
 public class FileBasedShuffleSegment extends ShuffleSegment {
 
-    private long offset;
-    private long length;
-    private long crc;
-    private long blockId;
+  private long offset;
+  private long length;
+  private long crc;
+  private long blockId;
 
-    public FileBasedShuffleSegment(long offset, long length, long crc, long blockId) {
-        this.offset = offset;
-        this.length = length;
-        this.crc = crc;
-        this.blockId = blockId;
-    }
+  public FileBasedShuffleSegment(long offset, long length, long crc, long blockId) {
+    this.offset = offset;
+    this.length = length;
+    this.crc = crc;
+    this.blockId = blockId;
+  }
 
-    public long getOffset() {
-        return offset;
-    }
+  public long getOffset() {
+    return offset;
+  }
 
-    public void setOffset(long offset) {
-        this.offset = offset;
-    }
+  public void setOffset(long offset) {
+    this.offset = offset;
+  }
 
-    public long getLength() {
-        return length;
-    }
+  public long getLength() {
+    return length;
+  }
 
-    public void setLength(long length) {
-        this.length = length;
-    }
+  public void setLength(long length) {
+    this.length = length;
+  }
 
-    public long getCrc() {
-        return crc;
-    }
+  public long getCrc() {
+    return crc;
+  }
 
-    public void setCrc(long crc) {
-        this.crc = crc;
-    }
+  public void setCrc(long crc) {
+    this.crc = crc;
+  }
 
-    public long getBlockId() {
-        return blockId;
-    }
+  public long getBlockId() {
+    return blockId;
+  }
 
-    public void setBlockId(long blockId) {
-        this.blockId = blockId;
-    }
+  public void setBlockId(long blockId) {
+    this.blockId = blockId;
+  }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        FileBasedShuffleSegment that = (FileBasedShuffleSegment) o;
-        return offset == that.offset
-                && length == that.length
-                && crc == that.crc
-                && blockId == that.blockId;
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
     }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    FileBasedShuffleSegment that = (FileBasedShuffleSegment) o;
+    return offset == that.offset
+      && length == that.length
+      && crc == that.crc
+      && blockId == that.blockId;
+  }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(offset, length, crc, blockId);
-    }
+  @Override
+  public int hashCode() {
+    return Objects.hash(offset, length, crc, blockId);
+  }
 
-    @Override
-    public String toString() {
-        return "HDFSShuffleSegment{"
-                + "offset="
-                + offset
-                + ", length="
-                + length
-                + ", crc="
-                + crc
-                + ", blockId='"
-                + blockId
-                + '\''
-                + '}';
-    }
+  @Override
+  public String toString() {
+    return "HDFSShuffleSegment{"
+      + "offset="
+      + offset
+      + ", length="
+      + length
+      + ", crc="
+      + crc
+      + ", blockId='"
+      + blockId
+      + '\''
+      + '}';
+  }
 
 }

@@ -4,42 +4,42 @@ import java.io.Serializable;
 
 public class ShuffleServerInfo implements Serializable {
 
-    private String id;
+  private String id;
 
-    private String host;
+  private String host;
 
-    private int port;
+  private int port;
 
-    public ShuffleServerInfo(String id, String host, int port) {
-        this.id = id;
-        this.host = host;
-        this.port = port;
+  public ShuffleServerInfo(String id, String host, int port) {
+    this.id = id;
+    this.host = host;
+    this.port = port;
+  }
+
+  public String getId() {
+    return id;
+  }
+
+  public String getHost() {
+    return host;
+  }
+
+  public int getPort() {
+    return port;
+  }
+
+  @Override
+  public int hashCode() {
+    return host.hashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof ShuffleServerInfo) {
+      return id.equals(((ShuffleServerInfo) obj).getId())
+        && host.equals(((ShuffleServerInfo) obj).getHost())
+        && port == ((ShuffleServerInfo) obj).getPort();
     }
-
-    public String getId() {
-        return id;
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    @Override
-    public int hashCode() {
-        return host.hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof ShuffleServerInfo) {
-            return id.equals(((ShuffleServerInfo) obj).getId())
-                    && host.equals(((ShuffleServerInfo) obj).getHost())
-                    && port == ((ShuffleServerInfo) obj).getPort();
-        }
-        return false;
-    }
+    return false;
+  }
 }

@@ -1,9 +1,5 @@
 package com.tencent.rss.server;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import com.tencent.rss.common.CoordinatorGrpcClient;
 import com.tencent.rss.proto.CoordinatorServerGrpc.CoordinatorServerImplBase;
 import com.tencent.rss.proto.RssProtos.ServerRegisterRequest;
@@ -22,119 +18,123 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 @RunWith(JUnit4.class)
 public class RegisterHeartBeatTest {
 
-    /**
-     * This rule manages automatic graceful shutdown for the registered servers and channels at the
-     * end of test.
-     */
-    @Rule
-    public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-    private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-    private CoordinatorGrpcClient client;
-    private RegisterHeartBeat rh;
+  /**
+   * This rule manages automatic graceful shutdown for the registered servers and channels at the
+   * end of test.
+   */
+  @Rule
+  public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
+  private CoordinatorGrpcClient client;
+  private RegisterHeartBeat rh;
 
-    @Before
-    public void setUp() throws Exception {
-        // Generate a unique in-process server name.
-        String serverName = InProcessServerBuilder.generateName();
-        // Use a mutable service registry for later registering the service impl for each test case.
-        grpcCleanup.register(InProcessServerBuilder.forName(serverName)
-                .fallbackHandlerRegistry(serviceRegistry).directExecutor().build().start());
-        client = new CoordinatorGrpcClient(grpcCleanup.register(
-                InProcessChannelBuilder.forName(serverName).directExecutor().build()));
-        rh = new RegisterHeartBeat(client);
-    }
+  @Before
+  public void setUp() throws Exception {
+    // Generate a unique in-process server name.
+    String serverName = InProcessServerBuilder.generateName();
+    // Use a mutable service registry for later registering the service impl for each test case.
+    grpcCleanup.register(InProcessServerBuilder.forName(serverName)
+      .fallbackHandlerRegistry(serviceRegistry).directExecutor().build().start());
+    client = new CoordinatorGrpcClient(grpcCleanup.register(
+      InProcessChannelBuilder.forName(serverName).directExecutor().build()));
+    rh = new RegisterHeartBeat(client);
+  }
 
-    private boolean register(RegisterHeartBeat rh) {
-        return rh.register("", "", 0);
-    }
+  private boolean register(RegisterHeartBeat rh) {
+    return rh.register("", "", 0);
+  }
 
-    private boolean sendHeartBeat(RegisterHeartBeat rh) {
-        return rh.sendHeartBeat("", "", 0);
-    }
+  private boolean sendHeartBeat(RegisterHeartBeat rh) {
+    return rh.sendHeartBeat("", "", 0);
+  }
 
-    @Test
-    public void registerTest() {
-        CoordinatorServerImplBase serviceImpl =
-                new CoordinatorServerImplBase() {
-                    @Override
-                    public void registerShuffleServer(ServerRegisterRequest req,
-                            StreamObserver<ServerRegisterResponse> streamObserver) {
-                        ServerRegisterResponse resp =
-                                ServerRegisterResponse.newBuilder().setStatus(StatusCode.SUCCESS).build();
-                        streamObserver.onNext(resp);
-                        streamObserver.onCompleted();
-                    }
-                };
-        serviceRegistry.addService(serviceImpl);
-        assertFalse(rh.getIsRegistered());
+  @Test
+  public void registerTest() {
+    CoordinatorServerImplBase serviceImpl =
+      new CoordinatorServerImplBase() {
+        @Override
+        public void registerShuffleServer(ServerRegisterRequest req,
+                                          StreamObserver<ServerRegisterResponse> streamObserver) {
+          ServerRegisterResponse resp =
+            ServerRegisterResponse.newBuilder().setStatus(StatusCode.SUCCESS).build();
+          streamObserver.onNext(resp);
+          streamObserver.onCompleted();
+        }
+      };
+    serviceRegistry.addService(serviceImpl);
+    assertFalse(rh.getIsRegistered());
 
-        boolean ret = register(rh);
-        assertTrue(ret);
-        assertTrue(rh.getIsRegistered());
-    }
+    boolean ret = register(rh);
+    assertTrue(ret);
+    assertTrue(rh.getIsRegistered());
+  }
 
-    @Test
-    public void heartBeatTest() {
-        CoordinatorServerImplBase serviceImpl =
-                new CoordinatorServerImplBase() {
-                    @Override
-                    public void heartbeat(ShuffleServerHeartBeatRequest req,
-                            StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
-                        ShuffleServerHeartBeatResponse resp = ShuffleServerHeartBeatResponse
-                                .newBuilder()
-                                .setStatus(StatusCode.SUCCESS)
-                                .build();
-                        streamObserver.onNext(resp);
-                        streamObserver.onCompleted();
-                    }
-                };
-        serviceRegistry.addService(serviceImpl);
-        boolean ret = sendHeartBeat(rh);
-        assertTrue(ret);
-    }
+  @Test
+  public void heartBeatTest() {
+    CoordinatorServerImplBase serviceImpl =
+      new CoordinatorServerImplBase() {
+        @Override
+        public void heartbeat(ShuffleServerHeartBeatRequest req,
+                              StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
+          ShuffleServerHeartBeatResponse resp = ShuffleServerHeartBeatResponse
+            .newBuilder()
+            .setStatus(StatusCode.SUCCESS)
+            .build();
+          streamObserver.onNext(resp);
+          streamObserver.onCompleted();
+        }
+      };
+    serviceRegistry.addService(serviceImpl);
+    boolean ret = sendHeartBeat(rh);
+    assertTrue(ret);
+  }
 
 
-    @Test
-    public void heartBeatFailTest() {
-        CoordinatorServerImplBase serviceImpl =
-                new CoordinatorServerImplBase() {
-                    @Override
-                    public void registerShuffleServer(ServerRegisterRequest req,
-                            StreamObserver<ServerRegisterResponse> streamObserver) {
-                        ServerRegisterResponse resp =
-                                ServerRegisterResponse.newBuilder().setStatus(StatusCode.SUCCESS).build();
-                        streamObserver.onNext(resp);
-                        streamObserver.onCompleted();
-                    }
+  @Test
+  public void heartBeatFailTest() {
+    CoordinatorServerImplBase serviceImpl =
+      new CoordinatorServerImplBase() {
+        @Override
+        public void registerShuffleServer(ServerRegisterRequest req,
+                                          StreamObserver<ServerRegisterResponse> streamObserver) {
+          ServerRegisterResponse resp =
+            ServerRegisterResponse.newBuilder().setStatus(StatusCode.SUCCESS).build();
+          streamObserver.onNext(resp);
+          streamObserver.onCompleted();
+        }
 
-                    @Override
-                    public void heartbeat(ShuffleServerHeartBeatRequest req,
-                            StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
-                        ShuffleServerHeartBeatResponse resp = ShuffleServerHeartBeatResponse
-                                .newBuilder()
-                                .setStatus(StatusCode.INTERNAL_ERROR)
-                                .build();
-                        streamObserver.onNext(resp);
-                        streamObserver.onCompleted();
-                    }
-                };
-        serviceRegistry.addService(serviceImpl);
+        @Override
+        public void heartbeat(ShuffleServerHeartBeatRequest req,
+                              StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
+          ShuffleServerHeartBeatResponse resp = ShuffleServerHeartBeatResponse
+            .newBuilder()
+            .setStatus(StatusCode.INTERNAL_ERROR)
+            .build();
+          streamObserver.onNext(resp);
+          streamObserver.onCompleted();
+        }
+      };
+    serviceRegistry.addService(serviceImpl);
 
-        register(rh);
-        assertTrue(rh.getIsRegistered());
-        rh.setMaxHeartBeatRetryCount(3);
+    register(rh);
+    assertTrue(rh.getIsRegistered());
+    rh.setMaxHeartBeatRetryCount(3);
 
-        sendHeartBeat(rh);
-        sendHeartBeat(rh);
-        assertEquals(rh.getFailedHeartBeatCount(), 2);
-        assertTrue(rh.getIsRegistered());
+    sendHeartBeat(rh);
+    sendHeartBeat(rh);
+    assertEquals(rh.getFailedHeartBeatCount(), 2);
+    assertTrue(rh.getIsRegistered());
 
-        sendHeartBeat(rh);
-        assertFalse(rh.getIsRegistered());
-        assertEquals(rh.getFailedHeartBeatCount(), 3);
-    }
+    sendHeartBeat(rh);
+    assertFalse(rh.getIsRegistered());
+    assertEquals(rh.getFailedHeartBeatCount(), 3);
+  }
 
 }

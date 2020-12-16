@@ -61,6 +61,7 @@
         <fasterxml.jackson.version>2.9.8</fasterxml.jackson.version>
         <picocli.version>4.5.2</picocli.version>
         <system-rules.version>1.19.0</system-rules.version>
+        <prometheus.simpleclient.version>0.9.0</prometheus.simpleclient.version>
 
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -343,6 +344,34 @@
                 <artifactId>error_prone_annotations</artifactId>
                 <version>${error_prone_annotations.version}
                 </version> <!-- prefer to use 2.3.3 or later -->
+            </dependency>
+
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient</artifactId>
+                <version>${prometheus.simpleclient.version}</version>
+            </dependency>
+            <!-- Hotspot JVM metrics-->
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_hotspot</artifactId>
+                <version>${prometheus.simpleclient.version}</version>
+            </dependency>
+            <!-- Exposition HTTPServer-->
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_httpserver</artifactId>
+                <version>${prometheus.simpleclient.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_jetty</artifactId>
+                <version>${prometheus.simpleclient.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_servlet</artifactId>
+                <version>${prometheus.simpleclient.version}</version>
             </dependency>
 
             <dependency>

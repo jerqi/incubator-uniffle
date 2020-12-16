@@ -5,128 +5,129 @@ import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.storage.FileBasedShuffleWriteHandler;
 import com.tencent.rss.storage.ShuffleStorageWriteHandler;
 import com.tencent.rss.storage.StorageType;
-import java.io.IOException;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.List;
+
 public class ShuffleEngine {
 
-    private static final Logger logger = LoggerFactory.getLogger(ShuffleEngine.class);
+  private static final Logger logger = LoggerFactory.getLogger(ShuffleEngine.class);
 
-    private String appId;
-    private String shuffleId;
-    private int startPartition;
-    private int endPartition;
-    private ShuffleBuffer buffer;
-    private ShuffleStorageWriteHandler writer;
+  private String appId;
+  private String shuffleId;
+  private int startPartition;
+  private int endPartition;
+  private ShuffleBuffer buffer;
+  private ShuffleStorageWriteHandler writer;
 
-    public ShuffleEngine(String appId, String shuffleId, int startPartition, int endPartition) {
-        this.appId = appId;
-        this.shuffleId = shuffleId;
-        this.startPartition = startPartition;
-        this.endPartition = endPartition;
+  public ShuffleEngine(String appId, String shuffleId, int startPartition, int endPartition) {
+    this.appId = appId;
+    this.shuffleId = shuffleId;
+    this.startPartition = startPartition;
+    this.endPartition = endPartition;
+  }
+
+  public StatusCode init() throws IOException, IllegalStateException {
+    synchronized (this) {
+      buffer = BufferManager.instance().getBuffer(startPartition, endPartition);
+      if (buffer == null) {
+        return StatusCode.NO_BUFFER;
+      }
+
+      if (ShuffleTaskManager.instance().storageType == StorageType.FILE) {
+        writer = new FileBasedShuffleWriteHandler("", "", null);
+      }
+
+      return StatusCode.SUCCESS;
     }
+  }
 
-    public StatusCode init() throws IOException, IllegalStateException {
-        synchronized (this) {
-            buffer = BufferManager.instance().getBuffer(startPartition, endPartition);
-            if (buffer == null) {
-                return StatusCode.NO_BUFFER;
-            }
+  public StatusCode write(List<ShufflePartitionedData> shuffleData) throws IOException, IllegalStateException {
+    synchronized (this) {
+      if (buffer == null) {
+        // is committed
+        buffer = BufferManager.instance().getBuffer(startPartition, endPartition);
 
-            if (ShuffleTaskManager.instance().storageType == StorageType.FILE) {
-                writer = new FileBasedShuffleWriteHandler("", "", null);
-            }
-
-            return StatusCode.SUCCESS;
+        if (buffer == null) {
+          return StatusCode.NO_BUFFER;
         }
-    }
+      }
 
-    public StatusCode write(List<ShufflePartitionedData> shuffleData) throws IOException, IllegalStateException {
-        synchronized (this) {
-            if (buffer == null) {
-                // is committed
-                buffer = BufferManager.instance().getBuffer(startPartition, endPartition);
-
-                if (buffer == null) {
-                    return StatusCode.NO_BUFFER;
-                }
-            }
-
-            for (ShufflePartitionedData data : shuffleData) {
-                StatusCode ret = write(data);
-                if (ret != StatusCode.SUCCESS) {
-                    return ret;
-                }
-            }
-
-            return StatusCode.SUCCESS;
-        }
-    }
-
-    private StatusCode write(ShufflePartitionedData data) throws IOException, IllegalStateException {
-        StatusCode ret = buffer.append(data);
+      for (ShufflePartitionedData data : shuffleData) {
+        StatusCode ret = write(data);
         if (ret != StatusCode.SUCCESS) {
-            return ret;
+          return ret;
         }
+      }
 
-        if (buffer.full()) {
-            flush();
-        }
+      return StatusCode.SUCCESS;
+    }
+  }
 
-        return StatusCode.SUCCESS;
+  private StatusCode write(ShufflePartitionedData data) throws IOException, IllegalStateException {
+    StatusCode ret = buffer.append(data);
+    if (ret != StatusCode.SUCCESS) {
+      return ret;
     }
 
-    public StatusCode flush() throws IOException, IllegalStateException {
-        synchronized (this) {
-            for (int partition = startPartition; partition <= endPartition; ++partition) {
-                writer.write(buffer.getBlocks(partition));
-            }
-
-            buffer.clear();
-            buffer.setSize(0);
-
-            return StatusCode.SUCCESS;
-        }
+    if (buffer.full()) {
+      flush();
     }
 
-    private void clear() {
-        if (buffer != null) {
-            buffer.clear();
-        }
-    }
+    return StatusCode.SUCCESS;
+  }
 
-    public String getAppId() {
-        return appId;
-    }
+  public StatusCode flush() throws IOException, IllegalStateException {
+    synchronized (this) {
+      for (int partition = startPartition; partition <= endPartition; ++partition) {
+        writer.write(buffer.getBlocks(partition));
+      }
 
-    public void setAppId(String appId) {
-        this.appId = appId;
-    }
+      buffer.clear();
+      buffer.setSize(0);
 
-    public String getShuffleId() {
-        return shuffleId;
+      return StatusCode.SUCCESS;
     }
+  }
 
-    public void setShuffleId(String shuffleId) {
-        this.shuffleId = shuffleId;
+  private void clear() {
+    if (buffer != null) {
+      buffer.clear();
     }
+  }
 
-    public int getStartPartition() {
-        return startPartition;
-    }
+  public String getAppId() {
+    return appId;
+  }
 
-    public void setStartPartition(int startPartition) {
-        this.startPartition = startPartition;
-    }
+  public void setAppId(String appId) {
+    this.appId = appId;
+  }
 
-    public int getEndPartition() {
-        return endPartition;
-    }
+  public String getShuffleId() {
+    return shuffleId;
+  }
 
-    public void setEndPartition(int endPartition) {
-        this.endPartition = endPartition;
-    }
+  public void setShuffleId(String shuffleId) {
+    this.shuffleId = shuffleId;
+  }
+
+  public int getStartPartition() {
+    return startPartition;
+  }
+
+  public void setStartPartition(int startPartition) {
+    this.startPartition = startPartition;
+  }
+
+  public int getEndPartition() {
+    return endPartition;
+  }
+
+  public void setEndPartition(int endPartition) {
+    this.endPartition = endPartition;
+  }
 
 }
