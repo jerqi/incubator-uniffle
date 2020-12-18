@@ -20,7 +20,7 @@ public class JettyConf extends RssConf {
   public static final ConfigOption<Integer> JETTY_MAX_THREAD = ConfigOptions
     .key("jetty.max.thread")
     .intType()
-    .defaultValue(32)
+    .defaultValue(16)
     .withDescription("jetty max thread");
 
   public static final ConfigOption<Integer> JETTY_MIN_THREAD = ConfigOptions
@@ -28,6 +28,18 @@ public class JettyConf extends RssConf {
     .intType()
     .defaultValue(8)
     .withDescription("jetty min thread");
+
+  public static final ConfigOption<Integer> JETTY_CORE_POOL_SIZE = ConfigOptions
+    .key("jetty.corePool.size")
+    .intType()
+    .defaultValue(32)
+    .withDescription("jetty corePool size");
+
+  public static final ConfigOption<Integer> JETTY_QUEUE_SIZE = ConfigOptions
+    .key("jetty.queue.size")
+    .intType()
+    .defaultValue(8)
+    .withDescription("jetty queue size");
 
   public static final ConfigOption<Integer> JETTY_HEADER_BUFFER_SIZE = ConfigOptions
     .key("jetty.header.buffer.size")
@@ -102,6 +114,14 @@ public class JettyConf extends RssConf {
 
       if (JETTY_MIN_THREAD.key().equalsIgnoreCase(k)) {
         set(JETTY_MIN_THREAD, Integer.valueOf(v));
+      }
+
+      if (JETTY_CORE_POOL_SIZE.key().equalsIgnoreCase(k)) {
+        set(JETTY_CORE_POOL_SIZE, Integer.valueOf(v));
+      }
+
+      if (JETTY_QUEUE_SIZE.key().equalsIgnoreCase(k)) {
+        set(JETTY_QUEUE_SIZE, Integer.valueOf(v));
       }
 
       if (JETTY_HEADER_BUFFER_SIZE.key().equalsIgnoreCase(k)) {

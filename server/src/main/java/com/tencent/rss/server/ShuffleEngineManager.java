@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ShuffleEngineManager {
-  private static final Logger logger = LoggerFactory.getLogger(ShuffleEngineManager.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ShuffleEngineManager.class);
 
   private String appId;
   private String shuffleId;
@@ -45,25 +45,39 @@ public class ShuffleEngineManager {
     ShuffleEngine engine) throws IOException, IllegalStateException {
     String key = ShuffleTaskManager.constructKey(String.valueOf(startPartition), String.valueOf(endPartition));
 
-    engineMap.putIfAbsent(key, engine);
+    ShuffleEngine cur = engineMap.putIfAbsent(key, engine);
+    if (cur != null) {
+      LOGGER.error("{}~{} {}~{} registered twice.", appId, shuffleId, startPartition, endPartition);
+      return StatusCode.DOUBLE_REGISTER;
+    }
+
     synchronized (this) {
       partitionRangeMap.put(Range.closed(startPartition, endPartition), key);
     }
-    ShuffleEngine shuffleEngine = engineMap.get(key);
 
-    return shuffleEngine.init();
+    ShuffleEngine shuffleEngine = engineMap.get(key);
+    StatusCode ret = shuffleEngine.init();
+    if (ret != StatusCode.SUCCESS) {
+      engineMap.remove(key);
+      synchronized (this) {
+        partitionRangeMap.remove(Range.closed(startPartition, endPartition));
+      }
+    }
+
+    ShuffleServerMetrics.incRegisteredShuffleEngine();
+    return ret;
   }
 
   public ShuffleEngine getShuffleEngine(int partition) {
     String key = partitionRangeMap.get(partition);
     if (key == null) {
-      logger.error("{}~{} Can't find shuffle engine of partition {} from range map", appId, shuffleId, partition);
+      LOGGER.error("{}~{} Can't find shuffle engine of partition {} from range map", appId, shuffleId, partition);
       return null;
     }
 
     ShuffleEngine shuffleEngine = engineMap.get(key);
     if (shuffleEngine == null) {
-      logger.error("{}~{} Can't find shuffle engine of partition {}from engine map", appId, shuffleId, partition);
+      LOGGER.error("{}~{} Can't find shuffle engine of partition {}from engine map", appId, shuffleId, partition);
     }
 
     return shuffleEngine;
@@ -80,6 +94,7 @@ public class ShuffleEngineManager {
       }
 
       isCommitted = true;
+      ShuffleServerMetrics.decRegisteredShuffleEngine();
       return StatusCode.SUCCESS;
     }
   }

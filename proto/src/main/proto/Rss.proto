@@ -81,11 +81,12 @@ message ShuffleServerResult {
 /** Status code to identify the status of response */
 enum StatusCode {
   SUCCESS = 0;
-  NO_BUFFER = 1;
-  INVALID_STORAGE = 2;
-  NO_REGISTER = 3;
-  NO_PARTITION = 4;
-  INTERNAL_ERROR = 5;
+  DOUBLE_REGISTER = 1;
+  NO_BUFFER = 2;
+  INVALID_STORAGE = 3;
+  NO_REGISTER = 4;
+  NO_PARTITION = 5;
+  INTERNAL_ERROR = 6;
   // add more status
 }
 

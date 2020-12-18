@@ -689,12 +689,12 @@
 
         </plugins>
 
-        <resources>
-            <resource>
+        <testResources>
+            <testResource>
                 <directory>${basedir}/src/test/resources</directory>
                 <filtering>true</filtering>
-            </resource>
-        </resources>
+            </testResource>
+        </testResources>
 
     </build>
 

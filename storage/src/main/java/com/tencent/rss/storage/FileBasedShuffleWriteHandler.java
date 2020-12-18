@@ -12,7 +12,7 @@ import java.util.List;
 
 public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler {
 
-  private static final Logger logger = LoggerFactory.getLogger(FileBasedShuffleWriteHandler.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(FileBasedShuffleWriteHandler.class);
   private Configuration hadoopConf;
   private String basePath;
   private String fileNamePrefix;
@@ -37,7 +37,7 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
       } catch (IOException ioe) {
         // if folder exist, ignore the exception
         if (!fileSystem.exists(path)) {
-          logger.error("Can't create shuffle folder:" + basePath, ioe);
+          LOGGER.error("Can't create shuffle folder:" + basePath, ioe);
           throw ioe;
         }
       }
@@ -63,6 +63,7 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
         indexWriter.writeIndex(segment);
       }
     }
+
   }
 
   private FileBasedShuffleWriter createWriter(String fileName) throws IOException, IllegalStateException {

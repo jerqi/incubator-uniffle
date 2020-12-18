@@ -21,7 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(JUnit4.class)
-public class ShuffleTaskManagerTest {
+public class ShuffleTaskManagerTest extends MetricsTestBase {
 
   private ShuffleTaskManager shuffleTaskManager;
 

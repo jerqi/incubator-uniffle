@@ -22,11 +22,14 @@ import java.util.List;
 
 public class RemoteShuffleService extends ShuffleServerImplBase {
 
-  private static final Logger logger = LoggerFactory.getLogger(RemoteShuffleService.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(RemoteShuffleService.class);
 
   @Override
   public void registerShuffle(ShuffleRegisterRequest req,
                               StreamObserver<ShuffleRegisterResponse> responseObserver) {
+    ShuffleServerMetrics.incTotalRequest();
+    ShuffleServerMetrics.incRegisterRequest();
+
     ShuffleRegisterResponse reply;
     String appId = req.getAppId();
     String shuffleId = String.valueOf(req.getShuffleId());
@@ -34,13 +37,14 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
     int end = req.getEnd();
 
     String msg = "";
-    StatusCode result = StatusCode.SUCCESS;
+    StatusCode result;
+
     try {
       result = ShuffleTaskManager
         .instance()
         .registerShuffle(appId, shuffleId, start, end);
     } catch (IOException | IllegalStateException e) {
-      logger.error("Fail to register shuffle {} {} {} {}", appId, shuffleId, start, end);
+      LOGGER.error("Fail to register shuffle {} {} {} {}", appId, shuffleId, start, end);
       result = StatusCode.INTERNAL_ERROR;
       msg = e.getMessage();
     }
@@ -53,11 +57,17 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
 
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
+
+    ShuffleServerMetrics.decTotalRequest();
+    ShuffleServerMetrics.decRegisterRequest();
   }
 
   @Override
   public void sendShuffleData(SendShuffleDataRequest req,
                               StreamObserver<SendShuffleDataResponse> responseObserver) {
+    ShuffleServerMetrics.incTotalRequest();
+    ShuffleServerMetrics.incSendDataRequest();
+
     SendShuffleDataResponse reply;
     String appId = req.getAppId();
     String shuffleId = String.valueOf(req.getShuffleId());
@@ -69,7 +79,7 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
         .getShuffleEngine(appId, shuffleId, partition);
 
       StatusCode ret;
-      String msg = "";
+      String msg = "OK";
       if (shuffleEngine == null) {
         ret = StatusCode.NO_REGISTER;
       } else {
@@ -78,7 +88,7 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
         } catch (IOException | IllegalStateException e) {
           ret = StatusCode.INTERNAL_ERROR;
           msg = e.getMessage();
-          logger.error("Fail to write shuffle data {} {} for {}", appId, shuffleId, msg);
+          LOGGER.error("Fail to write shuffle data {} {} for {}", appId, shuffleId, msg);
         }
       }
       reply = SendShuffleDataResponse.newBuilder().setStatus(ret).setRetMsg(msg).build();
@@ -92,17 +102,23 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
 
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
+
+    ShuffleServerMetrics.decTotalRequest();
+    ShuffleServerMetrics.decSendDataRequest();
   }
 
   @Override
   public void commitShuffleTask(ShuffleCommitRequest req,
                                 StreamObserver<ShuffleCommitResponse> responseObserver) {
+    ShuffleServerMetrics.incTotalRequest();
+    ShuffleServerMetrics.incCommitRequest();
+
     ShuffleCommitResponse reply;
     String appId = req.getAppId();
     String shuffleId = String.valueOf(req.getShuffleId());
 
     StatusCode status;
-    String msg = "";
+    String msg = "OK";
 
     try {
       status = ShuffleTaskManager.instance().commitShuffle(appId, shuffleId);
@@ -114,6 +130,9 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
     reply = ShuffleCommitResponse.newBuilder().setStatus(status).setRetMsg(msg).build();
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
+
+    ShuffleServerMetrics.decCommitRequest();
+    ShuffleServerMetrics.decCommitRequest();
   }
 
   private List<ShufflePartitionedData> toPartitionedData(SendShuffleDataRequest req) {

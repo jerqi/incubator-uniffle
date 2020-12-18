@@ -13,14 +13,14 @@ import java.util.List;
 
 public class ShuffleEngine {
 
-  private static final Logger logger = LoggerFactory.getLogger(ShuffleEngine.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ShuffleEngine.class);
 
   private String appId;
   private String shuffleId;
   private int startPartition;
   private int endPartition;
   private ShuffleBuffer buffer;
-  private ShuffleStorageWriteHandler writer;
+  private StorageType storageType;
 
   public ShuffleEngine(String appId, String shuffleId, int startPartition, int endPartition) {
     this.appId = appId;
@@ -36,9 +36,8 @@ public class ShuffleEngine {
         return StatusCode.NO_BUFFER;
       }
 
-      if (ShuffleTaskManager.instance().storageType == StorageType.FILE) {
-        writer = new FileBasedShuffleWriteHandler("", "", null);
-      }
+      storageType = ShuffleTaskManager.instance().storageType;
+      ShuffleServerMetrics.decAvailableBuffer(1);
 
       return StatusCode.SUCCESS;
     }
@@ -81,14 +80,29 @@ public class ShuffleEngine {
 
   public StatusCode flush() throws IOException, IllegalStateException {
     synchronized (this) {
+      ShuffleStorageWriteHandler writeHandler = getWriteHandler();
+
       for (int partition = startPartition; partition <= endPartition; ++partition) {
-        writer.write(buffer.getBlocks(partition));
+        writeHandler.write(buffer.getBlocks(partition));
       }
 
+      ShuffleServerMetrics.incBlockWriteSize(buffer.getSize());
+      ShuffleServerMetrics.incBlockWriteNum(buffer.getBlockNum());
+      ShuffleServerMetrics.incBlockWriteNum(buffer.getBlockNum());
+
       buffer.clear();
-      buffer.setSize(0);
 
       return StatusCode.SUCCESS;
+    }
+  }
+
+  private ShuffleStorageWriteHandler getWriteHandler() throws IOException, IllegalStateException {
+    if (storageType == StorageType.FILE) {
+      return new FileBasedShuffleWriteHandler("", "", null);
+    } else {
+      String msg = "Unsupported storage type: " + storageType;
+      LOGGER.error(msg);
+      throw new IllegalStateException(msg);
     }
   }
 

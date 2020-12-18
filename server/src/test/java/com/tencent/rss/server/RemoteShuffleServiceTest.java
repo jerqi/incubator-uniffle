@@ -35,15 +35,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(JUnit4.class)
-public class RemoteShuffleServiceTest {
+public class RemoteShuffleServiceTest extends MetricsTestBase {
 
   /**
    * This rule manages automatic graceful shutdown for the registered channel at the end of test.
    */
   @Rule
   public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-
-
   private ShuffleServer server;
   private ManagedChannel inProcessChannel;
   private ShuffleServerBlockingStub stub;
@@ -87,7 +85,7 @@ public class RemoteShuffleServiceTest {
   public void registerTest() throws IOException, IllegalStateException {
     when(mockShuffleTaskManager
       .registerShuffle("", "0", 0, 0))
-      .thenReturn(StatusCode.INTERNAL_ERROR);
+      .thenThrow(new IllegalStateException("Internal Error"));
     when(mockShuffleTaskManager
       .registerShuffle("test", "1", 0, 10))
       .thenReturn(StatusCode.SUCCESS);
@@ -98,6 +96,7 @@ public class RemoteShuffleServiceTest {
     ShuffleRegisterResponse expected = ShuffleRegisterResponse
       .newBuilder()
       .setStatus(StatusCode.INTERNAL_ERROR)
+      .setRetMsg("Internal Error")
       .build();
     verify(mockShuffleTaskManager, atLeastOnce()).registerShuffle(
       "", "0", 0, 0);
@@ -141,6 +140,7 @@ public class RemoteShuffleServiceTest {
     expected = SendShuffleDataResponse
       .newBuilder()
       .setStatus(StatusCode.SUCCESS)
+      .setRetMsg("OK")
       .build();
     assertEquals(expected, actual);
     verify(mockShuffleTaskManager, atLeastOnce()).getShuffleEngine(
@@ -161,6 +161,7 @@ public class RemoteShuffleServiceTest {
     ShuffleCommitResponse expected = ShuffleCommitResponse
       .newBuilder()
       .setStatus(StatusCode.SUCCESS)
+      .setRetMsg("OK")
       .build();
     assertEquals(expected, actual);
   }

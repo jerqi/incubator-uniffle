@@ -4,7 +4,6 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class ShufflePartitionedBlock {
-
   private int length;
   private long crc;
   private long blockId;
@@ -26,6 +25,11 @@ public class ShufflePartitionedBlock {
     this.length = length;
     this.crc = crc;
     this.blockId = blockId;
+  }
+
+  public int size() {
+    // block size is length, blockId is int64, length is int32 and crc is int64
+    return length + 8 + 4 + 8;
   }
 
   @Override

@@ -1,8 +1,12 @@
 package com.tencent.rss.server;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.tencent.rss.common.metrics.JvmMetrics;
+import com.tencent.rss.common.web.JettyServer;
+import com.tencent.rss.common.web.MetricsServlet;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.prometheus.client.CollectorRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -30,16 +34,40 @@ public class ShuffleServer {
 
   public ShuffleServer(ServerBuilder<?> serverBuilder, int port) {
     this.port = port;
-    server = serverBuilder.addService(new RemoteShuffleService()).build();
+    this.server = serverBuilder.addService(new RemoteShuffleService()).build();
+  }
+
+  public static void registerMetrics() {
+    CollectorRegistry shuffleServerCollectorRegistry = new CollectorRegistry(true);
+    ShuffleServerMetrics.register(shuffleServerCollectorRegistry);
+
+    CollectorRegistry jvmCollectorRegistry = new CollectorRegistry(true);
+    JvmMetrics.register(jvmCollectorRegistry);
+  }
+
+  public static void addServlet(JettyServer jettyServer) {
+    CollectorRegistry shuffleServerCollectorRegistry = new CollectorRegistry(true);
+    ShuffleServerMetrics.register(shuffleServerCollectorRegistry);
+
+    CollectorRegistry jvmCollectorRegistry = new CollectorRegistry(true);
+    JvmMetrics.register(jvmCollectorRegistry);
+
+    jettyServer.addServlet(new MetricsServlet(ShuffleServerMetrics.getCollectorRegistry()), "/metrics/server");
+    jettyServer.addServlet(new MetricsServlet(JvmMetrics.getCollectorRegistry()), "/metrics/jvm");
   }
 
   /**
    * Main launches the server from the command line.
    */
-  public static void main(String[] args) throws IOException, InterruptedException {
+  public static void main(String[] args) throws Exception {
     Arguments arguments = new Arguments();
     CommandLine commandLine = new CommandLine(arguments);
     commandLine.parseArgs(args);
+
+    JettyServer jettyServer = new JettyServer(arguments.getConfigFile());
+    registerMetrics();
+    addServlet(jettyServer);
+    jettyServer.start();
 
     ShuffleServerConf serverConf = new ShuffleServerConf();
     if (!serverConf.loadConfFromFile(arguments.getConfigFile())) {
@@ -54,9 +82,9 @@ public class ShuffleServer {
       System.exit(1);
     }
 
-    final ShuffleServer server = new ShuffleServer(serverConf);
-    server.start();
-    server.blockUntilShutdown();
+    final ShuffleServer shuffleServer = new ShuffleServer(serverConf);
+    shuffleServer.start();
+    shuffleServer.blockUntilShutdown();
   }
 
   public void start() throws IOException {

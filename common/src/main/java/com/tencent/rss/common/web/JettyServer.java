@@ -10,7 +10,7 @@ import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.QueuedThreadPool;
+import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,15 +20,27 @@ import java.io.FileNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class JettyServer {
-  private static final Logger LOG = LoggerFactory.getLogger(JettyServer.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(JettyServer.class);
 
   private Server server;
   private ServletContextHandler servletContextHandler;
 
+  public JettyServer(String confFileName) throws Exception {
+    JettyConf jettyConf = new JettyConf();
+    jettyConf.loadConfFromFile(confFileName);
+    createServer(jettyConf);
+  }
+
+  public JettyServer(JettyConf conf) throws FileNotFoundException {
+    createServer(conf);
+  }
+
   public void createServer(JettyConf conf) throws FileNotFoundException {
-    QueuedThreadPool threadPool = createThreadPool(conf);
+    ExecutorThreadPool threadPool = createThreadPool(conf);
     server = new Server(threadPool);
     server.setStopAtShutdown(true);
     server.setStopTimeout(conf.getLong(JettyConf.JETTY_STOP_TIMEOUT));
@@ -52,10 +64,11 @@ public class JettyServer {
     server.setHandler(servletContextHandler);
   }
 
-  private QueuedThreadPool createThreadPool(JettyConf conf) {
-    int minThreadNum = conf.getInteger(JettyConf.JETTY_MIN_THREAD);
-    int maxThreadNum = conf.getInteger(JettyConf.JETTY_MAX_THREAD);
-    QueuedThreadPool pool = new QueuedThreadPool(maxThreadNum, minThreadNum);
+  private ExecutorThreadPool createThreadPool(JettyConf conf) {
+    int corePoolSize = conf.getInteger(JettyConf.JETTY_CORE_POOL_SIZE);
+    int queueSize = conf.getInteger(JettyConf.JETTY_QUEUE_SIZE);
+    ExecutorThreadPool pool = new ExecutorThreadPool(
+      corePoolSize, corePoolSize, 60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize));
     return pool;
   }
 
@@ -69,7 +82,7 @@ public class JettyServer {
 
   private void addHttpsConnector(
     HttpConfiguration httpConfig, JettyConf conf) throws FileNotFoundException {
-    LOG.info("Create https connector");
+    LOGGER.info("Create https connector");
     Path keystorePath = Paths.get(conf.get(JettyConf.JETTY_SSL_KEYSTORE_PATH)).toAbsolutePath();
     if (!Files.exists(keystorePath)) {
       throw new FileNotFoundException(keystorePath.toString());
@@ -103,6 +116,24 @@ public class JettyServer {
 
   public Server getServer() {
     return this.server;
+  }
+
+  public void start() throws Exception {
+    server.start();
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        try {
+          server.stop();
+        } catch (Exception e) {
+          LOGGER.error(e.getMessage());
+        }
+      }
+    });
+  }
+
+  public void stop() throws Exception {
+    this.server.stop();
   }
 
   public ServletContextHandler getServletContextHandler() {

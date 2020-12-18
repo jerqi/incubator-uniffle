@@ -59,6 +59,7 @@ public class ShuffleTaskManager {
     ShuffleEngineManager shuffleEngineManager = shuffleTaskEngines.putIfAbsent(key, engineManager);
 
     if (shuffleEngineManager == null) {
+      ShuffleServerMetrics.incRegisteredShuffle();
       shuffleEngineManager = engineManager;
     }
 
