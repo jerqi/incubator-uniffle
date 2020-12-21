@@ -6,7 +6,7 @@ import java.util.Objects;
  * Class for partition range: [start, end]
  * Note: both inclusive
  */
-public class PartitionRange {
+public class PartitionRange implements Comparable<PartitionRange> {
     private final int start;
     private final int end;
 
@@ -49,5 +49,15 @@ public class PartitionRange {
     @Override
     public int hashCode() {
         return Objects.hash(start, end);
+    }
+
+    @Override
+    public String toString() {
+        return "PartitionRange[" + start + ", " + end + ']';
+    }
+
+    @Override
+    public int compareTo(PartitionRange o) {
+        return this.getStart() - o.getStart();
     }
 }

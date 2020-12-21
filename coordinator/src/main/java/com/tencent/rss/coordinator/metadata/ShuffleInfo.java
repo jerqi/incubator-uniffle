@@ -48,6 +48,10 @@ public class ShuffleInfo {
         partitionRangeSet.add(partitionRange);
     }
 
+    public void addAllPartitionRanges(Set<PartitionRange> partitionRanges) {
+        partitionRangeSet.addAll(partitionRanges);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -64,5 +68,11 @@ public class ShuffleInfo {
     @Override
     public int hashCode() {
         return Objects.hash(shuffleId, partitionRangeSet);
+    }
+
+    @Override
+    public String toString() {
+        return "ShuffleInfo{" + "shuffleId=" + shuffleId
+                + ", partitionRangeSet=" + partitionRangeSet + '}';
     }
 }

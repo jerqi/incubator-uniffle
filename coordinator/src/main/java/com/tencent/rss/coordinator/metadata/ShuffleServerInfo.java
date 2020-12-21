@@ -29,7 +29,14 @@ public class ShuffleServerInfo {
     }
 
     public void addApplicationInfo(ApplicationInfo applicationInfo) {
-        applicationInfos.put(applicationInfo.getAppId(), applicationInfo);
+        final String appId = applicationInfo.getAppId();
+        if (applicationInfos.containsKey(appId)) {
+            for (ShuffleInfo shuffleInfo: applicationInfo.getShuffleInfos().values()) {
+                applicationInfos.get(appId).addShuffleInfo(shuffleInfo);
+            }
+        } else {
+            applicationInfos.put(applicationInfo.getAppId(), applicationInfo);
+        }
     }
 
     public ShuffleServerId getShuffleServerId() {
@@ -84,5 +91,12 @@ public class ShuffleServerInfo {
     @Override
     public int hashCode() {
         return Objects.hash(shuffleServerId, applicationInfos);
+    }
+
+    @Override
+    public String toString() {
+        return "ShuffleServerInfo{"
+                + "shuffleServerId=" + shuffleServerId
+                + ", applicationInfos=" + applicationInfos + '}';
     }
 }

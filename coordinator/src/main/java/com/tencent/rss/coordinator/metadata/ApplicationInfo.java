@@ -3,7 +3,6 @@ package com.tencent.rss.coordinator.metadata;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * Class to maintain metadata for {@code ShuffleInfo} in application
@@ -27,7 +26,12 @@ public class ApplicationInfo {
     }
 
     public void addShuffleInfo(ShuffleInfo shuffleInfo) {
-        shuffleInfos.put(shuffleInfo.getShuffleId(), shuffleInfo);
+        final int shuffleId = shuffleInfo.getShuffleId();
+        if (shuffleInfos.containsKey(shuffleId)) {
+            shuffleInfos.get(shuffleId).addAllPartitionRanges(shuffleInfo.getPartitionRangeSet());
+        } else {
+            shuffleInfos.put(shuffleInfo.getShuffleId(), shuffleInfo);
+        }
     }
 
     public String getAppId() {
@@ -74,5 +78,11 @@ public class ApplicationInfo {
     @Override
     public int hashCode() {
         return Objects.hash(appId, shuffleInfos);
+    }
+
+    @Override
+    public String toString() {
+        return "ApplicationInfo{" + "appId='" + appId + '\''
+                + ", shuffleInfos=" + shuffleInfos + '}';
     }
 }
