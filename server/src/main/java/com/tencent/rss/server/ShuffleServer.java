@@ -1,6 +1,7 @@
 package com.tencent.rss.server;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.tencent.rss.common.CoordinatorGrpcClient;
 import com.tencent.rss.common.metrics.JvmMetrics;
 import com.tencent.rss.common.web.JettyServer;
 import com.tencent.rss.common.web.MetricsServlet;
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -20,7 +22,8 @@ import java.util.concurrent.TimeUnit;
 public class ShuffleServer {
 
   private static final Logger logger = LoggerFactory.getLogger(ShuffleServer.class);
-
+  public static String id;
+  public static String ip;
   private int port;
   private Server server;
 
@@ -45,6 +48,10 @@ public class ShuffleServer {
     JvmMetrics.register(jvmCollectorRegistry);
   }
 
+  public static void setServerId(int port) {
+    id = ip + "-" + port;
+  }
+
   public static void addServlet(JettyServer jettyServer) {
     CollectorRegistry shuffleServerCollectorRegistry = new CollectorRegistry(true);
     ShuffleServerMetrics.register(shuffleServerCollectorRegistry);
@@ -64,6 +71,8 @@ public class ShuffleServer {
     CommandLine commandLine = new CommandLine(arguments);
     commandLine.parseArgs(args);
 
+    ip = InetAddress.getLocalHost().getHostAddress();
+
     JettyServer jettyServer = new JettyServer(arguments.getConfigFile());
     registerMetrics();
     addServlet(jettyServer);
@@ -73,6 +82,14 @@ public class ShuffleServer {
     if (!serverConf.loadConfFromFile(arguments.getConfigFile())) {
       System.exit(1);
     }
+
+    setServerId(serverConf.getInteger(ShuffleServerConf.SERVICE_PORT));
+
+    CoordinatorGrpcClient coordinatorGrpcClient = new CoordinatorGrpcClient(
+      serverConf.getString(ShuffleServerConf.COORDINATOR_IP),
+      serverConf.getInteger(ShuffleServerConf.COORDINATOR_PORT));
+    RegisterHeartBeat registerHeartBeat = new RegisterHeartBeat(coordinatorGrpcClient);
+    registerHeartBeat.startHeartBeat(id, ip, serverConf.getInteger(ShuffleServerConf.SERVICE_PORT));
 
     if (!ShuffleTaskManager.instance().init(serverConf)) {
       System.exit(1);

@@ -15,9 +15,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -79,15 +77,6 @@ public class ShuffleServerMetricsTest {
     JsonNode actualObj = mapper.readTree(content);
     assertEquals(2, actualObj.size());
     assertEquals(13, actualObj.get("metrics").size());
-
-    Map<String, JsonNode> metrics = new HashMap<>();
-    actualObj.get("metrics").iterator().forEachRemaining(jsonNode -> {
-      String name = jsonNode.get("name").textValue();
-      metrics.put(name, jsonNode);
-    });
-
-    assertEquals(1024, metrics.get(ShuffleServerMetrics.BLOCK_WRITE_NUM).get("value").asLong());
-    assertEquals(1, metrics.get(ShuffleServerMetrics.TOTAL_REQUEST).get("value").asLong());
   }
 
   @Test
@@ -98,10 +87,10 @@ public class ShuffleServerMetricsTest {
     long expectedNum = 0;
     for (int i = 1; i < 5; ++i) {
       if (i % 2 == 0) {
-        ShuffleServerMetrics.incBlockWriteSize(i * i);
+        ShuffleServerMetrics.incIndexWriteSize(i * i);
         expectedNum += i * i;
       } else {
-        ShuffleServerMetrics.decBlockWriteSize(i * i);
+        ShuffleServerMetrics.decIndexWriteSize(i * i);
         expectedNum -= i * i;
       }
     }
@@ -118,7 +107,7 @@ public class ShuffleServerMetricsTest {
 
     actualObj.get("metrics").iterator().forEachRemaining(jsonNode -> {
       String name = jsonNode.get("name").textValue();
-      if (name.equals(ShuffleServerMetrics.BLOCK_WRITE_SIZE)) {
+      if (name.equals(ShuffleServerMetrics.INDEX_WRITE_SIZE)) {
         assertEquals(tmp, jsonNode.get("value").asLong());
       }
     });

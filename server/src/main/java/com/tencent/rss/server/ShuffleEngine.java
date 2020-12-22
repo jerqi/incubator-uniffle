@@ -1,10 +1,12 @@
 package com.tencent.rss.server;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.storage.FileBasedShuffleWriteHandler;
 import com.tencent.rss.storage.ShuffleStorageWriteHandler;
 import com.tencent.rss.storage.StorageType;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,23 +22,27 @@ public class ShuffleEngine {
   private int startPartition;
   private int endPartition;
   private ShuffleBuffer buffer;
-  private StorageType storageType;
+  private ShuffleServerConf conf;
 
-  public ShuffleEngine(String appId, String shuffleId, int startPartition, int endPartition) {
+  public ShuffleEngine(String appId, String shuffleId, int startPartition, int endPartition, ShuffleServerConf conf) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.startPartition = startPartition;
     this.endPartition = endPartition;
+    this.conf = conf;
   }
 
-  public StatusCode init() throws IOException, IllegalStateException {
+  public ShuffleEngine(String appId, String shuffleId, int startPartition, int endPartition) {
+    this(appId, shuffleId, startPartition, endPartition, null);
+  }
+
+  public StatusCode init() {
     synchronized (this) {
       buffer = BufferManager.instance().getBuffer(startPartition, endPartition);
       if (buffer == null) {
         return StatusCode.NO_BUFFER;
       }
 
-      storageType = ShuffleTaskManager.instance().storageType;
       ShuffleServerMetrics.decAvailableBuffer(1);
 
       return StatusCode.SUCCESS;
@@ -78,7 +84,7 @@ public class ShuffleEngine {
     return StatusCode.SUCCESS;
   }
 
-  public StatusCode flush() throws IOException, IllegalStateException {
+  public void flush() throws IOException, IllegalStateException {
     synchronized (this) {
       ShuffleStorageWriteHandler writeHandler = getWriteHandler();
 
@@ -89,16 +95,16 @@ public class ShuffleEngine {
       ShuffleServerMetrics.incBlockWriteSize(buffer.getSize());
       ShuffleServerMetrics.incBlockWriteNum(buffer.getBlockNum());
       ShuffleServerMetrics.incBlockWriteNum(buffer.getBlockNum());
-
       buffer.clear();
-
-      return StatusCode.SUCCESS;
     }
   }
 
   private ShuffleStorageWriteHandler getWriteHandler() throws IOException, IllegalStateException {
+    StorageType storageType = StorageType.valueOf(conf.getString(ShuffleServerConf.DATA_STORAGE_TYPE));
+
+
     if (storageType == StorageType.FILE) {
-      return new FileBasedShuffleWriteHandler("", "", null);
+      return new FileBasedShuffleWriteHandler(getBasePath(), ShuffleServer.id, getHadoopConf());
     } else {
       String msg = "Unsupported storage type: " + storageType;
       LOGGER.error(msg);
@@ -106,42 +112,24 @@ public class ShuffleEngine {
     }
   }
 
-  private void clear() {
-    if (buffer != null) {
-      buffer.clear();
-    }
+  @VisibleForTesting
+  ShuffleBuffer getBuffer() {
+    return this.buffer;
   }
 
-  public String getAppId() {
-    return appId;
+  @VisibleForTesting
+  String getBasePath() {
+    String basePath = conf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH);
+    String subPath = String.join(
+      "_",
+      appId,
+      shuffleId,
+      String.join("-", String.valueOf(startPartition), String.valueOf(endPartition)));
+    return String.join("/", basePath, subPath);
   }
 
-  public void setAppId(String appId) {
-    this.appId = appId;
-  }
-
-  public String getShuffleId() {
-    return shuffleId;
-  }
-
-  public void setShuffleId(String shuffleId) {
-    this.shuffleId = shuffleId;
-  }
-
-  public int getStartPartition() {
-    return startPartition;
-  }
-
-  public void setStartPartition(int startPartition) {
-    this.startPartition = startPartition;
-  }
-
-  public int getEndPartition() {
-    return endPartition;
-  }
-
-  public void setEndPartition(int endPartition) {
-    this.endPartition = endPartition;
+  private Configuration getHadoopConf() {
+    return new Configuration();
   }
 
 }

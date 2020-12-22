@@ -1,15 +1,10 @@
 package com.tencent.rss.server;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class BufferManager {
-
-  private static final Logger logger = LoggerFactory.getLogger(BufferManager.class);
-
   private static final BufferManager INSTANCE = new BufferManager();
 
   private int capacity;
@@ -64,6 +59,10 @@ public class BufferManager {
   @VisibleForTesting
   AtomicInteger getAtomicCount() {
     return atomicCount;
+  }
+
+  public int getAvailableCount() {
+    return capacity - atomicCount.get();
   }
 
 }

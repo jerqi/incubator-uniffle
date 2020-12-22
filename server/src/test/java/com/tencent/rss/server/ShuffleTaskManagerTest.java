@@ -36,7 +36,7 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
   }
 
   @Test
-  public void registerShuffleTest() throws IOException, IllegalStateException {
+  public void registerShuffleTest() {
     ShuffleEngineManager mockEngineManager = mock(ShuffleEngineManager.class);
     when(mockEngineManager.registerShuffleEngine(1, 10))
       .thenReturn(StatusCode.SUCCESS);
@@ -60,7 +60,7 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
   }
 
   @Test
-  public void registerShuffleConcurrentTest() throws IOException, InterruptedException, ExecutionException {
+  public void registerShuffleConcurrentTest() throws InterruptedException, ExecutionException {
     ShuffleEngineManager mockEngineManager = mock(ShuffleEngineManager.class);
     when(mockEngineManager.registerShuffleEngine(1, 10))
       .thenReturn(StatusCode.SUCCESS);

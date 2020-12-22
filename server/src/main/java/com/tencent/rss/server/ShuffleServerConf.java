@@ -4,8 +4,6 @@ import com.tencent.rss.common.config.ConfigOption;
 import com.tencent.rss.common.config.ConfigOptions;
 import com.tencent.rss.common.config.RssConf;
 import com.tencent.rss.common.util.RssUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
@@ -37,7 +35,17 @@ public class ShuffleServerConf extends RssConf {
     .noDefaultValue()
     .withDescription("Size of each buffer in this server");
 
-  private static final Logger LOG = LoggerFactory.getLogger(ShuffleServerConf.class);
+  public static final ConfigOption<String> COORDINATOR_IP = ConfigOptions
+    .key("rss.coordinator.ip")
+    .stringType()
+    .noDefaultValue()
+    .withDescription("Coordinator ip");
+
+  public static final ConfigOption<Integer> COORDINATOR_PORT = ConfigOptions
+    .key("rss.coordinator.port")
+    .intType()
+    .noDefaultValue()
+    .withDescription("Coordinator port");
 
   public boolean loadConfFromFile(String fileName) {
     Map<String, String> properties = RssUtils.getPropertiesFromFile(fileName);
@@ -65,6 +73,15 @@ public class ShuffleServerConf extends RssConf {
       if (BUFFER_SIZE.key().equalsIgnoreCase(k)) {
         set(BUFFER_SIZE, Integer.valueOf(v));
       }
+
+      if (COORDINATOR_IP.key().equalsIgnoreCase(k)) {
+        set(COORDINATOR_IP, v);
+      }
+
+      if (COORDINATOR_PORT.key().equalsIgnoreCase(k)) {
+        set(COORDINATOR_PORT, Integer.valueOf(v));
+      }
+
     });
 
     return true;

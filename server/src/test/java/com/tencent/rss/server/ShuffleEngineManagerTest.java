@@ -3,19 +3,17 @@ package com.tencent.rss.server;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import org.junit.Test;
 
-import java.io.IOException;
-
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class ShuffleEngineManagerTest extends MetricsTestBase {
 
-  private ShuffleEngineManager shuffleEngineManager = new ShuffleEngineManager("test", "1");
+  private ShuffleEngineManager shuffleEngineManager = new ShuffleEngineManager("test", "1", null);
   private ShuffleEngine mockShuffleEngine = mock(ShuffleEngine.class);
 
   @Test
-  public void registerShuffleEngineTest() throws IOException, IllegalStateException {
+  public void registerShuffleEngineTest() {
     when(mockShuffleEngine.init()).thenReturn(StatusCode.SUCCESS);
     StatusCode actual = shuffleEngineManager.registerShuffleEngine(1, 10, mockShuffleEngine);
     StatusCode expected = StatusCode.SUCCESS;
@@ -24,7 +22,7 @@ public class ShuffleEngineManagerTest extends MetricsTestBase {
   }
 
   @Test
-  public void getShuffleEngineTest() throws IOException, IllegalStateException {
+  public void getShuffleEngineTest() {
     when(mockShuffleEngine.init()).thenReturn(StatusCode.SUCCESS);
     shuffleEngineManager.registerShuffleEngine(1, 10, mockShuffleEngine);
     ShuffleEngine actual1 = shuffleEngineManager.getShuffleEngine(1);

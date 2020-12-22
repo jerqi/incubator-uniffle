@@ -14,10 +14,10 @@ public class ShufflePartitionedData {
     this.blockList = blockList;
   }
 
-  public ShufflePartitionedData(int partitionId, ShufflePartitionedBlock blockList) {
+  public ShufflePartitionedData(int partitionId, ShufflePartitionedBlock block) {
     this.partitionId = partitionId;
-    Objects.requireNonNull(blockList);
-    this.blockList = Collections.singletonList(blockList);
+    Objects.requireNonNull(block);
+    this.blockList = Collections.singletonList(block);
   }
 
   @Override

@@ -15,13 +15,13 @@ public class HdfsTestBase {
 
   @ClassRule
   public static final TemporaryFolder tmpDir = new TemporaryFolder();
-  protected static Configuration conf;
+  public static Configuration conf;
   protected static String HDFS_URI;
   protected static FileSystem fs;
   private static MiniDFSCluster cluster;
 
   @BeforeClass
-  public static void setUp() throws IOException {
+  public static void setUpHdfs() throws IOException {
     conf = new Configuration();
     conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR,
       tmpDir.getRoot().getAbsolutePath());
@@ -30,11 +30,11 @@ public class HdfsTestBase {
     fs = (new Path(HDFS_URI)).getFileSystem(conf);
   }
 
-
   @AfterClass
-  public static void tearDown() throws IOException {
+  public static void tearDownHdfs() throws IOException {
     fs.close();
     cluster.shutdown();
+    tmpDir.delete();
   }
 
 }

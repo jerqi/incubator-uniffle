@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 public class RegisterHeartBeat {
 
-  private static final Logger logger = LoggerFactory.getLogger(RegisterHeartBeat.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(RegisterHeartBeat.class);
 
   private boolean isRegistered;
   private int heartBeatInitialDelay;
@@ -64,7 +64,8 @@ public class RegisterHeartBeat {
 
   @VisibleForTesting
   boolean sendHeartBeat(String id, String ip, int port) {
-    ShuffleServerHeartBeatResponse response = rpcClient.sendHeartBeat(id, ip, port);
+    ShuffleServerHeartBeatResponse response = rpcClient.sendHeartBeat(
+      id, ip, port, BufferManager.instance().getAvailableCount());
     StatusCode status = response.getStatus();
 
     if (status != StatusCode.SUCCESS) {
@@ -75,7 +76,7 @@ public class RegisterHeartBeat {
     }
 
     if (failedHeartBeatCount >= maxHeartBeatRetryCount) {
-      logger.error(
+      LOGGER.error(
         "Failed heartbeat count exceed {}",
         maxHeartBeatRetryCount);
       isRegistered = false;

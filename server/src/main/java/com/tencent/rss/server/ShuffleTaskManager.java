@@ -2,7 +2,6 @@ package com.tencent.rss.server;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.proto.RssProtos.StatusCode;
-import com.tencent.rss.storage.StorageType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +14,7 @@ public class ShuffleTaskManager {
   public static final String KEY_DELIMITER = "~";
   private static final Logger logger = LoggerFactory.getLogger(ShuffleEngine.class);
   private static final ShuffleTaskManager INSTANCE = new ShuffleTaskManager();
-  protected StorageType storageType;
+  private ShuffleServerConf conf;
   private Map<String, ShuffleEngineManager> shuffleTaskEngines;
 
   private ShuffleTaskManager() {
@@ -36,25 +35,17 @@ public class ShuffleTaskManager {
   }
 
   public boolean init(ShuffleServerConf conf) {
-    storageType = StorageType.valueOf(conf.getString(ShuffleServerConf.DATA_STORAGE_TYPE));
+    this.conf = conf;
     return true;
   }
 
-  public StatusCode registerShuffle(
-    String appId,
-    String shuffleId,
-    int startPartition,
-    int endPartition) throws IOException, IllegalStateException {
-    ShuffleEngineManager shuffleEngineManager = new ShuffleEngineManager(appId, shuffleId);
+  public StatusCode registerShuffle(String appId, String shuffleId, int startPartition, int endPartition) {
+    ShuffleEngineManager shuffleEngineManager = new ShuffleEngineManager(appId, shuffleId, conf);
     return registerShuffle(appId, shuffleId, startPartition, endPartition, shuffleEngineManager);
   }
 
   public StatusCode registerShuffle(
-    String appId,
-    String shuffleId,
-    int startPartition,
-    int endPartition,
-    ShuffleEngineManager engineManager) throws IOException, IllegalStateException {
+    String appId, String shuffleId, int startPartition, int endPartition, ShuffleEngineManager engineManager) {
     String key = constructKey(appId, shuffleId);
     ShuffleEngineManager shuffleEngineManager = shuffleTaskEngines.putIfAbsent(key, engineManager);
 

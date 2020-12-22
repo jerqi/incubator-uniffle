@@ -85,7 +85,7 @@ public class RemoteShuffleServiceTest extends MetricsTestBase {
   public void registerTest() throws IOException, IllegalStateException {
     when(mockShuffleTaskManager
       .registerShuffle("", "0", 0, 0))
-      .thenThrow(new IllegalStateException("Internal Error"));
+      .thenReturn(StatusCode.NO_BUFFER);
     when(mockShuffleTaskManager
       .registerShuffle("test", "1", 0, 10))
       .thenReturn(StatusCode.SUCCESS);
@@ -95,8 +95,7 @@ public class RemoteShuffleServiceTest extends MetricsTestBase {
     ShuffleRegisterResponse actual = stub.registerShuffle(req);
     ShuffleRegisterResponse expected = ShuffleRegisterResponse
       .newBuilder()
-      .setStatus(StatusCode.INTERNAL_ERROR)
-      .setRetMsg("Internal Error")
+      .setStatus(StatusCode.NO_BUFFER)
       .build();
     verify(mockShuffleTaskManager, atLeastOnce()).registerShuffle(
       "", "0", 0, 0);

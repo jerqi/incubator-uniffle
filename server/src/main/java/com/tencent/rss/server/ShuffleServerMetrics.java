@@ -38,13 +38,18 @@ public class ShuffleServerMetrics {
   private static Gauge indexWriteSize;
   private static Gauge indexWriteNum;
 
+  private static boolean isRegister = false;
+
   public static void register() {
     register(CollectorRegistry.defaultRegistry);
   }
 
-  public static void register(CollectorRegistry collectorRegistry) {
-    metricsManager = new MetricsManager(collectorRegistry);
-    setUpMetrics();
+  public static synchronized void register(CollectorRegistry collectorRegistry) {
+    if (!isRegister) {
+      metricsManager = new MetricsManager(collectorRegistry);
+      isRegister = true;
+      setUpMetrics();
+    }
   }
 
   public static CollectorRegistry getCollectorRegistry() {

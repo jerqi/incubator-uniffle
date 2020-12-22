@@ -64,6 +64,21 @@ public class CoordinatorGrpcClient extends GrpcClient {
     return response;
   }
 
+  public ShuffleServerHeartBeatResponse sendHeartBeat(String id, String ip, int port, int availaBufferNum) {
+    ShuffleServerId serverId =
+      ShuffleServerId.newBuilder().setId(id).setIp(ip).setPort(port).build();
+    ShuffleServerHeartBeatRequest request =
+      ShuffleServerHeartBeatRequest.newBuilder().setServerId(serverId).setAvailableBufferNum(availaBufferNum).build();
+    ShuffleServerHeartBeatResponse response = blockingStub.heartbeat(request);
+
+    StatusCode status = response.getStatus();
+    if (status != StatusCode.SUCCESS) {
+      logger.error("Fail to send heartbeat to {}:{} {}", host, port, status);
+    }
+
+    return response;
+  }
+
   public boolean isRssAvailable() {
     CheckServiceAvailableResponse response = blockingStub.checkServiceAvailable(Empty.getDefaultInstance());
     return response.getAvailable();

@@ -16,15 +16,17 @@ public class ShuffleEngineManager {
 
   private String appId;
   private String shuffleId;
+  private ShuffleServerConf conf;
 
   private Map<String, ShuffleEngine> engineMap;
   private RangeMap<Integer, String> partitionRangeMap;
   private boolean isCommitted;
 
-  public ShuffleEngineManager(String appId, String shuffleId) {
+  public ShuffleEngineManager(String appId, String shuffleId, ShuffleServerConf conf) {
     this();
     this.appId = appId;
     this.shuffleId = shuffleId;
+    this.conf = conf;
   }
 
   public ShuffleEngineManager() {
@@ -33,18 +35,18 @@ public class ShuffleEngineManager {
     isCommitted = false;
   }
 
-  public StatusCode registerShuffleEngine(
-    int startPartition, int endPartition) throws IOException, IllegalStateException {
-    ShuffleEngine engine = new ShuffleEngine(appId, shuffleId, startPartition, endPartition);
+  public StatusCode registerShuffleEngine(int startPartition, int endPartition) {
+    ShuffleEngine engine = new ShuffleEngine(appId, shuffleId, startPartition, endPartition, conf);
     return registerShuffleEngine(startPartition, endPartition, engine);
   }
 
-  public StatusCode registerShuffleEngine(
-    int startPartition,
-    int endPartition,
-    ShuffleEngine engine) throws IOException, IllegalStateException {
-    String key = ShuffleTaskManager.constructKey(String.valueOf(startPartition), String.valueOf(endPartition));
+  public StatusCode registerShuffleEngine(int startPartition, int endPartition, ShuffleEngine engine) {
+    StatusCode ret = engine.init();
+    if (ret != StatusCode.SUCCESS) {
+      return ret;
+    }
 
+    String key = ShuffleTaskManager.constructKey(String.valueOf(startPartition), String.valueOf(endPartition));
     ShuffleEngine cur = engineMap.putIfAbsent(key, engine);
     if (cur != null) {
       LOGGER.error("{}~{} {}~{} registered twice.", appId, shuffleId, startPartition, endPartition);
@@ -54,17 +56,8 @@ public class ShuffleEngineManager {
     synchronized (this) {
       partitionRangeMap.put(Range.closed(startPartition, endPartition), key);
     }
-
-    ShuffleEngine shuffleEngine = engineMap.get(key);
-    StatusCode ret = shuffleEngine.init();
-    if (ret != StatusCode.SUCCESS) {
-      engineMap.remove(key);
-      synchronized (this) {
-        partitionRangeMap.remove(Range.closed(startPartition, endPartition));
-      }
-    }
-
     ShuffleServerMetrics.incRegisteredShuffleEngine();
+
     return ret;
   }
 

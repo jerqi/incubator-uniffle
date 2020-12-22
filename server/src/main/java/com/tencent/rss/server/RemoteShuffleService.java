@@ -21,7 +21,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class RemoteShuffleService extends ShuffleServerImplBase {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(RemoteShuffleService.class);
 
   @Override
@@ -36,25 +35,14 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
     int start = req.getStart();
     int end = req.getEnd();
 
-    String msg = "";
-    StatusCode result;
-
-    try {
-      result = ShuffleTaskManager
-        .instance()
-        .registerShuffle(appId, shuffleId, start, end);
-    } catch (IOException | IllegalStateException e) {
-      LOGGER.error("Fail to register shuffle {} {} {} {}", appId, shuffleId, start, end);
-      result = StatusCode.INTERNAL_ERROR;
-      msg = e.getMessage();
-    }
+    StatusCode result = ShuffleTaskManager
+      .instance()
+      .registerShuffle(appId, shuffleId, start, end);
 
     reply = ShuffleRegisterResponse
       .newBuilder()
       .setStatus(result)
-      .setRetMsg(msg)
       .build();
-
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
 
