@@ -5,33 +5,22 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class BufferManager {
-  private static final BufferManager INSTANCE = new BufferManager();
-
   private int capacity;
   private int bufferSize;
   private int bufferTTL;
   private AtomicInteger atomicCount;
 
-  private BufferManager() {
+  public BufferManager(ShuffleServerConf conf) {
+    this.capacity = conf.getInteger(ShuffleServerConf.BUFFER_CAPACITY);
+    this.bufferSize = conf.getInteger(ShuffleServerConf.BUFFER_SIZE);
+    this.atomicCount = new AtomicInteger(0);
   }
 
-  public static BufferManager instance() {
-    return INSTANCE;
-  }
-
-  public boolean init(ShuffleServerConf conf) {
-    return init(
-      conf.getInteger(ShuffleServerConf.BUFFER_CAPACITY),
-      conf.getInteger(ShuffleServerConf.BUFFER_SIZE),
-      0);
-  }
-
-  public boolean init(int capacity, int bufferSize, int bufferTTL) {
+  public BufferManager(int capacity, int bufferSize, int bufferTTL) {
     this.capacity = capacity;
     this.bufferSize = bufferSize;
     this.bufferTTL = bufferTTL;
     this.atomicCount = new AtomicInteger(0);
-    return true;
   }
 
   public ShuffleBuffer getBuffer(int start, int end) {
@@ -42,6 +31,10 @@ public class BufferManager {
     return new ShuffleBuffer(bufferSize, bufferTTL, start, end);
   }
 
+  public boolean isFull() {
+    return atomicCount.get() >= capacity;
+  }
+
   private boolean getBufferQuota() {
     int cur = atomicCount.get();
     if (cur > capacity) {
@@ -50,6 +43,7 @@ public class BufferManager {
 
     cur = atomicCount.addAndGet(1);
     if (cur > capacity) {
+      atomicCount.decrementAndGet();
       return false;
     } else {
       return true;

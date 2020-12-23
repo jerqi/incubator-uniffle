@@ -22,6 +22,11 @@ import java.util.List;
 
 public class RemoteShuffleService extends ShuffleServerImplBase {
   private static final Logger LOGGER = LoggerFactory.getLogger(RemoteShuffleService.class);
+  private final ShuffleServer shuffleServer;
+
+  public RemoteShuffleService(ShuffleServer shuffleServer) {
+    this.shuffleServer = shuffleServer;
+  }
 
   @Override
   public void registerShuffle(ShuffleRegisterRequest req,
@@ -35,8 +40,8 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
     int start = req.getStart();
     int end = req.getEnd();
 
-    StatusCode result = ShuffleTaskManager
-      .instance()
+    StatusCode result = shuffleServer
+      .getShuffleTaskManager()
       .registerShuffle(appId, shuffleId, start, end);
 
     reply = ShuffleRegisterResponse
@@ -62,8 +67,8 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
 
     if (req.getShuffleDataCount() > 0) {
       int partition = req.getShuffleData(0).getPartitionId();
-      ShuffleEngine shuffleEngine = ShuffleTaskManager
-        .instance()
+      ShuffleEngine shuffleEngine = shuffleServer
+        .getShuffleTaskManager()
         .getShuffleEngine(appId, shuffleId, partition);
 
       StatusCode ret;
@@ -109,7 +114,7 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
     String msg = "OK";
 
     try {
-      status = ShuffleTaskManager.instance().commitShuffle(appId, shuffleId);
+      status = shuffleServer.getShuffleTaskManager().commitShuffle(appId, shuffleId);
     } catch (IOException | IllegalStateException e) {
       status = StatusCode.INTERNAL_ERROR;
       msg = e.getMessage();

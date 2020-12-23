@@ -13,32 +13,59 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
+import static java.util.Objects.requireNonNull;
+
 public class ShuffleEngine {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ShuffleEngine.class);
 
-  private String appId;
-  private String shuffleId;
-  private int startPartition;
-  private int endPartition;
-  private ShuffleBuffer buffer;
-  private ShuffleServerConf conf;
+  private final String appId;
+  private final String shuffleId;
+  private final int startPartition;
+  private final int endPartition;
+  private final ShuffleServerConf conf;
+  private final BufferManager bufferManager;
+  private final String serverId;
 
-  public ShuffleEngine(String appId, String shuffleId, int startPartition, int endPartition, ShuffleServerConf conf) {
+  private ShuffleBuffer buffer;
+
+  public ShuffleEngine(
+    String appId,
+    String shuffleId,
+    int startPartition,
+    int endPartition,
+    ShuffleServerConf conf,
+    BufferManager bufferManager,
+    String serverId) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.startPartition = startPartition;
     this.endPartition = endPartition;
+
+    requireNonNull(conf);
+    requireNonNull(bufferManager);
     this.conf = conf;
+    this.bufferManager = bufferManager;
+    this.serverId = serverId;
   }
 
-  public ShuffleEngine(String appId, String shuffleId, int startPartition, int endPartition) {
-    this(appId, shuffleId, startPartition, endPartition, null);
+  public ShuffleEngine(
+    String appId,
+    String shuffleId,
+    int startPartition,
+    int endPartition) {
+    this.appId = appId;
+    this.shuffleId = shuffleId;
+    this.startPartition = startPartition;
+    this.endPartition = endPartition;
+    this.conf = null;
+    this.bufferManager = null;
+    this.serverId = "";
   }
 
   public StatusCode init() {
     synchronized (this) {
-      buffer = BufferManager.instance().getBuffer(startPartition, endPartition);
+      buffer = bufferManager.getBuffer(startPartition, endPartition);
       if (buffer == null) {
         return StatusCode.NO_BUFFER;
       }
@@ -53,7 +80,7 @@ public class ShuffleEngine {
     synchronized (this) {
       if (buffer == null) {
         // is committed
-        buffer = BufferManager.instance().getBuffer(startPartition, endPartition);
+        buffer = bufferManager.getBuffer(startPartition, endPartition);
 
         if (buffer == null) {
           return StatusCode.NO_BUFFER;
@@ -104,7 +131,7 @@ public class ShuffleEngine {
 
 
     if (storageType == StorageType.FILE) {
-      return new FileBasedShuffleWriteHandler(getBasePath(), ShuffleServer.id, getHadoopConf());
+      return new FileBasedShuffleWriteHandler(getBasePath(), serverId, getHadoopConf());
     } else {
       String msg = "Unsupported storage type: " + storageType;
       LOGGER.error(msg);

@@ -11,32 +11,49 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static java.util.Objects.requireNonNull;
+
 public class ShuffleEngineManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(ShuffleEngineManager.class);
 
-  private String appId;
-  private String shuffleId;
-  private ShuffleServerConf conf;
+  private final String appId;
+  private final String shuffleId;
+  private final ShuffleServerConf conf;
+  private final BufferManager bufferManager;
+  private final String serverId;
 
   private Map<String, ShuffleEngine> engineMap;
   private RangeMap<Integer, String> partitionRangeMap;
   private boolean isCommitted;
 
-  public ShuffleEngineManager(String appId, String shuffleId, ShuffleServerConf conf) {
-    this();
-    this.appId = appId;
-    this.shuffleId = shuffleId;
-    this.conf = conf;
-  }
-
-  public ShuffleEngineManager() {
+  public ShuffleEngineManager(
+    String appId, String shuffleId, ShuffleServerConf conf, BufferManager bufferManager, String serverId) {
     engineMap = new ConcurrentHashMap<>();
     partitionRangeMap = TreeRangeMap.create();
+    this.appId = appId;
+    this.shuffleId = shuffleId;
+    requireNonNull(conf);
+    requireNonNull(bufferManager);
+    this.conf = conf;
+    this.bufferManager = bufferManager;
+    this.serverId = serverId;
+    isCommitted = false;
+  }
+
+  public ShuffleEngineManager(String appId, String shuffleId) {
+    engineMap = new ConcurrentHashMap<>();
+    partitionRangeMap = TreeRangeMap.create();
+    this.appId = appId;
+    this.shuffleId = shuffleId;
+    this.conf = null;
+    this.bufferManager = null;
+    this.serverId = "";
     isCommitted = false;
   }
 
   public StatusCode registerShuffleEngine(int startPartition, int endPartition) {
-    ShuffleEngine engine = new ShuffleEngine(appId, shuffleId, startPartition, endPartition, conf);
+    ShuffleEngine engine =
+      new ShuffleEngine(appId, shuffleId, startPartition, endPartition, conf, bufferManager, serverId);
     return registerShuffleEngine(startPartition, endPartition, engine);
   }
 

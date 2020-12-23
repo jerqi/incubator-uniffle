@@ -9,7 +9,7 @@ import static org.mockito.Mockito.when;
 
 public class ShuffleEngineManagerTest extends MetricsTestBase {
 
-  private ShuffleEngineManager shuffleEngineManager = new ShuffleEngineManager("test", "1", null);
+  private ShuffleEngineManager shuffleEngineManager = new ShuffleEngineManager("test", "1");
   private ShuffleEngine mockShuffleEngine = mock(ShuffleEngine.class);
 
   @Test

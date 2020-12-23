@@ -18,7 +18,7 @@ import static org.junit.Assert.assertTrue;
 @RunWith(JUnit4.class)
 public class ShuffleServerConfTest {
 
-  private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
+  private static final String confFile = ClassLoader.getSystemResource("confTest.conf").getFile();
   @Rule
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
   @Rule
@@ -27,7 +27,7 @@ public class ShuffleServerConfTest {
 
   @Before
   public void setUp() {
-    shuffleServerConf = new ShuffleServerConf();
+    shuffleServerConf = new ShuffleServerConf(confFile);
   }
 
   @After
@@ -59,7 +59,7 @@ public class ShuffleServerConfTest {
     assertEquals("FILE", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_TYPE));
     assertEquals("/var/tmp/test", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH));
     assertFalse(shuffleServerConf.loadConfFromFile("/var/tmp/null"));
-    assertEquals(100, shuffleServerConf.getInteger(ShuffleServerConf.BUFFER_CAPACITY));
+    assertEquals(2, shuffleServerConf.getInteger(ShuffleServerConf.BUFFER_CAPACITY));
 
     thrown.expect(NullPointerException.class);
     shuffleServerConf.getInteger(ShuffleServerConf.BUFFER_SIZE);

@@ -28,8 +28,9 @@ public class JettyServer {
 
   private Server server;
   private ServletContextHandler servletContextHandler;
+  private int httpPort;
 
-  public JettyServer(String confFileName) throws Exception {
+  public JettyServer(String confFileName) throws FileNotFoundException {
     JettyConf jettyConf = new JettyConf();
     jettyConf.loadConfFromFile(confFileName);
     createServer(jettyConf);
@@ -40,6 +41,7 @@ public class JettyServer {
   }
 
   public void createServer(JettyConf conf) throws FileNotFoundException {
+    httpPort = conf.getInteger(JettyConf.JETTY_HTTP_PORT);
     ExecutorThreadPool threadPool = createThreadPool(conf);
     server = new Server(threadPool);
     server.setStopAtShutdown(true);
@@ -120,6 +122,7 @@ public class JettyServer {
 
   public void start() throws Exception {
     server.start();
+    LOGGER.info("Jetty http server started, listening on port {}", httpPort);
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
       public void run() {

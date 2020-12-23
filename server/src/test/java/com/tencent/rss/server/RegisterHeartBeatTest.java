@@ -1,7 +1,5 @@
 package com.tencent.rss.server;
 
-import static org.junit.Assert.assertTrue;
-
 import com.tencent.rss.common.CoordinatorGrpcClient;
 import com.tencent.rss.proto.CoordinatorServerGrpc.CoordinatorServerImplBase;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
@@ -24,7 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 @RunWith(JUnit4.class)
 public class RegisterHeartBeatTest {
-
+  private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
   /**
    * This rule manages automatic graceful shutdown for the registered servers and channels at the
    * end of test.
@@ -44,7 +42,7 @@ public class RegisterHeartBeatTest {
       .fallbackHandlerRegistry(serviceRegistry).directExecutor().build().start());
     client = new CoordinatorGrpcClient(grpcCleanup.register(
       InProcessChannelBuilder.forName(serverName).directExecutor().build()));
-    rh = new RegisterHeartBeat(client);
+    rh = new RegisterHeartBeat(new ShuffleServer(confFile), client);
   }
 
   private boolean register(RegisterHeartBeat rh) {
@@ -52,29 +50,8 @@ public class RegisterHeartBeatTest {
   }
 
   private boolean sendHeartBeat(RegisterHeartBeat rh) {
-    return rh.sendHeartBeat("", "", 0);
+    return rh.sendHeartBeat("", "", 0, 0);
   }
-
-//  @Test
-//  public void registerTest() {
-//    CoordinatorServerImplBase serviceImpl =
-//      new CoordinatorServerImplBase() {
-//        @Override
-//        public void registerShuffleServer(ServerRegisterRequest req,
-//                                          StreamObserver<ServerRegisterResponse> streamObserver) {
-//          ServerRegisterResponse resp =
-//            ServerRegisterResponse.newBuilder().setStatus(StatusCode.SUCCESS).build();
-//          streamObserver.onNext(resp);
-//          streamObserver.onCompleted();
-//        }
-//      };
-//    serviceRegistry.addService(serviceImpl);
-//    assertFalse(rh.getIsRegistered());
-//
-//    boolean ret = register(rh);
-//    assertTrue(ret);
-//    assertTrue(rh.getIsRegistered());
-//  }
 
   @Test
   public void heartBeatTest() {

@@ -16,23 +16,37 @@ import java.util.concurrent.TimeUnit;
 public class RegisterHeartBeat {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RegisterHeartBeat.class);
+  private final String ip;
+  private final int port;
+
+  private final long heartBeatInitialDelay;
+  private final long heartBeatInterval;
+
+  private final ShuffleServer shuffleServer;
+  private CoordinatorGrpcClient rpcClient;
 
   private boolean isRegistered;
-  private int heartBeatInitialDelay;
-  private int heartBeatInterval;
   private int failedHeartBeatCount;
   private int maxHeartBeatRetryCount;
 
-  private CoordinatorGrpcClient rpcClient;
 
-  public RegisterHeartBeat(CoordinatorGrpcClient client) {
+  public RegisterHeartBeat(ShuffleServer shuffleServer) {
+    ShuffleServerConf conf = shuffleServer.getShuffleServerConf();
+    this.ip = conf.getString(ShuffleServerConf.COORDINATOR_IP);
+    this.port = conf.getInteger(ShuffleServerConf.COORDINATOR_PORT);
+    this.heartBeatInitialDelay = conf.getLong(ShuffleServerConf.HEARTBEAT_DELAY);
+    this.heartBeatInterval = conf.getLong(ShuffleServerConf.HEARTBEAT_INTERVAL);
+    this.rpcClient = new CoordinatorGrpcClient(ip, port);
+    this.shuffleServer = shuffleServer;
+    this.isRegistered = false;
+  }
+
+  public RegisterHeartBeat(ShuffleServer shuffleServer, CoordinatorGrpcClient client) {
+    this(shuffleServer);
     this.rpcClient = client;
-    isRegistered = false;
   }
 
   public boolean register(String id, String ip, int port) {
-//    ServerRegisterRequest request = null;
-//    ServerRegisterResponse response = rpcClient.register(id, ip, port);
     StatusCode status = StatusCode.SUCCESS;
     // TODO: extract info from response
 
@@ -40,7 +54,8 @@ public class RegisterHeartBeat {
     return isRegistered;
   }
 
-  public void startHeartBeat(String id, String ip, int port) {
+  public void startHeartBeat() {
+    LOGGER.info("Start heartbeat to coordinator {}:{}", ip, port);
     ScheduledExecutorService service = Executors
       .newSingleThreadScheduledExecutor(new ThreadFactory() {
         @Override
@@ -54,18 +69,21 @@ public class RegisterHeartBeat {
     Runnable runnable = new Runnable() {
       @Override
       public void run() {
-        sendHeartBeat(id, ip, port);
+        sendHeartBeat(
+          shuffleServer.getId(),
+          shuffleServer.getIp(),
+          shuffleServer.getPort(),
+          shuffleServer.getAvailabelBufferNum());
       }
     };
 
-    int delay = ThreadLocalRandom.current().nextInt(0, heartBeatInitialDelay);
-    service.scheduleAtFixedRate(runnable, delay, heartBeatInterval, TimeUnit.SECONDS);
+    long delay = ThreadLocalRandom.current().nextLong(0L, heartBeatInitialDelay);
+    service.scheduleAtFixedRate(runnable, delay, heartBeatInterval, TimeUnit.MILLISECONDS);
   }
 
   @VisibleForTesting
-  boolean sendHeartBeat(String id, String ip, int port) {
-    ShuffleServerHeartBeatResponse response = rpcClient.sendHeartBeat(
-      id, ip, port, BufferManager.instance().getAvailableCount());
+  boolean sendHeartBeat(String id, String ip, int port, int num) {
+    ShuffleServerHeartBeatResponse response = rpcClient.sendHeartBeat(id, ip, port, num);
     StatusCode status = response.getStatus();
 
     if (status != StatusCode.SUCCESS) {
@@ -95,11 +113,6 @@ public class RegisterHeartBeat {
   @VisibleForTesting
   boolean getIsRegistered() {
     return this.isRegistered;
-  }
-
-  @VisibleForTesting
-  void setIsRegistered(boolean isRegistered) {
-    this.isRegistered = isRegistered;
   }
 
   @VisibleForTesting

@@ -12,10 +12,10 @@ import java.util.Map;
 
 public class ShuffleBuffer {
 
-  private int capacity;
-  private int ttl;
-  private int start; // start partition
-  private int end; // end partition
+  private final int capacity;
+  private final int ttl;
+  private final int start; // start partition
+  private final int end; // end partition
   private int size;
   private int blockNum;
   private Map<Integer, List<ShufflePartitionedBlock>> partitionBuffers;

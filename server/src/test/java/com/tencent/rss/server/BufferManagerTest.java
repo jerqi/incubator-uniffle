@@ -20,11 +20,11 @@ import static org.junit.Assert.assertEquals;
 @RunWith(JUnit4.class)
 public class BufferManagerTest {
 
-  private BufferManager bufferManager = BufferManager.instance();
+  private BufferManager bufferManager = new BufferManager(3, 128, 0);
 
   @Before
   public void setUp() {
-    bufferManager.init(3, 128, 0);
+
   }
 
   @After
@@ -63,7 +63,7 @@ public class BufferManagerTest {
         buffers.add(cur);
       }
     }
-    assertEquals(4, bufferManager.getAtomicCount().intValue());
+    assertEquals(3, bufferManager.getAtomicCount().intValue());
     assertEquals(3, buffers.size());
 
   }

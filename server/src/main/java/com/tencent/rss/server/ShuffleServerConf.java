@@ -47,6 +47,26 @@ public class ShuffleServerConf extends RssConf {
     .noDefaultValue()
     .withDescription("Coordinator port");
 
+  public static final ConfigOption<Long> HEARTBEAT_DELAY = ConfigOptions
+    .key("rss.heartbeat.delay")
+    .longType()
+    .defaultValue(10 * 1000L)
+    .withDescription("rss heartbeat initial delay ms");
+
+  public static final ConfigOption<Long> HEARTBEAT_INTERVAL = ConfigOptions
+    .key("rss.heartbeat.interval")
+    .longType()
+    .defaultValue(10 * 60 * 1000L)
+    .withDescription("rss heartbeat interval ms");
+
+  public ShuffleServerConf(String fileName) {
+    super();
+    boolean ret = loadConfFromFile(fileName);
+    if (!ret) {
+      throw new IllegalStateException("Fail to load config file " + fileName);
+    }
+  }
+
   public boolean loadConfFromFile(String fileName) {
     Map<String, String> properties = RssUtils.getPropertiesFromFile(fileName);
     if (properties == null) {
@@ -80,6 +100,14 @@ public class ShuffleServerConf extends RssConf {
 
       if (COORDINATOR_PORT.key().equalsIgnoreCase(k)) {
         set(COORDINATOR_PORT, Integer.valueOf(v));
+      }
+
+      if (HEARTBEAT_DELAY.key().equalsIgnoreCase(k)) {
+        set(HEARTBEAT_DELAY, Long.valueOf(v));
+      }
+
+      if (HEARTBEAT_INTERVAL.key().equalsIgnoreCase(k)) {
+        set(HEARTBEAT_INTERVAL, Long.valueOf(v));
       }
 
     });

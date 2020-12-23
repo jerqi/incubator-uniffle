@@ -27,7 +27,7 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
 
   @Before
   public void setUp() {
-    shuffleTaskManager = ShuffleTaskManager.mock();
+    shuffleTaskManager = new ShuffleTaskManager();
   }
 
   @After
@@ -95,7 +95,7 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
   }
 
   @Test
-  public void getShuffleEngineTest() throws IOException, IllegalStateException {
+  public void getShuffleEngineTest() throws IllegalStateException {
     ShuffleEngineManager mockEngineManager = mock(ShuffleEngineManager.class);
     when(mockEngineManager.registerShuffleEngine(1, 10))
       .thenReturn(StatusCode.SUCCESS);

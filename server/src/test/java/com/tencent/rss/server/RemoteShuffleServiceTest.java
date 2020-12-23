@@ -23,7 +23,6 @@ import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -36,7 +35,7 @@ import static org.mockito.Mockito.when;
 
 @RunWith(JUnit4.class)
 public class RemoteShuffleServiceTest extends MetricsTestBase {
-
+  private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
   /**
    * This rule manages automatic graceful shutdown for the registered channel at the end of test.
    */
@@ -54,31 +53,26 @@ public class RemoteShuffleServiceTest extends MetricsTestBase {
   public void setUp() throws Exception {
     // Generate a unique in-process server name.
     String serverName = InProcessServerBuilder.generateName();
-    server = new ShuffleServer(InProcessServerBuilder.forName(serverName).directExecutor(), 0);
+    server = new ShuffleServer(confFile);
+    server.setGrpcServer(
+      InProcessServerBuilder
+        .forName(serverName)
+        .directExecutor()
+        .addService(new RemoteShuffleService(server))
+        .build());
     // Create a client channel and register for automatic graceful shutdown.
     inProcessChannel = grpcCleanup.register(
       InProcessChannelBuilder.forName(serverName).directExecutor().build());
     stub = ShuffleServerGrpc.newBlockingStub(inProcessChannel);
-    server.start();
-
+    server.getGrpcServer().start();
     mockShuffleTaskManager = mock(ShuffleTaskManager.class);
-    inst = ShuffleTaskManager.class.getDeclaredField("INSTANCE");
-    inst.setAccessible(true);
-    mf = Field.class.getDeclaredField("modifiers");
-    mf.setAccessible(true);
-    mf.setInt(inst, inst.getModifiers() & ~Modifier.FINAL);
-    inst.set(inst, mockShuffleTaskManager);
+    server.setShuffleTaskManager(mockShuffleTaskManager);
 
   }
 
   @After
-  public void tearDown() throws Exception {
-    inst.set(null, null);
-    mf.setInt(inst, inst.getModifiers() | Modifier.FINAL);
-    mf.setAccessible(false);
-    inst.setAccessible(false);
-    mockShuffleTaskManager = null;
-    server.stop();
+  public void tearDown() {
+    server.getGrpcServer().shutdownNow();
   }
 
   @Test

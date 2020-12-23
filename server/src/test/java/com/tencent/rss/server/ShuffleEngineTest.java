@@ -21,19 +21,20 @@ import static org.junit.Assert.assertFalse;
 
 public class ShuffleEngineTest extends HdfsTestBase {
   private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
-  private static final ShuffleServerConf conf = new ShuffleServerConf();
+  private static final ShuffleServerConf conf = new ShuffleServerConf(confFile);
+  private static final BufferManager bufferManager = new BufferManager(1, 128, 0);
 
   @BeforeClass
   public static void setUp() {
     ShuffleServerMetrics.register();
-    BufferManager.instance().init(1, 128, 0);
     conf.loadConfFromFile(confFile);
     conf.setString(ShuffleServerConf.DATA_STORAGE_BASE_PATH, HDFS_URI);
   }
 
   @Test
   public void testBasePath() {
-    ShuffleEngine shuffleEngine = new ShuffleEngine("1", "2", 3, 4, conf);
+    ShuffleEngine shuffleEngine =
+      new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
     shuffleEngine.init();
     String actual = shuffleEngine.getBasePath();
     String expected = HdfsTestBase.HDFS_URI + "/1_2_3-4";
@@ -42,9 +43,9 @@ public class ShuffleEngineTest extends HdfsTestBase {
 
   @Test
   public void testWrite() throws IOException {
-    ShuffleEngine shuffleEngine = new ShuffleEngine("1", "2", 3, 4, conf);
+    ShuffleEngine shuffleEngine =
+      new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
     shuffleEngine.init();
-    ShuffleServer.id = "test";
     String basePath = shuffleEngine.getBasePath();
     Path path = new Path(basePath);
 

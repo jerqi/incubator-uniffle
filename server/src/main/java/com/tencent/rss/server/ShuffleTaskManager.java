@@ -9,38 +9,45 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static java.util.Objects.requireNonNull;
+
 public class ShuffleTaskManager {
 
   public static final String KEY_DELIMITER = "~";
   private static final Logger logger = LoggerFactory.getLogger(ShuffleEngine.class);
-  private static final ShuffleTaskManager INSTANCE = new ShuffleTaskManager();
+  private final BufferManager bufferManager;
+  private final String serverId;
   private ShuffleServerConf conf;
   private Map<String, ShuffleEngineManager> shuffleTaskEngines;
 
-  private ShuffleTaskManager() {
-    shuffleTaskEngines = new ConcurrentHashMap<>();
+  public ShuffleTaskManager() {
+    this.bufferManager = null;
+    this.conf = null;
+    this.serverId = "";
+    this.shuffleTaskEngines = new ConcurrentHashMap<>();
+  }
+
+  public ShuffleTaskManager(ShuffleServerConf conf, BufferManager bufferManager, String serverId) {
+    requireNonNull(conf);
+    requireNonNull(bufferManager);
+    this.bufferManager = bufferManager;
+    this.conf = conf;
+    this.serverId = serverId;
+    this.shuffleTaskEngines = new ConcurrentHashMap<>();
   }
 
   public static String constructKey(String... vars) {
     return String.join(KEY_DELIMITER, vars);
   }
 
-  public static ShuffleTaskManager instance() {
-    return INSTANCE;
-  }
-
-  @VisibleForTesting
-  static ShuffleTaskManager mock() {
-    return new ShuffleTaskManager();
-  }
-
-  public boolean init(ShuffleServerConf conf) {
-    this.conf = conf;
-    return true;
-  }
-
   public StatusCode registerShuffle(String appId, String shuffleId, int startPartition, int endPartition) {
-    ShuffleEngineManager shuffleEngineManager = new ShuffleEngineManager(appId, shuffleId, conf);
+    if (bufferManager.isFull()) {
+      return StatusCode.NO_BUFFER;
+    }
+
+    ShuffleEngineManager shuffleEngineManager =
+      new ShuffleEngineManager(appId, shuffleId, conf, bufferManager, serverId);
+
     return registerShuffle(appId, shuffleId, startPartition, endPartition, shuffleEngineManager);
   }
 
