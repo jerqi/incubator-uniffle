@@ -24,7 +24,6 @@ public class ShuffleEngineManager {
 
   private Map<String, ShuffleEngine> engineMap;
   private RangeMap<Integer, String> partitionRangeMap;
-  private boolean isCommitted;
 
   public ShuffleEngineManager(
     String appId, String shuffleId, ShuffleServerConf conf, BufferManager bufferManager, String serverId) {
@@ -37,7 +36,6 @@ public class ShuffleEngineManager {
     this.conf = conf;
     this.bufferManager = bufferManager;
     this.serverId = serverId;
-    isCommitted = false;
   }
 
   public ShuffleEngineManager(String appId, String shuffleId) {
@@ -48,7 +46,6 @@ public class ShuffleEngineManager {
     this.conf = null;
     this.bufferManager = null;
     this.serverId = "";
-    isCommitted = false;
   }
 
   public StatusCode registerShuffleEngine(int startPartition, int endPartition) {
@@ -78,6 +75,10 @@ public class ShuffleEngineManager {
     return ret;
   }
 
+  public Map<String, ShuffleEngine> getEngineMap() {
+    return this.engineMap;
+  }
+
   public ShuffleEngine getShuffleEngine(int partition) {
     String key = partitionRangeMap.get(partition);
     if (key == null) {
@@ -93,20 +94,25 @@ public class ShuffleEngineManager {
     return shuffleEngine;
   }
 
-  public StatusCode commit() throws IOException, IllegalStateException {
-    synchronized (this) {
-      if (isCommitted) {
-        return StatusCode.SUCCESS;
-      }
-
-      for (ShuffleEngine engine : engineMap.values()) {
-        engine.flush();
-      }
-
-      isCommitted = true;
-      ShuffleServerMetrics.decRegisteredShuffleEngine();
-      return StatusCode.SUCCESS;
+  public synchronized StatusCode commit() throws IOException, IllegalStateException {
+    for (ShuffleEngine engine : engineMap.values()) {
+      engine.commit();
     }
+
+    ShuffleServerMetrics.decRegisteredShuffleEngine();
+    return StatusCode.SUCCESS;
+  }
+
+  public synchronized void reclaim() {
+    partitionRangeMap.clear();
+  }
+
+  public String getAppId() {
+    return this.appId;
+  }
+
+  public String getShuffleId() {
+    return this.shuffleId;
   }
 
 }

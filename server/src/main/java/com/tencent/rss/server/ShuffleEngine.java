@@ -28,6 +28,8 @@ public class ShuffleEngine {
   private final String serverId;
 
   private ShuffleBuffer buffer;
+  private boolean isCommit = false;
+  private long timestamp;
 
   public ShuffleEngine(
     String appId,
@@ -63,39 +65,39 @@ public class ShuffleEngine {
     this.serverId = "";
   }
 
-  public StatusCode init() {
-    synchronized (this) {
+  public synchronized StatusCode init() {
+    buffer = bufferManager.getBuffer(startPartition, endPartition);
+    if (buffer == null) {
+      return StatusCode.NO_BUFFER;
+    }
+
+    ShuffleServerMetrics.decAvailableBuffer(1);
+    updateTimestamp();
+
+    return StatusCode.SUCCESS;
+  }
+
+  public synchronized StatusCode write(
+    List<ShufflePartitionedData> shuffleData) throws IOException, IllegalStateException {
+    if (buffer == null) {
+      // is committed
       buffer = bufferManager.getBuffer(startPartition, endPartition);
+
       if (buffer == null) {
         return StatusCode.NO_BUFFER;
       }
-
-      ShuffleServerMetrics.decAvailableBuffer(1);
-
-      return StatusCode.SUCCESS;
+      isCommit = false;
     }
-  }
 
-  public StatusCode write(List<ShufflePartitionedData> shuffleData) throws IOException, IllegalStateException {
-    synchronized (this) {
-      if (buffer == null) {
-        // is committed
-        buffer = bufferManager.getBuffer(startPartition, endPartition);
-
-        if (buffer == null) {
-          return StatusCode.NO_BUFFER;
-        }
+    for (ShufflePartitionedData data : shuffleData) {
+      StatusCode ret = write(data);
+      if (ret != StatusCode.SUCCESS) {
+        return ret;
       }
-
-      for (ShufflePartitionedData data : shuffleData) {
-        StatusCode ret = write(data);
-        if (ret != StatusCode.SUCCESS) {
-          return ret;
-        }
-      }
-
-      return StatusCode.SUCCESS;
     }
+
+    updateTimestamp();
+    return StatusCode.SUCCESS;
   }
 
   private StatusCode write(ShufflePartitionedData data) throws IOException, IllegalStateException {
@@ -111,19 +113,44 @@ public class ShuffleEngine {
     return StatusCode.SUCCESS;
   }
 
-  public void flush() throws IOException, IllegalStateException {
-    synchronized (this) {
-      ShuffleStorageWriteHandler writeHandler = getWriteHandler();
+  public synchronized void flush() throws IOException, IllegalStateException {
+    ShuffleStorageWriteHandler writeHandler = getWriteHandler();
+    for (int partition = startPartition; partition <= endPartition; ++partition) {
+      writeHandler.write(buffer.getBlocks(partition));
+    }
 
-      for (int partition = startPartition; partition <= endPartition; ++partition) {
-        writeHandler.write(buffer.getBlocks(partition));
+    ShuffleServerMetrics.incBlockWriteSize(buffer.getSize());
+    ShuffleServerMetrics.incBlockWriteNum(buffer.getBlockNum());
+    ShuffleServerMetrics.incBlockWriteNum(buffer.getBlockNum());
+    buffer.clear();
+  }
+
+  public synchronized void commit() throws IOException, IllegalStateException {
+    if (!isCommit) {
+      bufferManager.getAtomicCount().decrementAndGet();
+      isCommit = true;
+    }
+
+    if (buffer != null) {
+      if (buffer.getSize() > 0) {
+        flush();
       }
+      buffer = null;
+    }
+    updateTimestamp();
+  }
 
-      ShuffleServerMetrics.incBlockWriteSize(buffer.getSize());
-      ShuffleServerMetrics.incBlockWriteNum(buffer.getBlockNum());
-      ShuffleServerMetrics.incBlockWriteNum(buffer.getBlockNum());
+  public synchronized void reclaim() {
+    if (!isCommit) {
+      LOGGER.warn("{} {} {}~{} is not commit yet!", appId, shuffleId, startPartition, endPartition);
+      isCommit = true;
+      bufferManager.getAtomicCount().decrementAndGet();
+    }
+
+    if (buffer != null) {
       buffer.clear();
     }
+    buffer = null;
   }
 
   private ShuffleStorageWriteHandler getWriteHandler() throws IOException, IllegalStateException {
@@ -140,8 +167,23 @@ public class ShuffleEngine {
   }
 
   @VisibleForTesting
+  long getTimestamp() {
+    return this.timestamp;
+  }
+
+  @VisibleForTesting
+  void setTimestamp(long timestamp) {
+    this.timestamp = timestamp;
+  }
+
+  @VisibleForTesting
   ShuffleBuffer getBuffer() {
     return this.buffer;
+  }
+
+  @VisibleForTesting
+  Boolean getIsCommit() {
+    return this.isCommit;
   }
 
   @VisibleForTesting
@@ -153,6 +195,23 @@ public class ShuffleEngine {
       shuffleId,
       String.join("-", String.valueOf(startPartition), String.valueOf(endPartition)));
     return String.join("/", basePath, subPath);
+  }
+
+  @VisibleForTesting
+  BufferManager getBufferManager() {
+    return this.bufferManager;
+  }
+
+  public int getStartPartition() {
+    return this.startPartition;
+  }
+
+  public int getEndPartition() {
+    return this.endPartition;
+  }
+
+  private void updateTimestamp() {
+    this.timestamp = System.currentTimeMillis();
   }
 
   private Configuration getHadoopConf() {

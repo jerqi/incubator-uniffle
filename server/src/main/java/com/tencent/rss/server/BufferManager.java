@@ -31,6 +31,10 @@ public class BufferManager {
     return new ShuffleBuffer(bufferSize, bufferTTL, start, end);
   }
 
+  public ShuffleBuffer getOutBandBuffer(int start, int end) {
+    return new ShuffleBuffer(bufferSize, bufferTTL, start, end);
+  }
+
   public boolean isFull() {
     return atomicCount.get() >= capacity;
   }

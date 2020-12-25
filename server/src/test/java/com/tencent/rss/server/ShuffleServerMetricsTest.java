@@ -86,15 +86,27 @@ public class ShuffleServerMetricsTest {
 
     long expectedNum = 0;
     for (int i = 1; i < 5; ++i) {
+      int cur = i * i;
       if (i % 2 == 0) {
-        ShuffleServerMetrics.incIndexWriteSize(i * i);
-        expectedNum += i * i;
+        calls.add(new Callable<Void>() {
+          @Override
+          public Void call() throws Exception {
+            ShuffleServerMetrics.incIndexWriteSize(cur);
+            return null;
+          }
+        });
+        expectedNum += cur;
       } else {
-        ShuffleServerMetrics.decIndexWriteSize(i * i);
-        expectedNum -= i * i;
+        calls.add(new Callable<Void>() {
+          @Override
+          public Void call() throws Exception {
+            ShuffleServerMetrics.decIndexWriteSize(cur);
+            return null;
+          }
+        });
+        expectedNum -= cur;
       }
     }
-    final long tmp = expectedNum;
 
     List<Future<Void>> results = executorService.invokeAll(calls);
     for (Future f : results) {
@@ -105,6 +117,7 @@ public class ShuffleServerMetricsTest {
     ObjectMapper mapper = new ObjectMapper();
     JsonNode actualObj = mapper.readTree(content);
 
+    final long tmp = expectedNum;
     actualObj.get("metrics").iterator().forEachRemaining(jsonNode -> {
       String name = jsonNode.get("name").textValue();
       if (name.equals(ShuffleServerMetrics.INDEX_WRITE_SIZE)) {

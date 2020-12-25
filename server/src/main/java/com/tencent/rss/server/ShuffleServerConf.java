@@ -59,6 +59,30 @@ public class ShuffleServerConf extends RssConf {
     .defaultValue(10 * 60 * 1000L)
     .withDescription("rss heartbeat interval ms");
 
+  public static final ConfigOption<Long> GC_DELAY = ConfigOptions
+    .key("rss.gc.delay")
+    .longType()
+    .defaultValue(24 * 60 * 60L)
+    .withDescription("rss gc start delay (second)");
+
+  public static final ConfigOption<Long> GC_INTERVAL = ConfigOptions
+    .key("rss.gc.interval")
+    .longType()
+    .defaultValue(24 * 60 * 60L)
+    .withDescription("rss gc interval (second)");
+
+  public static final ConfigOption<Long> GC_THRESHOLD = ConfigOptions
+    .key("rss.gc.threshold")
+    .longType()
+    .defaultValue(24 * 60 * 60L)
+    .withDescription("rss gc threshold (second)");
+
+  public static final ConfigOption<Integer> GC_THREAD_NUM = ConfigOptions
+    .key("rss.gc.threadNum")
+    .intType()
+    .defaultValue(32)
+    .withDescription("rss gc thread num");
+
   public ShuffleServerConf(String fileName) {
     super();
     boolean ret = loadConfFromFile(fileName);
@@ -108,6 +132,22 @@ public class ShuffleServerConf extends RssConf {
 
       if (HEARTBEAT_INTERVAL.key().equalsIgnoreCase(k)) {
         set(HEARTBEAT_INTERVAL, Long.valueOf(v));
+      }
+
+      if (GC_DELAY.key().equalsIgnoreCase(k)) {
+        set(GC_DELAY, Long.valueOf(v));
+      }
+
+      if (GC_INTERVAL.key().equalsIgnoreCase(k)) {
+        set(GC_INTERVAL, Long.valueOf(v));
+      }
+
+      if (GC_THREAD_NUM.key().equalsIgnoreCase(k)) {
+        set(GC_THREAD_NUM, Integer.valueOf(v));
+      }
+
+      if (GC_THRESHOLD.key().equalsIgnoreCase(k)) {
+        set(GC_THRESHOLD, Long.valueOf(v));
       }
 
     });
