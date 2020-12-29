@@ -1,19 +1,18 @@
 package com.tencent.rss.server;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.storage.FileBasedShuffleWriteHandler;
 import com.tencent.rss.storage.ShuffleStorageWriteHandler;
 import com.tencent.rss.storage.StorageType;
+import java.io.IOException;
+import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.List;
-
-import static java.util.Objects.requireNonNull;
 
 public class ShuffleEngine {
 
@@ -32,13 +31,13 @@ public class ShuffleEngine {
   private long timestamp;
 
   public ShuffleEngine(
-    String appId,
-    String shuffleId,
-    int startPartition,
-    int endPartition,
-    ShuffleServerConf conf,
-    BufferManager bufferManager,
-    String serverId) {
+      String appId,
+      String shuffleId,
+      int startPartition,
+      int endPartition,
+      ShuffleServerConf conf,
+      BufferManager bufferManager,
+      String serverId) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.startPartition = startPartition;
@@ -52,10 +51,10 @@ public class ShuffleEngine {
   }
 
   public ShuffleEngine(
-    String appId,
-    String shuffleId,
-    int startPartition,
-    int endPartition) {
+      String appId,
+      String shuffleId,
+      int startPartition,
+      int endPartition) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.startPartition = startPartition;
@@ -156,7 +155,6 @@ public class ShuffleEngine {
   private ShuffleStorageWriteHandler getWriteHandler() throws IOException, IllegalStateException {
     StorageType storageType = StorageType.valueOf(conf.getString(ShuffleServerConf.DATA_STORAGE_TYPE));
 
-
     if (storageType == StorageType.FILE) {
       return new FileBasedShuffleWriteHandler(getBasePath(), serverId, getHadoopConf());
     } else {
@@ -190,10 +188,10 @@ public class ShuffleEngine {
   String getBasePath() {
     String basePath = conf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH);
     String subPath = String.join(
-      "_",
-      appId,
-      shuffleId,
-      String.join("-", String.valueOf(startPartition), String.valueOf(endPartition)));
+        "_",
+        appId,
+        shuffleId,
+        String.join("-", String.valueOf(startPartition), String.valueOf(endPartition)));
     return String.join("/", basePath, subPath);
   }
 

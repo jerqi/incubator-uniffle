@@ -4,14 +4,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.common.CoordinatorGrpcClient;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RegisterHeartBeat {
 
@@ -27,7 +25,7 @@ public class RegisterHeartBeat {
 
   private boolean isRegistered;
   private int failedHeartBeatCount;
-  private int maxHeartBeatRetryCount;
+  private int maxHeartBeatRetry;
 
 
   public RegisterHeartBeat(ShuffleServer shuffleServer) {
@@ -36,6 +34,7 @@ public class RegisterHeartBeat {
     this.port = conf.getInteger(ShuffleServerConf.COORDINATOR_PORT);
     this.heartBeatInitialDelay = conf.getLong(ShuffleServerConf.HEARTBEAT_DELAY);
     this.heartBeatInterval = conf.getLong(ShuffleServerConf.HEARTBEAT_INTERVAL);
+    this.maxHeartBeatRetry = conf.getInteger(ShuffleServerConf.HEARTBEAT_MAX_FAILURE);
     this.rpcClient = new CoordinatorGrpcClient(ip, port);
     this.shuffleServer = shuffleServer;
     this.isRegistered = false;
@@ -57,28 +56,27 @@ public class RegisterHeartBeat {
   public void startHeartBeat() {
     LOGGER.info("Start heartbeat to coordinator {}:{}", ip, port);
     ScheduledExecutorService service = Executors
-      .newSingleThreadScheduledExecutor(new ThreadFactory() {
-        @Override
-        public Thread newThread(Runnable r) {
-          Thread t = Executors.defaultThreadFactory().newThread(r);
-          t.setDaemon(true);
-          return t;
-        }
-      });
+        .newSingleThreadScheduledExecutor(new ThreadFactory() {
+          @Override
+          public Thread newThread(Runnable r) {
+            Thread t = Executors.defaultThreadFactory().newThread(r);
+            t.setDaemon(true);
+            return t;
+          }
+        });
 
     Runnable runnable = new Runnable() {
       @Override
       public void run() {
         sendHeartBeat(
-          shuffleServer.getId(),
-          shuffleServer.getIp(),
-          shuffleServer.getPort(),
-          shuffleServer.getAvailabelBufferNum());
+            shuffleServer.getId(),
+            shuffleServer.getIp(),
+            shuffleServer.getPort(),
+            shuffleServer.getAvailabelBufferNum());
       }
     };
 
-    long delay = ThreadLocalRandom.current().nextLong(0L, heartBeatInitialDelay);
-    service.scheduleAtFixedRate(runnable, delay, heartBeatInterval, TimeUnit.MILLISECONDS);
+    service.scheduleAtFixedRate(runnable, heartBeatInitialDelay, heartBeatInterval, TimeUnit.MILLISECONDS);
   }
 
   @VisibleForTesting
@@ -87,16 +85,17 @@ public class RegisterHeartBeat {
     StatusCode status = response.getStatus();
 
     if (status != StatusCode.SUCCESS) {
+      LOGGER.error("Can't send heartbeat to Coordinator");
       failedHeartBeatCount++;
     } else {
       failedHeartBeatCount = 0;
       isRegistered = true;
     }
 
-    if (failedHeartBeatCount >= maxHeartBeatRetryCount) {
+    if (failedHeartBeatCount >= maxHeartBeatRetry) {
       LOGGER.error(
-        "Failed heartbeat count exceed {}",
-        maxHeartBeatRetryCount);
+          "Failed heartbeat count {} exceed {}",
+          failedHeartBeatCount, maxHeartBeatRetry);
       isRegistered = false;
 
       // TODO: add HA
@@ -116,7 +115,7 @@ public class RegisterHeartBeat {
   }
 
   @VisibleForTesting
-  void setMaxHeartBeatRetryCount(int maxHeartBeatRetryCount) {
-    this.maxHeartBeatRetryCount = maxHeartBeatRetryCount;
+  void setMaxHeartBeatRetry(int maxHeartBeatRetry) {
+    this.maxHeartBeatRetry = maxHeartBeatRetry;
   }
 }

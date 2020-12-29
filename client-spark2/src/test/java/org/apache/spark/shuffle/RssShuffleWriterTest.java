@@ -36,184 +36,184 @@ import scala.collection.mutable.MutableList;
 
 public class RssShuffleWriterTest {
 
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
-    @Test
-    public void checkBlockSendResultTest() {
-        SparkConf conf = new SparkConf();
-        conf.setAppName("testApp").setMaster("local[2]");
-        // init SparkContext
-        SparkContext sc = new SparkContext(conf);
-        RssShuffleManager manager = new RssShuffleManager(conf);
+  @Test
+  public void checkBlockSendResultTest() {
+    SparkConf conf = new SparkConf();
+    conf.setAppName("testApp").setMaster("local[2]").set("spark.rss.test", "true");
+    // init SparkContext
+    SparkContext sc = new SparkContext(conf);
+    RssShuffleManager manager = new RssShuffleManager(conf, false);
 
-        Serializer mockSerializer = mock(Serializer.class);
-        Partitioner mockPartitioner = mock(Partitioner.class);
-        ShuffleDependency mockDependency = mock(ShuffleDependency.class);
-        RssShuffleHandle mockHandle = mock(RssShuffleHandle.class);
-        when(mockHandle.getDependency()).thenReturn(mockDependency);
-        when(mockDependency.serializer()).thenReturn(mockSerializer);
-        when(mockDependency.partitioner()).thenReturn(mockPartitioner);
-        when(mockPartitioner.numPartitions()).thenReturn(2);
-        when(mockHandle.getPartitionToServers()).thenReturn(Maps.newHashMap());
+    Serializer mockSerializer = mock(Serializer.class);
+    Partitioner mockPartitioner = mock(Partitioner.class);
+    ShuffleDependency mockDependency = mock(ShuffleDependency.class);
+    RssShuffleHandle mockHandle = mock(RssShuffleHandle.class);
+    when(mockHandle.getDependency()).thenReturn(mockDependency);
+    when(mockDependency.serializer()).thenReturn(mockSerializer);
+    when(mockDependency.partitioner()).thenReturn(mockPartitioner);
+    when(mockPartitioner.numPartitions()).thenReturn(2);
+    when(mockHandle.getPartitionToServers()).thenReturn(Maps.newHashMap());
 
-        RssShuffleWriter rssShuffleWriter = new RssShuffleWriter("appId", 0, 0,
-                "taskIdentify", (new TaskMetrics()).shuffleWriteMetrics(),
-                new BufferManagerOptions(conf),
-                mockHandle, manager, 10 * 1000, 1000);
+    RssShuffleWriter rssShuffleWriter = new RssShuffleWriter("appId", 0, 0,
+        "taskIdentify", (new TaskMetrics()).shuffleWriteMetrics(),
+        new BufferManagerOptions(conf),
+        mockHandle, manager, 10 * 1000, 1000);
 
-        // case 1: all blocks are sent successfully
-        manager.addSuccessBlockIds("taskIdentify", Sets.newHashSet(1L, 2L, 3L));
-        rssShuffleWriter.checkBlockSendResult(Sets.newHashSet(1L, 2L, 3L));
-        manager.clearCachedBlockIds();
+    // case 1: all blocks are sent successfully
+    manager.addSuccessBlockIds("taskIdentify", Sets.newHashSet(1L, 2L, 3L));
+    rssShuffleWriter.checkBlockSendResult(Sets.newHashSet(1L, 2L, 3L));
+    manager.clearCachedBlockIds();
 
-        // case 2: partial blocks aren't sent before spark.rss.writer.send.check.timeout,
-        // Runtime exception will be thrown
-        manager.addSuccessBlockIds("taskIdentify", Sets.newHashSet(1L, 2L));
-        thrown.expect(RuntimeException.class);
-        thrown.expectMessage(StringStartsWith.startsWith("Timeout:"));
-        rssShuffleWriter.checkBlockSendResult(Sets.newHashSet(1L, 2L, 3L));
+    // case 2: partial blocks aren't sent before spark.rss.writer.send.check.timeout,
+    // Runtime exception will be thrown
+    manager.addSuccessBlockIds("taskIdentify", Sets.newHashSet(1L, 2L));
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage(StringStartsWith.startsWith("Timeout:"));
+    rssShuffleWriter.checkBlockSendResult(Sets.newHashSet(1L, 2L, 3L));
 
-        manager.clearCachedBlockIds();
+    manager.clearCachedBlockIds();
 
-        // case 3: partial blocks are sent failed, Runtime exception will be thrown
-        manager.addSuccessBlockIds("taskIdentify", Sets.newHashSet(1L, 2L));
-        manager.addFailedBlockIds("taskIdentify", Sets.newHashSet(3L));
-        thrown.expect(RuntimeException.class);
-        thrown.expectMessage(StringStartsWith.startsWith("Send failed:"));
-        rssShuffleWriter.checkBlockSendResult(Sets.newHashSet(1L, 2L, 3L));
-        manager.clearCachedBlockIds();
+    // case 3: partial blocks are sent failed, Runtime exception will be thrown
+    manager.addSuccessBlockIds("taskIdentify", Sets.newHashSet(1L, 2L));
+    manager.addFailedBlockIds("taskIdentify", Sets.newHashSet(3L));
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage(StringStartsWith.startsWith("Send failed:"));
+    rssShuffleWriter.checkBlockSendResult(Sets.newHashSet(1L, 2L, 3L));
+    manager.clearCachedBlockIds();
 
-        sc.stop();
+    sc.stop();
+  }
+
+  @Test
+  public void writeTest() throws Exception {
+    SparkConf conf = new SparkConf();
+    conf.setAppName("testApp").setMaster("local[2]")
+        .set("spark.rss.test", "true")
+        .set("spark.rss.writer.buffer.size", "32")
+        .set("spark.rss.writer.buffer.max.size", "64")
+        .set("spark.rss.writer.buffer.spill.size", "64");
+    // init SparkContext
+    SparkContext sc = new SparkContext(conf);
+    RssShuffleManager manager = new RssShuffleManager(conf, false);
+    List<ShuffleBlockInfo> shuffleBlockInfos = Lists.newArrayList();
+
+    manager.setEventLoop(new EventLoop<AddBlockEvent>("test") {
+      @Override
+      public void onReceive(AddBlockEvent event) {
+        assertEquals("taskIdentify", event.getTaskIdentify());
+        shuffleBlockInfos.addAll(event.getShuffleDataInfo());
+        Set<Long> blockIds = event.getShuffleDataInfo().parallelStream()
+            .map(sdi -> sdi.getBlockId()).collect(Collectors.toSet());
+        manager.addSuccessBlockIds(event.getTaskIdentify(), blockIds);
+      }
+
+      @Override
+      public void onError(Throwable e) {
+      }
+    });
+    manager.getEventLoop().start();
+
+    Partitioner mockPartitioner = mock(Partitioner.class);
+    ShuffleDependency mockDependency = mock(ShuffleDependency.class);
+    RssShuffleHandle mockHandle = mock(RssShuffleHandle.class);
+    when(mockHandle.getDependency()).thenReturn(mockDependency);
+    Serializer kryoSerializer = new KryoSerializer(conf);
+    when(mockDependency.serializer()).thenReturn(kryoSerializer);
+    when(mockDependency.partitioner()).thenReturn(mockPartitioner);
+    when(mockPartitioner.numPartitions()).thenReturn(2);
+
+    Map<Integer, List<ShuffleServerInfo>> partitionToServers = Maps.newHashMap();
+    List<ShuffleServerInfo> ssi12 = Arrays.asList(new ShuffleServerInfo("id1", "0.0.0.1", 100),
+        new ShuffleServerInfo("id2", "0.0.0.2", 100));
+    partitionToServers.put(0, ssi12);
+    List<ShuffleServerInfo> ssi34 = Arrays.asList(new ShuffleServerInfo("id3", "0.0.0.3", 100),
+        new ShuffleServerInfo("id4", "0.0.0.4", 100));
+    partitionToServers.put(1, ssi34);
+    List<ShuffleServerInfo> ssi56 = Arrays.asList(new ShuffleServerInfo("id5", "0.0.0.5", 100),
+        new ShuffleServerInfo("id6", "0.0.0.6", 100));
+    partitionToServers.put(2, ssi56);
+    when(mockHandle.getPartitionToServers()).thenReturn(partitionToServers);
+    when(mockPartitioner.getPartition("testKey1")).thenReturn(0);
+    when(mockPartitioner.getPartition("testKey2")).thenReturn(1);
+    when(mockPartitioner.getPartition("testKey3")).thenReturn(2);
+    when(mockPartitioner.getPartition("testKey4")).thenReturn(0);
+    when(mockPartitioner.getPartition("testKey5")).thenReturn(1);
+    when(mockPartitioner.getPartition("testKey6")).thenReturn(2);
+    when(mockPartitioner.getPartition("testKey7")).thenReturn(0);
+    when(mockPartitioner.getPartition("testKey8")).thenReturn(1);
+    when(mockPartitioner.getPartition("testKey9")).thenReturn(2);
+
+    RssShuffleWriter<String, String, String> rssShuffleWriter = new RssShuffleWriter("appId", 0, 0,
+        "taskIdentify", (new TaskMetrics()).shuffleWriteMetrics(),
+        new BufferManagerOptions(conf),
+        mockHandle, manager, 10 * 1000, 1000);
+    RssShuffleWriter<String, String, String> rssShuffleWriterSpy = spy(rssShuffleWriter);
+    doNothing().when(rssShuffleWriterSpy).sendCommit();
+
+    // case 1
+    MutableList<Product2<String, String>> data = new MutableList();
+    data.appendElem(new Tuple2("testKey1", "testValue1"));
+    data.appendElem(new Tuple2("testKey2", "testValue2"));
+    data.appendElem(new Tuple2("testKey3", "testValue3"));
+    data.appendElem(new Tuple2("testKey4", "testValue4"));
+    data.appendElem(new Tuple2("testKey5", "testValue5"));
+    data.appendElem(new Tuple2("testKey6", "testValue6"));
+    rssShuffleWriterSpy.write(data.iterator());
+
+    assertEquals(6, shuffleBlockInfos.size());
+    for (ShuffleBlockInfo shuffleBlockInfo : shuffleBlockInfos) {
+      assertEquals(0, shuffleBlockInfo.getShuffleId());
+      assertEquals(22, shuffleBlockInfo.getLength());
+      if (shuffleBlockInfo.getPartitionId() == 0) {
+        assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi12);
+      } else if (shuffleBlockInfo.getPartitionId() == 1) {
+        assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi34);
+      } else if (shuffleBlockInfo.getPartitionId() == 2) {
+        assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi56);
+      } else {
+        throw new Exception("Shouldn't be here");
+      }
     }
+    Map<Integer, Set<Long>> partitionToBlockIds = rssShuffleWriterSpy.getPartitionToBlockIds();
+    assertEquals(2, partitionToBlockIds.get(0).size());
+    assertEquals(2, partitionToBlockIds.get(1).size());
+    assertEquals(2, partitionToBlockIds.get(2).size());
+    partitionToBlockIds.clear();
 
-    @Test
-    public void writeTest() throws Exception {
-        SparkConf conf = new SparkConf();
-        conf.setAppName("testApp").setMaster("local[2]")
-                .set("spark.rss.test", "true")
-                .set("spark.rss.writer.buffer.size", "32")
-                .set("spark.rss.writer.buffer.max.size", "64")
-                .set("spark.rss.writer.buffer.spill.size", "64");
-        // init SparkContext
-        SparkContext sc = new SparkContext(conf);
-        RssShuffleManager manager = new RssShuffleManager(conf);
-        List<ShuffleBlockInfo> shuffleBlockInfos = Lists.newArrayList();
+    // case2
+    shuffleBlockInfos.clear();
+    data = new MutableList();
+    data.appendElem(new Tuple2("testKey1", "testValue1"));
+    data.appendElem(new Tuple2("testKey4", "testValue4"));
+    data.appendElem(new Tuple2("testKey2", "testValue2"));
+    data.appendElem(new Tuple2("testKey3", "testValue3"));
+    data.appendElem(new Tuple2("testKey5", "testValue6"));
+    data.appendElem(new Tuple2("testKey6", "testValue5"));
+    rssShuffleWriterSpy.write(data.iterator());
 
-        manager.setEventLoop(new EventLoop<AddBlockEvent>("test") {
-            @Override
-            public void onReceive(AddBlockEvent event) {
-                assertEquals("taskIdentify", event.getTaskIdentify());
-                shuffleBlockInfos.addAll(event.getShuffleDataInfo());
-                Set<Long> blockIds = event.getShuffleDataInfo().parallelStream()
-                        .map(sdi -> sdi.getBlockId()).collect(Collectors.toSet());
-                manager.addSuccessBlockIds(event.getTaskIdentify(), blockIds);
-            }
-
-            @Override
-            public void onError(Throwable e) {
-            }
-        });
-        manager.getEventLoop().start();
-
-        Partitioner mockPartitioner = mock(Partitioner.class);
-        ShuffleDependency mockDependency = mock(ShuffleDependency.class);
-        RssShuffleHandle mockHandle = mock(RssShuffleHandle.class);
-        when(mockHandle.getDependency()).thenReturn(mockDependency);
-        Serializer kryoSerializer = new KryoSerializer(conf);
-        when(mockDependency.serializer()).thenReturn(kryoSerializer);
-        when(mockDependency.partitioner()).thenReturn(mockPartitioner);
-        when(mockPartitioner.numPartitions()).thenReturn(2);
-
-        Map<Integer, List<ShuffleServerInfo>> partitionToServers = Maps.newHashMap();
-        List<ShuffleServerInfo> ssi12 = Arrays.asList(new ShuffleServerInfo("id1", "0.0.0.1", 100),
-                new ShuffleServerInfo("id2", "0.0.0.2", 100));
-        partitionToServers.put(0, ssi12);
-        List<ShuffleServerInfo> ssi34 = Arrays.asList(new ShuffleServerInfo("id3", "0.0.0.3", 100),
-                new ShuffleServerInfo("id4", "0.0.0.4", 100));
-        partitionToServers.put(1, ssi34);
-        List<ShuffleServerInfo> ssi56 = Arrays.asList(new ShuffleServerInfo("id5", "0.0.0.5", 100),
-                new ShuffleServerInfo("id6", "0.0.0.6", 100));
-        partitionToServers.put(2, ssi56);
-        when(mockHandle.getPartitionToServers()).thenReturn(partitionToServers);
-        when(mockPartitioner.getPartition("testKey1")).thenReturn(0);
-        when(mockPartitioner.getPartition("testKey2")).thenReturn(1);
-        when(mockPartitioner.getPartition("testKey3")).thenReturn(2);
-        when(mockPartitioner.getPartition("testKey4")).thenReturn(0);
-        when(mockPartitioner.getPartition("testKey5")).thenReturn(1);
-        when(mockPartitioner.getPartition("testKey6")).thenReturn(2);
-        when(mockPartitioner.getPartition("testKey7")).thenReturn(0);
-        when(mockPartitioner.getPartition("testKey8")).thenReturn(1);
-        when(mockPartitioner.getPartition("testKey9")).thenReturn(2);
-
-        RssShuffleWriter<String, String, String> rssShuffleWriter = new RssShuffleWriter("appId", 0, 0,
-                "taskIdentify", (new TaskMetrics()).shuffleWriteMetrics(),
-                new BufferManagerOptions(conf),
-                mockHandle, manager, 10 * 1000, 1000);
-        RssShuffleWriter<String, String, String> rssShuffleWriterSpy = spy(rssShuffleWriter);
-        doNothing().when(rssShuffleWriterSpy).sendCommit();
-
-        // case 1
-        MutableList<Product2<String, String>> data = new MutableList();
-        data.appendElem(new Tuple2("testKey1", "testValue1"));
-        data.appendElem(new Tuple2("testKey2", "testValue2"));
-        data.appendElem(new Tuple2("testKey3", "testValue3"));
-        data.appendElem(new Tuple2("testKey4", "testValue4"));
-        data.appendElem(new Tuple2("testKey5", "testValue5"));
-        data.appendElem(new Tuple2("testKey6", "testValue6"));
-        rssShuffleWriterSpy.write(data.iterator());
-
-        assertEquals(6, shuffleBlockInfos.size());
-        for (ShuffleBlockInfo shuffleBlockInfo : shuffleBlockInfos) {
-            assertEquals(0, shuffleBlockInfo.getShuffleId());
-            assertEquals(22, shuffleBlockInfo.getLength());
-            if (shuffleBlockInfo.getPartitionId() == 0) {
-                assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi12);
-            } else if (shuffleBlockInfo.getPartitionId() == 1) {
-                assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi34);
-            } else if (shuffleBlockInfo.getPartitionId() == 2) {
-                assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi56);
-            } else {
-                throw new Exception("Shouldn't be here");
-            }
-        }
-        Map<Integer, Set<Long>> partitionToBlockIds = rssShuffleWriterSpy.getPartitionToBlockIds();
-        assertEquals(2, partitionToBlockIds.get(0).size());
-        assertEquals(2, partitionToBlockIds.get(1).size());
-        assertEquals(2, partitionToBlockIds.get(2).size());
-        partitionToBlockIds.clear();
-
-        // case2
-        shuffleBlockInfos.clear();
-        data = new MutableList();
-        data.appendElem(new Tuple2("testKey1", "testValue1"));
-        data.appendElem(new Tuple2("testKey4", "testValue4"));
-        data.appendElem(new Tuple2("testKey2", "testValue2"));
-        data.appendElem(new Tuple2("testKey3", "testValue3"));
-        data.appendElem(new Tuple2("testKey5", "testValue6"));
-        data.appendElem(new Tuple2("testKey6", "testValue5"));
-        rssShuffleWriterSpy.write(data.iterator());
-
-        assertEquals(3, shuffleBlockInfos.size());
-        for (ShuffleBlockInfo shuffleBlockInfo : shuffleBlockInfos) {
-            assertEquals(0, shuffleBlockInfo.getShuffleId());
-            assertEquals(44, shuffleBlockInfo.getLength());
-            if (shuffleBlockInfo.getPartitionId() == 0) {
-                assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi12);
-            } else if (shuffleBlockInfo.getPartitionId() == 1) {
-                assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi34);
-            } else if (shuffleBlockInfo.getPartitionId() == 2) {
-                assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi56);
-            } else {
-                throw new Exception("Shouldn't be here");
-            }
-        }
-        partitionToBlockIds = rssShuffleWriterSpy.getPartitionToBlockIds();
-        assertEquals(1, partitionToBlockIds.get(0).size());
-        assertEquals(1, partitionToBlockIds.get(1).size());
-        assertEquals(1, partitionToBlockIds.get(2).size());
-        partitionToBlockIds.clear();
-
-        sc.stop();
+    assertEquals(3, shuffleBlockInfos.size());
+    for (ShuffleBlockInfo shuffleBlockInfo : shuffleBlockInfos) {
+      assertEquals(0, shuffleBlockInfo.getShuffleId());
+      assertEquals(44, shuffleBlockInfo.getLength());
+      if (shuffleBlockInfo.getPartitionId() == 0) {
+        assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi12);
+      } else if (shuffleBlockInfo.getPartitionId() == 1) {
+        assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi34);
+      } else if (shuffleBlockInfo.getPartitionId() == 2) {
+        assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi56);
+      } else {
+        throw new Exception("Shouldn't be here");
+      }
     }
+    partitionToBlockIds = rssShuffleWriterSpy.getPartitionToBlockIds();
+    assertEquals(1, partitionToBlockIds.get(0).size());
+    assertEquals(1, partitionToBlockIds.get(1).size());
+    assertEquals(1, partitionToBlockIds.get(2).size());
+    partitionToBlockIds.clear();
+
+    sc.stop();
+  }
 }

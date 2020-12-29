@@ -1,15 +1,15 @@
 package com.tencent.rss.server;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.storage.HdfsTestBase;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,14 +22,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class ShuffleEngineTest extends HdfsTestBase {
+
   private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
   private static final ShuffleServerConf conf = new ShuffleServerConf(confFile);
   private BufferManager bufferManager;
@@ -48,7 +48,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
   @Test
   public void testBasePath() {
     ShuffleEngine shuffleEngine =
-      new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
+        new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
     shuffleEngine.init();
     String actual = shuffleEngine.getBasePath();
     String expected = HdfsTestBase.HDFS_URI + "/1_2_3-4";
@@ -58,8 +58,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
   @Test
   public void testWrite() throws IOException {
     ShuffleEngine shuffleEngine =
-      new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
-
+        new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
     shuffleEngine.init();
     String basePath = shuffleEngine.getBasePath();
     Path path = new Path(basePath);
@@ -87,7 +86,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
   @Test
   public void testWriteCommit() throws IOException {
     ShuffleEngine shuffleEngine =
-      new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
+        new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
 
     assertEquals(1, shuffleEngine.getBufferManager().getAvailableCount());
     assertEquals(StatusCode.SUCCESS, shuffleEngine.init());
@@ -140,7 +139,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
   @Test
   public void testWriteCommitConcurrent() throws InterruptedException, ExecutionException, IOException {
     ShuffleEngine shuffleEngine =
-      new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
+        new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
     String basePath = shuffleEngine.getBasePath();
     Path path = new Path(basePath);
     shuffleEngine.init();

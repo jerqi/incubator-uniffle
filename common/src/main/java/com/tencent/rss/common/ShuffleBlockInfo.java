@@ -13,7 +13,7 @@ public class ShuffleBlockInfo {
   private List<ShuffleServerInfo> shuffleServerInfos;
 
   public ShuffleBlockInfo(int shuffleId, int partitionId, long blockId, int length, long crc,
-                          byte[] data, List<ShuffleServerInfo> shuffleServerInfos) {
+      byte[] data, List<ShuffleServerInfo> shuffleServerInfos) {
     this.partitionId = partitionId;
     this.blockId = blockId;
     this.length = length;
@@ -49,5 +49,27 @@ public class ShuffleBlockInfo {
 
   public List<ShuffleServerInfo> getShuffleServerInfos() {
     return shuffleServerInfos;
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("ShuffleBlockInfo:");
+    sb.append("shuffleId[" + shuffleId + "],");
+    sb.append("partitionId[" + partitionId + "],");
+    sb.append("blockId[" + blockId + "],");
+    sb.append("length[" + length + "],");
+    sb.append("crc[" + crc + "],");
+    if (shuffleServerInfos != null) {
+      sb.append("shuffleServer[");
+      for (ShuffleServerInfo ssi : shuffleServerInfos) {
+        sb.append(ssi.getId() + ",");
+      }
+      sb.append("]");
+    } else {
+      sb.append("shuffleServer is empty");
+    }
+
+    return sb.toString();
   }
 }

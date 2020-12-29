@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class ShufflePartitionedBlock {
+
   private int length;
   private long crc;
   private long blockId;
@@ -42,9 +43,9 @@ public class ShufflePartitionedBlock {
     }
     ShufflePartitionedBlock that = (ShufflePartitionedBlock) o;
     return length == that.length
-      && crc == that.crc
-      && blockId == that.blockId
-      && data.equals(that.data);
+        && crc == that.crc
+        && blockId == that.blockId
+        && data.equals(that.data);
   }
 
   public int getLength() {
@@ -79,5 +80,9 @@ public class ShufflePartitionedBlock {
     this.data = data;
   }
 
+  @Override
+  public String toString() {
+    return "ShufflePartitionedBlock{blockId[" + blockId + "], length[" + length + "], crc[" + crc + "]}";
+  }
 
 }

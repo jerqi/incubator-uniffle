@@ -2,10 +2,9 @@ package com.tencent.rss.common;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.TimeUnit;
 
 public abstract class GrpcClient {
 
@@ -35,7 +34,6 @@ public abstract class GrpcClient {
     }
 
     channel = channelBuilder.build();
-    channel.shutdown();
   }
 
   protected GrpcClient(ManagedChannel channel) {

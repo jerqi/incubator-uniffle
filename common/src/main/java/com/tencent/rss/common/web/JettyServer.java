@@ -1,5 +1,13 @@
 package com.tencent.rss.common.web;
 
+import com.tencent.rss.common.config.RssBaseConf;
+import java.io.FileNotFoundException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import javax.servlet.Servlet;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
@@ -15,48 +23,35 @@ import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.Servlet;
-import java.io.FileNotFoundException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.TimeUnit;
-
 public class JettyServer {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(JettyServer.class);
 
   private Server server;
   private ServletContextHandler servletContextHandler;
   private int httpPort;
 
-  public JettyServer(String confFileName) throws FileNotFoundException {
-    JettyConf jettyConf = new JettyConf();
-    jettyConf.loadConfFromFile(confFileName);
-    createServer(jettyConf);
-  }
-
-  public JettyServer(JettyConf conf) throws FileNotFoundException {
+  public JettyServer(RssBaseConf conf) throws FileNotFoundException {
     createServer(conf);
   }
 
-  public void createServer(JettyConf conf) throws FileNotFoundException {
-    httpPort = conf.getInteger(JettyConf.JETTY_HTTP_PORT);
+  public void createServer(RssBaseConf conf) throws FileNotFoundException {
+    httpPort = conf.getInteger(RssBaseConf.JETTY_HTTP_PORT);
     ExecutorThreadPool threadPool = createThreadPool(conf);
     server = new Server(threadPool);
     server.setStopAtShutdown(true);
-    server.setStopTimeout(conf.getLong(JettyConf.JETTY_STOP_TIMEOUT));
+    server.setStopTimeout(conf.getLong(RssBaseConf.JETTY_STOP_TIMEOUT));
     server.addBean(new ScheduledExecutorScheduler("jetty-thread-pool", true));
 
     HttpConfiguration httpConfig = new HttpConfiguration();
     addHttpConnector(
-      conf.getInteger(JettyConf.JETTY_HTTP_PORT),
-      httpConfig,
-      conf.getLong(JettyConf.JETTY_HTTP_IDLE_TIMEOUT));
+        conf.getInteger(RssBaseConf.JETTY_HTTP_PORT),
+        httpConfig,
+        conf.getLong(RssBaseConf.JETTY_HTTP_IDLE_TIMEOUT));
 
     setRootServletHandler();
 
-    if (conf.getBoolean(JettyConf.JETTY_SSL_ENABLE)) {
+    if (conf.getBoolean(RssBaseConf.JETTY_SSL_ENABLE)) {
       addHttpsConnector(httpConfig, conf);
     }
   }
@@ -66,45 +61,45 @@ public class JettyServer {
     server.setHandler(servletContextHandler);
   }
 
-  private ExecutorThreadPool createThreadPool(JettyConf conf) {
-    int corePoolSize = conf.getInteger(JettyConf.JETTY_CORE_POOL_SIZE);
-    int queueSize = conf.getInteger(JettyConf.JETTY_QUEUE_SIZE);
+  private ExecutorThreadPool createThreadPool(RssBaseConf conf) {
+    int corePoolSize = conf.getInteger(RssBaseConf.JETTY_CORE_POOL_SIZE);
+    int queueSize = conf.getInteger(RssBaseConf.JETTY_QUEUE_SIZE);
     ExecutorThreadPool pool = new ExecutorThreadPool(
-      corePoolSize, corePoolSize, 60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize));
+        corePoolSize, corePoolSize, 60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize));
     return pool;
   }
 
   private void addHttpConnector(int port, HttpConfiguration httpConfig, long idleTimeout) {
     ServerConnector httpConnector = new ServerConnector(server,
-      new HttpConnectionFactory(httpConfig));
+        new HttpConnectionFactory(httpConfig));
     httpConnector.setPort(port);
     httpConnector.setIdleTimeout(idleTimeout);
     server.addConnector(httpConnector);
   }
 
   private void addHttpsConnector(
-    HttpConfiguration httpConfig, JettyConf conf) throws FileNotFoundException {
+      HttpConfiguration httpConfig, RssBaseConf conf) throws FileNotFoundException {
     LOGGER.info("Create https connector");
-    Path keystorePath = Paths.get(conf.get(JettyConf.JETTY_SSL_KEYSTORE_PATH)).toAbsolutePath();
+    Path keystorePath = Paths.get(conf.get(RssBaseConf.JETTY_SSL_KEYSTORE_PATH)).toAbsolutePath();
     if (!Files.exists(keystorePath)) {
       throw new FileNotFoundException(keystorePath.toString());
     }
 
     SslContextFactory sslContextFactory = new SslContextFactory();
     sslContextFactory.setKeyStorePath(keystorePath.toString());
-    sslContextFactory.setKeyStorePassword(conf.get(JettyConf.JETTY_SSL_KEYSTORE_PASSWORD));
-    sslContextFactory.setKeyManagerPassword(conf.get(JettyConf.JETTY_SSL_KEYMANAGER_PASSWORD));
+    sslContextFactory.setKeyStorePassword(conf.get(RssBaseConf.JETTY_SSL_KEYSTORE_PASSWORD));
+    sslContextFactory.setKeyManagerPassword(conf.get(RssBaseConf.JETTY_SSL_KEYMANAGER_PASSWORD));
     sslContextFactory.setTrustStorePath(keystorePath.toString());
-    sslContextFactory.setTrustStorePassword(conf.get(JettyConf.JETTY_SSL_TRUSTSTORE_PASSWORD));
+    sslContextFactory.setTrustStorePassword(conf.get(RssBaseConf.JETTY_SSL_TRUSTSTORE_PASSWORD));
 
-    int securePort = conf.getInteger(JettyConf.JETTY_HTTPS_PORT);
+    int securePort = conf.getInteger(RssBaseConf.JETTY_HTTPS_PORT);
     httpConfig.setSecurePort(securePort);
     HttpConfiguration httpsConfig = new HttpConfiguration(httpConfig);
     httpsConfig.addCustomizer(new SecureRequestCustomizer());
 
     ServerConnector sslConnector = new ServerConnector(server,
-      new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
-      new HttpConnectionFactory(httpsConfig));
+        new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
+        new HttpConnectionFactory(httpsConfig));
     sslConnector.setPort(securePort);
 
     server.addConnector(sslConnector);
@@ -136,11 +131,10 @@ public class JettyServer {
   }
 
   public void stop() throws Exception {
-    this.server.stop();
+    server.stop();
   }
 
   public ServletContextHandler getServletContextHandler() {
     return this.servletContextHandler;
   }
-
 }

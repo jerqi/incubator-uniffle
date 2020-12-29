@@ -1,5 +1,10 @@
 package com.tencent.rss.common.web;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import com.tencent.rss.common.config.RssBaseConf;
+import java.io.FileNotFoundException;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -9,19 +14,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.io.FileNotFoundException;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 @RunWith(JUnit4.class)
 public class JettyServerTest {
-  private static final String CONFIG_FILE = ClassLoader.getSystemResource("server.conf").getFile();
 
   @Test
   public void jettyServerTest() throws FileNotFoundException {
-    JettyConf conf = new JettyConf();
-    conf.loadConfFromFile(CONFIG_FILE);
+    RssBaseConf conf = new RssBaseConf();
+    conf.setString("jetty.http.port", "9527");
     JettyServer jettyServer = new JettyServer(conf);
     Server server = jettyServer.getServer();
 

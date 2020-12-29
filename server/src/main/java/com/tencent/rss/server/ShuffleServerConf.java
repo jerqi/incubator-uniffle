@@ -2,86 +2,90 @@ package com.tencent.rss.server;
 
 import com.tencent.rss.common.config.ConfigOption;
 import com.tencent.rss.common.config.ConfigOptions;
-import com.tencent.rss.common.config.RssConf;
+import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.common.util.RssUtils;
-
 import java.util.Map;
 
-public class ShuffleServerConf extends RssConf {
+public class ShuffleServerConf extends RssBaseConf {
 
   public static final ConfigOption<Integer> SERVICE_PORT = ConfigOptions
-    .key("rss.server.port")
-    .intType()
-    .noDefaultValue()
-    .withDescription("Shuffle server service port");
+      .key("rss.server.port")
+      .intType()
+      .noDefaultValue()
+      .withDescription("Shuffle server service port");
   public static final ConfigOption<String> DATA_STORAGE_TYPE = ConfigOptions
-    .key("rss.storage.type")
-    .stringType()
-    .noDefaultValue()
-    .withDescription("Data storage for remote shuffle service");
+      .key("rss.storage.type")
+      .stringType()
+      .noDefaultValue()
+      .withDescription("Data storage for remote shuffle service");
   public static final ConfigOption<String> DATA_STORAGE_BASE_PATH = ConfigOptions
-    .key("rss.data.storage.basePath")
-    .stringType()
-    .noDefaultValue()
-    .withDescription("Common storage path for remote shuffle data");
+      .key("rss.data.storage.basePath")
+      .stringType()
+      .noDefaultValue()
+      .withDescription("Common storage path for remote shuffle data");
   public static final ConfigOption<Integer> BUFFER_CAPACITY = ConfigOptions
-    .key("rss.buffer.capacity")
-    .intType()
-    .noDefaultValue()
-    .withDescription("Number of buffers in this server");
+      .key("rss.buffer.capacity")
+      .intType()
+      .noDefaultValue()
+      .withDescription("Number of buffers in this server");
   public static final ConfigOption<Integer> BUFFER_SIZE = ConfigOptions
-    .key("rss.buffer.size")
-    .intType()
-    .noDefaultValue()
-    .withDescription("Size of each buffer in this server");
+      .key("rss.buffer.size")
+      .intType()
+      .noDefaultValue()
+      .withDescription("Size of each buffer in this server");
 
   public static final ConfigOption<String> COORDINATOR_IP = ConfigOptions
-    .key("rss.coordinator.ip")
-    .stringType()
-    .noDefaultValue()
-    .withDescription("Coordinator ip");
+      .key("rss.coordinator.ip")
+      .stringType()
+      .noDefaultValue()
+      .withDescription("Coordinator ip");
 
   public static final ConfigOption<Integer> COORDINATOR_PORT = ConfigOptions
-    .key("rss.coordinator.port")
-    .intType()
-    .noDefaultValue()
-    .withDescription("Coordinator port");
+      .key("rss.coordinator.port")
+      .intType()
+      .noDefaultValue()
+      .withDescription("Coordinator port");
 
   public static final ConfigOption<Long> HEARTBEAT_DELAY = ConfigOptions
-    .key("rss.heartbeat.delay")
-    .longType()
-    .defaultValue(10 * 1000L)
-    .withDescription("rss heartbeat initial delay ms");
+      .key("rss.heartbeat.delay")
+      .longType()
+      .defaultValue(10 * 1000L)
+      .withDescription("rss heartbeat initial delay ms");
 
   public static final ConfigOption<Long> HEARTBEAT_INTERVAL = ConfigOptions
-    .key("rss.heartbeat.interval")
-    .longType()
-    .defaultValue(10 * 60 * 1000L)
-    .withDescription("rss heartbeat interval ms");
+      .key("rss.heartbeat.interval")
+      .longType()
+      .defaultValue(10 * 60 * 1000L)
+      .withDescription("rss heartbeat interval ms");
 
+  public static final ConfigOption<Integer> HEARTBEAT_MAX_FAILURE = ConfigOptions
+      .key("rss.heartbeat.max.failure")
+      .intType()
+      .defaultValue(10)
+      .withDescription("rss heartbeat max failure times");
   public static final ConfigOption<Long> GC_DELAY = ConfigOptions
-    .key("rss.gc.delay")
-    .longType()
-    .defaultValue(24 * 60 * 60L)
-    .withDescription("rss gc start delay (second)");
-
+      .key("rss.gc.delay")
+      .longType()
+      .defaultValue(24 * 60 * 60L)
+      .withDescription("rss gc start delay (second)");
   public static final ConfigOption<Long> GC_INTERVAL = ConfigOptions
-    .key("rss.gc.interval")
-    .longType()
-    .defaultValue(24 * 60 * 60L)
-    .withDescription("rss gc interval (second)");
-
+      .key("rss.gc.interval")
+      .longType()
+      .defaultValue(24 * 60 * 60L)
+      .withDescription("rss gc interval (second)");
   public static final ConfigOption<Long> GC_THRESHOLD = ConfigOptions
-    .key("rss.gc.threshold")
-    .longType()
-    .defaultValue(24 * 60 * 60L)
-    .withDescription("rss gc threshold (second)");
-
+      .key("rss.gc.threshold")
+      .longType()
+      .defaultValue(24 * 60 * 60L)
+      .withDescription("rss gc threshold (second)");
   public static final ConfigOption<Integer> GC_THREAD_NUM = ConfigOptions
-    .key("rss.gc.threadNum")
-    .intType()
-    .defaultValue(32)
-    .withDescription("rss gc thread num");
+      .key("rss.gc.threadNum")
+      .intType()
+      .defaultValue(32)
+      .withDescription("rss gc thread num");
+
+  public ShuffleServerConf() {
+  }
 
   public ShuffleServerConf(String fileName) {
     super();
@@ -93,9 +97,12 @@ public class ShuffleServerConf extends RssConf {
 
   public boolean loadConfFromFile(String fileName) {
     Map<String, String> properties = RssUtils.getPropertiesFromFile(fileName);
+
     if (properties == null) {
       return false;
     }
+
+    loadCommonConf(properties);
 
     properties.forEach((k, v) -> {
       if (SERVICE_PORT.key().equalsIgnoreCase(k)) {

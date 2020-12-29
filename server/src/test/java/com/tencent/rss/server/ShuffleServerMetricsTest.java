@@ -1,14 +1,13 @@
 package com.tencent.rss.server;
 
+import static org.junit.Assert.assertEquals;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tencent.rss.common.metrics.JvmMetrics;
 import com.tencent.rss.common.web.JettyServer;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
+import com.tencent.rss.common.web.MetricsServlet;
+import io.prometheus.client.CollectorRegistry;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -20,20 +19,31 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
-import static org.junit.Assert.assertEquals;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class ShuffleServerMetricsTest {
-  private static final String CONFIG_FILE = ClassLoader.getSystemResource("server.conf").getFile();
+
   private static final String SERVER_METRICS_URL = "http://localhost:12345/metrics/server";
   private static final String SERVER_JVM_URL = "http://localhost:12345/metrics/jvm";
   private static JettyServer server;
 
   @BeforeClass
   public static void setUp() throws Exception {
-    server = new JettyServer(CONFIG_FILE);
-    ShuffleServer.addServlet(server);
+    ShuffleServerConf ssc = new ShuffleServerConf();
+    ssc.setString("jetty.http.port", "12345");
+    ssc.setString("jetty.corePool.size", "64");
+    server = new JettyServer(ssc);
+    CollectorRegistry shuffleServerCollectorRegistry = new CollectorRegistry(true);
+    ShuffleServerMetrics.register(shuffleServerCollectorRegistry);
+    CollectorRegistry jvmCollectorRegistry = new CollectorRegistry(true);
+    JvmMetrics.register(jvmCollectorRegistry);
+    server.addServlet(new MetricsServlet(ShuffleServerMetrics.getCollectorRegistry()), "/metrics/server");
+    server.addServlet(new MetricsServlet(JvmMetrics.getCollectorRegistry()), "/metrics/jvm");
     server.start();
   }
 
@@ -47,7 +57,7 @@ public class ShuffleServerMetricsTest {
     HttpURLConnection con = (HttpURLConnection) url.openConnection();
     con.setRequestMethod("GET");
     BufferedReader in = new BufferedReader(
-      new InputStreamReader(con.getInputStream()));
+        new InputStreamReader(con.getInputStream()));
     String inputLine;
     StringBuffer content = new StringBuffer();
     while ((inputLine = in.readLine()) != null) {

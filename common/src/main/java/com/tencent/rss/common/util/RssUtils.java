@@ -1,8 +1,5 @@
 package com.tencent.rss.common.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -11,8 +8,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RssUtils {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(RssUtils.class);
 
   /**
@@ -54,5 +54,9 @@ public class RssUtils {
     }
 
     return result;
+  }
+
+  public static String getShuffleDataPath(String appId, int shuffleId, int start, int end) {
+    return "/" + appId + "_" + shuffleId + "_" + start + "-" + end;
   }
 }

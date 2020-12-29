@@ -1,19 +1,19 @@
 package com.tencent.rss.server;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
 import com.tencent.rss.proto.RssProtos.StatusCode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static java.util.Objects.requireNonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ShuffleEngineManager {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(ShuffleEngineManager.class);
 
   private final String appId;
@@ -26,7 +26,7 @@ public class ShuffleEngineManager {
   private RangeMap<Integer, String> partitionRangeMap;
 
   public ShuffleEngineManager(
-    String appId, String shuffleId, ShuffleServerConf conf, BufferManager bufferManager, String serverId) {
+      String appId, String shuffleId, ShuffleServerConf conf, BufferManager bufferManager, String serverId) {
     engineMap = new ConcurrentHashMap<>();
     partitionRangeMap = TreeRangeMap.create();
     this.appId = appId;
@@ -50,7 +50,7 @@ public class ShuffleEngineManager {
 
   public StatusCode registerShuffleEngine(int startPartition, int endPartition) {
     ShuffleEngine engine =
-      new ShuffleEngine(appId, shuffleId, startPartition, endPartition, conf, bufferManager, serverId);
+        new ShuffleEngine(appId, shuffleId, startPartition, endPartition, conf, bufferManager, serverId);
     return registerShuffleEngine(startPartition, endPartition, engine);
   }
 
@@ -114,5 +114,4 @@ public class ShuffleEngineManager {
   public String getShuffleId() {
     return this.shuffleId;
   }
-
 }

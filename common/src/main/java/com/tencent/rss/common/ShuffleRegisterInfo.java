@@ -33,9 +33,15 @@ public class ShuffleRegisterInfo {
   public boolean equals(Object obj) {
     if (obj instanceof ShuffleRegisterInfo) {
       return shuffleServerInfo.equals(((ShuffleRegisterInfo) obj).getShuffleServerInfo())
-        && start == ((ShuffleRegisterInfo) obj).getStart()
-        && end == ((ShuffleRegisterInfo) obj).getEnd();
+          && start == ((ShuffleRegisterInfo) obj).getStart()
+          && end == ((ShuffleRegisterInfo) obj).getEnd();
     }
     return false;
+  }
+
+  @Override
+  public String toString() {
+    return "ShuffleRegisterInfo: shuffleServerInfo[" + shuffleServerInfo.getId() + "],"
+        + " start: " + start + ", end: " + end;
   }
 }

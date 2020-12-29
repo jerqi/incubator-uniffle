@@ -58,9 +58,9 @@ public class FileBasedShuffleSegment extends ShuffleSegment {
     }
     FileBasedShuffleSegment that = (FileBasedShuffleSegment) o;
     return offset == that.offset
-      && length == that.length
-      && crc == that.crc
-      && blockId == that.blockId;
+        && length == that.length
+        && crc == that.crc
+        && blockId == that.blockId;
   }
 
   @Override
@@ -71,16 +71,15 @@ public class FileBasedShuffleSegment extends ShuffleSegment {
   @Override
   public String toString() {
     return "HDFSShuffleSegment{"
-      + "offset="
-      + offset
-      + ", length="
-      + length
-      + ", crc="
-      + crc
-      + ", blockId='"
-      + blockId
-      + '\''
-      + '}';
+        + "offset="
+        + offset
+        + ", length="
+        + length
+        + ", crc="
+        + crc
+        + ", blockId='"
+        + blockId
+        + "'}";
   }
 
 }
