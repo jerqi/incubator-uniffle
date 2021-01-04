@@ -56,7 +56,15 @@ public class RssUtils {
     return result;
   }
 
-  public static String getShuffleDataPath(String appId, int shuffleId, int start, int end) {
-    return "/" + appId + "_" + shuffleId + "_" + start + "-" + end;
+  public static String getShuffleDataPath(String appId, String shuffleId, int start, int end) {
+    return String.join(
+        "_",
+        appId,
+        String.valueOf(shuffleId),
+        String.join("-", String.valueOf(start), String.valueOf(end)));
+  }
+
+  public static String getFullShuffleDataPath(String basePath, String subPath) {
+    return String.join("/", basePath, subPath);
   }
 }

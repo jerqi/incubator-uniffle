@@ -1,6 +1,7 @@
 package org.apache.spark.shuffle;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.tecent.rss.client.ClientUtils;
@@ -39,43 +40,72 @@ public class RssShuffleManager implements ShuffleManager {
   private Map<String, Set<Long>> taskToSuccessBlockIds;
 
   private EventLoop eventLoop = new EventLoop<AddBlockEvent>("ShuffleDataQueue") {
+
     @Override
     public void onReceive(AddBlockEvent event) {
       List<ShuffleBlockInfo> shuffleBlockInfos = event.getShuffleDataInfo();
       String taskIdentify = event.getTaskIdentify();
+      Map<ShuffleServerInfo, Map<Integer, Map<Integer, List<ShuffleBlockInfo>>>> serverToBlocks = Maps.newHashMap();
+      Map<ShuffleServerInfo, List<Long>> serverToBlockIds = Maps.newHashMap();
       // send shuffle block to shuffle server
+      // for all ShuffleBlockInfo, create the data structure as shuffleServer -> shuffleId -> partitionId -> blocks
+      // it will be helpful to send rpc request to shuffleServer
       for (ShuffleBlockInfo sbi : shuffleBlockInfos) {
-        boolean sendSuccessful = false;
+        int partitionId = sbi.getPartitionId();
+        int shuffleId = sbi.getShuffleId();
         for (ShuffleServerInfo ssi : sbi.getShuffleServerInfos()) {
-          try {
-            ShuffleServerClientManager.getInstance()
-                .getClient(ssi).sendShuffleData(appId, sbi);
-            LOG_RSS_INFO.info("Send: " + sbi.toString() + " to [" + ssi.getId() + "] successfully");
-            sendSuccessful = true;
-          } catch (Exception e) {
-            LOG.warn("Send shuffle data [shuffleId=" + sbi.getShuffleId() + ","
-                + " blockId=" + sbi.getBlockId()
-                + " partitionId=" + sbi.getPartitionId()
-                + " length=" + sbi.getLength() + "] to shuffle server "
-                + "[host=" + ssi.getHost()
-                + "port=" + ssi.getPort() + "] for [task="
-                + taskIdentify + "] failed.");
+          if (!serverToBlockIds.containsKey(ssi)) {
+            serverToBlockIds.put(ssi, Lists.newArrayList());
           }
+          serverToBlockIds.get(ssi).add(sbi.getBlockId());
+
+          if (!serverToBlocks.containsKey(ssi)) {
+            serverToBlocks.put(ssi, Maps.newHashMap());
+          }
+          Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleIdToBlocks = serverToBlocks.get(ssi);
+          if (!shuffleIdToBlocks.containsKey(shuffleId)) {
+            shuffleIdToBlocks.put(shuffleId, Maps.newHashMap());
+          }
+
+          Map<Integer, List<ShuffleBlockInfo>> partitionToBlocks = shuffleIdToBlocks.get(shuffleId);
+          if (!partitionToBlocks.containsKey(partitionId)) {
+            partitionToBlocks.put(partitionId, Lists.newArrayList());
+          }
+          partitionToBlocks.get(partitionId).add(sbi);
         }
-        // one data block will be send to multiple server, mark successful if any try success
-        if (sendSuccessful) {
-          putBlockId(taskToSuccessBlockIds, taskIdentify, sbi.getBlockId());
-        } else {
-          putBlockId(taskToFailedBlockIds, taskIdentify, sbi.getBlockId());
+      }
+
+      List<Long> tempFailedBlockIds = Lists.newArrayList();
+      for (Map.Entry<ShuffleServerInfo, Map<Integer,
+          Map<Integer, List<ShuffleBlockInfo>>>> entry : serverToBlocks.entrySet()) {
+        ShuffleServerInfo ssi = entry.getKey();
+        try {
+          boolean sendSuccessful = ShuffleServerClientManager.getInstance()
+              .getClient(ssi).sendShuffleDatas(appId, entry.getValue());
+          if (sendSuccessful) {
+            putBlockId(taskToSuccessBlockIds, taskIdentify, serverToBlockIds.get(ssi));
+            LOG.info("Send: " + serverToBlockIds.get(ssi)
+                + " to [" + ssi.getId() + "] successfully");
+          } else {
+            tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
+            LOG.error("Send: " + serverToBlockIds.get(ssi) + " to [" + ssi.getId() + "] temp failed.");
+          }
+        } catch (Exception e) {
+          tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
+          LOG.error("Send: " + serverToBlockIds.get(ssi) + " to [" + ssi.getId() + "] temp failed.", e);
         }
+      }
+      if (!taskToSuccessBlockIds.get(taskIdentify).containsAll(tempFailedBlockIds)) {
+        putBlockId(taskToFailedBlockIds, taskIdentify, tempFailedBlockIds);
+        LOG.error("Send: " + tempFailedBlockIds + " failed.");
       }
     }
 
-    private void putBlockId(Map<String, Set<Long>> taskToBlockIds, String taskAttempId, long blockId) {
+    private void putBlockId(Map<String, Set<Long>> taskToBlockIds, String taskAttempId, List<Long> blockIds) {
       if (taskToBlockIds.get(taskAttempId) == null) {
         taskToBlockIds.put(taskAttempId, Sets.newHashSet());
       }
-      taskToBlockIds.get(taskAttempId).add(blockId);
+      taskToBlockIds.get(taskAttempId).addAll(blockIds);
     }
 
     @Override
@@ -208,9 +238,10 @@ public class RssShuffleManager implements ShuffleManager {
       RssShuffleHandle rssShuffleHandle = (RssShuffleHandle) handle;
       int partitionsPerServer = sparkConf.getInt(RssClientConfig.RSS_PARTITIONS_PER_SERVER,
           RssClientConfig.RSS_PARTITIONS_PER_SERVER_DEFAULT_VALUE);
-      String fullShufflePath = shuffleDataBasePath + getShuffleDataPath(rssShuffleHandle.getShuffleId(),
-          startPartition, partitionsPerServer,
-          rssShuffleHandle.getDependency().partitioner().numPartitions());
+      String fullShufflePath = RssUtils.getFullShuffleDataPath(shuffleDataBasePath,
+          getShuffleDataPath(rssShuffleHandle.getShuffleId(),
+              startPartition, partitionsPerServer,
+              rssShuffleHandle.getDependency().partitioner().numPartitions()));
       if (StringUtils.isEmpty(shuffleDataBasePath)) {
         throw new RuntimeException("Can't get shuffle base path");
       }
@@ -301,7 +332,7 @@ public class RssShuffleManager implements ShuffleManager {
       int start = i * partitionsPerServer;
       int end = Math.min(partitionNum, (i + 1) * partitionsPerServer - 1);
       if (partitionId >= start && partitionId <= end) {
-        return RssUtils.getShuffleDataPath(appId, shuffleId, start, end);
+        return RssUtils.getShuffleDataPath(appId, String.valueOf(shuffleId), start, end);
       }
     }
     throw new RuntimeException("Can't generate ShuffleData Path for appId[" + appId + "], shuffleId["

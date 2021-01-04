@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
@@ -103,7 +102,6 @@ public class ShuffleEngineTest extends HdfsTestBase {
 
     shuffleEngine.commit();
     assertNull(shuffleEngine.getBuffer());
-    assertTrue(shuffleEngine.getIsCommit());
     assertNull(shuffleEngine.getBuffer());
 
     StatusCode actual2 = writeData(shuffleEngine, 128, 4);
@@ -111,13 +109,11 @@ public class ShuffleEngineTest extends HdfsTestBase {
     assertEquals(0, buffer.getSize());
     assertEquals(1, shuffleEngine.getBufferManager().getAtomicCount().get());
     assertEquals(0, shuffleEngine.getBufferManager().getAvailableCount());
-    assertFalse(shuffleEngine.getIsCommit());
     assertNotNull(shuffleEngine.getBuffer());
 
     shuffleEngine.commit();
     assertEquals(0, shuffleEngine.getBufferManager().getAtomicCount().get());
     assertEquals(1, shuffleEngine.getBufferManager().getAvailableCount());
-    assertTrue(shuffleEngine.getIsCommit());
     assertNull(shuffleEngine.getBuffer());
     shuffleEngine.commit();
 
@@ -125,12 +121,10 @@ public class ShuffleEngineTest extends HdfsTestBase {
 
     writeData(shuffleEngine, 32, 4);
     assertNotNull(shuffleEngine.getBuffer());
-    assertFalse(shuffleEngine.getIsCommit());
     assertEquals(1, shuffleEngine.getBufferManager().getAtomicCount().get());
     assertEquals(0, shuffleEngine.getBufferManager().getAvailableCount());
     shuffleEngine.reclaim();
     assertNull(shuffleEngine.getBuffer());
-    assertTrue(shuffleEngine.getIsCommit());
     assertEquals(0, shuffleEngine.getBufferManager().getAtomicCount().get());
     assertEquals(1, shuffleEngine.getBufferManager().getAvailableCount());
 
@@ -154,11 +148,9 @@ public class ShuffleEngineTest extends HdfsTestBase {
           if (cur) {
             shuffleEngine.commit();
             assertNull(shuffleEngine.getBuffer());
-            assertTrue(shuffleEngine.getIsCommit());
           } else {
             writeData(shuffleEngine, 64, 3);
             assertNotNull(shuffleEngine.getBuffer());
-            assertFalse(shuffleEngine.getIsCommit());
           }
           return null;
         }
@@ -178,7 +170,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
     new Random().nextBytes(d1);
     ShufflePartitionedBlock block1 = new ShufflePartitionedBlock(len, 1, 1, d1);
     ShufflePartitionedData data1 = new ShufflePartitionedData(partition, block1);
-    return shuffleEngine.write(Collections.singletonList(data1));
+    return shuffleEngine.write(data1);
   }
 
   private void checkFiles(Path path, String... expected) throws IOException {

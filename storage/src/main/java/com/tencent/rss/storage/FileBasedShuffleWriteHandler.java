@@ -53,10 +53,10 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
         FileBasedShuffleWriter indexWriter = createWriter(indexFileName)) {
 
       for (ShufflePartitionedBlock block : shuffleBlocks) {
+        LOG_RSS_INFO.info("Write index " + block);
         long blockId = block.getBlockId();
         long crc = block.getCrc();
         long startOffset = dataWriter.nextOffset();
-        LOG_RSS_INFO.info("Write index " + block);
         dataWriter.writeData(block.getData());
 
         long endOffset = dataWriter.nextOffset();

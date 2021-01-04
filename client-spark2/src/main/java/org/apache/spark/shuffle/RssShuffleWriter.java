@@ -102,7 +102,6 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       Product2<K, V> record = records.next();
       int partition = getPartition(record._1());
       if (shuffleDependency.mapSideCombine()) {
-        // doesn't support for now
         Function1 createCombiner = shuffleDependency.aggregator().get().createCombiner();
         Object c = createCombiner.apply(record._2());
         shuffleBlockInfos = bufferManager.addRecord(partition, record._1(), c);
@@ -210,12 +209,8 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             createDummyBlockManagerId(appId + "_" + taskIdentify, jsonStr);
 
         for (Map.Entry<Integer, Set<Long>> entry : partitionToBlockIds.entrySet()) {
-          StringBuilder sb = new StringBuilder();
-          for (Long blockId : entry.getValue()) {
-            sb.append(blockId).append(",");
-          }
           LOG.info("Finish send blocks for shuffleId[" + shuffleId + "], partitionId["
-              + entry.getKey() + "], blockIds[" + sb.toString() + "]");
+              + entry.getKey() + "], blockIds[" + entry.getValue() + "]");
         }
 
         return Option.apply(MapStatus$.MODULE$.apply(blockManagerId, partitionLengths, partitionLengths));

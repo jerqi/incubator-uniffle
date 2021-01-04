@@ -1,5 +1,6 @@
 package com.tencent.rss.common;
 
+import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import com.tencent.rss.proto.RssProtos.SendShuffleDataRequest;
 import com.tencent.rss.proto.RssProtos.SendShuffleDataResponse;
@@ -12,15 +13,14 @@ import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.proto.ShuffleServerGrpc;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerBlockingStub;
-import io.grpc.ManagedChannel;
+import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
-
 public class ShuffleServerGrpcClient extends GrpcClient {
 
-  private static final Logger logger = LoggerFactory.getLogger(ShuffleServerGrpcClient.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ShuffleServerGrpcClient.class);
   private ShuffleServerBlockingStub blockingStub;
 
   public ShuffleServerGrpcClient(String host, int port) {
@@ -36,59 +36,72 @@ public class ShuffleServerGrpcClient extends GrpcClient {
     blockingStub = ShuffleServerGrpc.newBlockingStub(channel);
   }
 
-  public ShuffleServerGrpcClient(ManagedChannel channel) {
-    super(channel);
-  }
-
   public void registerShuffle(String appId, int shuffleId, int start, int end) {
     ShuffleRegisterRequest request = ShuffleRegisterRequest.newBuilder().setAppId(appId)
-      .setShuffleId(shuffleId).setStart(start).setEnd(end).build();
+        .setShuffleId(shuffleId).setStart(start).setEnd(end).build();
     ShuffleRegisterResponse response = blockingStub.registerShuffle(request);
     if (response.getStatus() != StatusCode.SUCCESS) {
-      throw new RuntimeException("Can't register shuffle to " + host + ":" + port
-        + " for [appId=" + appId + ", shuffleId=" + shuffleId
-        + ", start=" + start + ", end=" + end + "], "
-        + "errorMsg:" + response.getRetMsg());
+      String msg = "Can't register shuffle to " + host + ":" + port
+          + " for [appId=" + appId + ", shuffleId=" + shuffleId
+          + ", start=" + start + ", end=" + end + "], "
+          + "errorMsg:" + response.getRetMsg();
+      LOG.error(msg);
+      throw new RuntimeException(msg);
     }
   }
 
-  public void sendShuffleData(String appId, ShuffleBlockInfo shuffleBlockInfo) {
-    if (shuffleBlockInfo == null) {
-      return;
+  public boolean sendShuffleDatas(String appId, Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleIdToBlocks) {
+    List<ShuffleBlockInfo> shuffleBlockInfos = Lists.newArrayList();
+    // prepare rpc request based on shuffleId -> partitionId -> blocks
+    for (Map.Entry<Integer, Map<Integer, List<ShuffleBlockInfo>>> stb : shuffleIdToBlocks.entrySet()) {
+      List<ShuffleData> shuffleDatas = Lists.newArrayList();
+      for (Map.Entry<Integer, List<ShuffleBlockInfo>> ptb : stb.getValue().entrySet()) {
+        List<ShuffleBlock> shuffleBlocks = Lists.newArrayList();
+        for (ShuffleBlockInfo sbi : ptb.getValue()) {
+          shuffleBlockInfos.add(sbi);
+          shuffleBlocks.add(ShuffleBlock.newBuilder().setBlockId(sbi.getBlockId())
+              .setCrc(sbi.getCrc())
+              .setLength(sbi.getLength())
+              .setData(ByteString.copyFrom(sbi.getData()))
+              .build());
+        }
+        shuffleDatas.add(ShuffleData.newBuilder().setPartitionId(ptb.getKey())
+            .addAllBlock(shuffleBlocks)
+            .build());
+      }
+      SendShuffleDataRequest request = SendShuffleDataRequest.newBuilder()
+          .setAppId(appId)
+          .setShuffleId(stb.getKey())
+          .addAllShuffleData(shuffleDatas)
+          .build();
+      SendShuffleDataResponse response = blockingStub.sendShuffleData(request);
+
+      if (response.getStatus() != StatusCode.SUCCESS) {
+        StringBuilder sb = new StringBuilder();
+        for (ShuffleBlockInfo sbi : shuffleBlockInfos) {
+          sb.append(sbi.toString()).append("\n");
+        }
+        String msg = "Can't send shuffle data to " + host + ":" + port
+            + " for " + sb.toString()
+            + "statusCode=" + response.getStatus()
+            + ", errorMsg:" + response.getRetMsg();
+        LOG.warn(msg);
+        return false;
+      }
     }
-    ShuffleBlock shuffleBlock = ShuffleBlock.newBuilder().setBlockId(shuffleBlockInfo.getBlockId())
-      .setCrc(shuffleBlockInfo.getCrc())
-      .setLength(shuffleBlockInfo.getLength())
-      .setData(ByteString.copyFrom(shuffleBlockInfo.getData()))
-      .build();
-    ShuffleData shuffleData = ShuffleData.newBuilder().setPartitionId(shuffleBlockInfo.getPartitionId())
-      .addAllBlock(Arrays.asList(shuffleBlock))
-      .build();
-    SendShuffleDataRequest request = SendShuffleDataRequest.newBuilder()
-      .setAppId(appId)
-      .setShuffleId(shuffleBlockInfo.getShuffleId())
-      .addAllShuffleData(Arrays.asList(shuffleData))
-      .build();
-    SendShuffleDataResponse response = blockingStub.sendShuffleData(request);
-    if (response.getStatus() != StatusCode.SUCCESS) {
-      throw new RuntimeException("Can't send shuffle data to " + host + ":" + port
-        + " for [appId=" + appId + ", shuffleId=" + shuffleBlockInfo.getShuffleId()
-        + ", partitionId=" + shuffleBlockInfo.getPartitionId()
-        + ", blockId=" + shuffleBlockInfo.getBlockId()
-        + ", crc=" + shuffleBlockInfo.getCrc()
-        + ", length=" + shuffleBlockInfo.getLength() + "], "
-        + "errorMsg:" + response.getRetMsg());
-    }
+    return true;
   }
 
   public void commitShuffleTask(String appId, int shuffleId) {
     ShuffleCommitRequest request = ShuffleCommitRequest.newBuilder()
-      .setAppId(appId).setShuffleId(shuffleId).build();
+        .setAppId(appId).setShuffleId(shuffleId).build();
     ShuffleCommitResponse response = blockingStub.commitShuffleTask(request);
     if (response.getStatus() != StatusCode.SUCCESS) {
-      throw new RuntimeException("Can't commit shuffle data to " + host + ":" + port
-        + " for [appId=" + appId + ", shuffleId=" + shuffleId + "], "
-        + "errorMsg:" + response.getRetMsg());
+      String msg = "Can't commit shuffle data to " + host + ":" + port
+          + " for [appId=" + appId + ", shuffleId=" + shuffleId + "], "
+          + "errorMsg:" + response.getRetMsg();
+      LOG.error(msg);
+      throw new RuntimeException(msg);
     }
   }
 }

@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 
 public abstract class GrpcClient {
 
-
   private static final Logger logger = LoggerFactory.getLogger(GrpcClient.class);
   protected String host;
   protected int port;
@@ -32,6 +31,7 @@ public abstract class GrpcClient {
     if (maxRetryAttempts > 0) {
       channelBuilder.enableRetry().maxRetryAttempts(maxRetryAttempts);
     }
+    channelBuilder.maxInboundMessageSize(Integer.MAX_VALUE);
 
     channel = channelBuilder.build();
   }

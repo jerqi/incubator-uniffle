@@ -1,21 +1,20 @@
 package com.tencent.rss.storage;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import com.tencent.rss.common.ShufflePartitionedBlock;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Random;
 import org.apache.hadoop.fs.Path;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
-
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 @RunWith(JUnit4.class)
 public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
@@ -35,7 +34,7 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
   public void writeTest() throws IOException, IllegalStateException {
     String basePath = HDFS_URI + "writeTest";
     FileBasedShuffleWriteHandler writeHandler =
-      new FileBasedShuffleWriteHandler(basePath, "test", conf);
+        new FileBasedShuffleWriteHandler(basePath, "test", conf);
     List<ShufflePartitionedBlock> blocks = new LinkedList<>();
     List<byte[]> expectedData = new LinkedList<>();
     List<FileBasedShuffleSegment> expectedIndex = new LinkedList<>();
@@ -73,10 +72,10 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
   }
 
   private void compareDataAndIndex(
-    String path,
-    String filenamePrefix,
-    List<byte[]> expectedData,
-    List<FileBasedShuffleSegment> index) throws IOException, IllegalStateException {
+      String path,
+      String filenamePrefix,
+      List<byte[]> expectedData,
+      List<FileBasedShuffleSegment> index) throws IOException, IllegalStateException {
     // read directly and compare
     try (FileBasedShuffleReadHandler readHandler = new FileBasedShuffleReadHandler(path, filenamePrefix, conf)) {
       List<byte[]> actual = readData(readHandler);

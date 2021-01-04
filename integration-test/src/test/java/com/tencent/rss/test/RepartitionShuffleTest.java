@@ -30,7 +30,7 @@ public class RepartitionShuffleTest extends IntegrationTestBase implements Seria
   public Map runTest(SparkSession spark, String fileName) {
     JavaRDD<String> lines = spark.read().textFile(fileName).javaRDD();
     JavaRDD<String> words = lines.flatMap(s -> Arrays.asList(s.split(" ")).iterator());
-    JavaPairRDD<String, Integer> ones = words.mapToPair(s -> new Tuple2<>(s, 1)).repartition(4);
+    JavaPairRDD<String, Integer> ones = words.mapToPair(s -> new Tuple2<>(s, 1)).repartition(5);
     JavaPairRDD<String, Integer> counts = ones.reduceByKey((i1, i2) -> i1 + i2);
     return counts.sortByKey().collectAsMap();
   }
@@ -38,7 +38,7 @@ public class RepartitionShuffleTest extends IntegrationTestBase implements Seria
   @Override
   public String generateTestFile() throws Exception {
     // todo: more data
-    return generateTextFile(1000, 1000);
+    return generateTextFile(1000, 5000);
   }
 
   protected String generateTextFile(int wordsPerRow, int rows) throws Exception {

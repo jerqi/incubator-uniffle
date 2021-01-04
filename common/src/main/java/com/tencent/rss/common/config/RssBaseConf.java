@@ -88,6 +88,12 @@ public class RssBaseConf extends RssConf {
       .defaultValue(30 * 1000L)
       .withDescription("jetty http idle timeout (ms) ");
 
+  public static final ConfigOption<Integer> RPC_MESSAGE_MAX_SIZE = ConfigOptions
+      .key("rss.common.rpc.message.max.size")
+      .intType()
+      .defaultValue(Integer.MAX_VALUE)
+      .withDescription("Max size of rpc message (byte)");
+
   public boolean loadCommonConf(Map<String, String> properties) {
     if (properties == null) {
       return false;
@@ -146,6 +152,9 @@ public class RssBaseConf extends RssConf {
         set(JETTY_HTTP_IDLE_TIMEOUT, Long.valueOf(v));
       }
 
+      if (RPC_MESSAGE_MAX_SIZE.key().equalsIgnoreCase(k)) {
+        set(RPC_MESSAGE_MAX_SIZE, Integer.valueOf(v));
+      }
     });
 
     return true;

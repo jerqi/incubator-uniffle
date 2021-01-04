@@ -49,25 +49,19 @@ public class ShuffleServer {
     commandLine.parseArgs(args);
 
     final ShuffleServer shuffleServer = new ShuffleServer(arguments.getConfigFile());
-//    registerMetrics();
-//    addServlet(shuffleServer.getJettyServer());
     shuffleServer.start();
 
     shuffleServer.blockUntilShutdown();
   }
 
-//  private void registerMetrics() {
-//    CollectorRegistry shuffleServerCollectorRegistry = new CollectorRegistry(true);
-//    ShuffleServerMetrics.register(shuffleServerCollectorRegistry);
-//    CollectorRegistry jvmCollectorRegistry = new CollectorRegistry(true);
-//    JvmMetrics.register(jvmCollectorRegistry);
-//  }
-
-  private void addServlet(JettyServer jettyServer) {
+  private void registerMetrics() {
     CollectorRegistry shuffleServerCollectorRegistry = new CollectorRegistry(true);
     ShuffleServerMetrics.register(shuffleServerCollectorRegistry);
     CollectorRegistry jvmCollectorRegistry = new CollectorRegistry(true);
     JvmMetrics.register(jvmCollectorRegistry);
+  }
+
+  private void addServlet(JettyServer jettyServer) {
     jettyServer.addServlet(new MetricsServlet(ShuffleServerMetrics.getCollectorRegistry()), "/metrics/server");
     jettyServer.addServlet(new MetricsServlet(JvmMetrics.getCollectorRegistry()), "/metrics/jvm");
   }
@@ -79,10 +73,13 @@ public class ShuffleServer {
     registerHeartBeat = new RegisterHeartBeat(this);
     bufferManager = new BufferManager(shuffleServerConf);
     shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, bufferManager, id);
-    grpcServer = ServerBuilder.forPort(port).addService(new RemoteShuffleService(this)).build();
+    grpcServer = ServerBuilder
+        .forPort(port)
+        .addService(new RemoteShuffleService(this))
+        .maxInboundMessageSize(shuffleServerConf.getInteger(ShuffleServerConf.RPC_MESSAGE_MAX_SIZE))
+        .build();
     jettyServer = new JettyServer(shuffleServerConf);
-
-//    registerMetrics();
+    registerMetrics();
     addServlet(jettyServer);
   }
 
@@ -141,11 +138,11 @@ public class ShuffleServer {
   }
 
   public JettyServer getJettyServer() {
-    return this.jettyServer;
+    return jettyServer;
   }
 
   public ShuffleTaskManager getShuffleTaskManager() {
-    return this.shuffleTaskManager;
+    return shuffleTaskManager;
   }
 
   public void setShuffleTaskManager(ShuffleTaskManager shuffleTaskManager) {

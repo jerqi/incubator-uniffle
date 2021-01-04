@@ -12,8 +12,12 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.sql.SparkSession;
 import org.junit.After;
 import org.junit.Before;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 abstract public class IntegrationTestBase extends HdfsTestBase {
+
+  private static final Logger LOG = LoggerFactory.getLogger(IntegrationTestBase.class);
 
   private ShuffleServer shuffleServer;
   private CoordinatorServer coordinator;
@@ -33,7 +37,7 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     serverConf.setString("rss.storage.type", "FILE");
     serverConf.setString("rss.data.storage.basePath", HDFS_URI + "rss/test");
     serverConf.setString("rss.buffer.capacity", "1000");
-    serverConf.setString("rss.buffer.size", "10485760");
+    serverConf.setString("rss.buffer.size", "104857600");
     serverConf.setString("rss.coordinator.ip", "127.0.0.1");
     serverConf.setString("rss.coordinator.port", "19999");
     serverConf.setString("rss.heartbeat.delay", "1000");
@@ -67,17 +71,23 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
         .setMaster("local[4]");
     SparkSession spark = SparkSession.builder().config(sparkConf).getOrCreate();
 
+    long start = System.currentTimeMillis();
     Map resultWithoutRss = runTest(spark, fileName);
+    long durationWithoutRss = System.currentTimeMillis() - start;
     spark.stop();
 
     updateSparkConfWithRss(sparkConf);
     updateSparkConfCustomer(sparkConf);
     spark = SparkSession.builder().config(sparkConf).getOrCreate();
 
+    start = System.currentTimeMillis();
     Map resultWithRss = runTest(spark, fileName);
+    long durationWithRss = System.currentTimeMillis() - start;
 
     verifyTestResult(resultWithoutRss, resultWithRss);
 
+    LOG.info("Test: durationWithoutRss[" + durationWithoutRss
+        + "], durationWithRss[" + durationWithRss + "]");
     // Stop SparkContext before the job is done
     spark.stop();
   }
@@ -90,7 +100,7 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     sparkConf.set("spark.rss.writer.buffer.spill.size", "10485760");
     sparkConf.set("spark.rss.coordinator.ip", "127.0.0.1");
     sparkConf.set("spark.rss.coordinator.port", "19999");
-    sparkConf.set("spark.rss.writer.send.check.timeout", "10000");
+    sparkConf.set("spark.rss.writer.send.check.timeout", "30000");
     sparkConf.set("spark.rss.writer.send.check.interval", "1000");
     sparkConf.set("spark.rss.base.path", HDFS_URI + "rss/test/");
     sparkConf.set("spark.rss.index.read.limit", "100");
