@@ -1,18 +1,20 @@
 package com.tencent.rss.server;
 
+import com.tencent.rss.common.Arguments;
 import com.tencent.rss.common.metrics.JvmMetrics;
 import com.tencent.rss.common.web.JettyServer;
 import com.tencent.rss.common.web.MetricsServlet;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.prometheus.client.CollectorRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+
 import java.io.FileNotFoundException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import picocli.CommandLine;
 
 /**
  * Server that manages startup/shutdown of a {@code Greeter} server.
@@ -47,23 +49,45 @@ public class ShuffleServer {
     Arguments arguments = new Arguments();
     CommandLine commandLine = new CommandLine(arguments);
     commandLine.parseArgs(args);
+    String configFile = arguments.getConfigFile();
+    LOG.info("Start to init shuffle server using config {}", configFile);
 
-    final ShuffleServer shuffleServer = new ShuffleServer(arguments.getConfigFile());
+
+    final ShuffleServer shuffleServer = new ShuffleServer(configFile);
     shuffleServer.start();
 
     shuffleServer.blockUntilShutdown();
   }
 
-  private void registerMetrics() {
-    CollectorRegistry shuffleServerCollectorRegistry = new CollectorRegistry(true);
-    ShuffleServerMetrics.register(shuffleServerCollectorRegistry);
-    CollectorRegistry jvmCollectorRegistry = new CollectorRegistry(true);
-    JvmMetrics.register(jvmCollectorRegistry);
+  public void start() throws Exception {
+    registerHeartBeat.startHeartBeat();
+    jettyServer.start();
+    grpcServer.start();
+
+    LOG.info("Grpc server started, listening on {}.", port);
+
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        // Use stderr here since the logger may have been reset by its JVM shutdown hook.
+        LOG.info("*** shutting down gRPC server since JVM is shutting down");
+        try {
+          stopServer();
+        } catch (Exception e) {
+          LOG.error(e.getMessage());
+        }
+        LOG.info("*** server shut down");
+      }
+    });
   }
 
-  private void addServlet(JettyServer jettyServer) {
-    jettyServer.addServlet(new MetricsServlet(ShuffleServerMetrics.getCollectorRegistry()), "/metrics/server");
-    jettyServer.addServlet(new MetricsServlet(JvmMetrics.getCollectorRegistry()), "/metrics/jvm");
+  public void stopServer() throws Exception {
+    if (jettyServer != null) {
+      jettyServer.stop();
+    }
+    if (grpcServer != null) {
+      grpcServer.shutdown().awaitTermination(30, TimeUnit.SECONDS);
+    }
   }
 
   private void initialization() throws UnknownHostException, FileNotFoundException {
@@ -83,26 +107,27 @@ public class ShuffleServer {
     addServlet(jettyServer);
   }
 
-  public void start() throws Exception {
-    registerHeartBeat.startHeartBeat();
-    jettyServer.start();
-    grpcServer.start();
+  private void registerMetrics() {
+    LOG.info("Register metrics");
+    CollectorRegistry shuffleServerCollectorRegistry = new CollectorRegistry(true);
+    ShuffleServerMetrics.register(shuffleServerCollectorRegistry);
+    CollectorRegistry jvmCollectorRegistry = new CollectorRegistry(true);
+    JvmMetrics.register(jvmCollectorRegistry);
+  }
 
-    LOG.info("Grpc server started, listening on {}.", port);
+  private void addServlet(JettyServer jettyServer) {
+    LOG.info("Add metrics servlet");
+    jettyServer.addServlet(new MetricsServlet(ShuffleServerMetrics.getCollectorRegistry()), "/metrics/server");
+    jettyServer.addServlet(new MetricsServlet(JvmMetrics.getCollectorRegistry()), "/metrics/jvm");
+  }
 
-    Runtime.getRuntime().addShutdownHook(new Thread() {
-      @Override
-      public void run() {
-        // Use stderr here since the logger may have been reset by its JVM shutdown hook.
-        System.err.println("*** shutting down gRPC server since JVM is shutting down");
-        try {
-          stopServer();
-        } catch (Exception e) {
-          LOG.error(e.getMessage());
-        }
-        LOG.info("*** server shut down");
-      }
-    });
+  /**
+   * Await termination on the main thread since the grpc library uses daemon threads.
+   */
+  private void blockUntilShutdown() throws InterruptedException {
+    if (grpcServer != null) {
+      grpcServer.awaitTermination();
+    }
   }
 
   public String getIp() {
@@ -125,10 +150,6 @@ public class ShuffleServer {
     return bufferManager.getAvailableCount();
   }
 
-  public RegisterHeartBeat getRegisterHeartBeat() {
-    return registerHeartBeat;
-  }
-
   public Server getGrpcServer() {
     return grpcServer;
   }
@@ -137,34 +158,12 @@ public class ShuffleServer {
     this.grpcServer = grpcServer;
   }
 
-  public JettyServer getJettyServer() {
-    return jettyServer;
-  }
-
   public ShuffleTaskManager getShuffleTaskManager() {
     return shuffleTaskManager;
   }
 
   public void setShuffleTaskManager(ShuffleTaskManager shuffleTaskManager) {
     this.shuffleTaskManager = shuffleTaskManager;
-  }
-
-  public void stopServer() throws Exception {
-    if (jettyServer != null) {
-      jettyServer.stop();
-    }
-    if (grpcServer != null) {
-      grpcServer.shutdown().awaitTermination(30, TimeUnit.SECONDS);
-    }
-  }
-
-  /**
-   * Await termination on the main thread since the grpc library uses daemon threads.
-   */
-  private void blockUntilShutdown() throws InterruptedException {
-    if (grpcServer != null) {
-      grpcServer.awaitTermination();
-    }
   }
 
 }

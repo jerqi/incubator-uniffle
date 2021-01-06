@@ -1,19 +1,20 @@
 package com.tencent.rss.test;
 
-import static org.junit.Assert.assertEquals;
-
 import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.coordinator.CoordinatorServer;
 import com.tencent.rss.server.ShuffleServer;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.storage.HdfsTestBase;
-import java.util.Map;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.SparkSession;
 import org.junit.After;
 import org.junit.Before;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
 
 abstract public class IntegrationTestBase extends HdfsTestBase {
 
@@ -26,8 +27,8 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
   public void setupServers() throws Exception {
     // Load configuration from config files
     CoordinatorConf coordinatorConf = new CoordinatorConf();
-    coordinatorConf.setString("com.tencent.rss.coordinator.port", "19999");
-    coordinatorConf.setString("com.tencent.rss.shuffle.data.replica", "1");
+    coordinatorConf.setString("rss.coordinator.port", "19999");
+    coordinatorConf.setString("rss.shuffle.data.replica", "1");
     // Start the coordinator service
     coordinator = new CoordinatorServer(coordinatorConf);
     coordinator.start();

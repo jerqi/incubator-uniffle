@@ -1,11 +1,14 @@
 package com.tencent.rss.coordinator;
 
+import com.tencent.rss.common.Arguments;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The main entrance of coordinator service
@@ -22,8 +25,14 @@ public class CoordinatorServer {
   }
 
   public static void main(String[] args) throws IOException, InterruptedException {
+    Arguments arguments = new Arguments();
+    CommandLine commandLine = new CommandLine(arguments);
+    commandLine.parseArgs(args);
+    String configFile = arguments.getConfigFile();
+    LOGGER.info("Start to init shuffle server using config {}", configFile);
+
     // Load configuration from config files
-    final CoordinatorConf coordinatorConf = new CoordinatorConf();
+    final CoordinatorConf coordinatorConf = new CoordinatorConf(configFile);
 
     // Start the coordinator service
     final CoordinatorServer server = new CoordinatorServer(coordinatorConf);

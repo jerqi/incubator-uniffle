@@ -1,13 +1,6 @@
 package com.tencent.rss.common.web;
 
 import com.tencent.rss.common.config.RssBaseConf;
-import java.io.FileNotFoundException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import javax.servlet.Servlet;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
@@ -22,6 +15,14 @@ import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.Servlet;
+import java.io.FileNotFoundException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class JettyServer {
 
@@ -63,9 +64,10 @@ public class JettyServer {
 
   private ExecutorThreadPool createThreadPool(RssBaseConf conf) {
     int corePoolSize = conf.getInteger(RssBaseConf.JETTY_CORE_POOL_SIZE);
+    int maxPoolSize = conf.getInteger(RssBaseConf.JETTY_MAX_POOL_SIZE);
     int queueSize = conf.getInteger(RssBaseConf.JETTY_QUEUE_SIZE);
     ExecutorThreadPool pool = new ExecutorThreadPool(
-        corePoolSize, corePoolSize, 60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(queueSize));
+        corePoolSize, maxPoolSize, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
     return pool;
   }
 
@@ -118,16 +120,6 @@ public class JettyServer {
   public void start() throws Exception {
     server.start();
     LOGGER.info("Jetty http server started, listening on port {}", httpPort);
-    Runtime.getRuntime().addShutdownHook(new Thread() {
-      @Override
-      public void run() {
-        try {
-          server.stop();
-        } catch (Exception e) {
-          LOGGER.error(e.getMessage());
-        }
-      }
-    });
   }
 
   public void stop() throws Exception {

@@ -86,6 +86,7 @@ enum StatusCode {
   NO_REGISTER = 4;
   NO_PARTITION = 5;
   INTERNAL_ERROR = 6;
+  TIMEOUT = 7;
   // add more status
 }
 

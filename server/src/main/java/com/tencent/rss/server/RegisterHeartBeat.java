@@ -4,12 +4,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.common.CoordinatorGrpcClient;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class RegisterHeartBeat {
 
@@ -19,8 +20,8 @@ public class RegisterHeartBeat {
 
   private final long heartBeatInitialDelay;
   private final long heartBeatInterval;
-
   private final ShuffleServer shuffleServer;
+  private long heartBeatTimeout;
   private CoordinatorGrpcClient rpcClient;
 
   private boolean isRegistered;
@@ -34,6 +35,7 @@ public class RegisterHeartBeat {
     this.port = conf.getInteger(ShuffleServerConf.COORDINATOR_PORT);
     this.heartBeatInitialDelay = conf.getLong(ShuffleServerConf.HEARTBEAT_DELAY);
     this.heartBeatInterval = conf.getLong(ShuffleServerConf.HEARTBEAT_INTERVAL);
+    this.heartBeatTimeout = conf.getLong(ShuffleServerConf.HEARTBEAT_TIMEOUT);
     this.maxHeartBeatRetry = conf.getInteger(ShuffleServerConf.HEARTBEAT_MAX_FAILURE);
     this.rpcClient = new CoordinatorGrpcClient(ip, port);
     this.shuffleServer = shuffleServer;
@@ -54,7 +56,8 @@ public class RegisterHeartBeat {
   }
 
   public void startHeartBeat() {
-    LOGGER.info("Start heartbeat to coordinator {}:{}", ip, port);
+    LOGGER.info("Start heartbeat to coordinator {}:{} after {}ms and interval is {}ms",
+        ip, port, heartBeatInitialDelay, heartBeatInterval);
     ScheduledExecutorService service = Executors
         .newSingleThreadScheduledExecutor(new ThreadFactory() {
           @Override
@@ -81,13 +84,15 @@ public class RegisterHeartBeat {
 
   @VisibleForTesting
   boolean sendHeartBeat(String id, String ip, int port, int num) {
-    ShuffleServerHeartBeatResponse response = rpcClient.sendHeartBeat(id, ip, port, num);
+    LOGGER.debug("Start to send heartbeat " + System.currentTimeMillis());
+    ShuffleServerHeartBeatResponse response = rpcClient.sendHeartBeat(id, ip, port, num, heartBeatTimeout);
     StatusCode status = response.getStatus();
 
     if (status != StatusCode.SUCCESS) {
       LOGGER.error("Can't send heartbeat to Coordinator");
       failedHeartBeatCount++;
     } else {
+      LOGGER.debug("Success to send heartbeat");
       failedHeartBeatCount = 0;
       isRegistered = true;
     }
@@ -117,5 +122,10 @@ public class RegisterHeartBeat {
   @VisibleForTesting
   void setMaxHeartBeatRetry(int maxHeartBeatRetry) {
     this.maxHeartBeatRetry = maxHeartBeatRetry;
+  }
+
+  @VisibleForTesting
+  void setHeartBeatTimeout(long timeout) {
+    this.heartBeatTimeout = timeout;
   }
 }

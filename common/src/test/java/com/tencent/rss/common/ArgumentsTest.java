@@ -1,4 +1,4 @@
-package com.tencent.rss.server;
+package com.tencent.rss.common;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

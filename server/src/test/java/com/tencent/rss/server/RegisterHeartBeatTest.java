@@ -1,9 +1,5 @@
 package com.tencent.rss.server;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import com.tencent.rss.common.CoordinatorGrpcClient;
 import com.tencent.rss.proto.CoordinatorServerGrpc.CoordinatorServerImplBase;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
@@ -19,6 +15,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(JUnit4.class)
 public class RegisterHeartBeatTest {
@@ -60,7 +60,7 @@ public class RegisterHeartBeatTest {
         new CoordinatorServerImplBase() {
           @Override
           public void heartbeat(ShuffleServerHeartBeatRequest req,
-              StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
+                                StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
             ShuffleServerHeartBeatResponse resp = ShuffleServerHeartBeatResponse
                 .newBuilder()
                 .setStatus(StatusCode.SUCCESS)
@@ -71,6 +71,10 @@ public class RegisterHeartBeatTest {
         };
     serviceRegistry.addService(serviceImpl);
     boolean ret = sendHeartBeat(rh);
+    assertFalse(ret);
+
+    rh.setHeartBeatTimeout(10 * 1000L);
+    ret = sendHeartBeat(rh);
     assertTrue(ret);
   }
 
@@ -90,7 +94,7 @@ public class RegisterHeartBeatTest {
 
           @Override
           public void heartbeat(ShuffleServerHeartBeatRequest req,
-              StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
+                                StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
             ShuffleServerHeartBeatResponse resp = ShuffleServerHeartBeatResponse
                 .newBuilder()
                 .setStatus(StatusCode.INTERNAL_ERROR)

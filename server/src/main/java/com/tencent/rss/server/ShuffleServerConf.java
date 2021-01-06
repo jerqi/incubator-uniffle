@@ -4,6 +4,7 @@ import com.tencent.rss.common.config.ConfigOption;
 import com.tencent.rss.common.config.ConfigOptions;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.common.util.RssUtils;
+
 import java.util.Map;
 
 public class ShuffleServerConf extends RssBaseConf {
@@ -56,6 +57,12 @@ public class ShuffleServerConf extends RssBaseConf {
       .key("rss.heartbeat.interval")
       .longType()
       .defaultValue(10 * 60 * 1000L)
+      .withDescription("rss heartbeat interval ms");
+
+  public static final ConfigOption<Long> HEARTBEAT_TIMEOUT = ConfigOptions
+      .key("rss.heartbeat.timeout")
+      .longType()
+      .defaultValue(10 * 1000L)
       .withDescription("rss heartbeat interval ms");
 
   public static final ConfigOption<Integer> HEARTBEAT_MAX_FAILURE = ConfigOptions
@@ -139,6 +146,10 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (HEARTBEAT_INTERVAL.key().equalsIgnoreCase(k)) {
         set(HEARTBEAT_INTERVAL, Long.valueOf(v));
+      }
+
+      if (HEARTBEAT_TIMEOUT.key().equalsIgnoreCase(k)) {
+        set(HEARTBEAT_TIMEOUT, Long.valueOf(v));
       }
 
       if (GC_DELAY.key().equalsIgnoreCase(k)) {

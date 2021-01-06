@@ -25,13 +25,19 @@ public class RssBaseConf extends RssConf {
   public static final ConfigOption<Integer> JETTY_CORE_POOL_SIZE = ConfigOptions
       .key("jetty.corePool.size")
       .intType()
-      .defaultValue(32)
+      .defaultValue(256)
       .withDescription("jetty corePool size");
+
+  public static final ConfigOption<Integer> JETTY_MAX_POOL_SIZE = ConfigOptions
+      .key("jetty.maxPool.size")
+      .intType()
+      .defaultValue(256)
+      .withDescription("jetty max pool size");
 
   public static final ConfigOption<Integer> JETTY_QUEUE_SIZE = ConfigOptions
       .key("jetty.queue.size")
       .intType()
-      .defaultValue(8)
+      .defaultValue(128)
       .withDescription("jetty queue size");
 
   public static final ConfigOption<Integer> JETTY_HEADER_BUFFER_SIZE = ConfigOptions
@@ -114,6 +120,10 @@ public class RssBaseConf extends RssConf {
 
       if (JETTY_CORE_POOL_SIZE.key().equalsIgnoreCase(k)) {
         set(JETTY_CORE_POOL_SIZE, Integer.valueOf(v));
+      }
+
+      if (JETTY_MAX_POOL_SIZE.key().equalsIgnoreCase(k)) {
+        set(JETTY_MAX_POOL_SIZE, Integer.valueOf(v));
       }
 
       if (JETTY_QUEUE_SIZE.key().equalsIgnoreCase(k)) {
