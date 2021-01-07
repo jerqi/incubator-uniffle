@@ -64,7 +64,7 @@ public class RssUtils {
         String.join("-", String.valueOf(start), String.valueOf(end)));
   }
 
-  public static String getFullShuffleDataPath(String basePath, String subPath) {
+  public static String getFullShuffleDataFolder(String basePath, String subPath) {
     return String.join("/", basePath, subPath);
   }
 }

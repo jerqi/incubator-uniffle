@@ -18,6 +18,7 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
   private Configuration hadoopConf;
   private String basePath;
   private String fileNamePrefix;
+  private long accessTime;
 
   public FileBasedShuffleWriteHandler(
       String basePath, String fileNamePrefix, Configuration hadoopConf)
@@ -25,7 +26,12 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
     this.basePath = basePath;
     this.hadoopConf = hadoopConf;
     this.fileNamePrefix = fileNamePrefix;
+    this.accessTime = System.currentTimeMillis();
     createBasePath();
+  }
+
+  public long getAccessTime() {
+    return accessTime;
   }
 
   private void createBasePath() throws IOException, IllegalStateException {
@@ -46,14 +52,16 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
     }
   }
 
-  public void write(List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException {
+  public synchronized void write(
+      List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException {
+    accessTime = System.currentTimeMillis();
     String dataFileName = ShuffleStorageUtils.generateDataFileName(fileNamePrefix);
     String indexFileName = ShuffleStorageUtils.generateIndexFileName(fileNamePrefix);
     try (FileBasedShuffleWriter dataWriter = createWriter(dataFileName);
         FileBasedShuffleWriter indexWriter = createWriter(indexFileName)) {
 
       for (ShufflePartitionedBlock block : shuffleBlocks) {
-        LOG_RSS_INFO.info("Write index " + block);
+        LOG_RSS_INFO.info("Write data " + block);
         long blockId = block.getBlockId();
         long crc = block.getCrc();
         long startOffset = dataWriter.nextOffset();

@@ -2,39 +2,52 @@ package com.tencent.rss.server;
 
 import static java.util.Objects.requireNonNull;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
+import com.tencent.rss.common.util.Constants;
+import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.proto.RssProtos.StatusCode;
-import java.io.IOException;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ShuffleEngineManager {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ShuffleEngineManager.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ShuffleEngineManager.class);
+  private static final Logger LOG_RSS_INFO = LoggerFactory.getLogger(Constants.LOG4J_RSS_SHUFFLE_PREFIX);
 
   private final String appId;
   private final String shuffleId;
   private final ShuffleServerConf conf;
   private final BufferManager bufferManager;
+  private final ShuffleFlushManager shuffleFlushManager;
   private final String serverId;
 
   private Map<String, ShuffleEngine> engineMap;
   private RangeMap<Integer, String> partitionRangeMap;
 
   public ShuffleEngineManager(
-      String appId, String shuffleId, ShuffleServerConf conf, BufferManager bufferManager, String serverId) {
-    engineMap = new ConcurrentHashMap<>();
+      String appId,
+      String shuffleId,
+      ShuffleServerConf conf,
+      BufferManager bufferManager,
+      ShuffleFlushManager shuffleFlushManager,
+      String serverId) {
+    requireNonNull(conf);
+    requireNonNull(bufferManager);
+    engineMap = Maps.newConcurrentMap();
     partitionRangeMap = TreeRangeMap.create();
     this.appId = appId;
     this.shuffleId = shuffleId;
-    requireNonNull(conf);
-    requireNonNull(bufferManager);
     this.conf = conf;
     this.bufferManager = bufferManager;
+    this.shuffleFlushManager = shuffleFlushManager;
     this.serverId = serverId;
   }
 
@@ -45,12 +58,14 @@ public class ShuffleEngineManager {
     this.shuffleId = shuffleId;
     this.conf = null;
     this.bufferManager = null;
+    this.shuffleFlushManager = null;
     this.serverId = "";
   }
 
   public StatusCode registerShuffleEngine(int startPartition, int endPartition) {
     ShuffleEngine engine =
-        new ShuffleEngine(appId, shuffleId, startPartition, endPartition, conf, bufferManager, serverId);
+        new ShuffleEngine(appId, shuffleId, startPartition, endPartition,
+            conf, bufferManager, shuffleFlushManager, serverId);
     return registerShuffleEngine(startPartition, endPartition, engine);
   }
 
@@ -63,7 +78,7 @@ public class ShuffleEngineManager {
     String key = ShuffleTaskManager.constructKey(String.valueOf(startPartition), String.valueOf(endPartition));
     ShuffleEngine cur = engineMap.putIfAbsent(key, engine);
     if (cur != null) {
-      LOGGER.error("{}~{} {}~{} registered twice.", appId, shuffleId, startPartition, endPartition);
+      LOG.error("{}~{} {}~{} registered twice.", appId, shuffleId, startPartition, endPartition);
       return StatusCode.DOUBLE_REGISTER;
     }
 
@@ -82,21 +97,51 @@ public class ShuffleEngineManager {
   public ShuffleEngine getShuffleEngine(int partition) {
     String key = partitionRangeMap.get(partition);
     if (key == null) {
-      LOGGER.error("{}~{} Can't find shuffle engine of partition {} from range map", appId, shuffleId, partition);
+      LOG.error("{}~{} Can't find shuffle engine of partition {} from range map", appId, shuffleId, partition);
       return null;
     }
 
     ShuffleEngine shuffleEngine = engineMap.get(key);
     if (shuffleEngine == null) {
-      LOGGER.error("{}~{} Can't find shuffle engine of partition {}from engine map", appId, shuffleId, partition);
+      LOG.error("{}~{} Can't find shuffle engine of partition {}from engine map", appId, shuffleId, partition);
     }
 
     return shuffleEngine;
   }
 
-  public synchronized StatusCode commit() throws IOException, IllegalStateException {
+  public synchronized StatusCode commit() throws Exception {
+    Map<String, Set<Long>> pathToEventIds = Maps.newHashMap();
     for (ShuffleEngine engine : engineMap.values()) {
-      engine.commit();
+      Set<Long> eventIds = engine.commit();
+      String path = RssUtils.getShuffleDataPath(
+          appId, shuffleId, engine.getStartPartition(), engine.getEndPartition());
+      pathToEventIds.put(path, eventIds);
+      LOG_RSS_INFO.info("Commit for " + path + " and get expectedEventIds: " + eventIds);
+    }
+
+    while (true) {
+      List<String> removedKeys = Lists.newArrayList();
+      for (Map.Entry<String, Set<Long>> entry : pathToEventIds.entrySet()) {
+        String path = entry.getKey();
+        Set<Long> committedIds = shuffleFlushManager.getEventIds(path);
+        if (committedIds != null && !committedIds.isEmpty()) {
+          Set<Long> expectedEventIds = entry.getValue();
+          LOG_RSS_INFO.info("Got expectedEventIds for " + path + ": "
+              + expectedEventIds + ", current commit: " + committedIds);
+          expectedEventIds.removeAll(committedIds);
+          if (expectedEventIds.isEmpty()) {
+            removedKeys.add(path);
+          }
+        }
+      }
+      for (String key : removedKeys) {
+        pathToEventIds.remove(key);
+        LOG_RSS_INFO.info("Path " + key + " is committed for current request.");
+      }
+      if (pathToEventIds.isEmpty()) {
+        break;
+      }
+      Thread.sleep(1000);
     }
 
     ShuffleServerMetrics.decRegisteredShuffleEngine();

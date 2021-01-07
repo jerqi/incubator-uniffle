@@ -91,6 +91,36 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(32)
       .withDescription("rss gc thread num");
 
+  public static final ConfigOption<Integer> RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_SIZE = ConfigOptions
+      .key("rss.shuffleServer.flush.threadPool.size")
+      .intType()
+      .defaultValue(128)
+      .withDescription("thread pool for flush data to file");
+
+  public static final ConfigOption<Integer> RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE = ConfigOptions
+      .key("rss.shuffleServer.flush.threadPool.queue.size")
+      .intType()
+      .defaultValue(1000)
+      .withDescription("size of waiting queue for thread pool");
+
+  public static final ConfigOption<Long> RSS_SHUFFLE_SERVER_FLUSH_THREAD_ALIVE = ConfigOptions
+      .key("rss.shuffleServer.flush.thread.alive")
+      .longType()
+      .defaultValue(120L)
+      .withDescription("thread idle time in pool (s)");
+
+  public static final ConfigOption<Long> RSS_SHUFFLE_SERVER_FLUSH_GC_CHECK_INTERVAL = ConfigOptions
+      .key("rss.shuffleServer.flush.gc.check.interval")
+      .longType()
+      .defaultValue(600L)
+      .withDescription("thread gc check interval");
+
+  public static final ConfigOption<Long> RSS_SHUFFLE_SERVER_FLUSH_HANDLER_EXPIRED = ConfigOptions
+      .key("rss.shuffleServer.flush.handler.expired")
+      .longType()
+      .defaultValue(3600L)
+      .withDescription("thread gc check interval");
+
   public ShuffleServerConf() {
   }
 
@@ -168,6 +198,25 @@ public class ShuffleServerConf extends RssBaseConf {
         set(GC_THRESHOLD, Long.valueOf(v));
       }
 
+      if (RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_SIZE.key().equalsIgnoreCase(k)) {
+        set(RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_SIZE, Integer.valueOf(v));
+      }
+
+      if (RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE.key().equalsIgnoreCase(k)) {
+        set(RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE, Integer.valueOf(v));
+      }
+
+      if (RSS_SHUFFLE_SERVER_FLUSH_THREAD_ALIVE.key().equalsIgnoreCase(k)) {
+        set(RSS_SHUFFLE_SERVER_FLUSH_THREAD_ALIVE, Long.valueOf(v));
+      }
+
+      if (RSS_SHUFFLE_SERVER_FLUSH_GC_CHECK_INTERVAL.key().equalsIgnoreCase(k)) {
+        set(RSS_SHUFFLE_SERVER_FLUSH_GC_CHECK_INTERVAL, Long.valueOf(v));
+      }
+
+      if (RSS_SHUFFLE_SERVER_FLUSH_HANDLER_EXPIRED.key().equalsIgnoreCase(k)) {
+        set(RSS_SHUFFLE_SERVER_FLUSH_HANDLER_EXPIRED, Long.valueOf(v));
+      }
     });
 
     return true;

@@ -1,16 +1,15 @@
 package com.tencent.rss.server;
 
+import static org.junit.Assert.assertEquals;
+
+import java.io.FileNotFoundException;
+import java.net.UnknownHostException;
+import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.UnknownHostException;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertEquals;
-
 public class ShuffleGarbageCollectorTest extends MetricsTestBase {
+
   private static final String confFile = ClassLoader.getSystemResource("gcTest.conf").getFile();
   private ShuffleServer shuffleServer;
   private ShuffleGarbageCollector shuffleGarbageCollector;
@@ -27,7 +26,7 @@ public class ShuffleGarbageCollectorTest extends MetricsTestBase {
   }
 
   @Test
-  public void testGC() throws InterruptedException, IOException {
+  public void testGC() throws Exception {
     shuffleServer.getShuffleTaskManager().commitShuffle("testApp1", "s1");
     shuffleServer.getShuffleTaskManager().commitShuffle("testApp2", "s1");
     ShuffleEngine shuffleEngine = getShuffleEngine("testApp3", "s1", "0", "10");
@@ -50,10 +49,10 @@ public class ShuffleGarbageCollectorTest extends MetricsTestBase {
     String k1 = ShuffleTaskManager.constructKey(appId, shuffleId);
     String k2 = ShuffleTaskManager.constructKey(start, end);
     return shuffleServer
-      .getShuffleTaskManager()
-      .getShuffleTaskEngines()
-      .get(k1)
-      .getEngineMap()
-      .get(k2);
+        .getShuffleTaskManager()
+        .getShuffleTaskEngines()
+        .get(k1)
+        .getEngineMap()
+        .get(k2);
   }
 }

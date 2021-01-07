@@ -142,7 +142,7 @@ public class RemoteShuffleServiceTest extends MetricsTestBase {
   }
 
   @Test
-  public void commitShuffleTaskTest() throws IOException, IllegalStateException {
+  public void commitShuffleTaskTest() throws Exception {
 
     when(mockShuffleTaskManager
         .commitShuffle("", "0"))

@@ -1,38 +1,43 @@
 package com.tencent.rss.server;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.proto.RssProtos.StatusCode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static java.util.Objects.requireNonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ShuffleTaskManager {
 
   public static final String KEY_DELIMITER = "~";
   private static final Logger logger = LoggerFactory.getLogger(ShuffleEngine.class);
   private final BufferManager bufferManager;
+  private final ShuffleFlushManager shuffleFlushManager;
   private final String serverId;
   private ShuffleServerConf conf;
   private Map<String, ShuffleEngineManager> shuffleTaskEngines;
 
   public ShuffleTaskManager() {
     this.bufferManager = null;
+    this.shuffleFlushManager = null;
     this.conf = null;
     this.serverId = "";
     this.shuffleTaskEngines = new ConcurrentHashMap<>();
   }
 
-  public ShuffleTaskManager(ShuffleServerConf conf, BufferManager bufferManager, String serverId) {
+  public ShuffleTaskManager(
+      ShuffleServerConf conf,
+      BufferManager bufferManager,
+      ShuffleFlushManager shuffleFlushManager,
+      String serverId) {
     requireNonNull(conf);
     requireNonNull(bufferManager);
     this.bufferManager = bufferManager;
     this.conf = conf;
     this.serverId = serverId;
+    this.shuffleFlushManager = shuffleFlushManager;
     this.shuffleTaskEngines = new ConcurrentHashMap<>();
   }
 
@@ -46,13 +51,13 @@ public class ShuffleTaskManager {
     }
 
     ShuffleEngineManager shuffleEngineManager =
-      new ShuffleEngineManager(appId, shuffleId, conf, bufferManager, serverId);
+        new ShuffleEngineManager(appId, shuffleId, conf, bufferManager, shuffleFlushManager, serverId);
 
     return registerShuffle(appId, shuffleId, startPartition, endPartition, shuffleEngineManager);
   }
 
   public StatusCode registerShuffle(
-    String appId, String shuffleId, int startPartition, int endPartition, ShuffleEngineManager engineManager) {
+      String appId, String shuffleId, int startPartition, int endPartition, ShuffleEngineManager engineManager) {
     String key = constructKey(appId, shuffleId);
     ShuffleEngineManager shuffleEngineManager = shuffleTaskEngines.putIfAbsent(key, engineManager);
 
@@ -76,7 +81,7 @@ public class ShuffleTaskManager {
     return shuffleEngineManager.getShuffleEngine(partition);
   }
 
-  public StatusCode commitShuffle(String appId, String shuffleId) throws IOException, IllegalStateException {
+  public StatusCode commitShuffle(String appId, String shuffleId) throws Exception {
     String key = constructKey(appId, shuffleId);
     ShuffleEngineManager shuffleEngineManager = shuffleTaskEngines.get(key);
 

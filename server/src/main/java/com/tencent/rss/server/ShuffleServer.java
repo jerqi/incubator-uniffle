@@ -31,6 +31,7 @@ public class ShuffleServer {
   private JettyServer jettyServer;
   private ShuffleTaskManager shuffleTaskManager;
   private Server grpcServer;
+  private ShuffleFlushManager shuffleFlushManager;
 
   public ShuffleServer(ShuffleServerConf shuffleServerConf) throws UnknownHostException, FileNotFoundException {
     this.shuffleServerConf = shuffleServerConf;
@@ -96,7 +97,8 @@ public class ShuffleServer {
     id = ip + "-" + port;
     registerHeartBeat = new RegisterHeartBeat(this);
     bufferManager = new BufferManager(shuffleServerConf);
-    shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, bufferManager, id);
+    shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id);
+    shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, bufferManager, shuffleFlushManager, id);
     grpcServer = ServerBuilder
         .forPort(port)
         .addService(new RemoteShuffleService(this))

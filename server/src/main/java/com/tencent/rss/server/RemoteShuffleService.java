@@ -95,9 +95,9 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
               responseMessage = errorMsg;
               break;
             }
-          } catch (IOException ioe) {
+          } catch (IOException | IllegalStateException e) {
             String errorMsg = "Error happened when shuffleEngine.write for "
-                + shuffleDataInfo + ": " + ioe.getMessage();
+                + shuffleDataInfo + ": " + e.getMessage();
             ret = StatusCode.INTERNAL_ERROR;
             responseMessage = errorMsg;
             LOG.error(errorMsg);
@@ -147,9 +147,10 @@ public class RemoteShuffleService extends ShuffleServerImplBase {
 
     try {
       status = shuffleServer.getShuffleTaskManager().commitShuffle(appId, shuffleId);
-    } catch (IOException | IllegalStateException e) {
+    } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
       msg = e.getMessage();
+      LOG.error("Error happened when commit for appId[" + appId + "], shuffleId[" + shuffleId + "]", e);
     }
 
     reply = ShuffleCommitResponse.newBuilder().setStatus(status).setRetMsg(msg).build();

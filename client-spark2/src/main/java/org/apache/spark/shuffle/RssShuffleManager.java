@@ -238,7 +238,7 @@ public class RssShuffleManager implements ShuffleManager {
       RssShuffleHandle rssShuffleHandle = (RssShuffleHandle) handle;
       int partitionsPerServer = sparkConf.getInt(RssClientConfig.RSS_PARTITIONS_PER_SERVER,
           RssClientConfig.RSS_PARTITIONS_PER_SERVER_DEFAULT_VALUE);
-      String fullShufflePath = RssUtils.getFullShuffleDataPath(shuffleDataBasePath,
+      String fullShufflePath = RssUtils.getFullShuffleDataFolder(shuffleDataBasePath,
           getShuffleDataPath(rssShuffleHandle.getShuffleId(),
               startPartition, partitionsPerServer,
               rssShuffleHandle.getDependency().partitioner().numPartitions()));

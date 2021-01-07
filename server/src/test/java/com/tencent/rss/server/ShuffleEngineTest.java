@@ -32,6 +32,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
   private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
   private static final ShuffleServerConf conf = new ShuffleServerConf(confFile);
   private BufferManager bufferManager;
+  private ShuffleFlushManager shuffleFlushManager;
 
   @BeforeClass
   public static void staticSetUp() {
@@ -42,12 +43,14 @@ public class ShuffleEngineTest extends HdfsTestBase {
   @Before
   public void setUp() {
     bufferManager = new BufferManager(1, 128, 0);
+    shuffleFlushManager = new ShuffleFlushManager(conf, "test");
   }
 
   @Test
   public void testBasePath() {
     ShuffleEngine shuffleEngine =
-        new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
+        new ShuffleEngine("1", "2", 3, 4,
+            conf, bufferManager, shuffleFlushManager, "test");
     shuffleEngine.init();
     String actual = shuffleEngine.getBasePath();
     String expected = HdfsTestBase.HDFS_URI + "/1_2_3-4";
@@ -55,9 +58,10 @@ public class ShuffleEngineTest extends HdfsTestBase {
   }
 
   @Test
-  public void testWrite() throws IOException {
+  public void testWrite() throws Exception {
     ShuffleEngine shuffleEngine =
-        new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
+        new ShuffleEngine("1", "2", 3, 4,
+            conf, bufferManager, shuffleFlushManager, "test");
     shuffleEngine.init();
     String basePath = shuffleEngine.getBasePath();
     Path path = new Path(basePath);
@@ -78,14 +82,16 @@ public class ShuffleEngineTest extends HdfsTestBase {
     StatusCode actual2 = writeData(shuffleEngine, len, 3);
     assertEquals(StatusCode.SUCCESS, actual2);
     assertEquals(0, buffer.getSize());
-
+    // wait for asyn flush
+    Thread.sleep(2000);
     checkFiles(path, "test.index", "test.data");
   }
 
   @Test
   public void testWriteCommit() throws IOException {
     ShuffleEngine shuffleEngine =
-        new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
+        new ShuffleEngine("1", "2", 3, 4,
+            conf, bufferManager, shuffleFlushManager, "test");
 
     assertEquals(1, shuffleEngine.getBufferManager().getAvailableCount());
     assertEquals(StatusCode.SUCCESS, shuffleEngine.init());
@@ -133,7 +139,8 @@ public class ShuffleEngineTest extends HdfsTestBase {
   @Test
   public void testWriteCommitConcurrent() throws InterruptedException, ExecutionException, IOException {
     ShuffleEngine shuffleEngine =
-        new ShuffleEngine("1", "2", 3, 4, conf, bufferManager, "test");
+        new ShuffleEngine("1", "2", 3, 4,
+            conf, bufferManager, shuffleFlushManager, "test");
     String basePath = shuffleEngine.getBasePath();
     Path path = new Path(basePath);
     shuffleEngine.init();
@@ -162,6 +169,8 @@ public class ShuffleEngineTest extends HdfsTestBase {
     for (Future<Void> f : futures) {
       f.get();
     }
+    // wait for asny flush
+    Thread.sleep(2000);
     checkFiles(path, "test.index", "test.data");
   }
 

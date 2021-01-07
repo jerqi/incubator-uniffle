@@ -37,7 +37,6 @@ public class RepartitionShuffleTest extends IntegrationTestBase implements Seria
 
   @Override
   public String generateTestFile() throws Exception {
-    // todo: more data
     return generateTextFile(1000, 5000);
   }
 

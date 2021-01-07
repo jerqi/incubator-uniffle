@@ -1,13 +1,10 @@
 package com.tencent.rss.server;
 
-import com.tencent.rss.proto.RssProtos.StatusCode;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import java.io.IOException;
+import com.tencent.rss.proto.RssProtos.StatusCode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -15,10 +12,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class ShuffleTaskManagerTest extends MetricsTestBase {
@@ -39,11 +37,11 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
   public void registerShuffleTest() {
     ShuffleEngineManager mockEngineManager = mock(ShuffleEngineManager.class);
     when(mockEngineManager.registerShuffleEngine(1, 10))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
     when(mockEngineManager.registerShuffleEngine(11, 20))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
     when(mockEngineManager.registerShuffleEngine(21, 30))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
 
     shuffleTaskManager.registerShuffle("test", "1", 1, 10, mockEngineManager);
     shuffleTaskManager.registerShuffle("test", "1", 11, 20, mockEngineManager);
@@ -51,8 +49,8 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
 
     String key = ShuffleTaskManager.constructKey("test", "1");
     ShuffleEngineManager shuffleEngineManager = shuffleTaskManager
-      .getShuffleTaskEngines()
-      .get(key);
+        .getShuffleTaskEngines()
+        .get(key);
 
     assertEquals(mockEngineManager, shuffleEngineManager);
     assertEquals(1, shuffleTaskManager.getShuffleTaskEngines().size());
@@ -63,11 +61,11 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
   public void registerShuffleConcurrentTest() throws InterruptedException, ExecutionException {
     ShuffleEngineManager mockEngineManager = mock(ShuffleEngineManager.class);
     when(mockEngineManager.registerShuffleEngine(1, 10))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
     when(mockEngineManager.registerShuffleEngine(11, 20))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
     when(mockEngineManager.registerShuffleEngine(21, 30))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
 
     ExecutorService executorService = Executors.newFixedThreadPool(3);
     List<Callable<StatusCode>> calls = new ArrayList<>();
@@ -76,7 +74,7 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
       int start = i;
       int end = i + 9;
       calls.add(
-        () -> shuffleTaskManager.registerShuffle("test", "1", start, end, mockEngineManager));
+          () -> shuffleTaskManager.registerShuffle("test", "1", start, end, mockEngineManager));
     }
 
     List<Future<StatusCode>> results = executorService.invokeAll(calls);
@@ -86,8 +84,8 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
 
     String key = ShuffleTaskManager.constructKey("test", "1");
     ShuffleEngineManager shuffleEngineManager = shuffleTaskManager
-      .getShuffleTaskEngines()
-      .get(key);
+        .getShuffleTaskEngines()
+        .get(key);
 
     assertEquals(mockEngineManager, shuffleEngineManager);
     assertEquals(1, shuffleTaskManager.getShuffleTaskEngines().size());
@@ -98,11 +96,11 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
   public void getShuffleEngineTest() throws IllegalStateException {
     ShuffleEngineManager mockEngineManager = mock(ShuffleEngineManager.class);
     when(mockEngineManager.registerShuffleEngine(1, 10))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
     when(mockEngineManager.registerShuffleEngine(11, 20))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
     when(mockEngineManager.registerShuffleEngine(21, 30))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
 
     ShuffleEngine shuffleEngine1 = new ShuffleEngine("test", "1", 1, 10);
     ShuffleEngine shuffleEngine2 = new ShuffleEngine("test", "1", 11, 20);
@@ -121,14 +119,14 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
   }
 
   @Test
-  public void commitShuffleTest() throws IOException, IllegalStateException {
+  public void commitShuffleTest() throws Exception {
     ShuffleEngineManager mockEngineManager = mock(ShuffleEngineManager.class);
     when(mockEngineManager.registerShuffleEngine(1, 10))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
     when(mockEngineManager.registerShuffleEngine(11, 20))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
     when(mockEngineManager.registerShuffleEngine(21, 30))
-      .thenReturn(StatusCode.SUCCESS);
+        .thenReturn(StatusCode.SUCCESS);
 
     when(mockEngineManager.commit()).thenReturn(StatusCode.SUCCESS);
 
