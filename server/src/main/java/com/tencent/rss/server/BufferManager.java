@@ -2,65 +2,103 @@ package com.tencent.rss.server;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class BufferManager {
-  private int capacity;
+  private long capacity;
   private int bufferSize;
-  private int bufferTTL;
-  private AtomicInteger atomicCount;
 
-  public BufferManager(ShuffleServerConf conf) {
+  private final ShuffleServer shuffleServer;
+  private final ReentrantLock reentrantLock = new ReentrantLock();
+
+  private AtomicLong atomicSize;
+  private Map<String, ShuffleBuffer> pool;
+
+  public BufferManager(ShuffleServerConf conf, ShuffleServer shuffleServer) {
     this.capacity = conf.getInteger(ShuffleServerConf.BUFFER_CAPACITY);
     this.bufferSize = conf.getInteger(ShuffleServerConf.BUFFER_SIZE);
-    this.atomicCount = new AtomicInteger(0);
+    this.shuffleServer = shuffleServer;
+    this.atomicSize = new AtomicLong(0L);
+    this.pool = new ConcurrentHashMap<>();
   }
 
-  public BufferManager(int capacity, int bufferSize, int bufferTTL) {
-    this.capacity = capacity;
-    this.bufferSize = bufferSize;
-    this.bufferTTL = bufferTTL;
-    this.atomicCount = new AtomicInteger(0);
-  }
-
-  public ShuffleBuffer getBuffer(int start, int end) {
-    if (!getBufferQuota()) {
+  public ShuffleBuffer getBuffer(ShuffleEngine shuffleEngine) {
+    if (isFull()) {
       return null;
     }
 
-    return new ShuffleBuffer(bufferSize, bufferTTL, start, end);
+      ShuffleBuffer cur = new ShuffleBuffer(bufferSize, shuffleEngine, this);
+        if (isFull()) {
+          return null;
+        } else {
+          // TODO: key already exist
+          pool.put(shuffleEngine.makeKey(), cur);
+          return cur;
+        }
   }
 
-  public ShuffleBuffer getOutBandBuffer(int start, int end) {
-    return new ShuffleBuffer(bufferSize, bufferTTL, start, end);
+  public void flush() {
+    if (reentrantLock.tryLock()) {
+      try {
+        for (ShuffleBuffer buffer : pool.values()) {
+          buffer.flush();
+        }
+      } finally {
+        reentrantLock.unlock();
+      }
+    }
+  }
+
+  public void reclaim(List<String> keys) {
+    reentrantLock.lock();
+    try {
+      for (String key : keys) {
+        ShuffleBuffer buffer = pool.remove(key);
+        updateSize(buffer.getSize());
+        buffer = null;
+      }
+    } finally {
+      reentrantLock.unlock();
+    }
+  }
+
+  public ShuffleFlushManager getShuffleFlushManager() {
+    return shuffleServer.getShuffleFlushManager();
+  }
+
+  public long updateSize(long delta) {
+    return atomicSize.addAndGet(delta);
   }
 
   public boolean isFull() {
-    return atomicCount.get() >= capacity;
+    return atomicSize.get() >= capacity;
   }
 
-  private boolean getBufferQuota() {
-    int cur = atomicCount.get();
-    if (cur > capacity) {
-      return false;
-    }
+  public void setCapacity(long capacity) {
+    this.capacity = capacity;
+  }
 
-    cur = atomicCount.addAndGet(1);
-    if (cur > capacity) {
-      atomicCount.decrementAndGet();
-      return false;
-    } else {
-      return true;
-    }
+  public void setBufferSize(int bufferSize) {
+    this.bufferSize = bufferSize;
   }
 
   @VisibleForTesting
-  AtomicInteger getAtomicCount() {
-    return atomicCount;
+  void setAtomicSize(long delta) {
+    atomicSize.addAndGet(delta);
   }
 
-  public int getAvailableCount() {
-    return capacity - atomicCount.get();
+  @VisibleForTesting
+  Map<String, ShuffleBuffer> getPool() {
+    return pool;
+  }
+
+  @VisibleForTesting
+  AtomicLong getAtomicSize() {
+    return atomicSize;
   }
 
 }

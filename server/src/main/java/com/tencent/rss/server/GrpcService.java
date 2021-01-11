@@ -2,6 +2,7 @@ package com.tencent.rss.server;
 
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
+import com.tencent.rss.proto.RssProtos;
 import com.tencent.rss.proto.RssProtos.SendShuffleDataRequest;
 import com.tencent.rss.proto.RssProtos.SendShuffleDataResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleBlock;
@@ -10,7 +11,6 @@ import com.tencent.rss.proto.RssProtos.ShuffleCommitResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleData;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
-import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerImplBase;
 
 import io.grpc.stub.StreamObserver;
@@ -49,7 +49,7 @@ public class GrpcService extends ShuffleServerImplBase {
 
     reply = ShuffleRegisterResponse
         .newBuilder()
-        .setStatus(result)
+        .setStatus(valueOf(result))
         .build();
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
@@ -106,7 +106,7 @@ public class GrpcService extends ShuffleServerImplBase {
             break;
           }
         }
-        reply = SendShuffleDataResponse.newBuilder().setStatus(ret).setRetMsg(responseMessage).build();
+        reply = SendShuffleDataResponse.newBuilder().setStatus(valueOf(ret)).setRetMsg(responseMessage).build();
       } catch (Exception e) {
         String msg = "Error happened when sendShuffleData ";
         if (!StringUtils.isEmpty(e.getMessage())) {
@@ -114,7 +114,7 @@ public class GrpcService extends ShuffleServerImplBase {
         }
         reply = SendShuffleDataResponse
             .newBuilder()
-            .setStatus(StatusCode.INTERNAL_ERROR)
+            .setStatus(valueOf(StatusCode.INTERNAL_ERROR))
             .setRetMsg(msg)
             .build();
         LOG.error(msg, e);
@@ -122,7 +122,7 @@ public class GrpcService extends ShuffleServerImplBase {
     } else {
       reply = SendShuffleDataResponse
           .newBuilder()
-          .setStatus(StatusCode.INTERNAL_ERROR)
+          .setStatus(valueOf(StatusCode.INTERNAL_ERROR))
           .setRetMsg("No data in request")
           .build();
     }
@@ -155,7 +155,7 @@ public class GrpcService extends ShuffleServerImplBase {
       LOG.error("Error happened when commit for appId[" + appId + "], shuffleId[" + shuffleId + "]", e);
     }
 
-    reply = ShuffleCommitResponse.newBuilder().setStatus(status).setRetMsg(msg).build();
+    reply = ShuffleCommitResponse.newBuilder().setStatus(valueOf(status)).setRetMsg(msg).build();
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
 
@@ -187,5 +187,9 @@ public class GrpcService extends ShuffleServerImplBase {
     }
 
     return ret;
+  }
+
+  public static RssProtos.StatusCode valueOf(StatusCode code) {
+    return RssProtos.StatusCode.forNumber(code.statusCode());
   }
 }

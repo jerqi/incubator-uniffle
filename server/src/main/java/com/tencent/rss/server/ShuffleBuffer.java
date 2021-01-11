@@ -3,87 +3,108 @@ package com.tencent.rss.server;
 import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
-import com.tencent.rss.proto.RssProtos.StatusCode;
 
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 public class ShuffleBuffer {
 
   private final int capacity;
-  private final int ttl;
-  private final int start; // start partition
-  private final int end; // end partition
+  private final BufferManager bufferManager;
+  private final ShuffleEngine shuffleEngine;
+
   private int size;
-  private int blockNum;
-  private Map<Integer, List<ShufflePartitionedBlock>> partitionBuffers;
+  private List<ShufflePartitionedBlock> blocks;
 
-  public ShuffleBuffer(int capacity, int ttl, int start, int end) {
+  public ShuffleBuffer(
+      int capacity,
+      ShuffleEngine shuffleEngine,
+      BufferManager bufferManager) {
     this.capacity = capacity;
-    this.ttl = ttl;
-    this.start = start;
-    this.end = end;
-
-    partitionBuffers = new HashMap<>();
-    for (int i = start; i <= end; ++i) {
-      partitionBuffers.put(i, new LinkedList<>());
-    }
+    this.shuffleEngine = shuffleEngine;
+    this.bufferManager = bufferManager;
+    this.size = 0;
+    this.blocks = new LinkedList<>();
   }
 
   public void clear() {
-    if (partitionBuffers != null) {
-      partitionBuffers.forEach((k, v) -> v.clear());
-      ShuffleServerMetrics.decBufferedBlockSize(size);
-      ShuffleServerMetrics.decBufferedBlockNum(blockNum);
-      size = 0;
-      blockNum = 0;
-    }
+    blocks.clear();
+    size = 0;
   }
 
   public StatusCode append(ShufflePartitionedData data) {
-    int partition = data.getPartitionId();
-    List<ShufflePartitionedBlock> cur = partitionBuffers.get(partition);
+      int mSize = 0;
 
-    int mSize = 0;
-    int mNum = 0;
-    for (ShufflePartitionedBlock block : data.getBlockList()) {
-      cur.add(block);
-      mSize += block.size();
-      mNum += 1;
-      size += mSize;
-      blockNum += 1;
-    }
+      synchronized (this) {
+        for (ShufflePartitionedBlock block : data.getBlockList()) {
+          blocks.add(block);
+          mSize += block.getLength();
+          size += mSize;
+        }
+      }
 
-    ShuffleServerMetrics.incBufferedBlockNum(mNum);
-    ShuffleServerMetrics.incBufferedBlockSize(mSize);
+      bufferManager.updateSize(mSize);
+      ShuffleServerMetrics.incBufferedBlockSize(mSize);
+
+
+      if (bufferManager.isFull()) {
+        bufferManager.flush();
+      } else if (isFull()) {
+        flush();
+      }
 
     return StatusCode.SUCCESS;
   }
 
-  public List<ShufflePartitionedBlock> getBlocks(int partition) {
-    return partitionBuffers.get(partition);
+  public ShuffleDataFlushEvent flush() {
+    if (size == 0) {
+      return null;
+    }
+
+    synchronized (this) {
+      if (size == 0) {
+        return null;
+      } else {
+        return asyncFlush();
+
+      }
+    }
+  }
+
+
+  // add blocks to queue, they will be flushed to storage asynchronous
+  private ShuffleDataFlushEvent asyncFlush() throws IllegalStateException {
+    // buffer will be cleared, and new list must be created for async flush
+    ShuffleFlushManager shuffleFlushManager = bufferManager.getShuffleFlushManager();
+    List<ShufflePartitionedBlock> spBlocks = new LinkedList<>(getBlocks());
+    ShuffleDataFlushEvent event = new ShuffleDataFlushEvent(
+        ShuffleFlushManager.ATOMIC_EVENT_ID.getAndIncrement(),
+        shuffleEngine.getAppId(),
+        shuffleEngine.getShuffleId(),
+        shuffleEngine.getStartPartition(),
+        shuffleEngine.getEndPartition(),
+        size,
+        spBlocks);
+    shuffleFlushManager.addToFlushQueue(event);
+    shuffleEngine.getEventIds().add(event.getEventId());
+    clear();
+    return event;
+  }
+
+  public List<ShufflePartitionedBlock> getBlocks() {
+    return blocks;
   }
 
   public int getSize() {
-    return this.size;
+    return size;
   }
 
   public void setSize(int size) {
     this.size = size;
   }
 
-  public int getBlockNum() {
-    return this.blockNum;
-  }
-
-  public int getPartitionNum() {
-    return this.partitionBuffers.size();
-  }
-
-  public boolean full() {
-    return this.size > capacity;
+  public boolean isFull() {
+    return size > capacity;
   }
 
   @VisibleForTesting

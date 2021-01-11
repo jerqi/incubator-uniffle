@@ -19,6 +19,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,21 +29,24 @@ public class ShuffleFlushManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleFlushManager.class);
   private static final Logger LOG_RSS_INFO = LoggerFactory.getLogger(Constants.LOG4J_RSS_SHUFFLE_PREFIX);
+  public static AtomicLong ATOMIC_EVENT_ID = new AtomicLong(0);
   private ScheduledExecutorService scheduledExecutorService;
   private BlockingQueue<ShuffleDataFlushEvent> flushQueue = Queues.newLinkedBlockingQueue();
   private ConcurrentMap<String, FileBasedShuffleWriteHandler> pathToHandler = Maps.newConcurrentMap();
   private ConcurrentMap<String, Set<Long>> pathToEventIds = Maps.newConcurrentMap();
   private ThreadPoolExecutor threadPoolExecutor;
   private ShuffleServerConf shuffleServerConf;
+  private final ShuffleServer shuffleServer;
   private boolean isRunning;
   private String storageBasePath;
   private String shuffleServerId;
   private long expired;
   private Runnable processEventThread;
 
-  public ShuffleFlushManager(ShuffleServerConf shuffleServerConf, String shuffleServerId) {
+  public ShuffleFlushManager(ShuffleServerConf shuffleServerConf, String shuffleServerId, ShuffleServer shuffleServer) {
     this.shuffleServerId = shuffleServerId;
     this.shuffleServerConf = shuffleServerConf;
+    this.shuffleServer = shuffleServer;
     int poolSize = shuffleServerConf.getInteger(ShuffleServerConf.RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_SIZE);
     long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.RSS_SHUFFLE_SERVER_FLUSH_THREAD_ALIVE);
     int waitQueueSize = shuffleServerConf.getInteger(
@@ -137,6 +142,10 @@ public class ShuffleFlushManager {
       // just log the error, don't throw the exception and stop the flush thread
       LOG.error("Exception happened when process flush shuffle data for folder["
           + shuffleDataFolder + "], blocks[" + blocks.toString() + "]", e);
+    } finally {
+      if (shuffleServer != null) {
+        shuffleServer.getBufferManager().updateSize(-event.getSize());
+      }
     }
   }
 

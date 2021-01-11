@@ -1,5 +1,6 @@
 package com.tencent.rss.server;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.common.Arguments;
 import com.tencent.rss.common.metrics.JvmMetrics;
 import com.tencent.rss.common.web.JettyServer;
@@ -90,8 +91,8 @@ public class ShuffleServer {
     port = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_PORT);
     id = ip + "-" + port;
     registerHeartBeat = new RegisterHeartBeat(this);
-    bufferManager = new BufferManager(shuffleServerConf);
-    shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id);
+    shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id, this);
+    bufferManager = new BufferManager(shuffleServerConf, this);
     shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, bufferManager, shuffleFlushManager, id);
 
     RemoteServerFactory shuffleServerFactory = new RemoteServerFactory(this);
@@ -146,16 +147,25 @@ public class ShuffleServer {
     this.server = server;
   }
 
-  public int getAvailabelBufferNum() {
-    return bufferManager.getAvailableCount();
-  }
-
   public ShuffleTaskManager getShuffleTaskManager() {
     return shuffleTaskManager;
   }
 
   public void setShuffleTaskManager(ShuffleTaskManager shuffleTaskManager) {
     this.shuffleTaskManager = shuffleTaskManager;
+  }
+
+  public BufferManager getBufferManager() {
+    return bufferManager;
+  }
+
+  public ShuffleFlushManager getShuffleFlushManager() {
+    return shuffleFlushManager;
+  }
+
+  @VisibleForTesting
+  public void setShuffleFlushManager(ShuffleFlushManager shuffleFlushManager) {
+    this.shuffleFlushManager = shuffleFlushManager;
   }
 
 }

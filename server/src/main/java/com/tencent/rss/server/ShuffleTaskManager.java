@@ -3,7 +3,6 @@ package com.tencent.rss.server;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.tencent.rss.proto.RssProtos.StatusCode;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -51,7 +50,7 @@ public class ShuffleTaskManager {
     }
 
     ShuffleEngineManager shuffleEngineManager =
-        new ShuffleEngineManager(appId, shuffleId, conf, bufferManager, shuffleFlushManager, serverId);
+        new ShuffleEngineManager(appId, shuffleId, conf, bufferManager, shuffleFlushManager);
 
     return registerShuffle(appId, shuffleId, startPartition, endPartition, shuffleEngineManager);
   }

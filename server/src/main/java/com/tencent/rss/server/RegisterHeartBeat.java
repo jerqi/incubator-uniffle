@@ -75,7 +75,7 @@ public class RegisterHeartBeat {
             shuffleServer.getId(),
             shuffleServer.getIp(),
             shuffleServer.getPort(),
-            shuffleServer.getAvailabelBufferNum());
+            -1);
       }
     };
 

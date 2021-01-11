@@ -11,6 +11,7 @@ public class ShuffleDataFlushEvent {
   private String shuffleId;
   private int startPartition;
   private int endPartition;
+  private int size;
   private List<ShufflePartitionedBlock> shuffleBlocks;
 
   public ShuffleDataFlushEvent(
@@ -19,12 +20,14 @@ public class ShuffleDataFlushEvent {
       String shuffleId,
       int startPartition,
       int endPartition,
+      int size,
       List<ShufflePartitionedBlock> shuffleBlocks) {
     this.eventId = eventId;
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.startPartition = startPartition;
     this.endPartition = endPartition;
+    this.size = size;
     this.shuffleBlocks = shuffleBlocks;
   }
 
@@ -38,6 +41,10 @@ public class ShuffleDataFlushEvent {
 
   public long getEventId() {
     return eventId;
+  }
+
+  public long getSize() {
+    return size;
   }
 
   @Override

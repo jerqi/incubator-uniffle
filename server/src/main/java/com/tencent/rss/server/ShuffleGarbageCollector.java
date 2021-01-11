@@ -73,10 +73,15 @@ public class ShuffleGarbageCollector {
       }
     }
 
+    List<String> engineKeys = new LinkedList<>();
     for (String key : keys) {
       ShuffleEngine shuffleEngine = shuffleEngineManager.getEngineMap().remove(key);
       shuffleEngine.reclaim();
+      engineKeys.add(shuffleEngine.makeKey());
+      shuffleEngine = null;
     }
+
+    shuffleServer.getBufferManager().reclaim(engineKeys);
 
     if (shuffleEngineManager.getEngineMap().isEmpty()) {
       shuffleEngineManager.reclaim();

@@ -7,6 +7,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import static com.tencent.rss.server.GrpcService.valueOf;
+
 import com.tencent.rss.proto.RssProtos.SendShuffleDataRequest;
 import com.tencent.rss.proto.RssProtos.SendShuffleDataResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleCommitRequest;
@@ -14,7 +16,6 @@ import com.tencent.rss.proto.RssProtos.ShuffleCommitResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleData;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
-import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.proto.ShuffleServerGrpc;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerBlockingStub;
 
@@ -30,7 +31,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -48,8 +48,6 @@ public class GrpcShuffleServiceTest extends MetricsTestBase {
   private ShuffleServerBlockingStub stub;
 
   private ShuffleTaskManager mockShuffleTaskManager;
-  private Field inst;
-  private Field mf;
 
   @Before
   public void setUp() throws Exception {
@@ -90,7 +88,7 @@ public class GrpcShuffleServiceTest extends MetricsTestBase {
     ShuffleRegisterResponse actual = stub.registerShuffle(req);
     ShuffleRegisterResponse expected = ShuffleRegisterResponse
         .newBuilder()
-        .setStatus(StatusCode.NO_BUFFER)
+        .setStatus(valueOf(StatusCode.NO_BUFFER))
         .build();
     verify(mockShuffleTaskManager, atLeastOnce()).registerShuffle(
         "", "0", 0, 0);
@@ -100,7 +98,7 @@ public class GrpcShuffleServiceTest extends MetricsTestBase {
     actual = stub.registerShuffle(req);
     expected = ShuffleRegisterResponse
         .newBuilder()
-        .setStatus(StatusCode.SUCCESS)
+        .setStatus(valueOf(StatusCode.SUCCESS))
         .build();
     verify(mockShuffleTaskManager, atLeastOnce()).registerShuffle(
         "test", "1", 0, 10);
@@ -124,7 +122,7 @@ public class GrpcShuffleServiceTest extends MetricsTestBase {
     SendShuffleDataResponse actual = stub.sendShuffleData(req);
     SendShuffleDataResponse expected = SendShuffleDataResponse
         .newBuilder()
-        .setStatus(StatusCode.INTERNAL_ERROR)
+        .setStatus(valueOf(StatusCode.INTERNAL_ERROR))
         .setRetMsg("No data in request")
         .build();
     assertEquals(expected, actual);
@@ -133,7 +131,7 @@ public class GrpcShuffleServiceTest extends MetricsTestBase {
     actual = stub.sendShuffleData(req);
     expected = SendShuffleDataResponse
         .newBuilder()
-        .setStatus(StatusCode.SUCCESS)
+        .setStatus(valueOf(StatusCode.SUCCESS))
         .setRetMsg("OK")
         .build();
     assertEquals(expected, actual);
@@ -154,7 +152,7 @@ public class GrpcShuffleServiceTest extends MetricsTestBase {
     ShuffleCommitResponse actual = stub.commitShuffleTask(req);
     ShuffleCommitResponse expected = ShuffleCommitResponse
         .newBuilder()
-        .setStatus(StatusCode.SUCCESS)
+        .setStatus(valueOf(StatusCode.SUCCESS))
         .setRetMsg("OK")
         .build();
     assertEquals(expected, actual);

@@ -6,59 +6,69 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.FileNotFoundException;
+import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.Executors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.booleanThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-public class ShuffleBufferTest {
+public class ShuffleBufferTest extends MetricsTestBase {
 
-  private ShuffleBuffer shuffleBuffer = new ShuffleBuffer(128, 300, 1, 200);
+  private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
+  private BufferManager bufferManager;
+  private ShuffleBuffer shuffleBuffer;
 
   @Before
-  public void setUp() {
+  public void setUp() throws UnknownHostException, FileNotFoundException {
+    ShuffleServer shuffleServer = new ShuffleServer(confFile);
+    bufferManager = shuffleServer.getBufferManager();
+    bufferManager.setCapacity(200);
+    bufferManager.setBufferSize(100);
 
+    ShuffleEngine engine = mock(ShuffleEngine.class);
+    when(engine.makeKey()).thenReturn("key");
+    shuffleBuffer = bufferManager.getBuffer(engine);
   }
 
   @After
   public void tearDown() {
-    shuffleBuffer.clear();
+
   }
 
   @Test
-  public void appendAndGetTest() {
-    List<ShufflePartitionedData> shuffleData = new LinkedList<>();
-    ShufflePartitionedBlock shuffleBlock1 = new ShufflePartitionedBlock(10, 1, 1);
-    ShufflePartitionedBlock shuffleBlock2 = new ShufflePartitionedBlock(20, 3, 3);
-    ShufflePartitionedBlock shuffleBlock3 = new ShufflePartitionedBlock(30, 5, 5);
+  public void testAppend() {
+    shuffleBuffer.append(createData(10));
+    assertEquals(10, shuffleBuffer.getSize());
+    assertFalse(shuffleBuffer.isFull());
+  }
 
-    shuffleData.add(new ShufflePartitionedData(1, shuffleBlock1));
-    shuffleData.add(new ShufflePartitionedData(100, shuffleBlock2));
-    shuffleData.add(new ShufflePartitionedData(23, shuffleBlock3));
+  @Test
+  public void testFlush() {
+    shuffleBuffer.append(createData(10));
+    ShuffleDataFlushEvent event = shuffleBuffer.flush();
+    assertEquals(10, event.getSize());
+    assertEquals(0, shuffleBuffer.getSize());
+    assertNull(shuffleBuffer.flush());
+    assertEquals(0, shuffleBuffer.getBlocks().size());
+    assertEquals(0, shuffleBuffer.getSize());
+  }
 
-    shuffleData.forEach(d -> shuffleBuffer.append(d));
-    //List<ShuffleBlock> a = shuffleBuffer.getBlocks(1);
-
-    assertEquals(1, shuffleBuffer.getBlocks(1).size());
-    assertEquals(1, shuffleBuffer.getBlocks(100).size());
-    assertEquals(1, shuffleBuffer.getBlocks(23).size());
-
-    assertEquals(1, shuffleBuffer.getBlocks(1).get(0).getBlockId());
-    assertEquals(3, shuffleBuffer.getBlocks(100).get(0).getBlockId());
-    assertEquals(5, shuffleBuffer.getBlocks(23).get(0).getBlockId());
-
-    int expected = (10 + 20 + 30) + 20 * 3;
-    assertEquals(expected, shuffleBuffer.getSize());
-    assertFalse(shuffleBuffer.full());
-
-    ShufflePartitionedBlock shuffleBlock4 = new ShufflePartitionedBlock(10, 25, 25);
-    shuffleBuffer.append(new ShufflePartitionedData(23, shuffleBlock4));
-    assertTrue(shuffleBuffer.full());
-    assertEquals(2, shuffleBuffer.getBlocks(23).size());
-    assertEquals(25, shuffleBuffer.getBlocks(23).get(1).getBlockId());
-
+  private ShufflePartitionedData createData(int len) {
+    byte[] buf = new byte[len];
+    new Random().nextBytes(buf);
+    ShufflePartitionedBlock block = new ShufflePartitionedBlock(len, 1, 1, buf);
+    ShufflePartitionedData data = new ShufflePartitionedData(1, block);
+    return data;
   }
 
 }

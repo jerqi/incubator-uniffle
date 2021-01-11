@@ -3,13 +3,14 @@ package com.tencent.rss.server;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
-import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.storage.HdfsTestBase;
+
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,8 +32,8 @@ public class ShuffleEngineTest extends HdfsTestBase {
 
   private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
   private static final ShuffleServerConf conf = new ShuffleServerConf(confFile);
+  private ShuffleServer shuffleServer;
   private BufferManager bufferManager;
-  private ShuffleFlushManager shuffleFlushManager;
 
   @BeforeClass
   public static void staticSetUp() {
@@ -41,16 +42,17 @@ public class ShuffleEngineTest extends HdfsTestBase {
   }
 
   @Before
-  public void setUp() {
-    bufferManager = new BufferManager(1, 128, 0);
-    shuffleFlushManager = new ShuffleFlushManager(conf, "test");
+  public void setUp() throws UnknownHostException, FileNotFoundException {
+    shuffleServer = new ShuffleServer(conf);
+    bufferManager = shuffleServer.getBufferManager();
+    bufferManager.setBufferSize(100);
   }
 
   @Test
   public void testBasePath() {
     ShuffleEngine shuffleEngine =
         new ShuffleEngine("1", "2", 3, 4,
-            conf, bufferManager, shuffleFlushManager, "test");
+            conf, bufferManager);
     shuffleEngine.init();
     String actual = shuffleEngine.getBasePath();
     String expected = HdfsTestBase.HDFS_URI + "/1_2_3-4";
@@ -61,7 +63,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
   public void testWrite() throws Exception {
     ShuffleEngine shuffleEngine =
         new ShuffleEngine("1", "2", 3, 4,
-            conf, bufferManager, shuffleFlushManager, "test");
+            conf, bufferManager);
     shuffleEngine.init();
     String basePath = shuffleEngine.getBasePath();
     Path path = new Path(basePath);
@@ -73,66 +75,60 @@ public class ShuffleEngineTest extends HdfsTestBase {
     assertEquals(StatusCode.SUCCESS, actual1);
     ShuffleBuffer buffer = shuffleEngine.getBuffer();
 
-    assertFalse(buffer.full());
-    int expectedSize = 8 + 4 + 8 + len; // sum of (length, crc, blockId)'s type length + bytes
-    assertEquals(expectedSize, buffer.getSize());
+    assertFalse(buffer.isFull());
+    assertEquals(len, buffer.getSize());
+    assertEquals(len, bufferManager.getAtomicSize().intValue());
 
     // flush data and clear all data in the buffer
     len = 128;
-    StatusCode actual2 = writeData(shuffleEngine, len, 3);
-    assertEquals(StatusCode.SUCCESS, actual2);
+    writeData(shuffleEngine, len, 3);
     assertEquals(0, buffer.getSize());
-    // wait for asyn flush
-    Thread.sleep(2000);
-    checkFiles(path, "test.index", "test.data");
+    checkFiles(path, shuffleServer.getId() + ".data", shuffleServer.getId() + ".index");
+    assertEquals(0, bufferManager.getAtomicSize().intValue());
   }
 
   @Test
-  public void testWriteCommit() throws IOException {
+  public void testWriteCommit() throws IOException, InterruptedException {
     ShuffleEngine shuffleEngine =
         new ShuffleEngine("1", "2", 3, 4,
-            conf, bufferManager, shuffleFlushManager, "test");
+            conf, bufferManager);
+    ShuffleEngine shuffleEngine1 =
+        new ShuffleEngine("1", "2", 0, 2,
+            conf, bufferManager);
 
-    assertEquals(1, shuffleEngine.getBufferManager().getAvailableCount());
-    assertEquals(StatusCode.SUCCESS, shuffleEngine.init());
-    assertEquals(0, shuffleEngine.getBufferManager().getAvailableCount());
+    shuffleEngine.init();
+    shuffleEngine1.init();
+    assertEquals(shuffleEngine.getBufferManager(), bufferManager);
+    assertEquals(shuffleEngine1.getBufferManager(), bufferManager);
 
     String basePath = shuffleEngine.getBasePath();
     Path path = new Path(basePath);
 
     // data is in the buffer
-    StatusCode actual1 = writeData(shuffleEngine, 64, 3);
-    ShuffleBuffer buffer = shuffleEngine.getBuffer();
-    assertEquals(StatusCode.SUCCESS, actual1);
-    assertFalse(buffer.full());
+    writeData(shuffleEngine, 64, 3);
+    writeData(shuffleEngine1, 6, 3);
+    checkEngine(shuffleEngine, 64,1,70);
+    checkEngine(shuffleEngine1, 6,1,70);
 
     shuffleEngine.commit();
-    assertNull(shuffleEngine.getBuffer());
-    assertNull(shuffleEngine.getBuffer());
+    Thread.sleep(1000);
+    checkEngine(shuffleEngine, 0, 0, 6);
 
-    StatusCode actual2 = writeData(shuffleEngine, 128, 4);
-    assertEquals(StatusCode.SUCCESS, actual2);
-    assertEquals(0, buffer.getSize());
-    assertEquals(1, shuffleEngine.getBufferManager().getAtomicCount().get());
-    assertEquals(0, shuffleEngine.getBufferManager().getAvailableCount());
-    assertNotNull(shuffleEngine.getBuffer());
+    // buffer full and flush
+    writeData(shuffleEngine, 128, 4);
+    Thread.sleep(1000);
+    checkEngine(shuffleEngine, 0, 0, 6);
 
+    shuffleEngine1.commit();
+    Thread.sleep(1000);
+    checkEngine(shuffleEngine1, 0, 0, 0);
+
+    checkFiles(path, shuffleServer.getId() + ".index", shuffleServer.getId() + ".data");
+
+    // write after commit
     shuffleEngine.commit();
-    assertEquals(0, shuffleEngine.getBufferManager().getAtomicCount().get());
-    assertEquals(1, shuffleEngine.getBufferManager().getAvailableCount());
-    assertNull(shuffleEngine.getBuffer());
-    shuffleEngine.commit();
-
-    checkFiles(path, "test.index", "test.data");
-
     writeData(shuffleEngine, 32, 4);
-    assertNotNull(shuffleEngine.getBuffer());
-    assertEquals(1, shuffleEngine.getBufferManager().getAtomicCount().get());
-    assertEquals(0, shuffleEngine.getBufferManager().getAvailableCount());
-    shuffleEngine.reclaim();
-    assertNull(shuffleEngine.getBuffer());
-    assertEquals(0, shuffleEngine.getBufferManager().getAtomicCount().get());
-    assertEquals(1, shuffleEngine.getBufferManager().getAvailableCount());
+    checkEngine(shuffleEngine, 32, 1, 32);
 
   }
 
@@ -140,7 +136,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
   public void testWriteCommitConcurrent() throws InterruptedException, ExecutionException, IOException {
     ShuffleEngine shuffleEngine =
         new ShuffleEngine("1", "2", 3, 4,
-            conf, bufferManager, shuffleFlushManager, "test");
+            conf, bufferManager);
     String basePath = shuffleEngine.getBasePath();
     Path path = new Path(basePath);
     shuffleEngine.init();
@@ -154,10 +150,8 @@ public class ShuffleEngineTest extends HdfsTestBase {
           boolean cur = new Random().nextBoolean();
           if (cur) {
             shuffleEngine.commit();
-            assertNull(shuffleEngine.getBuffer());
           } else {
             writeData(shuffleEngine, 64, 3);
-            assertNotNull(shuffleEngine.getBuffer());
           }
           return null;
         }
@@ -169,9 +163,8 @@ public class ShuffleEngineTest extends HdfsTestBase {
     for (Future<Void> f : futures) {
       f.get();
     }
-    // wait for asny flush
-    Thread.sleep(10000);
-    checkFiles(path, "test.index", "test.data");
+
+    checkFiles(path, shuffleServer.getId() + ".data", shuffleServer.getId() + ".index");
   }
 
   private StatusCode writeData(ShuffleEngine shuffleEngine, int len, int partition) throws IOException {
@@ -182,7 +175,16 @@ public class ShuffleEngineTest extends HdfsTestBase {
     return shuffleEngine.write(data1);
   }
 
-  private void checkFiles(Path path, String... expected) throws IOException {
+  private void checkEngine(ShuffleEngine shuffleEngine, int bufferSize, int blocksSize, int bufferManagerSize) {
+    assertNotNull(shuffleEngine.getBuffer());
+    assertEquals(bufferSize, shuffleEngine.getBuffer().getSize());
+    assertEquals(blocksSize, shuffleEngine.getBuffer().getBlocks().size());
+    assertEquals(bufferManagerSize, shuffleEngine.getBufferManager().getAtomicSize().intValue());
+  }
+
+  private void checkFiles(Path path, String... expected) throws IOException, InterruptedException {
+    // wait for asyn flush
+    Thread.sleep(2000);
     List<String> files = new ArrayList<>();
     for (FileStatus status : fs.listStatus(path)) {
       files.add(status.getPath().getName());

@@ -9,7 +9,6 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.common.util.RssUtils;
-import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.storage.FileBasedShuffleReadHandler;
 import com.tencent.rss.storage.FileBasedShuffleSegment;
 import com.tencent.rss.storage.HdfsTestBase;
@@ -21,6 +20,7 @@ import org.junit.Test;
 
 public class ShuffleEngineManagerTest extends HdfsTestBase {
 
+  private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
   private static AtomicInteger ATOMIC_INT = new AtomicInteger(0);
 
   private ShuffleEngineManager shuffleEngineManager = new ShuffleEngineManager("test", "1");
@@ -53,18 +53,19 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
 
   @Test
   public void writeProcessTest() throws Exception {
-    ShuffleServerConf conf = new ShuffleServerConf();
+    ShuffleServerConf conf = new ShuffleServerConf(confFile);
     String storageBasePath = HDFS_URI + "rss/test";
     String appId = "testAppId";
     String shuffleId = "1";
-    conf.setString("rss.buffer.capacity", "3");
+    conf.setString("rss.buffer.capacity", "64");
     conf.setString("rss.buffer.size", "64");
     conf.setString("rss.data.storage.basePath", storageBasePath);
-    BufferManager bufferManager = new BufferManager(conf);
-    String serverId = "shuffleServerId";
-    ShuffleFlushManager shuffleFlushManager = new ShuffleFlushManager(conf, serverId);
+    ShuffleServer shuffleServer = new ShuffleServer(conf);
+    BufferManager bufferManager = shuffleServer.getBufferManager();
+    String serverId = shuffleServer.getId();
+    ShuffleFlushManager shuffleFlushManager = shuffleServer.getShuffleFlushManager();
     ShuffleEngineManager shuffleEngineManager = new ShuffleEngineManager(
-        appId, shuffleId, conf, bufferManager, shuffleFlushManager, serverId);
+        appId, shuffleId, conf, bufferManager, shuffleFlushManager);
     shuffleEngineManager.registerShuffleEngine(0, 1);
     shuffleEngineManager.registerShuffleEngine(2, 3);
     List<ShufflePartitionedBlock> expectedBlocks1 = Lists.newArrayList();
@@ -94,8 +95,8 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
 
     shuffleEngineManager.commit();
     // 1 event created by flush, 1 event created by commit
-    assertEquals(4, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
-    assertEquals(4, shuffleFlushManager.getEventIds(shuffleFilePath2).size());
+    assertEquals(2, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
+    assertEquals(2, shuffleFlushManager.getEventIds(shuffleFilePath2).size());
 
     // flush for partition 0-1
     ShufflePartitionedData partitionedData5 = createPartitionedData(0, 2, 35);
@@ -103,12 +104,12 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
     shuffleEngineManager.getShuffleEngine(0).write(partitionedData5);
 
     shuffleEngineManager.commit();
-    assertEquals(8, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
-    assertEquals(6, shuffleFlushManager.getEventIds(shuffleFilePath2).size());
+    assertEquals(3, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
+    assertEquals(2, shuffleFlushManager.getEventIds(shuffleFilePath2).size());
 
     shuffleEngineManager.commit();
-    assertEquals(10, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
-    assertEquals(8, shuffleFlushManager.getEventIds(shuffleFilePath2).size());
+    assertEquals(3, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
+    assertEquals(2, shuffleFlushManager.getEventIds(shuffleFilePath2).size());
 
     String shuffleDataFolder = RssUtils.getFullShuffleDataFolder(storageBasePath, shuffleFilePath1);
     validate(expectedBlocks1, shuffleDataFolder, serverId);

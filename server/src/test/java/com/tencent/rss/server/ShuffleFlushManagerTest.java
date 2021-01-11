@@ -31,14 +31,18 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
 
   @Test
   public void testWrite() throws Exception {
-    ShuffleFlushManager manager = new ShuffleFlushManager(shuffleServerConf, "shuffleServerId");
-    ShuffleDataFlushEvent event1 = createShuffleDataFlushEvent("appId1", "1", 0, 1);
+    ShuffleFlushManager manager =
+        new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
+    ShuffleDataFlushEvent event1 =
+        createShuffleDataFlushEvent("appId1", "1", 0, 1);
     List<ShufflePartitionedBlock> blocks1 = event1.getShuffleBlocks();
     manager.addToFlushQueue(event1);
-    ShuffleDataFlushEvent event21 = createShuffleDataFlushEvent("appId1", "2", 0, 1);
+    ShuffleDataFlushEvent event21 =
+        createShuffleDataFlushEvent("appId1", "2", 0, 1);
     List<ShufflePartitionedBlock> blocks21 = event21.getShuffleBlocks();
     manager.addToFlushQueue(event21);
-    ShuffleDataFlushEvent event22 = createShuffleDataFlushEvent("appId1", "2", 0, 1);
+    ShuffleDataFlushEvent event22 =
+        createShuffleDataFlushEvent("appId1", "2", 0, 1);
     List<ShufflePartitionedBlock> blocks22 = event22.getShuffleBlocks();
     manager.addToFlushQueue(event22);
     // wait for write data
@@ -57,7 +61,7 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
   public void testGC() throws Exception {
     shuffleServerConf.setString("rss.shuffleServer.flush.handler.expired", "5");
     shuffleServerConf.setString("rss.shuffleServer.flush.gc.check.interval", "1");
-    ShuffleFlushManager manager = new ShuffleFlushManager(shuffleServerConf, "shuffleServerId");
+    ShuffleFlushManager manager = new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
     ShuffleDataFlushEvent event1 = createShuffleDataFlushEvent("appId3", "1", 0, 1);
     manager.addToFlushQueue(event1);
     ShuffleDataFlushEvent event2 = createShuffleDataFlushEvent("appId3", "2", 0, 1);
@@ -85,7 +89,7 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     List<ShufflePartitionedBlock> expectedBlocks = Lists.newArrayList();
     List<ShuffleDataFlushEvent> flushEvents1 = Lists.newArrayList();
     List<ShuffleDataFlushEvent> flushEvents2 = Lists.newArrayList();
-    ShuffleFlushManager manager = new ShuffleFlushManager(shuffleServerConf, "shuffleServerId");
+    ShuffleFlushManager manager = new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
     String shuffleFilePath = "";
     for (int i = 0; i < 30; i++) {
       ShuffleDataFlushEvent flushEvent1 = createShuffleDataFlushEvent("appId4", "1", 0, 1);
@@ -136,7 +140,7 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
       String appId, String shuffleId, int startPartition, int endPartition) {
     List<ShufflePartitionedBlock> spbs = createBlock(5, 32);
     return new ShuffleDataFlushEvent(ATOMIC_LONG.getAndIncrement(),
-        appId, shuffleId, startPartition, endPartition, spbs);
+        appId, shuffleId, startPartition, endPartition, -1, spbs);
   }
 
   private List<ShufflePartitionedBlock> createBlock(int num, int length) {

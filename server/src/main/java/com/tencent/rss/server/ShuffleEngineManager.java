@@ -7,9 +7,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
-import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.common.util.RssUtils;
-import com.tencent.rss.proto.RssProtos.StatusCode;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,14 +18,12 @@ import org.slf4j.LoggerFactory;
 public class ShuffleEngineManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleEngineManager.class);
-  private static final Logger LOG_RSS_INFO = LoggerFactory.getLogger(Constants.LOG4J_RSS_SHUFFLE_PREFIX);
 
   private final String appId;
   private final String shuffleId;
   private final ShuffleServerConf conf;
   private final BufferManager bufferManager;
   private final ShuffleFlushManager shuffleFlushManager;
-  private final String serverId;
 
   private Map<String, ShuffleEngine> engineMap;
   private RangeMap<Integer, String> partitionRangeMap;
@@ -37,8 +33,7 @@ public class ShuffleEngineManager {
       String shuffleId,
       ShuffleServerConf conf,
       BufferManager bufferManager,
-      ShuffleFlushManager shuffleFlushManager,
-      String serverId) {
+      ShuffleFlushManager shuffleFlushManager) {
     requireNonNull(conf);
     requireNonNull(bufferManager);
     engineMap = Maps.newConcurrentMap();
@@ -48,7 +43,6 @@ public class ShuffleEngineManager {
     this.conf = conf;
     this.bufferManager = bufferManager;
     this.shuffleFlushManager = shuffleFlushManager;
-    this.serverId = serverId;
   }
 
   public ShuffleEngineManager(String appId, String shuffleId) {
@@ -59,13 +53,12 @@ public class ShuffleEngineManager {
     this.conf = null;
     this.bufferManager = null;
     this.shuffleFlushManager = null;
-    this.serverId = "";
   }
 
   public StatusCode registerShuffleEngine(int startPartition, int endPartition) {
     ShuffleEngine engine =
         new ShuffleEngine(appId, shuffleId, startPartition, endPartition,
-            conf, bufferManager, shuffleFlushManager, serverId);
+            conf, bufferManager);
     return registerShuffleEngine(startPartition, endPartition, engine);
   }
 
@@ -113,10 +106,13 @@ public class ShuffleEngineManager {
     Map<String, Set<Long>> pathToEventIds = Maps.newHashMap();
     for (ShuffleEngine engine : engineMap.values()) {
       Set<Long> eventIds = engine.commit();
-      String path = RssUtils.getShuffleDataPath(
-          appId, shuffleId, engine.getStartPartition(), engine.getEndPartition());
-      pathToEventIds.put(path, eventIds);
-      LOG_RSS_INFO.info("Commit for " + path + " and get expectedEventIds: " + eventIds);
+
+      if (!eventIds.isEmpty()) {
+        String path = RssUtils.getShuffleDataPath(
+            appId, shuffleId, engine.getStartPartition(), engine.getEndPartition());
+        pathToEventIds.put(path, eventIds);
+        LOG.info("Commit for " + path + " and get expectedEventIds: " + eventIds);
+      }
     }
 
     while (true) {
@@ -126,7 +122,7 @@ public class ShuffleEngineManager {
         Set<Long> committedIds = shuffleFlushManager.getEventIds(path);
         if (committedIds != null && !committedIds.isEmpty()) {
           Set<Long> expectedEventIds = entry.getValue();
-          LOG_RSS_INFO.info("Got expectedEventIds for " + path + ": "
+          LOG.info("Got expectedEventIds for " + path + ": "
               + expectedEventIds + ", current commit: " + committedIds);
           expectedEventIds.removeAll(committedIds);
           if (expectedEventIds.isEmpty()) {
@@ -136,7 +132,7 @@ public class ShuffleEngineManager {
       }
       for (String key : removedKeys) {
         pathToEventIds.remove(key);
-        LOG_RSS_INFO.info("Path " + key + " is committed for current request.");
+        LOG.info("Path " + key + " is committed for current request.");
       }
       if (pathToEventIds.isEmpty()) {
         break;
