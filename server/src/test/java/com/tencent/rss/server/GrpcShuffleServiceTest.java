@@ -17,14 +17,11 @@ import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.proto.ShuffleServerGrpc;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerBlockingStub;
+
 import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.testing.GrpcCleanupRule;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.LinkedList;
-import java.util.List;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -32,8 +29,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.LinkedList;
+import java.util.List;
+
 @RunWith(JUnit4.class)
-public class RemoteShuffleServiceTest extends MetricsTestBase {
+public class GrpcShuffleServiceTest extends MetricsTestBase {
 
   private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
   /**
@@ -54,24 +56,24 @@ public class RemoteShuffleServiceTest extends MetricsTestBase {
     // Generate a unique in-process server name.
     String serverName = InProcessServerBuilder.generateName();
     server = new ShuffleServer(confFile);
-    server.setGrpcServer(
-        InProcessServerBuilder
-            .forName(serverName)
-            .directExecutor()
-            .addService(new RemoteShuffleService(server))
-            .build());
+    server.setServer(new GrpcServer(InProcessServerBuilder
+        .forName(serverName)
+        .directExecutor()
+        .addService(new GrpcService(server))
+        .build()));
     // Create a client channel and register for automatic graceful shutdown.
     inProcessChannel = grpcCleanup.register(
         InProcessChannelBuilder.forName(serverName).directExecutor().build());
     stub = ShuffleServerGrpc.newBlockingStub(inProcessChannel);
-    server.getGrpcServer().start();
+    server.getServer().start();
     mockShuffleTaskManager = mock(ShuffleTaskManager.class);
     server.setShuffleTaskManager(mockShuffleTaskManager);
   }
 
   @After
-  public void tearDown() {
-    server.getGrpcServer().shutdownNow();
+  public void tearDown() throws InterruptedException {
+    /*server.getGrpcServer().shutdownNow();*/
+    server.getServer().stop();
   }
 
   @Test

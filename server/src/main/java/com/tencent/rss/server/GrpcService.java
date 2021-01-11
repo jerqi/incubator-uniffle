@@ -12,20 +12,22 @@ import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerImplBase;
+
 import io.grpc.stub.StreamObserver;
-import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RemoteShuffleService extends ShuffleServerImplBase {
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 
-  private static final Logger LOG = LoggerFactory.getLogger(RemoteShuffleService.class);
+public class GrpcService extends ShuffleServerImplBase {
+
+  private static final Logger LOG = LoggerFactory.getLogger(GrpcService.class);
   private final ShuffleServer shuffleServer;
 
-  public RemoteShuffleService(ShuffleServer shuffleServer) {
+  public GrpcService(ShuffleServer shuffleServer) {
     this.shuffleServer = shuffleServer;
   }
 

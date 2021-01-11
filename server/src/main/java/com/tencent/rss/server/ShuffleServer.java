@@ -4,8 +4,7 @@ import com.tencent.rss.common.Arguments;
 import com.tencent.rss.common.metrics.JvmMetrics;
 import com.tencent.rss.common.web.JettyServer;
 import com.tencent.rss.common.web.MetricsServlet;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
+
 import io.prometheus.client.CollectorRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +13,6 @@ import picocli.CommandLine;
 import java.io.FileNotFoundException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Server that manages startup/shutdown of a {@code Greeter} server.
@@ -30,7 +28,7 @@ public class ShuffleServer {
   private ShuffleServerConf shuffleServerConf;
   private JettyServer jettyServer;
   private ShuffleTaskManager shuffleTaskManager;
-  private Server grpcServer;
+  private ServerInterface server;
   private ShuffleFlushManager shuffleFlushManager;
 
   public ShuffleServer(ShuffleServerConf shuffleServerConf) throws UnknownHostException, FileNotFoundException {
@@ -63,9 +61,7 @@ public class ShuffleServer {
   public void start() throws Exception {
     registerHeartBeat.startHeartBeat();
     jettyServer.start();
-    grpcServer.start();
-
-    LOG.info("Grpc server started, listening on {}.", port);
+    server.start();
 
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
@@ -86,24 +82,20 @@ public class ShuffleServer {
     if (jettyServer != null) {
       jettyServer.stop();
     }
-    if (grpcServer != null) {
-      grpcServer.shutdown().awaitTermination(30, TimeUnit.SECONDS);
-    }
+    server.stop();
   }
 
   private void initialization() throws UnknownHostException, FileNotFoundException {
     ip = InetAddress.getLocalHost().getHostAddress();
-    port = shuffleServerConf.getInteger(ShuffleServerConf.SERVICE_PORT);
+    port = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_PORT);
     id = ip + "-" + port;
     registerHeartBeat = new RegisterHeartBeat(this);
     bufferManager = new BufferManager(shuffleServerConf);
     shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id);
     shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, bufferManager, shuffleFlushManager, id);
-    grpcServer = ServerBuilder
-        .forPort(port)
-        .addService(new RemoteShuffleService(this))
-        .maxInboundMessageSize(shuffleServerConf.getInteger(ShuffleServerConf.RPC_MESSAGE_MAX_SIZE))
-        .build();
+
+    RemoteServerFactory shuffleServerFactory = new RemoteServerFactory(this);
+    server = shuffleServerFactory.getServer();
     jettyServer = new JettyServer(shuffleServerConf);
     registerMetrics();
     addServlet(jettyServer);
@@ -127,9 +119,7 @@ public class ShuffleServer {
    * Await termination on the main thread since the grpc library uses daemon threads.
    */
   private void blockUntilShutdown() throws InterruptedException {
-    if (grpcServer != null) {
-      grpcServer.awaitTermination();
-    }
+    server.blockUntilShutdown();
   }
 
   public String getIp() {
@@ -148,16 +138,16 @@ public class ShuffleServer {
     return this.shuffleServerConf;
   }
 
+  public ServerInterface getServer() {
+    return server;
+  }
+
+  public void setServer(ServerInterface server) {
+    this.server = server;
+  }
+
   public int getAvailabelBufferNum() {
     return bufferManager.getAvailableCount();
-  }
-
-  public Server getGrpcServer() {
-    return grpcServer;
-  }
-
-  public void setGrpcServer(Server grpcServer) {
-    this.grpcServer = grpcServer;
   }
 
   public ShuffleTaskManager getShuffleTaskManager() {

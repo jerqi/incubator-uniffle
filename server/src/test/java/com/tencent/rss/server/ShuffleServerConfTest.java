@@ -1,5 +1,9 @@
 package com.tencent.rss.server;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -10,10 +14,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 @RunWith(JUnit4.class)
 public class ShuffleServerConfTest {
@@ -44,7 +44,7 @@ public class ShuffleServerConfTest {
   public void envConfTest() {
     environmentVariables.set("RSS_HOME", (new File(confFile)).getParent());
     shuffleServerConf.loadConfFromFile(null);
-    assertEquals(1234, shuffleServerConf.getInteger(ShuffleServerConf.SERVICE_PORT));
+    assertEquals(1234, shuffleServerConf.getInteger(ShuffleServerConf.SERVER_PORT));
     assertEquals("FILE", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_TYPE));
     assertEquals("/var/tmp/test", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH));
 
@@ -55,7 +55,7 @@ public class ShuffleServerConfTest {
   @Test
   public void confTest() {
     assertTrue(shuffleServerConf.loadConfFromFile(confFile));
-    assertEquals(1234, shuffleServerConf.getInteger(ShuffleServerConf.SERVICE_PORT));
+    assertEquals(1234, shuffleServerConf.getInteger(ShuffleServerConf.SERVER_PORT));
     assertEquals("FILE", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_TYPE));
     assertEquals("/var/tmp/test", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH));
     assertFalse(shuffleServerConf.loadConfFromFile("/var/tmp/null"));
