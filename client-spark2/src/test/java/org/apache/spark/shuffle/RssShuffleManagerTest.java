@@ -37,7 +37,7 @@ public class RssShuffleManagerTest {
         .set("spark.rss.coordinator.ip", "0.0.0.0")
         .set("spark.rss.coordinator.port", "100");
     // init SparkContext
-    SparkContext sc = new SparkContext(conf);
+    SparkContext sc = SparkContext.getOrCreate(conf);
     MANAGER = new RssShuffleManager(conf, true);
   }
 

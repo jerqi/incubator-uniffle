@@ -1,30 +1,29 @@
 package com.tencent.rss.test;
 
+import static org.junit.Assert.assertEquals;
+
 import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.coordinator.CoordinatorServer;
 import com.tencent.rss.server.ShuffleServer;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.storage.HdfsTestBase;
+import java.util.Map;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.SparkSession;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
 
 abstract public class IntegrationTestBase extends HdfsTestBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(IntegrationTestBase.class);
 
-  private ShuffleServer shuffleServer;
-  private CoordinatorServer coordinator;
+  private static ShuffleServer shuffleServer;
+  private static CoordinatorServer coordinator;
 
-  @Before
-  public void setupServers() throws Exception {
+  @BeforeClass
+  public static void setupServers() throws Exception {
     // Load configuration from config files
     CoordinatorConf coordinatorConf = new CoordinatorConf();
     coordinatorConf.setString("rss.coordinator.port", "19999");
@@ -50,8 +49,8 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     shuffleServer.start();
   }
 
-  @After
-  public void shutdownServers() throws Exception {
+  @AfterClass
+  public static void shutdownServers() throws Exception {
     shuffleServer.stopServer();
     coordinator.stop();
   }
@@ -66,31 +65,35 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
   public void run() throws Exception {
 
     String fileName = generateTestFile();
-
-    SparkConf sparkConf = new SparkConf()
-        .setAppName(this.getClass().getSimpleName())
-        .setMaster("local[4]");
-    SparkSession spark = SparkSession.builder().config(sparkConf).getOrCreate();
+    SparkConf sparkConf = createSparkConf();
 
     long start = System.currentTimeMillis();
-    Map resultWithoutRss = runTest(spark, fileName);
+    Map resultWithoutRss = runSparkApp(sparkConf, fileName);
     long durationWithoutRss = System.currentTimeMillis() - start;
-    spark.stop();
 
     updateSparkConfWithRss(sparkConf);
     updateSparkConfCustomer(sparkConf);
-    spark = SparkSession.builder().config(sparkConf).getOrCreate();
-
     start = System.currentTimeMillis();
-    Map resultWithRss = runTest(spark, fileName);
+    Map resultWithRss = runSparkApp(sparkConf, fileName);
     long durationWithRss = System.currentTimeMillis() - start;
 
     verifyTestResult(resultWithoutRss, resultWithRss);
 
     LOG.info("Test: durationWithoutRss[" + durationWithoutRss
         + "], durationWithRss[" + durationWithRss + "]");
-    // Stop SparkContext before the job is done
+  }
+
+  protected Map runSparkApp(SparkConf sparkConf, String testFileName) throws Exception {
+    SparkSession spark = SparkSession.builder().config(sparkConf).getOrCreate();
+    Map resultWithRss = runTest(spark, testFileName);
     spark.stop();
+    return resultWithRss;
+  }
+
+  protected SparkConf createSparkConf() {
+    return new SparkConf()
+        .setAppName(this.getClass().getSimpleName())
+        .setMaster("local[4]");
   }
 
   public void updateSparkConfWithRss(SparkConf sparkConf) {

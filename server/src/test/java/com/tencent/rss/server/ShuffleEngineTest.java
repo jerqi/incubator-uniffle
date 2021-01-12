@@ -170,7 +170,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
       f.get();
     }
     // wait for asny flush
-    Thread.sleep(2000);
+    Thread.sleep(10000);
     checkFiles(path, "test.index", "test.data");
   }
 

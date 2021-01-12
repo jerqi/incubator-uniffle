@@ -43,7 +43,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   private ShuffleDependency<K, C, ?> shuffleDependency;
   private int timeoutMillis;
   private Serializer serializer;
-  private String taskIdentify;
+  private String taskId;
   private Configuration hadoopConf;
   private String basePath;
   private int indexReadLimit;
@@ -66,7 +66,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     this.shuffleId = shuffleDependency.shuffleId();
     this.timeoutMillis = timeoutMillis;
     this.serializer = rssShuffleHandle.getDependency().serializer();
-    this.taskIdentify = "" + context.taskAttemptId() + "_" + context.attemptNumber();
+    this.taskId = "" + context.taskAttemptId() + "_" + context.attemptNumber();
     this.basePath = basePath;
     this.indexReadLimit = indexReadLimit;
   }
@@ -178,8 +178,9 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   private String getReadInfo() {
     return "appId=" + appId
         + ", shuffleId=" + shuffleId
-        + ",taskIdentify=" + taskIdentify
+        + ",taskId=" + taskId
         + ", partitions: [" + startPartition
         + ", " + endPartition + ")";
   }
+
 }

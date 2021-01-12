@@ -15,12 +15,11 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.spark.Partitioner;
 import org.apache.spark.ShuffleDependency;
+import org.apache.spark.SparkConf;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
-import org.apache.spark.serializer.Serializer;
 import org.apache.spark.shuffle.writer.AddBlockEvent;
-import org.apache.spark.shuffle.writer.BufferManagerOptions;
 import org.apache.spark.shuffle.writer.WriteBufferManager;
 import org.apache.spark.storage.BlockManagerId;
 import org.slf4j.Logger;
@@ -40,11 +39,11 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private static final int DUMMY_PORT = 99999;
   private String appId;
   private int shuffleId;
-  private String taskIdentify;
+  private String taskId;
   private ShuffleDependency<K, V, C> shuffleDependency;
   private ShuffleWriteMetrics shuffleWriteMetrics;
-  private BufferManagerOptions bufferOptions;
-  private Serializer serializer;
+  //  private BufferManagerOptions bufferOptions;
+//  private Serializer serializer;
   private Partitioner partitioner;
   private boolean shouldPartition;
   private WriteBufferManager bufferManager;
@@ -54,35 +53,30 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private Set<ShuffleServerInfo> shuffleServerInfos;
   private Map<Integer, Set<Long>> partitionToBlockIds;
 
-  public RssShuffleWriter(String appId, int shuffleId, int executorId, String taskIdentify,
+  public RssShuffleWriter(
+      String appId,
+      int shuffleId,
+      String taskId,
+      WriteBufferManager bufferManager,
       ShuffleWriteMetrics shuffleWriteMetrics,
-      BufferManagerOptions bufferOptions, RssShuffleHandle rssShuffleHandle,
-      RssShuffleManager shuffleManager, long sendCheckTimeout, long sendCheckInterval) {
+      ShuffleDependency shuffleDependency,
+      RssShuffleManager shuffleManager,
+      SparkConf sparkConf) {
     this.appId = appId;
+    this.bufferManager = bufferManager;
     this.shuffleId = shuffleId;
-    this.taskIdentify = taskIdentify;
-    this.shuffleDependency = rssShuffleHandle.getDependency();
+    this.taskId = taskId;
+    this.shuffleDependency = shuffleDependency;
     this.shuffleWriteMetrics = shuffleWriteMetrics;
-    this.bufferOptions = bufferOptions;
-    this.serializer = shuffleDependency.serializer();
     this.partitioner = shuffleDependency.partitioner();
     this.shuffleManager = shuffleManager;
     this.shouldPartition = partitioner.numPartitions() > 1;
     this.shuffleServerInfos = Sets.newConcurrentHashSet();
-    this.sendCheckInterval = sendCheckInterval;
-    this.sendCheckTimeout = sendCheckTimeout;
+    this.sendCheckTimeout = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT,
+        RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT_DEFAULT_VALUE);
+    this.sendCheckInterval = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL,
+        RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL_DEFAULT_VALUE);
     this.partitionToBlockIds = Maps.newConcurrentMap();
-    bufferManager = new WriteBufferManager(shuffleId, bufferOptions.getIndividualBufferSize(),
-        bufferOptions.getIndividualBufferMax(), bufferOptions.getBufferSpillThreshold(),
-        executorId, serializer, rssShuffleHandle.getPartitionToServers());
-    Map<Integer, List<ShuffleServerInfo>> partitionToServers = rssShuffleHandle.getPartitionToServers();
-    LOG_RSS_INFO.info("Init RssShuffleWriter for ShuffleId[" + shuffleId + "], size:" + partitionToServers.size());
-    for (Map.Entry<Integer, List<ShuffleServerInfo>> entry : partitionToServers.entrySet()) {
-      for (ShuffleServerInfo ssi : entry.getValue()) {
-        LOG_RSS_INFO.info("RssShuffleWriter ShuffleId[" + shuffleId + "], partition["
-            + entry.getKey() + "], shuffleServer[" + ssi.getId() + "]");
-      }
-    }
   }
 
   /**
@@ -147,14 +141,14 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       });
 
       shuffleManager.getEventLoop().post(
-          new AddBlockEvent(taskIdentify, shuffleBlockInfos));
+          new AddBlockEvent(taskId, shuffleBlockInfos));
     }
   }
 
   @VisibleForTesting
   protected void sendCommit() {
     shuffleServerInfos.parallelStream().forEach(ssi -> {
-      LOG.info("SendCommit for appId[" + appId + "], shuffleId[" + shuffleId + "], task[" + taskIdentify
+      LOG.info("SendCommit for appId[" + appId + "], shuffleId[" + shuffleId + "], task[" + taskId
           + "] to ShuffleServer[" + ssi.getId() + "]");
       ShuffleServerClientManager.getInstance()
           .getClient(ssi).commitShuffleTask(appId, shuffleId);
@@ -165,12 +159,12 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   protected void checkBlockSendResult(Set<Long> blockIds) throws RuntimeException {
     long start = System.currentTimeMillis();
     while (true) {
-      Set<Long> failedBlockIds = shuffleManager.getFailedBlockIds(taskIdentify);
-      Set<Long> successBlockIds = shuffleManager.getSuccessBlockIds(taskIdentify);
+      Set<Long> failedBlockIds = shuffleManager.getFailedBlockIds(taskId);
+      Set<Long> successBlockIds = shuffleManager.getSuccessBlockIds(taskId);
       // if failed when send data to shuffle server, mark task as failed
       if (failedBlockIds.size() > 0) {
         String errorMsg =
-            "Send failed: Task[" + taskIdentify + "] failed because blockIds ["
+            "Send failed: Task[" + taskId + "] failed because blockIds ["
                 + Joiner.on(" ").join(failedBlockIds)
                 + "] can't be sent to shuffle server.";
         LOG.error(errorMsg);
@@ -189,7 +183,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       }
       if (System.currentTimeMillis() - start > sendCheckTimeout) {
         String errorMsg =
-            "Timeout: Task[" + taskIdentify + "] failed because blockIds [" + Joiner.on(" ").join(blockIds)
+            "Timeout: Task[" + taskId + "] failed because blockIds [" + Joiner.on(" ").join(blockIds)
                 + "] can't be sent to shuffle server in " + (sendCheckTimeout / 1000) + "s.";
         LOG.error(errorMsg);
         throw new RuntimeException(errorMsg);
@@ -206,7 +200,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         Arrays.fill(partitionLengths, 1);
         String jsonStr = ClientUtils.transBlockIdsToJson(partitionToBlockIds);
         BlockManagerId blockManagerId =
-            createDummyBlockManagerId(appId + "_" + taskIdentify, jsonStr);
+            createDummyBlockManagerId(appId + "_" + taskId, jsonStr);
 
         for (Map.Entry<Integer, Set<Long>> entry : partitionToBlockIds.entrySet()) {
           LOG.info("Finish send blocks for shuffleId[" + shuffleId + "], partitionId["

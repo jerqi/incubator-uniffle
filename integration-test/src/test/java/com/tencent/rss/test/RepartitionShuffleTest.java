@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Random;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.SparkSession;
@@ -22,17 +23,27 @@ public class RepartitionShuffleTest extends IntegrationTestBase implements Seria
   private static final Logger LOG = LoggerFactory.getLogger(IntegrationTestBase.class);
 
   @Test
-  public void test() throws Exception {
+  public void resultCompareTest() throws Exception {
     run();
+  }
+
+  @Test
+  public void testMemoryRelease() throws Exception {
+    String fileName = generateTextFile(10000, 10000);
+    SparkConf sparkConf = createSparkConf();
+    updateSparkConfWithRss(sparkConf);
+    sparkConf.set("spark.executor.memory", "500m");
+    sparkConf.set("spark.rss.writer.buffer.size", "4m");
+    sparkConf.set("spark.rss.writer.buffer.max.size", "8m");
+    sparkConf.set("spark.rss.writer.buffer.spill.size", "20m");
+
+    // oom if there has no memory release
+    runSparkApp(sparkConf, fileName);
   }
 
   @Override
   public Map runTest(SparkSession spark, String fileName) {
-    JavaRDD<String> lines = spark.read().textFile(fileName).javaRDD();
-    JavaRDD<String> words = lines.flatMap(s -> Arrays.asList(s.split(" ")).iterator());
-    JavaPairRDD<String, Integer> ones = words.mapToPair(s -> new Tuple2<>(s, 1)).repartition(5);
-    JavaPairRDD<String, Integer> counts = ones.reduceByKey((i1, i2) -> i1 + i2);
-    return counts.sortByKey().collectAsMap();
+    return repartitionApp(spark, fileName);
   }
 
   @Override
@@ -40,7 +51,7 @@ public class RepartitionShuffleTest extends IntegrationTestBase implements Seria
     return generateTextFile(1000, 5000);
   }
 
-  protected String generateTextFile(int wordsPerRow, int rows) throws Exception {
+  private String generateTextFile(int wordsPerRow, int rows) throws Exception {
     String tempDir = Files.createTempDirectory("rss").toString();
     File file = new File(tempDir, "wordcount.txt");
     file.createNewFile();
@@ -69,5 +80,13 @@ public class RepartitionShuffleTest extends IntegrationTestBase implements Seria
       sb.append(" ");
     }
     return sb.toString();
+  }
+
+  private Map repartitionApp(SparkSession spark, String fileName) {
+    JavaRDD<String> lines = spark.read().textFile(fileName).javaRDD();
+    JavaRDD<String> words = lines.flatMap(s -> Arrays.asList(s.split(" ")).iterator());
+    JavaPairRDD<String, Integer> ones = words.mapToPair(s -> new Tuple2<>(s, 1)).repartition(5);
+    JavaPairRDD<String, Integer> counts = ones.reduceByKey((i1, i2) -> i1 + i2);
+    return counts.sortByKey().collectAsMap();
   }
 }

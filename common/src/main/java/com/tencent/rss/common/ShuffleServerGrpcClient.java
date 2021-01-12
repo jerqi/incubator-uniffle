@@ -50,7 +50,7 @@ public class ShuffleServerGrpcClient extends GrpcClient {
     }
   }
 
-  public boolean sendShuffleDatas(String appId, Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleIdToBlocks) {
+  public boolean sendShuffleData(String appId, Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleIdToBlocks) {
     List<ShuffleBlockInfo> shuffleBlockInfos = Lists.newArrayList();
     // prepare rpc request based on shuffleId -> partitionId -> blocks
     for (Map.Entry<Integer, Map<Integer, List<ShuffleBlockInfo>>> stb : shuffleIdToBlocks.entrySet()) {

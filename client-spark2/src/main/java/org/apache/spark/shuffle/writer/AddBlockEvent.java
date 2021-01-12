@@ -5,20 +5,24 @@ import java.util.List;
 
 public class AddBlockEvent {
 
-    private String taskIdentify;
-    private List<ShuffleBlockInfo> shuffleDataInfo;
+  private String taskId;
+  private List<ShuffleBlockInfo> shuffleDataInfo;
 
-    public AddBlockEvent(String taskIdentify, List<ShuffleBlockInfo> shuffleDataInfo) {
-        this.taskIdentify = taskIdentify;
-        this.shuffleDataInfo = shuffleDataInfo;
-    }
+  public AddBlockEvent(String taskId, List<ShuffleBlockInfo> shuffleDataInfo) {
+    this.taskId = taskId;
+    this.shuffleDataInfo = shuffleDataInfo;
+  }
 
-    public String getTaskIdentify() {
-        return taskIdentify;
-    }
+  public String getTaskId() {
+    return taskId;
+  }
 
-    public List<ShuffleBlockInfo> getShuffleDataInfo() {
-        return shuffleDataInfo;
-    }
+  public List<ShuffleBlockInfo> getShuffleDataInfo() {
+    return shuffleDataInfo;
+  }
 
+  @Override
+  public String toString() {
+    return "AddBlockEvent: TaskId[" + taskId + "], " + shuffleDataInfo;
+  }
 }
