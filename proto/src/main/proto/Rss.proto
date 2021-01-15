@@ -58,7 +58,7 @@ message ShuffleCommitResponse {
 
 message ShuffleServerHeartBeatRequest {
   ShuffleServerId serverId = 1;
-  int32 availableBufferNum = 2;
+  int32 bufferUsedPercent = 2;
 }
 
 message ShuffleServerHeartBeatResponse {

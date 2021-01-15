@@ -100,7 +100,6 @@
   </repositories>
 
   <modules>
-    <module>api</module>
     <module>common</module>
     <module>coordinator</module>
     <module>proto</module>

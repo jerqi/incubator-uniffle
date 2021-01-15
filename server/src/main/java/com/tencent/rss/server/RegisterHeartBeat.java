@@ -75,7 +75,7 @@ public class RegisterHeartBeat {
             shuffleServer.getId(),
             shuffleServer.getIp(),
             shuffleServer.getPort(),
-            -1);
+            shuffleServer.getBufferManager().getBufferUsedPercent());
       }
     };
 
@@ -83,9 +83,9 @@ public class RegisterHeartBeat {
   }
 
   @VisibleForTesting
-  boolean sendHeartBeat(String id, String ip, int port, int num) {
+  boolean sendHeartBeat(String id, String ip, int port, int percent) {
     LOGGER.debug("Start to send heartbeat " + System.currentTimeMillis());
-    ShuffleServerHeartBeatResponse response = rpcClient.sendHeartBeat(id, ip, port, num, heartBeatTimeout);
+    ShuffleServerHeartBeatResponse response = rpcClient.sendHeartBeat(id, ip, port, percent, heartBeatTimeout);
     StatusCode status = response.getStatus();
 
     if (status != StatusCode.SUCCESS) {

@@ -27,18 +27,14 @@ public class BufferManager {
   }
 
   public ShuffleBuffer getBuffer(ShuffleEngine shuffleEngine) {
+    ShuffleBuffer cur = new ShuffleBuffer(bufferSize, shuffleEngine, this);
     if (isFull()) {
       return null;
+    } else {
+      // TODO: key already exist
+      pool.put(shuffleEngine.makeKey(), cur);
+      return cur;
     }
-
-      ShuffleBuffer cur = new ShuffleBuffer(bufferSize, shuffleEngine, this);
-        if (isFull()) {
-          return null;
-        } else {
-          // TODO: key already exist
-          pool.put(shuffleEngine.makeKey(), cur);
-          return cur;
-        }
   }
 
   public void flush() {
@@ -84,6 +80,10 @@ public class BufferManager {
 
   public void setBufferSize(int bufferSize) {
     this.bufferSize = bufferSize;
+  }
+
+  public int getBufferUsedPercent() {
+    return (int) (atomicSize.longValue() / (capacity / 100));
   }
 
   @VisibleForTesting

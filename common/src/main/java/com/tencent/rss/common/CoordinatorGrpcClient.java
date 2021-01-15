@@ -38,11 +38,11 @@ public class CoordinatorGrpcClient extends GrpcClient {
   }
 
   public ShuffleServerHeartBeatResponse sendHeartBeat(
-      String id, String ip, int port, int availableBufferNum, long timeout) {
+      String id, String ip, int port, int percent, long timeout) {
     ShuffleServerId serverId =
         ShuffleServerId.newBuilder().setId(id).setIp(ip).setPort(port).build();
     ShuffleServerHeartBeatRequest request = ShuffleServerHeartBeatRequest
-        .newBuilder().setServerId(serverId).setAvailableBufferNum(availableBufferNum).build();
+        .newBuilder().setServerId(serverId).setBufferUsedPercent(percent).build();
 
     StatusCode status;
     ShuffleServerHeartBeatResponse response = null;
