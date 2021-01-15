@@ -115,6 +115,7 @@ public class ShuffleEngineManager {
       }
     }
 
+    int retry = 0;
     while (true) {
       List<String> removedKeys = Lists.newArrayList();
       for (Map.Entry<String, Set<Long>> entry : pathToEventIds.entrySet()) {
@@ -138,6 +139,11 @@ public class ShuffleEngineManager {
         break;
       }
       Thread.sleep(1000);
+      retry++;
+      if (retry > 30) {
+        throw new RuntimeException("Shuffle data commit timeout");
+      }
+      LOG.info("Wait commit operation finish, retry " + retry);
     }
 
     ShuffleServerMetrics.decRegisteredShuffleEngine();

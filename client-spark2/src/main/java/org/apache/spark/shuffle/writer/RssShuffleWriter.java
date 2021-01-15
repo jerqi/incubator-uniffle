@@ -1,11 +1,11 @@
-package org.apache.spark.shuffle;
+package org.apache.spark.shuffle.writer;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.tecent.rss.client.ClientUtils;
-import com.tecent.rss.client.ShuffleServerClientManager;
+import com.tecent.rss.client.ShuffleWriteClient;
+import com.tecent.rss.client.util.ClientUtils;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.common.util.Constants;
@@ -19,8 +19,9 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
-import org.apache.spark.shuffle.writer.AddBlockEvent;
-import org.apache.spark.shuffle.writer.WriteBufferManager;
+import org.apache.spark.shuffle.RssClientConfig;
+import org.apache.spark.shuffle.RssShuffleManager;
+import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.storage.BlockManagerId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,16 +43,15 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private String taskId;
   private ShuffleDependency<K, V, C> shuffleDependency;
   private ShuffleWriteMetrics shuffleWriteMetrics;
-  //  private BufferManagerOptions bufferOptions;
-//  private Serializer serializer;
   private Partitioner partitioner;
   private boolean shouldPartition;
   private WriteBufferManager bufferManager;
   private RssShuffleManager shuffleManager;
   private long sendCheckTimeout;
   private long sendCheckInterval;
-  private Set<ShuffleServerInfo> shuffleServerInfos;
+  private Set<ShuffleServerInfo> shuffleServerInfoSet;
   private Map<Integer, Set<Long>> partitionToBlockIds;
+  private ShuffleWriteClient shuffleWriteClient;
 
   public RssShuffleWriter(
       String appId,
@@ -61,7 +61,8 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       ShuffleWriteMetrics shuffleWriteMetrics,
       ShuffleDependency shuffleDependency,
       RssShuffleManager shuffleManager,
-      SparkConf sparkConf) {
+      SparkConf sparkConf,
+      ShuffleWriteClient shuffleWriteClient) {
     this.appId = appId;
     this.bufferManager = bufferManager;
     this.shuffleId = shuffleId;
@@ -71,12 +72,13 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.partitioner = shuffleDependency.partitioner();
     this.shuffleManager = shuffleManager;
     this.shouldPartition = partitioner.numPartitions() > 1;
-    this.shuffleServerInfos = Sets.newConcurrentHashSet();
+    this.shuffleServerInfoSet = Sets.newConcurrentHashSet();
     this.sendCheckTimeout = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT,
         RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT_DEFAULT_VALUE);
     this.sendCheckInterval = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL,
         RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL_DEFAULT_VALUE);
     this.partitionToBlockIds = Maps.newConcurrentMap();
+    this.shuffleWriteClient = shuffleWriteClient;
   }
 
   /**
@@ -131,7 +133,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         blockIds.add(blockId);
         LOG_RSS_INFO.info("Block ready to queue " + sbi.toString());
         // update shuffle server info, they will be used in commit phase
-        shuffleServerInfos.addAll(sbi.getShuffleServerInfos());
+        shuffleServerInfoSet.addAll(sbi.getShuffleServerInfos());
         // update [partition, blockIds], it will be set to MapStatus
         int partitionId = sbi.getPartitionId();
         if (partitionToBlockIds.get(partitionId) == null) {
@@ -147,12 +149,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @VisibleForTesting
   protected void sendCommit() {
-    shuffleServerInfos.parallelStream().forEach(ssi -> {
-      LOG.info("SendCommit for appId[" + appId + "], shuffleId[" + shuffleId + "], task[" + taskId
-          + "] to ShuffleServer[" + ssi.getId() + "]");
-      ShuffleServerClientManager.getInstance()
-          .getClient(ssi).commitShuffleTask(appId, shuffleId);
-    });
+    shuffleWriteClient.sendCommit(shuffleServerInfoSet, appId, shuffleId);
   }
 
   @VisibleForTesting

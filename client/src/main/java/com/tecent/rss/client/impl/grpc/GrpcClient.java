@@ -1,4 +1,4 @@
-package com.tencent.rss.common;
+package com.tecent.rss.client.impl.grpc;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;

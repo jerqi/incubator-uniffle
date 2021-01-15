@@ -4,7 +4,6 @@ import com.tencent.rss.common.config.ConfigOption;
 import com.tencent.rss.common.config.ConfigOptions;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.common.util.RssUtils;
-
 import java.util.Map;
 
 /**
@@ -12,12 +11,6 @@ import java.util.Map;
  * heartbeat interval and etc.
  */
 public class CoordinatorConf extends RssBaseConf {
-
-  private static final ConfigOption<Integer> SERVICE_PORT = ConfigOptions
-      .key("rss.coordinator.port")
-      .intType()
-      .defaultValue(19999)
-      .withDescription("Coordinator service port");
 
   private static final ConfigOption<String> DATA_STORAGE = ConfigOptions
       .key("rss.data.storage")
@@ -76,10 +69,6 @@ public class CoordinatorConf extends RssBaseConf {
     loadCommonConf(properties);
 
     properties.forEach((k, v) -> {
-      if (SERVICE_PORT.key().equalsIgnoreCase(k)) {
-        set(SERVICE_PORT, Integer.valueOf(v));
-      }
-
       if (DATA_STORAGE.key().equalsIgnoreCase(k)) {
         set(DATA_STORAGE, v.toUpperCase());
       }
@@ -107,10 +96,6 @@ public class CoordinatorConf extends RssBaseConf {
     });
 
     return true;
-  }
-
-  public int getCoordinatorServicePort() {
-    return this.getInteger(SERVICE_PORT);
   }
 
   public int getHeartbeatInterval() {

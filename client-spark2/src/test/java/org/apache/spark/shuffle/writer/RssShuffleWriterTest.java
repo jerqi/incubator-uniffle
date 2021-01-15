@@ -1,4 +1,4 @@
-package org.apache.spark.shuffle;
+package org.apache.spark.shuffle.writer;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -8,9 +8,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import com.clearspring.analytics.util.Lists;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.tecent.rss.client.ShuffleWriteClient;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.Arrays;
@@ -26,9 +27,8 @@ import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.serializer.Serializer;
-import org.apache.spark.shuffle.writer.AddBlockEvent;
-import org.apache.spark.shuffle.writer.BufferManagerOptions;
-import org.apache.spark.shuffle.writer.WriteBufferManager;
+import org.apache.spark.shuffle.RssShuffleHandle;
+import org.apache.spark.shuffle.RssShuffleManager;
 import org.apache.spark.util.EventLoop;
 import org.hamcrest.core.StringStartsWith;
 import org.junit.Rule;
@@ -50,12 +50,14 @@ public class RssShuffleWriterTest {
         .setMaster("local[2]")
         .set("spark.rss.test", "true")
         .set("spark.rss.writer.send.check.timeout", "10000")
-        .set("spark.rss.writer.send.check.interval", "1000");
+        .set("spark.rss.writer.send.check.interval", "1000")
+        .set("spark.rss.coordinator.ip", "127.0.0.1");
     // init SparkContext
     SparkContext sc = SparkContext.getOrCreate(conf);
     RssShuffleManager manager = new RssShuffleManager(conf, false);
 
     Serializer mockSerializer = mock(Serializer.class);
+    ShuffleWriteClient mockShuffleWriteClient = mock(ShuffleWriteClient.class);
     Partitioner mockPartitioner = mock(Partitioner.class);
     ShuffleDependency mockDependency = mock(ShuffleDependency.class);
     RssShuffleHandle mockHandle = mock(RssShuffleHandle.class);
@@ -75,7 +77,7 @@ public class RssShuffleWriterTest {
 
     RssShuffleWriter rssShuffleWriter = new RssShuffleWriter("appId", 0, "taskId",
         bufferManagerSpy, (new TaskMetrics()).shuffleWriteMetrics(),
-        mockDependency, manager, conf);
+        mockDependency, manager, conf, mockShuffleWriteClient);
 
     // case 1: all blocks are sent successfully
     manager.addSuccessBlockIds("taskId", Sets.newHashSet(1L, 2L, 3L));
@@ -111,7 +113,8 @@ public class RssShuffleWriterTest {
         .set("spark.rss.writer.buffer.max.size", "64")
         .set("spark.rss.writer.buffer.spill.size", "64")
         .set("spark.rss.writer.send.check.timeout", "10000")
-        .set("spark.rss.writer.send.check.interval", "1000");
+        .set("spark.rss.writer.send.check.interval", "1000")
+        .set("spark.rss.coordinator.ip", "127.0.0.1");
     // init SparkContext
     SparkContext sc = SparkContext.getOrCreate(conf);
     RssShuffleManager manager = new RssShuffleManager(conf, false);
@@ -121,8 +124,8 @@ public class RssShuffleWriterTest {
       @Override
       public void onReceive(AddBlockEvent event) {
         assertEquals("taskId", event.getTaskId());
-        shuffleBlockInfos.addAll(event.getShuffleDataInfo());
-        Set<Long> blockIds = event.getShuffleDataInfo().parallelStream()
+        shuffleBlockInfos.addAll(event.getShuffleDataInfoList());
+        Set<Long> blockIds = event.getShuffleDataInfoList().parallelStream()
             .map(sdi -> sdi.getBlockId()).collect(Collectors.toSet());
         manager.addSuccessBlockIds(event.getTaskId(), blockIds);
       }
@@ -135,6 +138,7 @@ public class RssShuffleWriterTest {
 
     Partitioner mockPartitioner = mock(Partitioner.class);
     ShuffleDependency mockDependency = mock(ShuffleDependency.class);
+    ShuffleWriteClient mockShuffleWriteClient = mock(ShuffleWriteClient.class);
     RssShuffleHandle mockHandle = mock(RssShuffleHandle.class);
     when(mockHandle.getDependency()).thenReturn(mockDependency);
     Serializer kryoSerializer = new KryoSerializer(conf);
@@ -173,7 +177,7 @@ public class RssShuffleWriterTest {
 
     RssShuffleWriter rssShuffleWriter = new RssShuffleWriter("appId", 0, "taskId",
         bufferManagerSpy, (new TaskMetrics()).shuffleWriteMetrics(),
-        mockDependency, manager, conf);
+        mockDependency, manager, conf, mockShuffleWriteClient);
 
     RssShuffleWriter<String, String, String> rssShuffleWriterSpy = spy(rssShuffleWriter);
     doNothing().when(rssShuffleWriterSpy).sendCommit();

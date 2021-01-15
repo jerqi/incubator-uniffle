@@ -1,4 +1,4 @@
-package com.tencent.rss.test;
+package com.tencent.rss.test.spark;
 
 import com.google.common.collect.Maps;
 import java.io.File;
@@ -16,7 +16,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SparkSQLTest extends IntegrationTestBase {
+public class SparkSQLTest extends SparkIntegrationTestBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkSQLTest.class);
 

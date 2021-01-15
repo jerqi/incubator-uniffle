@@ -139,7 +139,8 @@ message PartitionRangeAssignment {
 }
 
 message GetShuffleAssignmentsResponse {
-  repeated PartitionRangeAssignment assignments = 1;
+  StatusCode status = 1;
+  repeated PartitionRangeAssignment assignments = 2;
 }
 
 message ReportShuffleClientOpRequest {
@@ -161,6 +162,7 @@ message GetShuffleDataStorageInfoResponse {
 }
 
 message CheckServiceAvailableResponse {
-  bool available = 1;
+  StatusCode status = 1;
+  bool available = 2;
 }
 

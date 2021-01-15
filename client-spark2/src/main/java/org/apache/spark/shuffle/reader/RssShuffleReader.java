@@ -1,7 +1,10 @@
-package org.apache.spark.shuffle;
+package org.apache.spark.shuffle.reader;
 
 import avro.shaded.com.google.common.collect.Sets;
-import com.tecent.rss.client.ClientUtils;
+import com.tecent.rss.client.ShuffleReadClient;
+import com.tecent.rss.client.factory.ShuffleClientFactory;
+import com.tecent.rss.client.request.CreateShuffleReadClientRequest;
+import com.tecent.rss.client.util.ClientUtils;
 import com.tencent.rss.common.util.Constants;
 import java.io.IOException;
 import java.util.Map;
@@ -12,7 +15,8 @@ import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.serializer.Serializer;
-import org.apache.spark.shuffle.reader.RssShuffleDataIterator;
+import org.apache.spark.shuffle.RssShuffleHandle;
+import org.apache.spark.shuffle.ShuffleReader;
 import org.apache.spark.storage.BlockId;
 import org.apache.spark.storage.BlockManagerId;
 import org.apache.spark.util.CompletionIterator$;
@@ -47,6 +51,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   private Configuration hadoopConf;
   private String basePath;
   private int indexReadLimit;
+  private String storageType;
 
   public RssShuffleReader(
       int startPartition,
@@ -56,7 +61,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
       int timeoutMillis,
       String basePath,
       int indexReadLimit,
-      Configuration hadoopConf) {
+      Configuration hadoopConf,
+      String storageType) {
     this.appId = rssShuffleHandle.getAppId();
     this.startPartition = startPartition;
     this.endPartition = endPartition;
@@ -69,14 +75,20 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     this.taskId = "" + context.taskAttemptId() + "_" + context.attemptNumber();
     this.basePath = basePath;
     this.indexReadLimit = indexReadLimit;
+    this.storageType = storageType;
   }
 
   @Override
   public Iterator<Product2<K, C>> read() {
     LOG.info("Shuffle read started:" + getReadInfo());
+
+    CreateShuffleReadClientRequest request = new CreateShuffleReadClientRequest(
+        storageType, basePath, hadoopConf, indexReadLimit, getExpectedBlockIds());
+    ShuffleReadClient shuffleReadClient = ShuffleClientFactory.getINSTANCE().createShuffleReadClient(request);
+
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator<K, C>(
-        indexReadLimit, shuffleDependency.serializer(), getExpectedBlockIds());
-    rssShuffleDataIterator.init(basePath, hadoopConf);
+        shuffleDependency.serializer(), shuffleReadClient);
+    rssShuffleDataIterator.checkExpectedBlockIds();
 
     Iterator<Product2<K, C>> resultIter = null;
     Iterator<Product2<K, C>> aggregatedIter = null;

@@ -6,23 +6,23 @@ import java.util.List;
 public class AddBlockEvent {
 
   private String taskId;
-  private List<ShuffleBlockInfo> shuffleDataInfo;
+  private List<ShuffleBlockInfo> shuffleDataInfoList;
 
-  public AddBlockEvent(String taskId, List<ShuffleBlockInfo> shuffleDataInfo) {
+  public AddBlockEvent(String taskId, List<ShuffleBlockInfo> shuffleDataInfoList) {
     this.taskId = taskId;
-    this.shuffleDataInfo = shuffleDataInfo;
+    this.shuffleDataInfoList = shuffleDataInfoList;
   }
 
   public String getTaskId() {
     return taskId;
   }
 
-  public List<ShuffleBlockInfo> getShuffleDataInfo() {
-    return shuffleDataInfo;
+  public List<ShuffleBlockInfo> getShuffleDataInfoList() {
+    return shuffleDataInfoList;
   }
 
   @Override
   public String toString() {
-    return "AddBlockEvent: TaskId[" + taskId + "], " + shuffleDataInfo;
+    return "AddBlockEvent: TaskId[" + taskId + "], " + shuffleDataInfoList;
   }
 }

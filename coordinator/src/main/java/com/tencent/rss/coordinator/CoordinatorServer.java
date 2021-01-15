@@ -3,12 +3,11 @@ package com.tencent.rss.coordinator;
 import com.tencent.rss.common.Arguments;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
-
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * The main entrance of coordinator service
@@ -42,7 +41,7 @@ public class CoordinatorServer {
 
   public void start() throws IOException {
     /* The port on which the server should run */
-    final int port = coordinatorConf.getCoordinatorServicePort();
+    final int port = coordinatorConf.getCoordinatorPort();
 
     server = ServerBuilder.forPort(port)
         .addService(new CoordinatorServiceImp(coordinatorConf))

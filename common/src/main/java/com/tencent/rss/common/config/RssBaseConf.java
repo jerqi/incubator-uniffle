@@ -100,6 +100,24 @@ public class RssBaseConf extends RssConf {
       .defaultValue(Integer.MAX_VALUE)
       .withDescription("Max size of rpc message (byte)");
 
+  public static final ConfigOption<String> RSS_CLIENT_TYPE = ConfigOptions
+      .key("rss.client.type")
+      .stringType()
+      .defaultValue("GRPC")
+      .withDescription("client type for rss");
+
+  private static final ConfigOption<Integer> RSS_COODINATOR_PORT = ConfigOptions
+      .key("rss.coordinator.port")
+      .intType()
+      .defaultValue(19999)
+      .withDescription("Coordinator service port");
+
+  private static final ConfigOption<String> RSS_COODINATOR_HOST = ConfigOptions
+      .key("rss.coordinator.host")
+      .stringType()
+      .noDefaultValue()
+      .withDescription("Coordinator host");
+
   public boolean loadCommonConf(Map<String, String> properties) {
     if (properties == null) {
       return false;
@@ -165,8 +183,32 @@ public class RssBaseConf extends RssConf {
       if (RPC_MESSAGE_MAX_SIZE.key().equalsIgnoreCase(k)) {
         set(RPC_MESSAGE_MAX_SIZE, Integer.valueOf(v));
       }
+
+      if (RSS_CLIENT_TYPE.key().equalsIgnoreCase(k)) {
+        set(RSS_CLIENT_TYPE, v);
+      }
+
+      if (RSS_COODINATOR_PORT.key().equalsIgnoreCase(k)) {
+        set(RSS_COODINATOR_PORT, Integer.valueOf(v));
+      }
+
+      if (RSS_COODINATOR_HOST.key().equalsIgnoreCase(k)) {
+        set(RSS_COODINATOR_HOST, v);
+      }
     });
 
     return true;
+  }
+
+  public int getCoordinatorPort() {
+    return getInteger(RSS_COODINATOR_PORT);
+  }
+
+  public String getCoordinatorHost() {
+    return getString(RSS_COODINATOR_HOST);
+  }
+
+  public String getClientType() {
+    return getString(RSS_CLIENT_TYPE);
   }
 }

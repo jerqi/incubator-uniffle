@@ -1,9 +1,9 @@
-package com.tencent.rss.test;
+package com.tencent.rss.test.spark;
 
+import com.tencent.rss.test.IntegrationTestBase;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
-import java.io.Serializable;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Map;
@@ -18,7 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
-public class RepartitionShuffleTest extends IntegrationTestBase implements Serializable {
+public class RepartitionShuffleTest extends SparkIntegrationTestBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(IntegrationTestBase.class);
 
