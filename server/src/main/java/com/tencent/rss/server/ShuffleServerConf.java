@@ -4,7 +4,6 @@ import com.tencent.rss.common.config.ConfigOption;
 import com.tencent.rss.common.config.ConfigOptions;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.common.util.RssUtils;
-
 import java.util.Map;
 
 public class ShuffleServerConf extends RssBaseConf {
@@ -135,6 +134,12 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(3600L)
       .withDescription("thread gc check interval");
 
+  public static final ConfigOption<Long> RSS_SHUFFLE_SERVER_COMMIT_TIMEOUT = ConfigOptions
+      .key("rss.shuffleServer.commit.timeout")
+      .longType()
+      .defaultValue(30000L)
+      .withDescription("Timeout when commit shuffle data (ms)");
+
   public ShuffleServerConf() {
   }
 
@@ -234,6 +239,10 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (RSS_SHUFFLE_SERVER_FLUSH_HANDLER_EXPIRED.key().equalsIgnoreCase(k)) {
         set(RSS_SHUFFLE_SERVER_FLUSH_HANDLER_EXPIRED, Long.valueOf(v));
+      }
+
+      if (RSS_SHUFFLE_SERVER_COMMIT_TIMEOUT.key().equalsIgnoreCase(k)) {
+        set(RSS_SHUFFLE_SERVER_COMMIT_TIMEOUT, Long.valueOf(v));
       }
     });
 

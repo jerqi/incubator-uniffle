@@ -107,6 +107,7 @@ public class ShuffleEngineManager {
     for (ShuffleEngine engine : engineMap.values()) {
       Set<Long> eventIds = engine.commit();
 
+      // skip empty eventId
       if (!eventIds.isEmpty()) {
         String path = RssUtils.getShuffleDataPath(
             appId, shuffleId, engine.getStartPartition(), engine.getEndPartition());
@@ -115,7 +116,8 @@ public class ShuffleEngineManager {
       }
     }
 
-    int retry = 0;
+    long commitTimeout = conf.get(ShuffleServerConf.RSS_SHUFFLE_SERVER_COMMIT_TIMEOUT);
+    long start = System.currentTimeMillis();
     while (true) {
       List<String> removedKeys = Lists.newArrayList();
       for (Map.Entry<String, Set<Long>> entry : pathToEventIds.entrySet()) {
@@ -139,11 +141,10 @@ public class ShuffleEngineManager {
         break;
       }
       Thread.sleep(1000);
-      retry++;
-      if (retry > 30) {
-        throw new RuntimeException("Shuffle data commit timeout");
+      if (System.currentTimeMillis() - start > commitTimeout) {
+        throw new RuntimeException("Shuffle data commit timeout for " + commitTimeout + " ms");
       }
-      LOG.info("Wait commit operation finish, retry " + retry);
+      LOG.info("Checking commit result for appId[" + appId + "], shuffleId[" + shuffleId + "]");
     }
 
     ShuffleServerMetrics.decRegisteredShuffleEngine();

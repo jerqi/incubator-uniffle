@@ -1,6 +1,9 @@
 package com.tencent.rss.server;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -73,6 +76,17 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
     String shuffleFilePath1 = RssUtils.getShuffleDataPath(appId, shuffleId, 0, 1);
     String shuffleFilePath2 = RssUtils.getShuffleDataPath(appId, shuffleId, 2, 3);
 
+    shuffleEngineManager.commit();
+
+    // won't flush for partition 0-1
+    ShufflePartitionedData partitionedData0 = createPartitionedData(1, 1, 35);
+    expectedBlocks1.addAll(partitionedData0.getBlockList());
+    shuffleEngineManager.getShuffleEngine(1).write(partitionedData0);
+
+    shuffleEngineManager.commit();
+    assertEquals(1, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
+    assertNull(shuffleFlushManager.getEventIds(shuffleFilePath2));
+
     // flush for partition 0-1
     ShufflePartitionedData partitionedData1 = createPartitionedData(0, 2, 35);
     expectedBlocks1.addAll(partitionedData1.getBlockList());
@@ -95,7 +109,7 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
 
     shuffleEngineManager.commit();
     // 1 event created by flush, 1 event created by commit
-    assertEquals(2, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
+    assertEquals(3, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
     assertEquals(2, shuffleFlushManager.getEventIds(shuffleFilePath2).size());
 
     // flush for partition 0-1
@@ -104,11 +118,11 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
     shuffleEngineManager.getShuffleEngine(0).write(partitionedData5);
 
     shuffleEngineManager.commit();
-    assertEquals(3, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
+    assertEquals(4, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
     assertEquals(2, shuffleFlushManager.getEventIds(shuffleFilePath2).size());
 
     shuffleEngineManager.commit();
-    assertEquals(3, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
+    assertEquals(4, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
     assertEquals(2, shuffleFlushManager.getEventIds(shuffleFilePath2).size());
 
     String shuffleDataFolder = RssUtils.getFullShuffleDataFolder(storageBasePath, shuffleFilePath1);
@@ -116,6 +130,29 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
 
     shuffleDataFolder = RssUtils.getFullShuffleDataFolder(storageBasePath, shuffleFilePath2);
     validate(expectedBlocks2, shuffleDataFolder, serverId);
+
+    // flush for partition 0-1
+    ShufflePartitionedData partitionedData7 = createPartitionedData(0, 2, 35);
+    shuffleEngineManager.getShuffleEngine(0).write(partitionedData7);
+    int retry = 0;
+    while (true) {
+      // remove flushed eventId to test timeout in commit
+      if (shuffleFlushManager.getEventIds(shuffleFilePath1).size() == 5) {
+        shuffleFlushManager.getEventIds(shuffleFilePath1).clear();
+        break;
+      }
+      Thread.sleep(1000);
+      retry++;
+      if (retry > 5) {
+        fail("Timeout to flush data");
+      }
+    }
+    try {
+      shuffleEngineManager.commit();
+      fail("Exception should be thrown");
+    } catch (Exception e) {
+      assertTrue(e.getMessage().startsWith("Shuffle data commit timeout for"));
+    }
   }
 
   private ShufflePartitionedData createPartitionedData(int partitionId, int blockNum, int dataLength) {
