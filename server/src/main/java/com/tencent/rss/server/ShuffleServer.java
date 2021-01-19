@@ -3,17 +3,16 @@ package com.tencent.rss.server;
 import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.common.Arguments;
 import com.tencent.rss.common.metrics.JvmMetrics;
+import com.tencent.rss.common.rpc.ServerInterface;
 import com.tencent.rss.common.web.JettyServer;
 import com.tencent.rss.common.web.MetricsServlet;
-
 import io.prometheus.client.CollectorRegistry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import picocli.CommandLine;
-
 import java.io.FileNotFoundException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
 
 /**
  * Server that manages startup/shutdown of a {@code Greeter} server.
@@ -52,7 +51,6 @@ public class ShuffleServer {
     String configFile = arguments.getConfigFile();
     LOG.info("Start to init shuffle server using config {}", configFile);
 
-
     final ShuffleServer shuffleServer = new ShuffleServer(configFile);
     shuffleServer.start();
 
@@ -67,7 +65,6 @@ public class ShuffleServer {
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
       public void run() {
-        // Use stderr here since the logger may have been reset by its JVM shutdown hook.
         LOG.info("*** shutting down gRPC server since JVM is shutting down");
         try {
           stopServer();
@@ -166,6 +163,11 @@ public class ShuffleServer {
   @VisibleForTesting
   public void setShuffleFlushManager(ShuffleFlushManager shuffleFlushManager) {
     this.shuffleFlushManager = shuffleFlushManager;
+  }
+
+  // TODO: add score calculation strategy
+  public int calcScore() {
+    return 100 - bufferManager.getBufferUsedPercent();
   }
 
 }

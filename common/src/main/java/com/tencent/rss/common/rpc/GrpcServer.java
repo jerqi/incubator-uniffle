@@ -1,23 +1,24 @@
-package com.tencent.rss.server;
+package com.tencent.rss.common.rpc;
 
-import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerImplBase;
+import com.tencent.rss.common.config.RssBaseConf;
+import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-
 public class GrpcServer implements ServerInterface {
+
   private static final Logger LOG = LoggerFactory.getLogger(GrpcServer.class);
 
   private final Server server;
   private final int port;
 
-  public GrpcServer(ShuffleServerConf conf, ShuffleServerImplBase service) {
-    this.port = conf.getInteger(ShuffleServerConf.SERVER_PORT);
-    int maxInboundMessageSize = conf.getInteger(ShuffleServerConf.RPC_MESSAGE_MAX_SIZE);
+  public GrpcServer(RssBaseConf conf, BindableService service) {
+    this.port = conf.getInteger(RssBaseConf.SERVER_PORT);
+    int maxInboundMessageSize = conf.getInteger(RssBaseConf.RPC_MESSAGE_MAX_SIZE);
     this.server = ServerBuilder
         .forPort(port)
         .addService(service)

@@ -12,41 +12,46 @@ import java.util.Map;
  */
 public class CoordinatorConf extends RssBaseConf {
 
+  static final ConfigOption<Long> ALIVE_THRESHOLD = ConfigOptions
+      .key("rss.coordinator.aliveThreshold")
+      .longType()
+      .defaultValue(5 * 60 * 1000L)
+      .withDescription("rss coordinator aliveThreshold");
+  static final ConfigOption<Integer> USABLE_THRESHOLD = ConfigOptions
+      .key("rss.coordinator.usableThreshold")
+      .intType()
+      .defaultValue(10)
+      .withDescription("rss coordinator usableThreshold");
+  static final ConfigOption<Integer> SHUFFLE_SERVER_DATA_REPLICA = ConfigOptions
+      .key("rss.shuffle.data.replica")
+      .intType()
+      .defaultValue(2)
+      .withDescription("Data replica configuration when writing into shuffle server");
+  static final ConfigOption<String> ASSIGNMENT_STRATEGY = ConfigOptions
+      .key("rss.coordinator.assignment.strategy")
+      .stringType()
+      .defaultValue("BASIC")
+      .withDescription("Strategy for assigning shuffle server to write partitions");
   private static final ConfigOption<String> DATA_STORAGE = ConfigOptions
       .key("rss.data.storage")
       .stringType()
       .defaultValue("local")
       .withDescription("Data storage for remote shuffle service");
-
   private static final ConfigOption<String> DATA_STORAGE_PATH = ConfigOptions
       .key("rss.data.storage.path")
       .stringType()
       .defaultValue("")
       .withDescription("Common storage path for remote shuffle data");
-
   private static final ConfigOption<String> DATA_STORAGE_PATTERN = ConfigOptions
       .key("rss.data.storage.pattern")
       .stringType()
       .defaultValue("partition")
       .withDescription("Data layout in remote shuffle service cluster");
-
-  private static final ConfigOption<Integer> SHUFFLE_SERVER_DATA_REPLICA = ConfigOptions
-      .key("rss.shuffle.data.replica")
-      .intType()
-      .defaultValue(2)
-      .withDescription("Data replica configuration when writing into shuffle server");
-
   private static final ConfigOption<Integer> HEARTBEAT_INTERVAL = ConfigOptions
       .key("rss.heartbeat.interval")
       .intType()
       .defaultValue(60)
       .withDescription("Heartbeat interval (seconds) between shuffle server and coordinator");
-
-  private static final ConfigOption<String> SHUFFLE_SERVER_ASSIGNMENT = ConfigOptions
-      .key("rss.shuffle.server.assignment")
-      .stringType()
-      .defaultValue("basic")
-      .withDescription("Strategy for assigning shuffle server to write partitions");
 
   public CoordinatorConf() {
   }
@@ -89,8 +94,16 @@ public class CoordinatorConf extends RssBaseConf {
         set(HEARTBEAT_INTERVAL, Integer.valueOf(v));
       }
 
-      if (SHUFFLE_SERVER_ASSIGNMENT.key().equalsIgnoreCase(k)) {
-        set(SHUFFLE_SERVER_ASSIGNMENT, v);
+      if (ASSIGNMENT_STRATEGY.key().equalsIgnoreCase(k)) {
+        set(ASSIGNMENT_STRATEGY, v.toUpperCase());
+      }
+
+      if (ALIVE_THRESHOLD.key().equalsIgnoreCase(k)) {
+        set(ALIVE_THRESHOLD, Long.valueOf(v));
+      }
+
+      if (USABLE_THRESHOLD.key().equalsIgnoreCase(k)) {
+        set(USABLE_THRESHOLD, Integer.valueOf(v));
       }
 
     });
@@ -119,6 +132,6 @@ public class CoordinatorConf extends RssBaseConf {
   }
 
   public String getShuffleServerAssignmentStrategy() {
-    return this.getString(SHUFFLE_SERVER_ASSIGNMENT);
+    return this.getString(ASSIGNMENT_STRATEGY);
   }
 }

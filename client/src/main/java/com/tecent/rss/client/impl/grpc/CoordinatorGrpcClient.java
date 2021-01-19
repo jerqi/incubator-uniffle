@@ -19,6 +19,7 @@ import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
 import com.tencent.rss.proto.RssProtos.StatusCode;
+import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import java.util.Collections;
 import java.util.List;
@@ -46,12 +47,17 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
     blockingStub = CoordinatorServerGrpc.newBlockingStub(channel);
   }
 
+  public CoordinatorGrpcClient(ManagedChannel channel) {
+    super(channel);
+    blockingStub = CoordinatorServerGrpc.newBlockingStub(channel);
+  }
+
   public ShuffleServerHeartBeatResponse doSendHeartBeat(
-      String id, String ip, int port, int percent, long timeout) {
+      String id, String ip, int port, int score, long timeout) {
     ShuffleServerId serverId =
         ShuffleServerId.newBuilder().setId(id).setIp(ip).setPort(port).build();
     ShuffleServerHeartBeatRequest request = ShuffleServerHeartBeatRequest
-        .newBuilder().setServerId(serverId).setBufferUsedPercent(percent).build();
+        .newBuilder().setServerId(serverId).setScore(score).build();
 
     StatusCode status;
     ShuffleServerHeartBeatResponse response = null;

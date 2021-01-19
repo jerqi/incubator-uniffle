@@ -1,24 +1,28 @@
 package com.tencent.rss.server;
 
-public class RemoteServerFactory {
-  enum ServerTyep {
-    GRPC
-  }
+import com.tencent.rss.common.rpc.GrpcServer;
+import com.tencent.rss.common.rpc.ServerInterface;
 
-  ShuffleServer shuffleServer;
-  ShuffleServerConf conf;
+public class RemoteServerFactory {
+
+  private final ShuffleServer shuffleServer;
+  private final ShuffleServerConf conf;
 
   public RemoteServerFactory(ShuffleServer shuffleServer) {
     this.shuffleServer = shuffleServer;
     this.conf = shuffleServer.getShuffleServerConf();
   }
 
-  ServerInterface getServer() {
+  public ServerInterface getServer() {
     String type = conf.getString(ShuffleServerConf.SERVER_TYPE);
     if (type.equals(ServerTyep.GRPC.name())) {
       return new GrpcServer(conf, new GrpcService(shuffleServer));
     } else {
       throw new UnsupportedOperationException("Unsupported server type " + type);
     }
+  }
+
+  enum ServerTyep {
+    GRPC
   }
 }

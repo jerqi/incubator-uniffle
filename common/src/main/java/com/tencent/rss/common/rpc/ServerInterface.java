@@ -1,4 +1,4 @@
-package com.tencent.rss.server;
+package com.tencent.rss.common.rpc;
 
 import java.io.IOException;
 

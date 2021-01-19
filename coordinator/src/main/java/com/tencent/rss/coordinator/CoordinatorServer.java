@@ -1,10 +1,9 @@
 package com.tencent.rss.coordinator;
 
 import com.tencent.rss.common.Arguments;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
+import com.tencent.rss.common.rpc.ServerInterface;
+import com.tencent.rss.common.web.JettyServer;
+import java.io.FileNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -14,63 +13,88 @@ import picocli.CommandLine;
  */
 public class CoordinatorServer {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(CoordinatorServer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CoordinatorServer.class);
 
   private final CoordinatorConf coordinatorConf;
-  private Server server;
+  private JettyServer jettyServer;
+  private ServerInterface server;
+  private ClusterManager clusterManager;
+  private AssignmentStrategy assignmentStrategy;
 
-  public CoordinatorServer(CoordinatorConf coordinatorConf) {
+  public CoordinatorServer(CoordinatorConf coordinatorConf) throws FileNotFoundException {
     this.coordinatorConf = coordinatorConf;
+
+    ClusterManagerFactory clusterManagerFactory =
+        new ClusterManagerFactory(coordinatorConf);
+    this.clusterManager = clusterManagerFactory.getClusterManager();
+
+    AssignmentStrategyFactory assignmentStrategyFactory =
+        new AssignmentStrategyFactory(coordinatorConf, clusterManager);
+    this.assignmentStrategy = assignmentStrategyFactory.getAssignmentStrategy();
+
+    CoordinatorRpcServerFactory coordinatorRpcServerFactory = new CoordinatorRpcServerFactory(this);
+    server = coordinatorRpcServerFactory.getServer();
+    jettyServer = new JettyServer(coordinatorConf);
+
   }
 
-  public static void main(String[] args) throws IOException, InterruptedException {
+  public static void main(String[] args) throws Exception {
     Arguments arguments = new Arguments();
     CommandLine commandLine = new CommandLine(arguments);
     commandLine.parseArgs(args);
     String configFile = arguments.getConfigFile();
-    LOGGER.info("Start to init shuffle server using config {}", configFile);
+    LOG.info("Start to init coordinator server using config {}", configFile);
 
     // Load configuration from config files
     final CoordinatorConf coordinatorConf = new CoordinatorConf(configFile);
 
     // Start the coordinator service
-    final CoordinatorServer server = new CoordinatorServer(coordinatorConf);
+    final CoordinatorServer coordinatorServer = new CoordinatorServer(coordinatorConf);
+    coordinatorServer.start();
+    coordinatorServer.blockUntilShutdown();
+  }
+
+  public void start() throws Exception {
     server.start();
-    server.blockUntilShutdown();
-  }
+    jettyServer.start();
 
-  public void start() throws IOException {
-    /* The port on which the server should run */
-    final int port = coordinatorConf.getCoordinatorPort();
-
-    server = ServerBuilder.forPort(port)
-        .addService(new CoordinatorServiceImp(coordinatorConf))
-        .build()
-        .start();
-    LOGGER.info("Coordinator server started, listening on " + port);
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-      LOGGER.info("Shutting down coordinator server");
-      try {
-        CoordinatorServer.this.stop();
-      } catch (InterruptedException e) {
-        e.printStackTrace(System.err);
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        LOG.info("*** shutting down gRPC server since JVM is shutting down");
+        try {
+          stopServer();
+        } catch (Exception e) {
+          LOG.error(e.getMessage());
+        }
+        LOG.info("*** server shut down");
       }
-      LOGGER.info("Coordinator server shut down");
-    }));
+    });
   }
 
-  public void stop() throws InterruptedException {
-    if (server != null) {
-      server.shutdown().awaitTermination(30, TimeUnit.SECONDS);
+  public void stopServer() throws Exception {
+    if (jettyServer != null) {
+      jettyServer.stop();
     }
+    server.stop();
+  }
+
+  public ClusterManager getClusterManager() {
+    return clusterManager;
+  }
+
+  public AssignmentStrategy getAssignmentStrategy() {
+    return assignmentStrategy;
+  }
+
+  public CoordinatorConf getCoordinatorConf() {
+    return coordinatorConf;
   }
 
   /**
    * Await termination on the main thread since the grpc library uses daemon threads.
    */
   private void blockUntilShutdown() throws InterruptedException {
-    if (server != null) {
-      server.awaitTermination();
-    }
+    server.blockUntilShutdown();
   }
 }

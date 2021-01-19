@@ -4,6 +4,17 @@ import java.util.Map;
 
 public class RssBaseConf extends RssConf {
 
+  public static final ConfigOption<String> SERVER_TYPE = ConfigOptions
+      .key("rss.server.type")
+      .stringType()
+      .defaultValue("GRPC")
+      .withDescription("Shuffle server type, default is grpc");
+
+  public static final ConfigOption<Integer> SERVER_PORT = ConfigOptions
+      .key("rss.server.port")
+      .intType()
+      .noDefaultValue()
+      .withDescription("Shuffle server service port");
   public static final ConfigOption<Integer> JETTY_HTTP_PORT = ConfigOptions
       .key("jetty.http.port")
       .intType()

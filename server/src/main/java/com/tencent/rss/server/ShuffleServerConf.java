@@ -8,18 +8,6 @@ import java.util.Map;
 
 public class ShuffleServerConf extends RssBaseConf {
 
-  public static final ConfigOption<String> SERVER_TYPE = ConfigOptions
-      .key("rss.server.type")
-      .stringType()
-      .defaultValue("GRPC")
-      .withDescription("Shuffle server type, default is grpc");
-
-  public static final ConfigOption<Integer> SERVER_PORT = ConfigOptions
-      .key("rss.server.port")
-      .intType()
-      .noDefaultValue()
-      .withDescription("Shuffle server service port");
-
   public static final ConfigOption<String> DATA_STORAGE_TYPE = ConfigOptions
       .key("rss.storage.type")
       .stringType()
