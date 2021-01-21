@@ -1,7 +1,6 @@
 package com.tencent.rss.server;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,17 +8,16 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class BufferManager {
-  private long capacity;
-  private int bufferSize;
 
   private final ShuffleServer shuffleServer;
   private final ReentrantLock reentrantLock = new ReentrantLock();
-
+  private long capacity;
+  private int bufferSize;
   private AtomicLong atomicSize;
   private Map<String, ShuffleBuffer> pool;
 
   public BufferManager(ShuffleServerConf conf, ShuffleServer shuffleServer) {
-    this.capacity = conf.getInteger(ShuffleServerConf.BUFFER_CAPACITY);
+    this.capacity = conf.getLong(ShuffleServerConf.BUFFER_CAPACITY);
     this.bufferSize = conf.getInteger(ShuffleServerConf.BUFFER_SIZE);
     this.shuffleServer = shuffleServer;
     this.atomicSize = new AtomicLong(0L);
@@ -87,11 +85,6 @@ public class BufferManager {
   }
 
   @VisibleForTesting
-  void setAtomicSize(long delta) {
-    atomicSize.addAndGet(delta);
-  }
-
-  @VisibleForTesting
   Map<String, ShuffleBuffer> getPool() {
     return pool;
   }
@@ -99,6 +92,11 @@ public class BufferManager {
   @VisibleForTesting
   AtomicLong getAtomicSize() {
     return atomicSize;
+  }
+
+  @VisibleForTesting
+  void setAtomicSize(long delta) {
+    atomicSize.addAndGet(delta);
   }
 
 }

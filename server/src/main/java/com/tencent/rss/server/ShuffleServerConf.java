@@ -20,9 +20,9 @@ public class ShuffleServerConf extends RssBaseConf {
       .noDefaultValue()
       .withDescription("Common storage path for remote shuffle data");
 
-  public static final ConfigOption<Integer> BUFFER_CAPACITY = ConfigOptions
+  public static final ConfigOption<Long> BUFFER_CAPACITY = ConfigOptions
       .key("rss.buffer.capacity")
-      .intType()
+      .longType()
       .noDefaultValue()
       .withDescription("Number of buffers in this server");
 
@@ -166,7 +166,7 @@ public class ShuffleServerConf extends RssBaseConf {
       }
 
       if (BUFFER_CAPACITY.key().equalsIgnoreCase(k)) {
-        set(BUFFER_CAPACITY, Integer.valueOf(v));
+        set(BUFFER_CAPACITY, Long.valueOf(v));
       }
 
       if (BUFFER_SIZE.key().equalsIgnoreCase(k)) {

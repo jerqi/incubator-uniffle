@@ -135,6 +135,14 @@ public class RssBaseConf extends RssConf {
     }
 
     properties.forEach((k, v) -> {
+      if (SERVER_TYPE.key().equalsIgnoreCase(k)) {
+        set(SERVER_TYPE, v);
+      }
+
+      if (SERVER_PORT.key().equalsIgnoreCase(k)) {
+        set(SERVER_PORT, Integer.valueOf(v));
+      }
+
       if (JETTY_HTTP_PORT.key().equalsIgnoreCase(k)) {
         set(JETTY_HTTP_PORT, Integer.valueOf(v));
       }

@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -12,8 +13,6 @@ import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.File;
 
 @RunWith(JUnit4.class)
 public class ShuffleServerConfTest {
@@ -59,7 +58,7 @@ public class ShuffleServerConfTest {
     assertEquals("FILE", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_TYPE));
     assertEquals("/var/tmp/test", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH));
     assertFalse(shuffleServerConf.loadConfFromFile("/var/tmp/null"));
-    assertEquals(2, shuffleServerConf.getInteger(ShuffleServerConf.BUFFER_CAPACITY));
+    assertEquals(2, shuffleServerConf.getLong(ShuffleServerConf.BUFFER_CAPACITY));
 
     thrown.expect(NullPointerException.class);
     shuffleServerConf.getInteger(ShuffleServerConf.BUFFER_SIZE);
