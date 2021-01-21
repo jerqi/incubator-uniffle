@@ -1,5 +1,6 @@
 package org.apache.spark.shuffle.reader;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,6 +16,7 @@ import java.util.Set;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.SparkConf;
+import org.apache.spark.executor.ShuffleReadMetrics;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.shuffle.RssReaderTestBase;
@@ -40,7 +42,8 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
         basePath, conf, 100, expectedBlockIds);
-    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient);
+    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient,
+        new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
 
     validateResult(rssShuffleDataIterator, expectedData, 10);
@@ -49,7 +52,7 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
     // can't find all expected block id, data loss
     readClient = new FileBasedShuffleReadClient(
         basePath, conf, 100, expectedBlockIds);
-    rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient);
+    rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     try {
       rssShuffleDataIterator.checkExpectedBlockIds();
       fail(EXPECTED_EXCEPTION_MESSAGE);
@@ -75,10 +78,14 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
         basePath, conf, 100, expectedBlockIds);
-    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient);
+    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
 
     validateResult(rssShuffleDataIterator, expectedData, 20);
+    assertEquals(20, rssShuffleDataIterator.getShuffleReadMetrics().recordsRead());
+    assertEquals(540, rssShuffleDataIterator.getShuffleReadMetrics().remoteBytesRead());
+    assertTrue(rssShuffleDataIterator.getShuffleReadMetrics().fetchWaitTime() > 0);
   }
 
   @Test
@@ -108,7 +115,8 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
         basePath, conf, 100, expectedBlockIds);
-    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient);
+    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
 
     validateResult(rssShuffleDataIterator, expectedData, 20);
@@ -127,7 +135,8 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
         basePath, conf, 100, expectedBlockIds);
-    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient);
+    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
     // data file is deleted after iterator initialization
     fs.delete(new Path(basePath + "/test1.data"), true);
@@ -155,7 +164,8 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
         basePath, conf, 100, expectedBlockIds);
-    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient);
+    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
     // index file is deleted after iterator initialization, it should be ok, all index infos are read already
     fs.delete(new Path(basePath + "/test.index"), true);
@@ -182,7 +192,8 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
         basePath, conf, 100, expectedBlockIds);
-    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient);
+    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     try {
       rssShuffleDataIterator.checkExpectedBlockIds();
       fail(EXPECTED_EXCEPTION_MESSAGE);
@@ -204,7 +215,8 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
         basePath, conf, 100, expectedBlockIds);
-    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient);
+    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
 
     // crc32 is incorrect

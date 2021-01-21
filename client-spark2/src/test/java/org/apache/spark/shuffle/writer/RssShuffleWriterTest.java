@@ -1,6 +1,7 @@
 package org.apache.spark.shuffle.writer;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -23,6 +24,7 @@ import org.apache.spark.Partitioner;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
+import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.serializer.KryoSerializer;
@@ -71,7 +73,7 @@ public class RssShuffleWriterTest {
     BufferManagerOptions bufferOptions = new BufferManagerOptions(conf);
     WriteBufferManager bufferManager = new WriteBufferManager(
         0, 0, bufferOptions, mockSerializer,
-        Maps.newHashMap(), mockTaskMemoryManager);
+        Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics());
     WriteBufferManager bufferManagerSpy = spy(bufferManager);
     doReturn(1000000L).when(bufferManagerSpy).acquireMemory(anyLong());
 
@@ -168,15 +170,16 @@ public class RssShuffleWriterTest {
 
     TaskMemoryManager mockTaskMemoryManager = mock(TaskMemoryManager.class);
 
+    ShuffleWriteMetrics shuffleWriteMetrics = new ShuffleWriteMetrics();
     BufferManagerOptions bufferOptions = new BufferManagerOptions(conf);
     WriteBufferManager bufferManager = new WriteBufferManager(
         0, 0, bufferOptions, kryoSerializer,
-        partitionToServers, mockTaskMemoryManager);
+        partitionToServers, mockTaskMemoryManager, shuffleWriteMetrics);
     WriteBufferManager bufferManagerSpy = spy(bufferManager);
     doReturn(1000000L).when(bufferManagerSpy).acquireMemory(anyLong());
 
     RssShuffleWriter rssShuffleWriter = new RssShuffleWriter("appId", 0, "taskId",
-        bufferManagerSpy, (new TaskMetrics()).shuffleWriteMetrics(),
+        bufferManagerSpy, shuffleWriteMetrics,
         mockDependency, manager, conf, mockShuffleWriteClient);
 
     RssShuffleWriter<String, String, String> rssShuffleWriterSpy = spy(rssShuffleWriter);
@@ -191,6 +194,10 @@ public class RssShuffleWriterTest {
     data.appendElem(new Tuple2("testKey5", "testValue5"));
     data.appendElem(new Tuple2("testKey6", "testValue6"));
     rssShuffleWriterSpy.write(data.iterator());
+
+    assertTrue(rssShuffleWriterSpy.getShuffleWriteMetrics().shuffleWriteTime() > 0);
+    assertEquals(6, rssShuffleWriterSpy.getShuffleWriteMetrics().shuffleRecordsWritten());
+    assertEquals(132, rssShuffleWriterSpy.getShuffleWriteMetrics().shuffleBytesWritten());
 
     assertEquals(6, shuffleBlockInfos.size());
     for (ShuffleBlockInfo shuffleBlockInfo : shuffleBlockInfos) {

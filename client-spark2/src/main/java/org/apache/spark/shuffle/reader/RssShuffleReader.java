@@ -45,7 +45,6 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   private int endPartition;
   private TaskContext context;
   private ShuffleDependency<K, C, ?> shuffleDependency;
-  private int timeoutMillis;
   private Serializer serializer;
   private String taskId;
   private Configuration hadoopConf;
@@ -58,7 +57,6 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
       int endPartition,
       TaskContext context,
       RssShuffleHandle rssShuffleHandle,
-      int timeoutMillis,
       String basePath,
       int indexReadLimit,
       Configuration hadoopConf,
@@ -70,7 +68,6 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     this.hadoopConf = hadoopConf;
     this.shuffleDependency = rssShuffleHandle.getDependency();
     this.shuffleId = shuffleDependency.shuffleId();
-    this.timeoutMillis = timeoutMillis;
     this.serializer = rssShuffleHandle.getDependency().serializer();
     this.taskId = "" + context.taskAttemptId() + "_" + context.attemptNumber();
     this.basePath = basePath;
@@ -87,7 +84,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     ShuffleReadClient shuffleReadClient = ShuffleClientFactory.getINSTANCE().createShuffleReadClient(request);
 
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator<K, C>(
-        shuffleDependency.serializer(), shuffleReadClient);
+        shuffleDependency.serializer(), shuffleReadClient, context.taskMetrics().shuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
 
     Iterator<Product2<K, C>> resultIter = null;

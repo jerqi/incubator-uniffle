@@ -10,6 +10,7 @@ import com.google.common.collect.Maps;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import java.util.List;
 import org.apache.spark.SparkConf;
+import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.serializer.JavaSerializer;
 import org.apache.spark.serializer.KryoSerializer;
@@ -35,19 +36,20 @@ public class WriteBufferManagerTest {
     BufferManagerOptions bufferOptions = new BufferManagerOptions(conf);
     WriteBufferManager wbm1 = new WriteBufferManager(
         0, 0, bufferOptions, kryoSerializer,
-        Maps.newHashMap(), mockTaskMemoryManager);
+        Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics());
     MANAGER_WITH_KRYO_SER = spy(wbm1);
     doReturn(1000000L).when(MANAGER_WITH_KRYO_SER).acquireMemory(anyLong());
 
     WriteBufferManager wbm2 = new WriteBufferManager(
         0, 0, bufferOptions, javaSerializer,
-        Maps.newHashMap(), mockTaskMemoryManager);
+        Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics());
     MANAGER_WITH_JAVA_SER = spy(wbm2);
     doReturn(1000000L).when(MANAGER_WITH_JAVA_SER).acquireMemory(anyLong());
   }
 
   @Test
   public void addRecordTest1() {
+    MANAGER_WITH_KRYO_SER.setShuffleWriteMetrics(new ShuffleWriteMetrics());
     // after serialized: key + value = 20 byte
     String testKey = "testKey";
     String testValue = "testValue";
@@ -62,10 +64,14 @@ public class WriteBufferManagerTest {
     assertEquals(40, result.get(0).getData().length);
     assertEquals(0, MANAGER_WITH_KRYO_SER.getTotalBytes());
     assertEquals(0, MANAGER_WITH_KRYO_SER.getBuffers().size());
+
+    assertEquals(2, MANAGER_WITH_KRYO_SER.getShuffleWriteMetrics().recordsWritten());
+    assertEquals(40, MANAGER_WITH_KRYO_SER.getShuffleWriteMetrics().bytesWritten());
   }
 
   @Test
   public void addRecordTest2() {
+    MANAGER_WITH_KRYO_SER.setShuffleWriteMetrics(new ShuffleWriteMetrics());
     // after serialized: key + value = 31 byte
     String testKey = "testKey12345678901";
     String testValue = "testValue";
@@ -91,6 +97,9 @@ public class WriteBufferManagerTest {
     assertEquals(0, MANAGER_WITH_KRYO_SER.getTotalBytes());
     assertEquals(0, MANAGER_WITH_KRYO_SER.getBuffers().size());
     result.stream().forEach(e -> assertEquals(31, e.getData().length));
+
+    assertEquals(5, MANAGER_WITH_KRYO_SER.getShuffleWriteMetrics().recordsWritten());
+    assertEquals(155, MANAGER_WITH_KRYO_SER.getShuffleWriteMetrics().bytesWritten());
   }
 
   @Test

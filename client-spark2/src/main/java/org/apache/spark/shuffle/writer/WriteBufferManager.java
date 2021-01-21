@@ -11,6 +11,7 @@ import com.tencent.rss.common.util.ChecksumUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.serializer.SerializationStream;
@@ -31,6 +32,7 @@ public class WriteBufferManager extends MemoryConsumer {
   private int executorId;
   private int shuffleId;
   private SerializerInstance instance;
+  private ShuffleWriteMetrics shuffleWriteMetrics;
   // cache partition -> records
   private Map<Integer, WriterBuffer> buffers;
   private Map<Integer, List<ShuffleServerInfo>> partitionToServers;
@@ -41,7 +43,8 @@ public class WriteBufferManager extends MemoryConsumer {
       BufferManagerOptions bufferManagerOptions,
       Serializer serializer,
       Map<Integer, List<ShuffleServerInfo>> partitionToServers,
-      TaskMemoryManager taskMemoryManager) {
+      TaskMemoryManager taskMemoryManager,
+      ShuffleWriteMetrics shuffleWriteMetrics) {
     super(taskMemoryManager);
     this.bufferSize = bufferManagerOptions.getIndividualBufferSize();
     this.maxBufferSize = bufferManagerOptions.getIndividualBufferMax();
@@ -52,6 +55,7 @@ public class WriteBufferManager extends MemoryConsumer {
     this.totalBytes = 0L;
     this.shuffleId = shuffleId;
     this.partitionToServers = partitionToServers;
+    this.shuffleWriteMetrics = shuffleWriteMetrics;
   }
 
   // add record to cache, return [partition, ShuffleBlock] if meet spill condition
@@ -65,14 +69,15 @@ public class WriteBufferManager extends MemoryConsumer {
       serializeStream.writeValue(value, ClassTag$.MODULE$.apply(value.getClass()));
       serializeStream.flush();
       int newSize = output.position();
-      int requiredMem = newSize - oldSize;
+      int kvSize = newSize - oldSize;
+      updateWriteMetrics(1L, kvSize);
       if (newSize >= bufferSize) {
         result.add(createShuffleBlock(partitionId, output.toBytes()));
         serializeStream.close();
         buffers.remove(partitionId);
         totalBytes -= oldSize;
       } else {
-        totalBytes += requiredMem;
+        totalBytes += kvSize;
       }
     } else {
       // Output will cost maxBufferSize memory at most, ask TaskMemoryManager for it
@@ -83,6 +88,7 @@ public class WriteBufferManager extends MemoryConsumer {
       serializeStream.writeValue(value, ClassTag$.MODULE$.apply(value.getClass()));
       serializeStream.flush();
       int newSize = output.position();
+      updateWriteMetrics(1L, newSize);
       if (newSize >= bufferSize) {
         result.add(createShuffleBlock(partitionId, output.toBytes()));
         serializeStream.close();
@@ -125,6 +131,11 @@ public class WriteBufferManager extends MemoryConsumer {
         data.length, crc32, data, partitionToServers.get(partitionId));
   }
 
+  private void updateWriteMetrics(long recordNum, long size) {
+    shuffleWriteMetrics.incRecordsWritten(recordNum);
+    shuffleWriteMetrics.incBytesWritten(size);
+  }
+
   private void requestMemory(long requiredMem) {
     long gotMem = acquireMemory(requiredMem);
     int retry = 0;
@@ -163,5 +174,15 @@ public class WriteBufferManager extends MemoryConsumer {
   @VisibleForTesting
   protected Map<Integer, WriterBuffer> getBuffers() {
     return buffers;
+  }
+
+  @VisibleForTesting
+  protected ShuffleWriteMetrics getShuffleWriteMetrics() {
+    return shuffleWriteMetrics;
+  }
+
+  @VisibleForTesting
+  protected void setShuffleWriteMetrics(ShuffleWriteMetrics shuffleWriteMetrics) {
+    this.shuffleWriteMetrics = shuffleWriteMetrics;
   }
 }

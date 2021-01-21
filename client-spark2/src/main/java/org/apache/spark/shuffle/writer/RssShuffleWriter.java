@@ -94,6 +94,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   public void write(Iterator<Product2<K, V>> records) {
     List<ShuffleBlockInfo> shuffleBlockInfos = null;
     Set<Long> blockIds = Sets.newConcurrentHashSet();
+    final long startWrite = System.currentTimeMillis();
     while (records.hasNext()) {
       Product2<K, V> record = records.next();
       int partition = getPartition(record._1());
@@ -112,6 +113,10 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     checkBlockSendResult(blockIds);
 
     sendCommit();
+    long writeDuration = System.currentTimeMillis() - startWrite;
+    shuffleWriteMetrics.incWriteTime(writeDuration);
+    LOG.info("Finish write shuffle for appId[" + appId + "], shuffleId[" + shuffleId
+        + "], taskId[" + taskId + "] with " + writeDuration + " ms");
   }
 
   /**
@@ -226,5 +231,10 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   @VisibleForTesting
   protected Map<Integer, Set<Long>> getPartitionToBlockIds() {
     return partitionToBlockIds;
+  }
+
+  @VisibleForTesting
+  protected ShuffleWriteMetrics getShuffleWriteMetrics() {
+    return shuffleWriteMetrics;
   }
 }

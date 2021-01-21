@@ -14,6 +14,7 @@ import java.util.Set;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
+import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.shuffle.reader.RssShuffleReader;
@@ -45,13 +46,14 @@ public class RssShuffleReaderTest extends RssReaderTestBase {
     when(dependencyMock.serializer()).thenReturn(KRYO_SERIALIZER);
     when(contextMock.taskAttemptId()).thenReturn(1L);
     when(contextMock.attemptNumber()).thenReturn(1);
+    when(contextMock.taskMetrics()).thenReturn(new TaskMetrics());
     doNothing().when(contextMock).killTaskIfInterrupted();
     when(dependencyMock.mapSideCombine()).thenReturn(false);
     when(dependencyMock.aggregator()).thenReturn(Option.empty());
     when(dependencyMock.keyOrdering()).thenReturn(Option.empty());
 
     RssShuffleReader rssShuffleReaderSpy = spy(new RssShuffleReader<String, String>(0, 1, contextMock,
-        handleMock, 0, basePath, 1000, conf, "FILE"));
+        handleMock, basePath, 1000, conf, "FILE"));
     doReturn(expectedBlockIds).when(rssShuffleReaderSpy).getExpectedBlockIds();
 
     validateResult(rssShuffleReaderSpy.read(), expectedData, 10);
