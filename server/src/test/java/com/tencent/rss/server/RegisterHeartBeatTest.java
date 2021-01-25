@@ -1,11 +1,14 @@
 package com.tencent.rss.server;
 
-import com.tecent.rss.client.impl.grpc.CoordinatorGrpcClient;
+import static junit.framework.TestCase.assertTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+
+import com.tencent.rss.client.impl.grpc.CoordinatorGrpcClient;
 import com.tencent.rss.proto.CoordinatorServerGrpc.CoordinatorServerImplBase;
 import com.tencent.rss.proto.RssProtos;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatResponse;
-
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -14,10 +17,6 @@ import io.grpc.util.MutableHandlerRegistry;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 
 public class RegisterHeartBeatTest {
 
@@ -58,7 +57,7 @@ public class RegisterHeartBeatTest {
         new CoordinatorServerImplBase() {
           @Override
           public void heartbeat(ShuffleServerHeartBeatRequest req,
-                                StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
+              StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
             ShuffleServerHeartBeatResponse resp = ShuffleServerHeartBeatResponse
                 .newBuilder()
                 .setStatus(RssProtos.StatusCode.SUCCESS)
@@ -92,7 +91,7 @@ public class RegisterHeartBeatTest {
 
           @Override
           public void heartbeat(ShuffleServerHeartBeatRequest req,
-                                StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
+              StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
             ShuffleServerHeartBeatResponse resp = ShuffleServerHeartBeatResponse
                 .newBuilder()
                 .setStatus(RssProtos.StatusCode.INTERNAL_ERROR)

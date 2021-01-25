@@ -4,8 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.tecent.rss.client.factory.CoordinatorClientFactory;
-import com.tecent.rss.client.impl.grpc.CoordinatorGrpcClient;
+import com.tencent.rss.client.factory.CoordinatorClientFactory;
+import com.tencent.rss.client.impl.grpc.CoordinatorGrpcClient;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.RssProtos;

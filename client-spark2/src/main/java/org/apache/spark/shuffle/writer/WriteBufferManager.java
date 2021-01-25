@@ -4,7 +4,7 @@ import com.clearspring.analytics.util.Lists;
 import com.esotericsoftware.kryo.io.Output;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
-import com.tecent.rss.client.util.ClientUtils;
+import com.tencent.rss.client.util.ClientUtils;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.common.util.ChecksumUtils;
@@ -76,6 +76,8 @@ public class WriteBufferManager extends MemoryConsumer {
         serializeStream.close();
         buffers.remove(partitionId);
         totalBytes -= oldSize;
+        LOG.info("Single buffer is full for shuffleId[" + shuffleId
+            + "] partition[" + partitionId + "] with " + newSize + " bytes");
       } else {
         totalBytes += kvSize;
       }
@@ -92,6 +94,8 @@ public class WriteBufferManager extends MemoryConsumer {
       if (newSize >= bufferSize) {
         result.add(createShuffleBlock(partitionId, output.toBytes()));
         serializeStream.close();
+        LOG.info("Single buffer is full for shuffleId[" + shuffleId
+            + "] partition[" + partitionId + "] with " + newSize + " bytes");
       } else {
         buffers.put(partitionId, new WriterBuffer(serializeStream, output));
         totalBytes = totalBytes + newSize;
@@ -105,6 +109,7 @@ public class WriteBufferManager extends MemoryConsumer {
         entry.getValue().getSerializeStream().close();
       }
       buffers.clear();
+      LOG.info("Total buffer is full for shuffleId[" + shuffleId + "] with " + totalBytes + " bytes");
       totalBytes = 0;
     }
 

@@ -4,11 +4,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.tecent.rss.client.ShuffleWriteClient;
-import com.tecent.rss.client.util.ClientUtils;
+import com.tencent.rss.client.api.ShuffleWriteClient;
+import com.tencent.rss.client.util.ClientUtils;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
-import com.tencent.rss.common.util.Constants;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +33,6 @@ import scala.collection.Iterator;
 public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private static final Logger LOG = LoggerFactory.getLogger(RssShuffleWriter.class);
-  private static final Logger LOG_RSS_INFO = LoggerFactory.getLogger(Constants.LOG4J_RSS_SHUFFLE_PREFIX);
 
   private static final String DUMMY_HOST = "dummy_host";
   private static final int DUMMY_PORT = 99999;
@@ -136,7 +134,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         long blockId = sbi.getBlockId();
         // add blockId to set, check if it is send later
         blockIds.add(blockId);
-        LOG_RSS_INFO.info("Block ready to queue " + sbi.toString());
+        LOG.info("Block ready to queue " + sbi.toString());
         // update shuffle server info, they will be used in commit phase
         shuffleServerInfoSet.addAll(sbi.getShuffleServerInfos());
         // update [partition, blockIds], it will be set to MapStatus

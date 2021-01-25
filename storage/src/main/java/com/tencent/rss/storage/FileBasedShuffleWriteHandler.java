@@ -1,7 +1,6 @@
 package com.tencent.rss.storage;
 
 import com.tencent.rss.common.ShufflePartitionedBlock;
-import com.tencent.rss.common.util.Constants;
 import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
@@ -13,7 +12,6 @@ import org.slf4j.LoggerFactory;
 public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedShuffleWriteHandler.class);
-  private static final Logger LOG_RSS_INFO = LoggerFactory.getLogger(Constants.LOG4J_RSS_SHUFFLE_PREFIX);
 
   private Configuration hadoopConf;
   private String basePath;
@@ -61,7 +59,7 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
         FileBasedShuffleWriter indexWriter = createWriter(indexFileName)) {
 
       for (ShufflePartitionedBlock block : shuffleBlocks) {
-        LOG_RSS_INFO.info("Write data " + block);
+        LOG.debug("Write data " + block);
         long blockId = block.getBlockId();
         long crc = block.getCrc();
         long startOffset = dataWriter.nextOffset();
@@ -71,7 +69,7 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
         long len = endOffset - startOffset;
 
         FileBasedShuffleSegment segment = new FileBasedShuffleSegment(startOffset, len, crc, blockId);
-        LOG_RSS_INFO.info("Write index " + segment);
+        LOG.debug("Write index " + segment);
         indexWriter.writeIndex(segment);
       }
     }

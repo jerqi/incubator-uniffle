@@ -7,7 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.tecent.rss.client.impl.FileBasedShuffleReadClient;
+import com.tencent.rss.client.impl.FileBasedShuffleReadClient;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.FileBasedShuffleWriteHandler;
 import java.io.IOException;

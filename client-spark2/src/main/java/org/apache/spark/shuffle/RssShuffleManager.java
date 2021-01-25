@@ -3,14 +3,13 @@ package org.apache.spark.shuffle;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.tecent.rss.client.ShuffleWriteClient;
-import com.tecent.rss.client.factory.ShuffleClientFactory;
-import com.tecent.rss.client.response.SendShuffleDataResult;
-import com.tecent.rss.client.response.ShuffleAssignmentsInfo;
+import com.tencent.rss.client.api.ShuffleWriteClient;
+import com.tencent.rss.client.factory.ShuffleClientFactory;
+import com.tencent.rss.client.response.SendShuffleDataResult;
+import com.tencent.rss.client.response.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
-import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.common.util.RssUtils;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +32,6 @@ import org.slf4j.LoggerFactory;
 public class RssShuffleManager implements ShuffleManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(RssShuffleManager.class);
-  private static final Logger LOG_RSS_INFO = LoggerFactory.getLogger(Constants.LOG4J_RSS_SHUFFLE_PREFIX);
   private SparkConf sparkConf;
   private String appId;
   private String clientType;
@@ -97,7 +95,7 @@ public class RssShuffleManager implements ShuffleManager {
 
   @VisibleForTesting
   protected void setAppId() {
-    appId = SparkContext.getOrCreate(sparkConf).applicationId();
+    appId = SparkEnv.get().conf().getAppId();
   }
 
   // This method is called in Spark driver side,
@@ -122,10 +120,10 @@ public class RssShuffleManager implements ShuffleManager {
 
     registerShuffleServers(appId, shuffleId, shuffleRegisterInfoList);
 
-    LOG_RSS_INFO.info("RegisterShuffle with ShuffleId[" + shuffleId + "], size:" + partitionToServers.size());
+    LOG.info("RegisterShuffle with ShuffleId[" + shuffleId + "], size:" + partitionToServers.size());
     for (Map.Entry<Integer, List<ShuffleServerInfo>> entry : partitionToServers.entrySet()) {
       for (ShuffleServerInfo ssi : entry.getValue()) {
-        LOG_RSS_INFO.info("RegisterShuffle ShuffleId[" + shuffleId + "], partitionId[" + entry.getKey()
+        LOG.info("RegisterShuffle ShuffleId[" + shuffleId + "], partitionId[" + entry.getKey()
             + "], shuffleServer[" + ssi.getId() + "]");
       }
     }
@@ -142,7 +140,7 @@ public class RssShuffleManager implements ShuffleManager {
     for (ShuffleRegisterInfo sri : shuffleRegisterInfoList) {
       shuffleWriteClient.registerShuffle(
           sri.getShuffleServerInfo(), appId, shuffleId, sri.getStart(), sri.getEnd());
-      LOG_RSS_INFO.info("Register with " + sri + " successfully");
+      LOG.info("Register with " + sri + " successfully");
     }
   }
 
@@ -151,7 +149,7 @@ public class RssShuffleManager implements ShuffleManager {
     String host = sparkConf.get(RssClientConfig.RSS_COORDINATOR_IP);
     int port = sparkConf.getInt(RssClientConfig.RSS_COORDINATOR_PORT,
         RssClientConfig.RSS_COORDINATOR_PORT_DEFAULT_VALUE);
-    LOG_RSS_INFO.info("Register coordinator client [" + host + ":" + port + "]");
+    LOG.info("Registering coordinator client [" + host + ":" + port + "]");
     shuffleWriteClient.registerCoordinatorClient(host, port);
   }
 

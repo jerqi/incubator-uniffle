@@ -7,9 +7,12 @@ set -u
 
 NAME="rss"
 MVN="mvn"
-RSS_HOME="$(cd "`dirname "$0"`"; pwd)"
+RSS_HOME="$(
+  cd "$(dirname "$0")"
+  pwd
+)"
 
-function exit_with_usage {
+function exit_with_usage() {
   set +x
   echo "$0 - tool for making binary distributions of Rmote Shuffle Service"
   echo ""
@@ -25,17 +28,17 @@ if [ -z "$JAVA_HOME" ]; then
 fi
 
 if [ $(command -v git) ]; then
-    GITREV=$(git rev-parse --short HEAD 2>/dev/null || :)
-    if [ ! -z "$GITREV" ]; then
-        GITREVSTRING=" (git revision $GITREV)"
-    fi
-    unset GITREV
+  GITREV=$(git rev-parse --short HEAD 2>/dev/null || :)
+  if [ ! -z "$GITREV" ]; then
+    GITREVSTRING=" (git revision $GITREV)"
+  fi
+  unset GITREV
 fi
 
-VERSION=$("$MVN" help:evaluate -Dexpression=project.version $@ 2>/dev/null\
-    | grep -v "INFO"\
-    | grep -v "WARNING"\
-    | tail -n 1)
+VERSION=$("$MVN" help:evaluate -Dexpression=project.version $@ 2>/dev/null |
+  grep -v "INFO" |
+  grep -v "WARNING" |
+  tail -n 1)
 
 echo "RSS version is $VERSION"
 
@@ -56,8 +59,8 @@ echo -e "\$ ${BUILD_COMMAND[@]}\n"
 DISTDIR="rss-$VERSION"
 rm -rf "$DISTDIR"
 mkdir -p "${DISTDIR}/jars"
-echo "RSS ${VERSION}${GITREVSTRING} built" > "${DISTDIR}/RELEASE"
-echo "Build flags: $@" >> "$DISTDIR/RELEASE"
+echo "RSS ${VERSION}${GITREVSTRING} built" >"${DISTDIR}/RELEASE"
+echo "Build flags: $@" >>"$DISTDIR/RELEASE"
 mkdir -p "${DISTDIR}/logs"
 
 SERVER_JAR_DIR="${DISTDIR}/jars/server"
@@ -72,16 +75,15 @@ COORDINATOR_JAR="${RSS_HOME}/coordinator/target/coordinator-${VERSION}-jar-with-
 echo "copy $COORDINATOR_JAR to ${COORDINATOR_JAR_DIR}"
 cp $COORDINATOR_JAR ${COORDINATOR_JAR_DIR}
 
+CLIENT_JAR_DIR="${DISTDIR}/jars/client"
+mkdir -p $CLIENT_JAR_DIR
+CLIENT_JAR="${RSS_HOME}/client-spark2/target/rss-client-spark2-${VERSION}.jar"
+echo "copy $CLIENT_JAR to ${CLIENT_JAR_DIR}"
+cp $CLIENT_JAR ${CLIENT_JAR_DIR}
+
 cp -r bin $DISTDIR
 cp -r conf $DISTDIR
 
-rm "rss-$VERSION.tgz"
+rm -rf "rss-$VERSION.tgz"
 tar czf "rss-$VERSION.tgz" $DISTDIR
 rm -rf $DISTDIR
-
-
-
-
-
-
-

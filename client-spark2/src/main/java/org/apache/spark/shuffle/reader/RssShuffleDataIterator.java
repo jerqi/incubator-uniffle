@@ -2,7 +2,7 @@ package org.apache.spark.shuffle.reader;
 
 import com.esotericsoftware.kryo.io.Input;
 import com.google.common.annotations.VisibleForTesting;
-import com.tecent.rss.client.ShuffleReadClient;
+import com.tencent.rss.client.api.ShuffleReadClient;
 import org.apache.spark.executor.ShuffleReadMetrics;
 import org.apache.spark.serializer.DeserializationStream;
 import org.apache.spark.serializer.Serializer;

@@ -6,7 +6,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShufflePartitionedBlock;
-import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.server.ShuffleGarbageCollector.NamedDaemonThreadFactory;
 import com.tencent.rss.storage.FileBasedShuffleWriteHandler;
@@ -20,7 +19,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,15 +26,14 @@ import org.slf4j.LoggerFactory;
 public class ShuffleFlushManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleFlushManager.class);
-  private static final Logger LOG_RSS_INFO = LoggerFactory.getLogger(Constants.LOG4J_RSS_SHUFFLE_PREFIX);
   public static AtomicLong ATOMIC_EVENT_ID = new AtomicLong(0);
+  private final ShuffleServer shuffleServer;
   private ScheduledExecutorService scheduledExecutorService;
   private BlockingQueue<ShuffleDataFlushEvent> flushQueue = Queues.newLinkedBlockingQueue();
   private ConcurrentMap<String, FileBasedShuffleWriteHandler> pathToHandler = Maps.newConcurrentMap();
   private ConcurrentMap<String, Set<Long>> pathToEventIds = Maps.newConcurrentMap();
   private ThreadPoolExecutor threadPoolExecutor;
   private ShuffleServerConf shuffleServerConf;
-  private final ShuffleServer shuffleServer;
   private boolean isRunning;
   private String storageBasePath;
   private String shuffleServerId;
@@ -96,7 +93,7 @@ public class ShuffleFlushManager {
         FileBasedShuffleWriteHandler handler = entry.getValue();
         if (handler != null) {
           long duration = (System.currentTimeMillis() - handler.getAccessTime()) / 1000;
-          LOG_RSS_INFO.info("Handler for " + entry.getKey() + ", duration=" + duration);
+          LOG.debug("Handler for " + entry.getKey() + ", duration=" + duration);
           if (duration > expired) {
             removedKeys.add(entry.getKey());
           }
@@ -108,10 +105,10 @@ public class ShuffleFlushManager {
           pathToEventIds.remove(key);
         }
       }
-      LOG_RSS_INFO.info("Successfully remove handlers/eventIds for " + removedKeys);
+      LOG.info("Successfully remove handlers/eventIds for " + removedKeys);
     } catch (Exception e) {
       // ignore exception in gc process
-      LOG_RSS_INFO.warn("Failed remove handlers for " + removedKeys, e);
+      LOG.warn("Failed remove handlers for " + removedKeys, e);
     }
   }
 
@@ -125,7 +122,7 @@ public class ShuffleFlushManager {
     List<ShufflePartitionedBlock> blocks = event.getShuffleBlocks();
     try {
       if (blocks == null || blocks.isEmpty()) {
-        LOG_RSS_INFO.info("There is no block to be flushed: " + event);
+        LOG.info("There is no block to be flushed: " + event);
       } else {
         FileBasedShuffleWriteHandler handler;
         synchronized (this) {
@@ -134,7 +131,7 @@ public class ShuffleFlushManager {
           handler = pathToHandler.get(path);
         }
         handler.write(blocks);
-        LOG_RSS_INFO.info("Write data success for " + event.toString());
+        LOG.debug("Write data success for " + event.toString());
       }
       pathToEventIds.putIfAbsent(path, Sets.newConcurrentHashSet());
       pathToEventIds.get(path).add(event.getEventId());

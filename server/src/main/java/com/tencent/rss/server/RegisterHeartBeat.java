@@ -1,12 +1,12 @@
 package com.tencent.rss.server;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.tecent.rss.client.CoordinatorClient;
-import com.tecent.rss.client.factory.CoordinatorClientFactory;
-import com.tecent.rss.client.impl.grpc.CoordinatorGrpcClient;
-import com.tecent.rss.client.request.SendHeartBeatRequest;
-import com.tecent.rss.client.response.ResponseStatusCode;
-import com.tecent.rss.client.response.SendHeartBeatResponse;
+import com.tencent.rss.client.api.CoordinatorClient;
+import com.tencent.rss.client.factory.CoordinatorClientFactory;
+import com.tencent.rss.client.impl.grpc.CoordinatorGrpcClient;
+import com.tencent.rss.client.request.SendHeartBeatRequest;
+import com.tencent.rss.client.response.ResponseStatusCode;
+import com.tencent.rss.client.response.SendHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;

@@ -12,7 +12,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.tecent.rss.client.ShuffleWriteClient;
+import com.tencent.rss.client.api.ShuffleWriteClient;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.Arrays;

@@ -5,7 +5,7 @@ import static org.junit.Assert.assertEquals;
 import com.esotericsoftware.kryo.io.Output;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.tecent.rss.client.util.ClientUtils;
+import com.tencent.rss.client.util.ClientUtils;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.FileBasedShuffleWriteHandler;

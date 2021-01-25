@@ -1,11 +1,10 @@
 package org.apache.spark.shuffle.reader;
 
 import avro.shaded.com.google.common.collect.Sets;
-import com.tecent.rss.client.ShuffleReadClient;
-import com.tecent.rss.client.factory.ShuffleClientFactory;
-import com.tecent.rss.client.request.CreateShuffleReadClientRequest;
-import com.tecent.rss.client.util.ClientUtils;
-import com.tencent.rss.common.util.Constants;
+import com.tencent.rss.client.api.ShuffleReadClient;
+import com.tencent.rss.client.factory.ShuffleClientFactory;
+import com.tencent.rss.client.request.CreateShuffleReadClientRequest;
+import com.tencent.rss.client.util.ClientUtils;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -37,7 +36,6 @@ import scala.runtime.BoxedUnit;
 public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
 
   private static final Logger LOG = LoggerFactory.getLogger(RssShuffleReader.class);
-  private static final Logger LOG_RSS_INFO = LoggerFactory.getLogger(Constants.LOG4J_RSS_SHUFFLE_PREFIX);
 
   private String appId;
   private int shuffleId;
@@ -148,7 +146,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     Iterator<Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>>> mapStatusIter =
         SparkEnv.get().mapOutputTracker().getMapSizesByExecutorId(
             shuffleId, startPartition, endPartition, false);
-    LOG_RSS_INFO.info("Start getExpectedBlockIds for shuffleId["
+    LOG.info("Start getExpectedBlockIds for shuffleId["
         + shuffleId + "], partitionId[" + startPartition + "]");
     while (mapStatusIter.hasNext()) {
       Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>> tuple2 = mapStatusIter.next();
@@ -162,7 +160,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
             for (Long blockId : entry.getValue()) {
               sb.append(blockId).append(",");
             }
-            LOG_RSS_INFO.info("Find BlockIds for shuffleId[" + shuffleId + "], partitionId["
+            LOG.info("Find BlockIds for shuffleId[" + shuffleId + "], partitionId["
                 + entry.getKey() + "], blockIds[" + sb.toString() + "]");
           }
           if (partitionToBlockIds.containsKey(startPartition)) {
@@ -179,7 +177,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     for (Long blockId : expectedBlockIds) {
       sb.append(blockId).append(",");
     }
-    LOG_RSS_INFO.info("Finish getExpectedBlockIds for shuffleId[" + shuffleId
+    LOG.info("Finish getExpectedBlockIds for shuffleId[" + shuffleId
         + "], partitionId[" + startPartition + "], blockIds[" + sb.toString() + "]");
     return expectedBlockIds;
   }
