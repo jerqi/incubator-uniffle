@@ -28,15 +28,16 @@ public class ShuffleFlushManager {
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleFlushManager.class);
   public static AtomicLong ATOMIC_EVENT_ID = new AtomicLong(0);
   private final ShuffleServer shuffleServer;
-  private ScheduledExecutorService scheduledExecutorService;
-  private BlockingQueue<ShuffleDataFlushEvent> flushQueue = Queues.newLinkedBlockingQueue();
-  private ConcurrentMap<String, FileBasedShuffleWriteHandler> pathToHandler = Maps.newConcurrentMap();
-  private ConcurrentMap<String, Set<Long>> pathToEventIds = Maps.newConcurrentMap();
-  private ThreadPoolExecutor threadPoolExecutor;
-  private ShuffleServerConf shuffleServerConf;
+  private final ScheduledExecutorService scheduledExecutorService;
+  private final BlockingQueue<ShuffleDataFlushEvent> flushQueue = Queues.newLinkedBlockingQueue();
+  private final ConcurrentMap<String, FileBasedShuffleWriteHandler> pathToHandler = Maps.newConcurrentMap();
+  private final ConcurrentMap<String, Set<Long>> pathToEventIds = Maps.newConcurrentMap();
+  private final ThreadPoolExecutor threadPoolExecutor;
+  private final ShuffleServerConf shuffleServerConf;
+  private final String storageBasePath;
+  private final String shuffleServerId;
+  private final Configuration hadoopConf;
   private boolean isRunning;
-  private String storageBasePath;
-  private String shuffleServerId;
   private long expired;
   private Runnable processEventThread;
 
@@ -44,10 +45,12 @@ public class ShuffleFlushManager {
     this.shuffleServerId = shuffleServerId;
     this.shuffleServerConf = shuffleServerConf;
     this.shuffleServer = shuffleServer;
-    int poolSize = shuffleServerConf.getInteger(ShuffleServerConf.RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_SIZE);
-    long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.RSS_SHUFFLE_SERVER_FLUSH_THREAD_ALIVE);
+    this.hadoopConf = new Configuration();
+    hadoopConf.setInt("dfs.replication", shuffleServerConf.getInteger(ShuffleServerConf.DATA_STORAGE_REPLICA));
+    int poolSize = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_SIZE);
+    long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.SERVER_FLUSH_THREAD_ALIVE);
     int waitQueueSize = shuffleServerConf.getInteger(
-        ShuffleServerConf.RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE);
+        ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE);
     BlockingQueue<Runnable> waitQueue = Queues.newLinkedBlockingQueue(waitQueueSize);
     threadPoolExecutor = new ThreadPoolExecutor(poolSize, poolSize, keepAliveTime, TimeUnit.SECONDS, waitQueue);
     storageBasePath = shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH);
@@ -68,9 +71,9 @@ public class ShuffleFlushManager {
     new Thread(processEventThread).start();
 
     expired = shuffleServerConf.getLong(
-        ShuffleServerConf.RSS_SHUFFLE_SERVER_FLUSH_HANDLER_EXPIRED);
+        ShuffleServerConf.SERVER_FLUSH_HANDLER_EXPIRED);
     long checkInterval = shuffleServerConf.getLong(
-        ShuffleServerConf.RSS_SHUFFLE_SERVER_FLUSH_GC_CHECK_INTERVAL);
+        ShuffleServerConf.SERVER_FLUSH_GC_CHECK_INTERVAL);
     scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
         NamedDaemonThreadFactory.defaultThreadFactory(true));
     scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
@@ -113,10 +116,15 @@ public class ShuffleFlushManager {
   }
 
   public void addToFlushQueue(ShuffleDataFlushEvent event) {
+    if (shuffleServer != null) {
+      LOG.debug("Add event {}, queue size is {} and buffer size is {}",
+          event.getEventId(), flushQueue.size(), shuffleServer.getBufferManager().size());
+    }
     flushQueue.offer(event);
   }
 
   private void flushToFile(ShuffleDataFlushEvent event) {
+    long startTime = System.currentTimeMillis();
     String path = event.getShuffleFilePath();
     String shuffleDataFolder = RssUtils.getFullShuffleDataFolder(storageBasePath, path);
     List<ShufflePartitionedBlock> blocks = event.getShuffleBlocks();
@@ -127,7 +135,7 @@ public class ShuffleFlushManager {
         FileBasedShuffleWriteHandler handler;
         synchronized (this) {
           pathToHandler.putIfAbsent(path,
-              new FileBasedShuffleWriteHandler(shuffleDataFolder, shuffleServerId, new Configuration()));
+              new FileBasedShuffleWriteHandler(shuffleDataFolder, shuffleServerId, hadoopConf));
           handler = pathToHandler.get(path);
         }
         handler.write(blocks);
@@ -142,7 +150,16 @@ public class ShuffleFlushManager {
     } finally {
       if (shuffleServer != null) {
         shuffleServer.getBufferManager().updateSize(-event.getSize());
+
+        LOG.debug(
+            "Flush event perf {} {} mb to fs for {} ms and used buffer size is {}",
+            event.getEventId(),
+            event.getSize() / 1024 / 1024,
+            System.currentTimeMillis() - startTime,
+            shuffleServer.getBufferManager().size());
       }
+
+
     }
   }
 

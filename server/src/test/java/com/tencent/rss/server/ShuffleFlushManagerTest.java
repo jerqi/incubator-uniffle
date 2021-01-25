@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.log4j.Level;
+import org.apache.log4j.LogManager;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -26,7 +28,8 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
 
   @Before
   public void prepare() {
-    shuffleServerConf.setString("rss.data.storage.basePath", storageBasePath);
+    shuffleServerConf.setString("rss.storage.basePath", storageBasePath);
+    LogManager.getRootLogger().setLevel(Level.INFO);
   }
 
   @Test
@@ -59,8 +62,8 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
 
   @Test
   public void testGC() throws Exception {
-    shuffleServerConf.setString("rss.shuffleServer.flush.handler.expired", "5");
-    shuffleServerConf.setString("rss.shuffleServer.flush.gc.check.interval", "1");
+    shuffleServerConf.setString("rss.server.flush.handler.expired", "5");
+    shuffleServerConf.setString("rss.server.flush.gc.check.interval", "1");
     ShuffleFlushManager manager = new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
     ShuffleDataFlushEvent event1 = createShuffleDataFlushEvent("appId3", "1", 0, 1);
     manager.addToFlushQueue(event1);
@@ -84,8 +87,8 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
 
   @Test
   public void testComplexWrite() throws Exception {
-    shuffleServerConf.setString("rss.shuffleServer.flush.handler.expired", "3");
-    shuffleServerConf.setString("rss.shuffleServer.flush.gc.check.interval", "1");
+    shuffleServerConf.setString("rss.server.flush.handler.expired", "3");
+    shuffleServerConf.setString("rss.server.flush.gc.check.interval", "1");
     List<ShufflePartitionedBlock> expectedBlocks = Lists.newArrayList();
     List<ShuffleDataFlushEvent> flushEvents1 = Lists.newArrayList();
     List<ShuffleDataFlushEvent> flushEvents2 = Lists.newArrayList();

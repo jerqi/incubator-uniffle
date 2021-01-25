@@ -1,5 +1,8 @@
 package com.tencent.rss.storage;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -7,10 +10,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.nio.ByteBuffer;
 
 public class FileBasedShuffleWriter implements Closeable {
 
@@ -31,7 +30,7 @@ public class FileBasedShuffleWriter implements Closeable {
     FileSystem fileSystem = ShuffleStorageUtils.getFileSystemForPath(path, hadoopConf);
     if (fileSystem.isFile(path)) {
       if (hadoopConf.getBoolean("dfs.support.append", true)
-        || fileSystem instanceof RawLocalFileSystem) {
+          || fileSystem instanceof RawLocalFileSystem) {
         fsDataOutputStream = fileSystem.append(path);
         nextOffset = fsDataOutputStream.getPos();
       } else {
@@ -52,7 +51,7 @@ public class FileBasedShuffleWriter implements Closeable {
   public void writeData(ByteBuffer byteBuffer) throws IOException {
     if (byteBuffer.hasArray()) {
       fsDataOutputStream.write(
-        byteBuffer.array(), byteBuffer.arrayOffset() + byteBuffer.position(), byteBuffer.remaining());
+          byteBuffer.array(), byteBuffer.arrayOffset() + byteBuffer.position(), byteBuffer.remaining());
     } else {
       byte[] byteArray = new byte[byteBuffer.remaining()];
       byteBuffer.get(byteArray);

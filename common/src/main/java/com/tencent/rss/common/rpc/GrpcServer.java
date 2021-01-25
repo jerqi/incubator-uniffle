@@ -17,7 +17,7 @@ public class GrpcServer implements ServerInterface {
   private final int port;
 
   public GrpcServer(RssBaseConf conf, BindableService service) {
-    this.port = conf.getInteger(RssBaseConf.SERVER_PORT);
+    this.port = conf.getInteger(RssBaseConf.RPC_SERVER_PORT);
     int maxInboundMessageSize = conf.getInteger(RssBaseConf.RPC_MESSAGE_MAX_SIZE);
     this.server = ServerBuilder
         .forPort(port)

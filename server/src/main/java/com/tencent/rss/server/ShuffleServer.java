@@ -85,7 +85,7 @@ public class ShuffleServer {
 
   private void initialization() throws UnknownHostException, FileNotFoundException {
     ip = InetAddress.getLocalHost().getHostAddress();
-    port = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_PORT);
+    port = shuffleServerConf.getInteger(ShuffleServerConf.RPC_SERVER_PORT);
     id = ip + "-" + port;
     registerHeartBeat = new RegisterHeartBeat(this);
     shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id, this);

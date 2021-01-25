@@ -20,7 +20,7 @@ public class JettyServerTest {
   @Test
   public void jettyServerTest() throws FileNotFoundException {
     RssBaseConf conf = new RssBaseConf();
-    conf.setString("jetty.http.port", "9527");
+    conf.setString("rss.jetty.http.port", "9527");
     JettyServer jettyServer = new JettyServer(conf);
     Server server = jettyServer.getServer();
 

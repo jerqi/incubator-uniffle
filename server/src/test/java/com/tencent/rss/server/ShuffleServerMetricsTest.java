@@ -35,8 +35,8 @@ public class ShuffleServerMetricsTest {
   @BeforeClass
   public static void setUp() throws Exception {
     ShuffleServerConf ssc = new ShuffleServerConf();
-    ssc.setString("jetty.http.port", "12345");
-    ssc.setString("jetty.corePool.size", "64");
+    ssc.setString("rss.jetty.http.port", "12345");
+    ssc.setString("rss.jetty.corePool.size", "64");
     server = new JettyServer(ssc);
     CollectorRegistry shuffleServerCollectorRegistry = new CollectorRegistry(true);
     ShuffleServerMetrics.register(shuffleServerCollectorRegistry);

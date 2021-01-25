@@ -60,9 +60,9 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
     String storageBasePath = HDFS_URI + "rss/test";
     String appId = "testAppId";
     String shuffleId = "1";
-    conf.setString("rss.buffer.capacity", "64");
-    conf.setString("rss.buffer.size", "64");
-    conf.setString("rss.data.storage.basePath", storageBasePath);
+    conf.setString("rss.server.buffer.capacity", "64");
+    conf.setString("rss.server.buffer.size", "64");
+    conf.setString("rss.storage.basePath", storageBasePath);
     ShuffleServer shuffleServer = new ShuffleServer(conf);
     BufferManager bufferManager = shuffleServer.getBufferManager();
     String serverId = shuffleServer.getId();

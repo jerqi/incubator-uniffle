@@ -23,25 +23,25 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
   public static void setupServers() throws Exception {
     // Load configuration from config files
     CoordinatorConf coordinatorConf = new CoordinatorConf();
-    coordinatorConf.setInteger("rss.server.port", COORDINATOR_PORT);
-    coordinatorConf.setInteger("jetty.http.port", JETTY_PORT);
-    coordinatorConf.setInteger("rss.shuffle.data.replica", 1);
+    coordinatorConf.setInteger("rss.rpc.server.port", COORDINATOR_PORT);
+    coordinatorConf.setInteger("rss.jetty.http.port", JETTY_PORT);
+    coordinatorConf.setInteger("rss.coordinator.server.replica", 1);
     // Start the coordinator service
     coordinator = new CoordinatorServer(coordinatorConf);
     coordinator.start();
 
     ShuffleServerConf serverConf = new ShuffleServerConf();
-    serverConf.setInteger("rss.server.port", 20001);
+    serverConf.setInteger("rss.rpc.server.port", 20001);
     serverConf.setString("rss.storage.type", "FILE");
-    serverConf.setString("rss.data.storage.basePath", HDFS_URI + "rss/test");
-    serverConf.setString("rss.buffer.capacity", "671088640");
-    serverConf.setString("rss.buffer.size", "67108864");
-    serverConf.setString("rss.coordinator.ip", "127.0.0.1");
-    serverConf.setInteger("rss.coordinator.port", COORDINATOR_PORT);
-    serverConf.setString("rss.heartbeat.delay", "1000");
-    serverConf.setString("rss.heartbeat.interval", "2000");
-    serverConf.setInteger("jetty.http.port", 18080);
-    serverConf.setInteger("jetty.corePool.size", 64);
+    serverConf.setString("rss.storage.basePath", HDFS_URI + "rss/test");
+    serverConf.setString("rss.server.buffer.capacity", "671088640");
+    serverConf.setString("rss.server.buffer.size", "67108864");
+    serverConf.setString("rss.server.coordinator.ip", "127.0.0.1");
+    serverConf.setInteger("rss.server.coordinator.port", COORDINATOR_PORT);
+    serverConf.setString("rss.server.heartbeat.delay", "1000");
+    serverConf.setString("rss.server.heartbeat.interval", "2000");
+    serverConf.setInteger("rss.jetty.http.port", 18080);
+    serverConf.setInteger("rss.jetty.corePool.size", 64);
 
     shuffleServer = new ShuffleServer(serverConf);
     shuffleServer.start();

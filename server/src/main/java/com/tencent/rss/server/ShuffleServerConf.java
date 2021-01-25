@@ -15,121 +15,127 @@ public class ShuffleServerConf extends RssBaseConf {
       .withDescription("Data storage for remote shuffle service");
 
   public static final ConfigOption<String> DATA_STORAGE_BASE_PATH = ConfigOptions
-      .key("rss.data.storage.basePath")
+      .key("rss.storage.basePath")
       .stringType()
       .noDefaultValue()
       .withDescription("Common storage path for remote shuffle data");
 
+  public static final ConfigOption<Integer> DATA_STORAGE_REPLICA = ConfigOptions
+      .key("rss.storage.replica")
+      .intType()
+      .defaultValue(1)
+      .withDescription("Size of each buffer in this server");
+
   public static final ConfigOption<Long> BUFFER_CAPACITY = ConfigOptions
-      .key("rss.buffer.capacity")
+      .key("rss.server.buffer.capacity")
       .longType()
       .noDefaultValue()
       .withDescription("Number of buffers in this server");
 
   public static final ConfigOption<Integer> BUFFER_SIZE = ConfigOptions
-      .key("rss.buffer.size")
+      .key("rss.server.buffer.size")
       .intType()
       .noDefaultValue()
       .withDescription("Size of each buffer in this server");
 
   public static final ConfigOption<String> COORDINATOR_IP = ConfigOptions
-      .key("rss.coordinator.ip")
+      .key("rss.server.coordinator.ip")
       .stringType()
       .noDefaultValue()
       .withDescription("Coordinator ip");
 
   public static final ConfigOption<Integer> COORDINATOR_PORT = ConfigOptions
-      .key("rss.coordinator.port")
+      .key("rss.server.coordinator.port")
       .intType()
       .noDefaultValue()
       .withDescription("Coordinator port");
 
   public static final ConfigOption<Long> HEARTBEAT_DELAY = ConfigOptions
-      .key("rss.heartbeat.delay")
+      .key("rss.server.heartbeat.delay")
       .longType()
       .defaultValue(10 * 1000L)
       .withDescription("rss heartbeat initial delay ms");
 
   public static final ConfigOption<Long> HEARTBEAT_INTERVAL = ConfigOptions
-      .key("rss.heartbeat.interval")
+      .key("rss.server.heartbeat.interval")
       .longType()
       .defaultValue(10 * 60 * 1000L)
       .withDescription("rss heartbeat interval ms");
 
   public static final ConfigOption<Long> HEARTBEAT_TIMEOUT = ConfigOptions
-      .key("rss.heartbeat.timeout")
+      .key("rss.server.heartbeat.timeout")
       .longType()
       .defaultValue(10 * 1000L)
       .withDescription("rss heartbeat interval ms");
 
   public static final ConfigOption<Integer> HEARTBEAT_MAX_FAILURE = ConfigOptions
-      .key("rss.heartbeat.max.failure")
+      .key("rss.server.heartbeat.max.failure")
       .intType()
       .defaultValue(10)
       .withDescription("rss heartbeat max failure times");
 
   public static final ConfigOption<Long> GC_DELAY = ConfigOptions
-      .key("rss.gc.delay")
+      .key("rss.server.gc.delay")
       .longType()
       .defaultValue(24 * 60 * 60L)
       .withDescription("rss gc start delay (second)");
 
   public static final ConfigOption<Long> GC_INTERVAL = ConfigOptions
-      .key("rss.gc.interval")
+      .key("rss.server.gc.interval")
       .longType()
       .defaultValue(24 * 60 * 60L)
       .withDescription("rss gc interval (second)");
 
   public static final ConfigOption<Long> GC_THRESHOLD = ConfigOptions
-      .key("rss.gc.threshold")
+      .key("rss.server.gc.threshold")
       .longType()
       .defaultValue(24 * 60 * 60L)
       .withDescription("rss gc threshold (second)");
 
   public static final ConfigOption<Integer> GC_THREAD_NUM = ConfigOptions
-      .key("rss.gc.threadNum")
+      .key("rss.server.gc.threadNum")
       .intType()
       .defaultValue(32)
       .withDescription("rss gc thread num");
 
-  public static final ConfigOption<Integer> RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_SIZE = ConfigOptions
-      .key("rss.shuffleServer.flush.threadPool.size")
+  public static final ConfigOption<Integer> SERVER_FLUSH_THREAD_POOL_SIZE = ConfigOptions
+      .key("rss.server.flush.threadPool.size")
       .intType()
       .defaultValue(128)
       .withDescription("thread pool for flush data to file");
 
-  public static final ConfigOption<Integer> RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE = ConfigOptions
-      .key("rss.shuffleServer.flush.threadPool.queue.size")
+  public static final ConfigOption<Integer> SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE = ConfigOptions
+      .key("rss.server.flush.threadPool.queue.size")
       .intType()
       .defaultValue(1000)
       .withDescription("size of waiting queue for thread pool");
 
-  public static final ConfigOption<Long> RSS_SHUFFLE_SERVER_FLUSH_THREAD_ALIVE = ConfigOptions
-      .key("rss.shuffleServer.flush.thread.alive")
+  public static final ConfigOption<Long> SERVER_FLUSH_THREAD_ALIVE = ConfigOptions
+      .key("rss.server.flush.thread.alive")
       .longType()
       .defaultValue(120L)
       .withDescription("thread idle time in pool (s)");
 
-  public static final ConfigOption<Long> RSS_SHUFFLE_SERVER_FLUSH_GC_CHECK_INTERVAL = ConfigOptions
-      .key("rss.shuffleServer.flush.gc.check.interval")
+  public static final ConfigOption<Long> SERVER_FLUSH_GC_CHECK_INTERVAL = ConfigOptions
+      .key("rss.server.flush.gc.check.interval")
       .longType()
       .defaultValue(600L)
       .withDescription("thread gc check interval");
 
-  public static final ConfigOption<Long> RSS_SHUFFLE_SERVER_FLUSH_HANDLER_EXPIRED = ConfigOptions
-      .key("rss.shuffleServer.flush.handler.expired")
+  public static final ConfigOption<Long> SERVER_FLUSH_HANDLER_EXPIRED = ConfigOptions
+      .key("rss.server.flush.handler.expired")
       .longType()
       .defaultValue(3600L)
       .withDescription("thread gc check interval");
 
-  public static final ConfigOption<Long> RSS_SHUFFLE_SERVER_COMMIT_TIMEOUT = ConfigOptions
-      .key("rss.shuffleServer.commit.timeout")
+  public static final ConfigOption<Long> SERVER_COMMIT_TIMEOUT = ConfigOptions
+      .key("rss.server.commit.timeout")
       .longType()
       .defaultValue(30000L)
       .withDescription("Timeout when commit shuffle data (ms)");
 
-  public static final ConfigOption<Long> RSS_SHUFFLE_SERVER_WRITE_TIMEOUT = ConfigOptions
-      .key("rss.shuffleServer.write.timeout")
+  public static final ConfigOption<Long> SERVER_WRITE_TIMEOUT = ConfigOptions
+      .key("rss.server.write.timeout")
       .longType()
       .defaultValue(30000L)
       .withDescription("Timeout when write shuffle data (ms)");
@@ -155,12 +161,12 @@ public class ShuffleServerConf extends RssBaseConf {
     loadCommonConf(properties);
 
     properties.forEach((k, v) -> {
-      if (SERVER_TYPE.key().equalsIgnoreCase(k)) {
-        set(SERVER_TYPE, v.toUpperCase());
+      if (RPC_SERVER_TYPE.key().equalsIgnoreCase(k)) {
+        set(RPC_SERVER_TYPE, v.toUpperCase());
       }
 
-      if (SERVER_PORT.key().equalsIgnoreCase(k)) {
-        set(SERVER_PORT, Integer.valueOf(v));
+      if (RPC_SERVER_PORT.key().equalsIgnoreCase(k)) {
+        set(RPC_SERVER_PORT, Integer.valueOf(v));
       }
 
       if (DATA_STORAGE_TYPE.key().equalsIgnoreCase(k)) {
@@ -169,6 +175,10 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (DATA_STORAGE_BASE_PATH.key().equalsIgnoreCase(k)) {
         set(DATA_STORAGE_BASE_PATH, v);
+      }
+
+      if (DATA_STORAGE_REPLICA.key().equalsIgnoreCase(k)) {
+        set(DATA_STORAGE_REPLICA, Integer.valueOf(k));
       }
 
       if (BUFFER_CAPACITY.key().equalsIgnoreCase(k)) {
@@ -215,32 +225,32 @@ public class ShuffleServerConf extends RssBaseConf {
         set(GC_THRESHOLD, Long.valueOf(v));
       }
 
-      if (RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_SIZE.key().equalsIgnoreCase(k)) {
-        set(RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_SIZE, Integer.valueOf(v));
+      if (SERVER_FLUSH_THREAD_POOL_SIZE.key().equalsIgnoreCase(k)) {
+        set(SERVER_FLUSH_THREAD_POOL_SIZE, Integer.valueOf(v));
       }
 
-      if (RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE.key().equalsIgnoreCase(k)) {
-        set(RSS_SHUFFLE_SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE, Integer.valueOf(v));
+      if (SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE.key().equalsIgnoreCase(k)) {
+        set(SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE, Integer.valueOf(v));
       }
 
-      if (RSS_SHUFFLE_SERVER_FLUSH_THREAD_ALIVE.key().equalsIgnoreCase(k)) {
-        set(RSS_SHUFFLE_SERVER_FLUSH_THREAD_ALIVE, Long.valueOf(v));
+      if (SERVER_FLUSH_THREAD_ALIVE.key().equalsIgnoreCase(k)) {
+        set(SERVER_FLUSH_THREAD_ALIVE, Long.valueOf(v));
       }
 
-      if (RSS_SHUFFLE_SERVER_FLUSH_GC_CHECK_INTERVAL.key().equalsIgnoreCase(k)) {
-        set(RSS_SHUFFLE_SERVER_FLUSH_GC_CHECK_INTERVAL, Long.valueOf(v));
+      if (SERVER_FLUSH_GC_CHECK_INTERVAL.key().equalsIgnoreCase(k)) {
+        set(SERVER_FLUSH_GC_CHECK_INTERVAL, Long.valueOf(v));
       }
 
-      if (RSS_SHUFFLE_SERVER_FLUSH_HANDLER_EXPIRED.key().equalsIgnoreCase(k)) {
-        set(RSS_SHUFFLE_SERVER_FLUSH_HANDLER_EXPIRED, Long.valueOf(v));
+      if (SERVER_FLUSH_HANDLER_EXPIRED.key().equalsIgnoreCase(k)) {
+        set(SERVER_FLUSH_HANDLER_EXPIRED, Long.valueOf(v));
       }
 
-      if (RSS_SHUFFLE_SERVER_COMMIT_TIMEOUT.key().equalsIgnoreCase(k)) {
-        set(RSS_SHUFFLE_SERVER_COMMIT_TIMEOUT, Long.valueOf(v));
+      if (SERVER_COMMIT_TIMEOUT.key().equalsIgnoreCase(k)) {
+        set(SERVER_COMMIT_TIMEOUT, Long.valueOf(v));
       }
 
-      if (RSS_SHUFFLE_SERVER_WRITE_TIMEOUT.key().equalsIgnoreCase(k)) {
-        set(RSS_SHUFFLE_SERVER_WRITE_TIMEOUT, Long.valueOf(v));
+      if (SERVER_WRITE_TIMEOUT.key().equalsIgnoreCase(k)) {
+        set(SERVER_WRITE_TIMEOUT, Long.valueOf(v));
       }
     });
 

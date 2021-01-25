@@ -53,7 +53,7 @@ public class RssShuffleWriterTest {
         .set("spark.rss.test", "true")
         .set("spark.rss.writer.send.check.timeout", "10000")
         .set("spark.rss.writer.send.check.interval", "1000")
-        .set("spark.rss.coordinator.ip", "127.0.0.1");
+        .set("spark.rss.server.coordinator.ip", "127.0.0.1");
     // init SparkContext
     SparkContext sc = SparkContext.getOrCreate(conf);
     RssShuffleManager manager = new RssShuffleManager(conf, false);
@@ -116,7 +116,7 @@ public class RssShuffleWriterTest {
         .set("spark.rss.writer.buffer.spill.size", "64")
         .set("spark.rss.writer.send.check.timeout", "10000")
         .set("spark.rss.writer.send.check.interval", "1000")
-        .set("spark.rss.coordinator.ip", "127.0.0.1");
+        .set("spark.rss.server.coordinator.ip", "127.0.0.1");
     // init SparkContext
     SparkContext sc = SparkContext.getOrCreate(conf);
     RssShuffleManager manager = new RssShuffleManager(conf, false);

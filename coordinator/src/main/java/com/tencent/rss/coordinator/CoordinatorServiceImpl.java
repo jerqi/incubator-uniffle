@@ -65,7 +65,7 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
       StreamObserver<GetShuffleAssignmentsResponse> responseObserver) {
     final int partitionNum = request.getPartitionNum();
     final int partitionPerServer = request.getPartitionPerServer();
-    final int replica = coordinatorServer.getCoordinatorConf().getShuffleServerDataReplica();
+    final int replica = coordinatorServer.getCoordinatorConf().getShuffleServerReplica();
 
     final PartitionRangeAssignment pra =
         coordinatorServer.getAssignmentStrategy().assign(partitionNum, partitionPerServer, replica);

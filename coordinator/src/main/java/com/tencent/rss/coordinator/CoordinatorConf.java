@@ -22,8 +22,8 @@ public class CoordinatorConf extends RssBaseConf {
       .intType()
       .defaultValue(10)
       .withDescription("rss coordinator usableThreshold");
-  static final ConfigOption<Integer> SHUFFLE_SERVER_DATA_REPLICA = ConfigOptions
-      .key("rss.shuffle.data.replica")
+  static final ConfigOption<Integer> SHUFFLE_SERVER_REPLICA = ConfigOptions
+      .key("rss.coordinator.server.replica")
       .intType()
       .defaultValue(2)
       .withDescription("Data replica configuration when writing into shuffle server");
@@ -33,25 +33,20 @@ public class CoordinatorConf extends RssBaseConf {
       .defaultValue("BASIC")
       .withDescription("Strategy for assigning shuffle server to write partitions");
   private static final ConfigOption<String> DATA_STORAGE = ConfigOptions
-      .key("rss.data.storage")
+      .key("rss.storage.type")
       .stringType()
       .defaultValue("local")
       .withDescription("Data storage for remote shuffle service");
   private static final ConfigOption<String> DATA_STORAGE_PATH = ConfigOptions
-      .key("rss.data.storage.path")
+      .key("rss.storage.path")
       .stringType()
       .defaultValue("")
       .withDescription("Common storage path for remote shuffle data");
   private static final ConfigOption<String> DATA_STORAGE_PATTERN = ConfigOptions
-      .key("rss.data.storage.pattern")
+      .key("rss.storage.pattern")
       .stringType()
       .defaultValue("partition")
       .withDescription("Data layout in remote shuffle service cluster");
-  private static final ConfigOption<Integer> HEARTBEAT_INTERVAL = ConfigOptions
-      .key("rss.heartbeat.interval")
-      .intType()
-      .defaultValue(60)
-      .withDescription("Heartbeat interval (seconds) between shuffle server and coordinator");
 
   public CoordinatorConf() {
   }
@@ -86,12 +81,8 @@ public class CoordinatorConf extends RssBaseConf {
         set(DATA_STORAGE_PATTERN, v);
       }
 
-      if (SHUFFLE_SERVER_DATA_REPLICA.key().equalsIgnoreCase(k)) {
-        set(SHUFFLE_SERVER_DATA_REPLICA, Integer.valueOf(v));
-      }
-
-      if (HEARTBEAT_INTERVAL.key().equalsIgnoreCase(k)) {
-        set(HEARTBEAT_INTERVAL, Integer.valueOf(v));
+      if (SHUFFLE_SERVER_REPLICA.key().equalsIgnoreCase(k)) {
+        set(SHUFFLE_SERVER_REPLICA, Integer.valueOf(v));
       }
 
       if (ASSIGNMENT_STRATEGY.key().equalsIgnoreCase(k)) {
@@ -111,10 +102,6 @@ public class CoordinatorConf extends RssBaseConf {
     return true;
   }
 
-  public int getHeartbeatInterval() {
-    return this.getInteger(HEARTBEAT_INTERVAL);
-  }
-
   public String getDataStorage() {
     return this.getString(DATA_STORAGE);
   }
@@ -123,8 +110,8 @@ public class CoordinatorConf extends RssBaseConf {
     return this.getString(DATA_STORAGE_PATH);
   }
 
-  public int getShuffleServerDataReplica() {
-    return this.getInteger(SHUFFLE_SERVER_DATA_REPLICA);
+  public int getShuffleServerReplica() {
+    return this.getInteger(SHUFFLE_SERVER_REPLICA);
   }
 
   public String getDataStoragePattern() {

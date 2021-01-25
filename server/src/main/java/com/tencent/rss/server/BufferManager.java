@@ -60,28 +60,32 @@ public class BufferManager {
     }
   }
 
-  public ShuffleFlushManager getShuffleFlushManager() {
+  ShuffleFlushManager getShuffleFlushManager() {
     return shuffleServer.getShuffleFlushManager();
   }
 
-  public long updateSize(long delta) {
+  long updateSize(long delta) {
     return atomicSize.addAndGet(delta);
   }
 
-  public boolean isFull() {
+  boolean isFull() {
     return atomicSize.get() >= capacity;
   }
 
-  public void setCapacity(long capacity) {
+  void setCapacity(long capacity) {
     this.capacity = capacity;
   }
 
-  public void setBufferSize(int bufferSize) {
+  void setBufferSize(int bufferSize) {
     this.bufferSize = bufferSize;
   }
 
-  public int getBufferUsedPercent() {
+  int getBufferUsedPercent() {
     return (int) (atomicSize.longValue() / (capacity / 100));
+  }
+
+  long size() {
+    return atomicSize.get();
   }
 
   @VisibleForTesting

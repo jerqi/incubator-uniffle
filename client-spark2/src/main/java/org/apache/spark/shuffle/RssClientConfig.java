@@ -12,8 +12,8 @@ public class RssClientConfig {
   public static String RSS_WRITER_BUFFER_SPILL_SIZE = "spark.rss.writer.buffer.spill.size";
   // RSS_WRITER_BUFFER_SIZE_DEFAULT_VALUE * 32
   public static String RSS_WRITER_BUFFER_SPILL_SIZE_DEFAULT_VALUE = "128m";
-  public static String RSS_COORDINATOR_IP = "spark.rss.coordinator.ip";
-  public static String RSS_COORDINATOR_PORT = "spark.rss.coordinator.port";
+  public static String RSS_COORDINATOR_IP = "spark.rss.server.coordinator.ip";
+  public static String RSS_COORDINATOR_PORT = "spark.rss.server.coordinator.port";
   public static int RSS_COORDINATOR_PORT_DEFAULT_VALUE = 17777;
   public static String RSS_WRITER_SEND_CHECK_TIMEOUT = "spark.rss.writer.send.check.timeout";
   public static long RSS_WRITER_SEND_CHECK_TIMEOUT_DEFAULT_VALUE = 10 * 60 * 1000; // 10 min
@@ -23,7 +23,7 @@ public class RssClientConfig {
   public static String RSS_BASE_PATH = "spark.rss.base.path";
   public static String RSS_INDEX_READ_LIMIT = "spark.rss.index.read.limit";
   public static int RSS_INDEX_READ_LIMIT_DEFAULT_VALUE = 1000;
-  public static String RSS_CLIENT_TYPE = "spark.rss.client.type";
+  public static String RSS_CLIENT_TYPE = "spark.rss.rpc.client.type";
   public static String RSS_CLIENT_TYPE_DEFAULT_VALUE = "GRPC";
   public static String RSS_STORAGE_TYPE = "spark.rss.storage.type";
   public static String RSS_STORAGE_TYPE_DEFAULT_VALUE = "FILE";

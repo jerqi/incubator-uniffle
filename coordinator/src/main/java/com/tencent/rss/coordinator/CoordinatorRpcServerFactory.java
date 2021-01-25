@@ -14,7 +14,7 @@ public class CoordinatorRpcServerFactory {
   }
 
   public ServerInterface getServer() {
-    String type = conf.getString(CoordinatorConf.SERVER_TYPE);
+    String type = conf.getString(CoordinatorConf.RPC_SERVER_TYPE);
     if (type.equals(ServerTyep.GRPC.name())) {
       return new GrpcServer(conf, new CoordinatorServiceImpl(coordinatorServer));
     } else {

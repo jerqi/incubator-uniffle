@@ -58,6 +58,7 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
     try (FileBasedShuffleWriter dataWriter = createWriter(dataFileName);
         FileBasedShuffleWriter indexWriter = createWriter(indexFileName)) {
 
+      long start = System.currentTimeMillis();
       for (ShufflePartitionedBlock block : shuffleBlocks) {
         LOG.debug("Write data " + block);
         long blockId = block.getBlockId();
@@ -72,7 +73,18 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
         LOG.debug("Write index " + segment);
         indexWriter.writeIndex(segment);
       }
+      LOG.debug(
+          "Write handler perf write {} blocks {} mb for {} ms without file open close",
+          shuffleBlocks.size(),
+          shuffleBlocks.stream().map(ShufflePartitionedBlock::getLength).reduce(0, Integer::sum) / (1024 * 1024),
+          System.currentTimeMillis() - start);
     }
+
+    LOG.debug(
+        "Write handler perf write {} blocks {} mb for {} ms with file open close",
+        shuffleBlocks.size(),
+        shuffleBlocks.stream().map(ShufflePartitionedBlock::getLength).reduce(0, Integer::sum) / (1024 * 1024),
+        System.currentTimeMillis() - accessTime);
   }
 
   private FileBasedShuffleWriter createWriter(String fileName) throws IOException, IllegalStateException {

@@ -116,7 +116,7 @@ public class ShuffleEngineManager {
       }
     }
 
-    long commitTimeout = conf.get(ShuffleServerConf.RSS_SHUFFLE_SERVER_COMMIT_TIMEOUT);
+    long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
     long start = System.currentTimeMillis();
     while (true) {
       List<String> removedKeys = Lists.newArrayList();

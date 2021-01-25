@@ -43,7 +43,7 @@ public class ShuffleServerConfTest {
   public void envConfTest() {
     environmentVariables.set("RSS_HOME", (new File(confFile)).getParent());
     shuffleServerConf.loadConfFromFile(null);
-    assertEquals(1234, shuffleServerConf.getInteger(ShuffleServerConf.SERVER_PORT));
+    assertEquals(1234, shuffleServerConf.getInteger(ShuffleServerConf.RPC_SERVER_PORT));
     assertEquals("FILE", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_TYPE));
     assertEquals("/var/tmp/test", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH));
 
@@ -54,7 +54,7 @@ public class ShuffleServerConfTest {
   @Test
   public void confTest() {
     assertTrue(shuffleServerConf.loadConfFromFile(confFile));
-    assertEquals(1234, shuffleServerConf.getInteger(ShuffleServerConf.SERVER_PORT));
+    assertEquals(1234, shuffleServerConf.getInteger(ShuffleServerConf.RPC_SERVER_PORT));
     assertEquals("FILE", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_TYPE));
     assertEquals("/var/tmp/test", shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH));
     assertFalse(shuffleServerConf.loadConfFromFile("/var/tmp/null"));

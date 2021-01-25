@@ -111,7 +111,7 @@ public class GrpcService extends ShuffleServerImplBase {
           }
           try {
             long writeTimeout =
-                shuffleServer.getShuffleServerConf().get(ShuffleServerConf.RSS_SHUFFLE_SERVER_WRITE_TIMEOUT);
+                shuffleServer.getShuffleServerConf().get(ShuffleServerConf.SERVER_WRITE_TIMEOUT);
             long start = System.currentTimeMillis();
             do {
               if (System.currentTimeMillis() - start > writeTimeout) {
