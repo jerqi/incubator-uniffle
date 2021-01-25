@@ -7,7 +7,6 @@ import static org.junit.Assert.assertNotNull;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.storage.HdfsTestBase;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -55,7 +54,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
             conf, bufferManager);
     shuffleEngine.init();
     String actual = shuffleEngine.getBasePath();
-    String expected = HdfsTestBase.HDFS_URI + "/1_2_3-4";
+    String expected = HdfsTestBase.HDFS_URI + "/1/2/3-4";
     assertEquals(expected, actual);
   }
 
@@ -107,8 +106,8 @@ public class ShuffleEngineTest extends HdfsTestBase {
     // data is in the buffer
     writeData(shuffleEngine, 64, 3);
     writeData(shuffleEngine1, 6, 3);
-    checkEngine(shuffleEngine, 64,1,70);
-    checkEngine(shuffleEngine1, 6,1,70);
+    checkEngine(shuffleEngine, 64, 1, 70);
+    checkEngine(shuffleEngine1, 6, 1, 70);
 
     shuffleEngine.commit();
     Thread.sleep(1000);

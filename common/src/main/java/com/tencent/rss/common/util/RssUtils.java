@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
 
 public class RssUtils {
 
+  static final String HDFS_PATH_SEPARATOR = "/";
+  static final String HDFS_DIRNAME_SEPARATOR = "-";
   private static final Logger LOGGER = LoggerFactory.getLogger(RssUtils.class);
 
   /**
@@ -58,13 +60,13 @@ public class RssUtils {
 
   public static String getShuffleDataPath(String appId, String shuffleId, int start, int end) {
     return String.join(
-        "_",
+        HDFS_PATH_SEPARATOR,
         appId,
         String.valueOf(shuffleId),
-        String.join("-", String.valueOf(start), String.valueOf(end)));
+        String.join(HDFS_DIRNAME_SEPARATOR, String.valueOf(start), String.valueOf(end)));
   }
 
   public static String getFullShuffleDataFolder(String basePath, String subPath) {
-    return String.join("/", basePath, subPath);
+    return String.join(HDFS_PATH_SEPARATOR, basePath, subPath);
   }
 }
