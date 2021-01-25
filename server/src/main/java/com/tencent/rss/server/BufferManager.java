@@ -93,10 +93,4 @@ public class BufferManager {
   AtomicLong getAtomicSize() {
     return atomicSize;
   }
-
-  @VisibleForTesting
-  void clearBuffer() {
-    atomicSize.set(0);
-  }
-
 }
