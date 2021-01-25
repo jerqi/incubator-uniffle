@@ -2,6 +2,7 @@ package com.tencent.rss.server;
 
 import static com.tencent.rss.server.GrpcService.valueOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -136,7 +137,25 @@ public class GrpcShuffleServiceTest extends MetricsTestBase {
     verify(mockShuffleTaskManager, atLeastOnce()).getShuffleEngine(
         "", "0", 0);
     verify(mockShuffleEngine, atLeastOnce()).write(any());
+  }
 
+  @Test
+  public void bufferManagerFullTest() throws IOException, IllegalStateException {
+    ShuffleEngine mockShuffleEngine = mock(ShuffleEngine.class);
+    when(mockShuffleTaskManager
+        .getShuffleEngine("", "0", 0))
+        .thenReturn(mockShuffleEngine);
+
+    List<ShuffleData> shuffleDataList = new LinkedList<>();
+    shuffleDataList.add(ShuffleData.newBuilder().build());
+    when(mockShuffleEngine
+        .write(any()))
+        .thenReturn(StatusCode.NO_BUFFER);
+
+    SendShuffleDataRequest req = SendShuffleDataRequest.newBuilder().addAllShuffleData(shuffleDataList).build();
+    SendShuffleDataResponse actual = stub.sendShuffleData(req);
+    assertEquals(valueOf(StatusCode.NO_BUFFER), actual.getStatus());
+    assertTrue(actual.getRetMsg().startsWith("There is no buffer for"));
   }
 
   @Test

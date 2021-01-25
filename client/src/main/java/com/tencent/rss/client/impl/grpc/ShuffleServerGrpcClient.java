@@ -45,9 +45,11 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
 
   }
 
-  public boolean doSendShuffleData(
+  public SendShuffleDataResponse doSendShuffleData(
       String appId, Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleIdToBlocks) {
     List<ShuffleBlockInfo> shuffleBlockInfos = Lists.newArrayList();
+    boolean isNoBuffer = false;
+    boolean isSuccessful = true;
     // prepare rpc request based on shuffleId -> partitionId -> blocks
     for (Map.Entry<Integer, Map<Integer, List<ShuffleBlockInfo>>> stb : shuffleIdToBlocks.entrySet()) {
       List<RssProtos.ShuffleData> shuffleData = Lists.newArrayList();
@@ -72,6 +74,11 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
           .build();
       RssProtos.SendShuffleDataResponse response = blockingStub.sendShuffleData(request);
 
+      if (response.getStatus() == StatusCode.NO_BUFFER) {
+        // there is no buffer in shuffle server, stop to sending data
+        isNoBuffer = true;
+      }
+
       if (response.getStatus() != StatusCode.SUCCESS) {
         StringBuilder sb = new StringBuilder();
         for (ShuffleBlockInfo sbi : shuffleBlockInfos) {
@@ -82,10 +89,22 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
             + "statusCode=" + response.getStatus()
             + ", errorMsg:" + response.getRetMsg();
         LOG.warn(msg);
-        return false;
+        isSuccessful = false;
+        break;
       }
     }
-    return true;
+
+    SendShuffleDataResponse response;
+    if (isSuccessful) {
+      response = new SendShuffleDataResponse(ResponseStatusCode.SUCCESS);
+    } else {
+      if (isNoBuffer) {
+        response = new SendShuffleDataResponse(ResponseStatusCode.NO_BUFFER);
+      } else {
+        response = new SendShuffleDataResponse(ResponseStatusCode.INTERNAL_ERROR);
+      }
+    }
+    return response;
   }
 
   public RssProtos.ShuffleCommitResponse doSendCommit(String appId, int shuffleId) {
@@ -121,15 +140,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
 
   @Override
   public SendShuffleDataResponse sendShuffleData(SendShuffleDataRequest request) {
-    boolean sendSuccessfully = doSendShuffleData(request.getAppId(), request.getShuffleIdToBlocks());
-    SendShuffleDataResponse response;
-
-    if (sendSuccessfully) {
-      response = new SendShuffleDataResponse(ResponseStatusCode.SUCCESS);
-    } else {
-      response = new SendShuffleDataResponse(ResponseStatusCode.INTERNAL_ERROR);
-    }
-    return response;
+    return doSendShuffleData(request.getAppId(), request.getShuffleIdToBlocks());
   }
 
   @Override

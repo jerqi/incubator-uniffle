@@ -131,7 +131,7 @@ public class ShuffleFlushManager {
           handler = pathToHandler.get(path);
         }
         handler.write(blocks);
-        LOG.debug("Write data success for " + event.toString());
+        LOG.info("Write data success for " + event.toString());
       }
       pathToEventIds.putIfAbsent(path, Sets.newConcurrentHashSet());
       pathToEventIds.get(path).add(event.getEventId());

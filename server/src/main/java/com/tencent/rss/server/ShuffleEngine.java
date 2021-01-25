@@ -6,10 +6,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.common.util.RssUtils;
-
 import java.io.IOException;
 import java.util.Set;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +76,10 @@ public class ShuffleEngine {
           + engineDesc
           + " is null, which should only happen after gc but engine would be null too.";
       throw new IllegalStateException(msg);
+    }
+
+    if (bufferManager.isFull()) {
+      return StatusCode.NO_BUFFER;
     }
 
     StatusCode ret = buffer.append(data);

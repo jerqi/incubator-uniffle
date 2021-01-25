@@ -1,5 +1,6 @@
 package com.tencent.rss.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.tencent.rss.client.api.CoordinatorClient;
@@ -32,13 +33,17 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleWriteClientImpl.class);
 
   private String clientType;
+  private int retryMax;
+  private long retryInterval;
   private CoordinatorClient coordinatorClient;
   private Map<ShuffleServerInfo, ShuffleServerClient> shuffleServerClients;
   private CoordinatorClientFactory coordinatorClientFactory;
   private ShuffleServerClientFactory shuffleServerClientFactory;
 
-  public ShuffleWriteClientImpl(String clientType) {
+  public ShuffleWriteClientImpl(String clientType, int retryMax, long retryInterval) {
     this.clientType = clientType;
+    this.retryMax = retryMax;
+    this.retryInterval = retryInterval;
     coordinatorClientFactory = new CoordinatorClientFactory(clientType);
     shuffleServerClientFactory = new ShuffleServerClientFactory(clientType);
     shuffleServerClients = Maps.newHashMap();
@@ -87,6 +92,19 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
       try {
         SendShuffleDataRequest rpcRequest = new SendShuffleDataRequest(appId, entry.getValue());
         SendShuffleDataResponse rpcResponse = getShuffleServerClient(ssi).sendShuffleData(rpcRequest);
+
+        // there is no buffer in shuffle server, try again
+        int retry = 0;
+        while (rpcResponse.getStatusCode() == ResponseStatusCode.NO_BUFFER) {
+          if (retry >= retryMax) {
+            throw new RuntimeException("ShuffleServer is full and can't send shuffle"
+                + " data successfully after retry " + retryMax + " times");
+          }
+          Thread.sleep(retryInterval);
+          rpcResponse = getShuffleServerClient(ssi).sendShuffleData(rpcRequest);
+          retry++;
+        }
+
         if (rpcResponse.getStatusCode() == ResponseStatusCode.SUCCESS) {
           successBlockIds.addAll(serverToBlockIds.get(ssi));
           LOG.info("Send: " + serverToBlockIds.get(ssi)
@@ -169,7 +187,8 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
     }
   }
 
-  private synchronized ShuffleServerClient getShuffleServerClient(ShuffleServerInfo shuffleServerInfo) {
+  @VisibleForTesting
+  protected synchronized ShuffleServerClient getShuffleServerClient(ShuffleServerInfo shuffleServerInfo) {
     if (shuffleServerClients.get(shuffleServerInfo) == null) {
       shuffleServerClients.put(
           shuffleServerInfo, shuffleServerClientFactory.createShuffleServerClient(

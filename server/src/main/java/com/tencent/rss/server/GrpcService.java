@@ -12,15 +12,13 @@ import com.tencent.rss.proto.RssProtos.ShuffleData;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerImplBase;
-
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GrpcService extends ShuffleServerImplBase {
 
@@ -29,6 +27,29 @@ public class GrpcService extends ShuffleServerImplBase {
 
   public GrpcService(ShuffleServer shuffleServer) {
     this.shuffleServer = shuffleServer;
+  }
+
+  public static RssProtos.StatusCode valueOf(StatusCode code) {
+    switch (code) {
+      case SUCCESS:
+        return RssProtos.StatusCode.SUCCESS;
+      case DOUBLE_REGISTER:
+        return RssProtos.StatusCode.DOUBLE_REGISTER;
+      case NO_BUFFER:
+        return RssProtos.StatusCode.NO_BUFFER;
+      case INVALID_STORAGE:
+        return RssProtos.StatusCode.INVALID_STORAGE;
+      case NO_REGISTER:
+        return RssProtos.StatusCode.NO_REGISTER;
+      case NO_PARTITION:
+        return RssProtos.StatusCode.NO_PARTITION;
+      case INTERNAL_ERROR:
+        return RssProtos.StatusCode.INTERNAL_ERROR;
+      case TIMEOUT:
+        return RssProtos.StatusCode.TIMEOUT;
+      default:
+        return RssProtos.StatusCode.INTERNAL_ERROR;
+    }
   }
 
   @Override
@@ -89,8 +110,25 @@ public class GrpcService extends ShuffleServerImplBase {
             break;
           }
           try {
-            ret = shuffleEngine.write(spd);
-            if (ret != StatusCode.SUCCESS) {
+            long writeTimeout =
+                shuffleServer.getShuffleServerConf().get(ShuffleServerConf.RSS_SHUFFLE_SERVER_WRITE_TIMEOUT);
+            long start = System.currentTimeMillis();
+            do {
+              if (System.currentTimeMillis() - start > writeTimeout) {
+                String errorMsg = "There is no buffer for "
+                    + shuffleDataInfo + " after " + writeTimeout + "ms waiting, statusCode=" + ret;
+                LOG.error(errorMsg);
+                responseMessage = errorMsg;
+                break;
+              }
+              ret = shuffleEngine.write(spd);
+              if (ret == StatusCode.NO_BUFFER) {
+                LOG.warn("Buffer is full for writing shuffle data, wait 1s");
+                Thread.sleep(1000);
+              }
+            } while (ret == StatusCode.NO_BUFFER);
+
+            if (ret != StatusCode.SUCCESS && ret != StatusCode.NO_BUFFER) {
               String errorMsg = "Error happened when shuffleEngine.write for "
                   + shuffleDataInfo + ", statusCode=" + ret;
               LOG.error(errorMsg);
@@ -187,9 +225,5 @@ public class GrpcService extends ShuffleServerImplBase {
     }
 
     return ret;
-  }
-
-  public static RssProtos.StatusCode valueOf(StatusCode code) {
-    return RssProtos.StatusCode.forNumber(code.statusCode());
   }
 }

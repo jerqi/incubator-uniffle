@@ -1,15 +1,15 @@
 package com.tencent.rss.server;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
-import com.tencent.rss.proto.RssProtos;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.io.FileNotFoundException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -22,14 +22,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class BufferManagerTest {
@@ -66,7 +63,7 @@ public class BufferManagerTest {
     assertTrue(bufferManager.getPool().containsKey("e1"));
     assertTrue(bufferManager.getPool().containsKey("e2"));
 
-    bufferManager.setAtomicSize(1024);
+    bufferManager.updateSize(1024);
     ShuffleEngine engine3 = mock(ShuffleEngine.class);
     when(engine1.makeKey()).thenReturn("e3");
     ShuffleBuffer buffer3 = bufferManager.getBuffer(engine3);
@@ -171,7 +168,7 @@ public class BufferManagerTest {
     }
 
     List<Future<Void>> futures = executorService.invokeAll(callables);
-    for (Future<Void> f: futures) {
+    for (Future<Void> f : futures) {
       f.get();
     }
 

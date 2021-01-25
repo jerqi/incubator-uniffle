@@ -95,8 +95,8 @@ public class BufferManager {
   }
 
   @VisibleForTesting
-  void setAtomicSize(long delta) {
-    atomicSize.addAndGet(delta);
+  void clearBuffer() {
+    atomicSize.set(0);
   }
 
 }

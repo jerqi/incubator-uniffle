@@ -34,7 +34,6 @@ public class RssShuffleManager implements ShuffleManager {
   private static final Logger LOG = LoggerFactory.getLogger(RssShuffleManager.class);
   private SparkConf sparkConf;
   private String appId;
-  private String clientType;
   private boolean isDriver;
   private int blockBufferSize = 0;
   private ShuffleWriteClient shuffleWriteClient;
@@ -81,10 +80,14 @@ public class RssShuffleManager implements ShuffleManager {
   public RssShuffleManager(SparkConf sparkConf, boolean isDriver) {
     this.sparkConf = sparkConf;
     this.isDriver = isDriver;
-    clientType = sparkConf.get(RssClientConfig.RSS_CLIENT_TYPE,
+    String clientType = sparkConf.get(RssClientConfig.RSS_CLIENT_TYPE,
         RssClientConfig.RSS_CLIENT_TYPE_DEFAULT_VALUE);
+    int retryMax = sparkConf.getInt(RssClientConfig.RSS_CLIENT_RETRY_MAX,
+        RssClientConfig.RSS_CLIENT_RETRY_MAX_DEFAULT_VALUE);
+    long retryInterval = sparkConf.getLong(RssClientConfig.RSS_CLIENT_RETRY_INTERVAL,
+        RssClientConfig.RSS_CLIENT_RETRY_INTERVAL_DEFAULT_VALUE);
     shuffleWriteClient =
-        ShuffleClientFactory.getINSTANCE().createShuffleWriteClient(clientType);
+        ShuffleClientFactory.getINSTANCE().createShuffleWriteClient(clientType, retryMax, retryInterval);
     registerCoordinator();
     if (!sparkConf.getBoolean(RssClientConfig.RSS_TEST_FLAG, false) || !isDriver) {
       // for non-driver executor, start a thread for sending shuffle data to shuffle server
