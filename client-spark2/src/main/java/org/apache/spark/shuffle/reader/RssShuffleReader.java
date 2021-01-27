@@ -142,6 +142,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   }
 
   public Set<Long> getExpectedBlockIds() {
+    final long start = System.currentTimeMillis();
     Set<Long> expectedBlockIds = Sets.newHashSet();
     Iterator<Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>>> mapStatusIter =
         SparkEnv.get().mapOutputTracker().getMapSizesByExecutorId(
@@ -160,7 +161,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
             for (Long blockId : entry.getValue()) {
               sb.append(blockId).append(",");
             }
-            LOG.info("Find BlockIds for shuffleId[" + shuffleId + "], partitionId["
+            LOG.debug("Find BlockIds for shuffleId[" + shuffleId + "], partitionId["
                 + entry.getKey() + "], blockIds[" + sb.toString() + "]");
           }
           if (partitionToBlockIds.containsKey(startPartition)) {
@@ -177,7 +178,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     for (Long blockId : expectedBlockIds) {
       sb.append(blockId).append(",");
     }
-    LOG.info("Finish getExpectedBlockIds for shuffleId[" + shuffleId
+    long duration = System.currentTimeMillis() - start;
+    LOG.info("Finish getExpectedBlockIds with " + duration + " ms for shuffleId[" + shuffleId
         + "], partitionId[" + startPartition + "], blockIds[" + sb.toString() + "]");
     return expectedBlockIds;
   }

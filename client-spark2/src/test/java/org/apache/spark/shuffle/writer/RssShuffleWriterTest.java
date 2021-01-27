@@ -252,4 +252,110 @@ public class RssShuffleWriterTest {
 
     sc.stop();
   }
+
+  @Test
+  public void postBlockEventTest() throws Exception {
+    WriteBufferManager mockBufferManager = mock(WriteBufferManager.class);
+    ShuffleWriteMetrics mockMetrics = mock(ShuffleWriteMetrics.class);
+    ShuffleDependency mockDependency = mock(ShuffleDependency.class);
+    Partitioner mockPartitioner = mock(Partitioner.class);
+    RssShuffleManager mockShuffleManager = mock(RssShuffleManager.class);
+    when(mockDependency.partitioner()).thenReturn(mockPartitioner);
+    when(mockPartitioner.numPartitions()).thenReturn(2);
+    List<AddBlockEvent> events = Lists.newArrayList();
+
+    EventLoop<AddBlockEvent> eventLoop = new EventLoop<AddBlockEvent>("test") {
+      @Override
+      public void onReceive(AddBlockEvent event) {
+        events.add(event);
+      }
+
+      @Override
+      public void onError(Throwable e) {
+      }
+    };
+    eventLoop.start();
+
+    when(mockShuffleManager.getEventLoop()).thenReturn(eventLoop);
+    ShuffleWriteClient mockWriteClient = mock(ShuffleWriteClient.class);
+    SparkConf conf = new SparkConf();
+    conf.set("spark.rss.client.send.size.limit", "32");
+    RssShuffleWriter writer = new RssShuffleWriter("appId", 0, "taskId",
+        mockBufferManager, mockMetrics, mockDependency, mockShuffleManager, conf, mockWriteClient);
+    List<ShuffleBlockInfo> shuffleBlockInfoList = createShuffleBlockList(1, 31);
+    writer.postBlockEvent(shuffleBlockInfoList);
+    Thread.sleep(500);
+    assertEquals(1, events.size());
+    assertEquals(1, events.get(0).getShuffleDataInfoList().size());
+    events.clear();
+
+    shuffleBlockInfoList = createShuffleBlockList(1, 33);
+    writer.postBlockEvent(shuffleBlockInfoList);
+    Thread.sleep(500);
+    assertEquals(1, events.size());
+    assertEquals(1, events.get(0).getShuffleDataInfoList().size());
+    events.clear();
+
+    shuffleBlockInfoList = createShuffleBlockList(2, 15);
+    writer.postBlockEvent(shuffleBlockInfoList);
+    Thread.sleep(500);
+    assertEquals(1, events.size());
+    assertEquals(2, events.get(0).getShuffleDataInfoList().size());
+    events.clear();
+
+    shuffleBlockInfoList = createShuffleBlockList(2, 16);
+    writer.postBlockEvent(shuffleBlockInfoList);
+    Thread.sleep(500);
+    assertEquals(1, events.size());
+    assertEquals(2, events.get(0).getShuffleDataInfoList().size());
+    events.clear();
+
+    shuffleBlockInfoList = createShuffleBlockList(2, 15);
+    writer.postBlockEvent(shuffleBlockInfoList);
+    Thread.sleep(500);
+    assertEquals(1, events.size());
+    assertEquals(2, events.get(0).getShuffleDataInfoList().size());
+    events.clear();
+
+    shuffleBlockInfoList = createShuffleBlockList(2, 17);
+    writer.postBlockEvent(shuffleBlockInfoList);
+    Thread.sleep(500);
+    assertEquals(1, events.size());
+    assertEquals(2, events.get(0).getShuffleDataInfoList().size());
+    events.clear();
+
+    shuffleBlockInfoList = createShuffleBlockList(2, 32);
+    writer.postBlockEvent(shuffleBlockInfoList);
+    Thread.sleep(500);
+    assertEquals(1, events.size());
+    assertEquals(2, events.get(0).getShuffleDataInfoList().size());
+    events.clear();
+
+    shuffleBlockInfoList = createShuffleBlockList(2, 33);
+    writer.postBlockEvent(shuffleBlockInfoList);
+    Thread.sleep(500);
+    assertEquals(2, events.size());
+    assertEquals(1, events.get(0).getShuffleDataInfoList().size());
+    assertEquals(1, events.get(1).getShuffleDataInfoList().size());
+    events.clear();
+
+    shuffleBlockInfoList = createShuffleBlockList(3, 17);
+    writer.postBlockEvent(shuffleBlockInfoList);
+    Thread.sleep(500);
+    assertEquals(2, events.size());
+    assertEquals(2, events.get(0).getShuffleDataInfoList().size());
+    assertEquals(1, events.get(1).getShuffleDataInfoList().size());
+    events.clear();
+  }
+
+  private List<ShuffleBlockInfo> createShuffleBlockList(int blockNum, int blockLength) {
+    List<ShuffleServerInfo> shuffleServerInfoList =
+        Lists.newArrayList(new ShuffleServerInfo("id", "host", 0));
+    List<ShuffleBlockInfo> shuffleBlockInfoList = Lists.newArrayList();
+    for (int i = 0; i < blockNum; i++) {
+      shuffleBlockInfoList.add(new ShuffleBlockInfo(
+          0, 0, 10, blockLength, 10, new byte[]{1}, shuffleServerInfoList));
+    }
+    return shuffleBlockInfoList;
+  }
 }

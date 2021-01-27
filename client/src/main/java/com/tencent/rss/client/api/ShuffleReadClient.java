@@ -9,4 +9,6 @@ public interface ShuffleReadClient {
   void checkProcessedBlockIds();
 
   void close();
+
+  void logStatics();
 }

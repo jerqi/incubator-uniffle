@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -36,6 +37,9 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
   private Map<Long, Queue<ShuffleSegmentWithPath>> blockIdToSegments = Maps.newHashMap();
   private Queue<Long> blockIdQueue = Queues.newLinkedBlockingQueue();
   private Set<Long> processedBlockIds = Sets.newHashSet();
+  private AtomicLong readDataTime = new AtomicLong(0);
+  private AtomicLong readIndexTime = new AtomicLong(0);
+  private AtomicLong checkBlockIdsTime = new AtomicLong(0);
 
   public FileBasedShuffleReadClient(
       String basePath, Configuration hadoopConf, int indexReadLimit, Set<Long> expectedBlockIds) {
@@ -47,6 +51,7 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
 
   @Override
   public void checkExpectedBlockIds() {
+    final long start = System.currentTimeMillis();
     FileSystem fs;
     Path baseFolder = new Path(basePath);
     try {
@@ -72,6 +77,7 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
     pathToHandler = getPathToHandler(basePath, hadoopConf, indexFiles);
     Map<String, List<FileBasedShuffleSegment>> pathToSegments = readAllIndexSegments();
     updateBlockIdToSegments(pathToSegments, expectedBlockIds);
+    checkBlockIdsTime.addAndGet(System.currentTimeMillis() - start);
   }
 
   private Map<String, FileBasedShuffleReadHandler> getPathToHandler(
@@ -104,6 +110,7 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
       try {
         LOG.info("Read index file for: " + path);
         FileBasedShuffleReadHandler handler = entry.getValue();
+        long start = System.currentTimeMillis();
         List<FileBasedShuffleSegment> segments = handler.readIndex(indexReadLimit);
         List<FileBasedShuffleSegment> allSegments = Lists.newArrayList();
         while (!segments.isEmpty()) {
@@ -111,6 +118,7 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
           allSegments.addAll(segments);
           segments = handler.readIndex(indexReadLimit);
         }
+        readIndexTime.addAndGet((System.currentTimeMillis() - start));
         pathToSegments.put(path, allSegments);
       } catch (Exception e) {
         LOG.warn("Can't read index segments for " + path, e);
@@ -173,7 +181,9 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
     while (!readSuccess) {
       try {
         FileBasedShuffleSegment fss = segment.segment;
+        long start = System.currentTimeMillis();
         data = pathToHandler.get(segment.path).readData(fss);
+        readDataTime.addAndGet(System.currentTimeMillis() - start);
         expectedLength = fss.getLength();
         expectedCrc = fss.getCrc();
         readSuccess = true;
@@ -222,6 +232,12 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
         }
       }
     }
+  }
+
+  @Override
+  public void logStatics() {
+    LOG.info("Metrics for path " + basePath + ", readIndexTime:" + readIndexTime + "ms, readDataTime:"
+        + readDataTime + "ms, checkBlockIdsTime:" + checkBlockIdsTime + "ms");
   }
 
   @VisibleForTesting

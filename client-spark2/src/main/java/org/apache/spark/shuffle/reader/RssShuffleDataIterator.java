@@ -56,12 +56,13 @@ public class RssShuffleDataIterator<K, C> extends AbstractIterator<Product2<K, C
         recordsIterator = createKVIterator(data);
         long serializationDuration = System.currentTimeMillis() - startSerialization;
         shuffleReadMetrics.incRemoteBytesRead(data.length);
-        LOG.info("Fetch " + data.length + " bytes cost " + fetchDuration + " ms to fetch and "
+        LOG.info("Fetch " + data.length + " bytes cost " + fetchDuration + "ms to fetch and "
             + serializationDuration + " ms to serialize");
       } else {
         // finish reading records, close related reader and check data consistent
         shuffleReadClient.close();
         shuffleReadClient.checkProcessedBlockIds();
+        shuffleReadClient.logStatics();
         return false;
       }
     }

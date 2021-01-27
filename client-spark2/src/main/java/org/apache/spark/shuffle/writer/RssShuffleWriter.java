@@ -2,6 +2,7 @@ package org.apache.spark.shuffle.writer;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.tencent.rss.client.api.ShuffleWriteClient;
@@ -47,6 +48,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private RssShuffleManager shuffleManager;
   private long sendCheckTimeout;
   private long sendCheckInterval;
+  private long sendSizeLimit;
   private Set<ShuffleServerInfo> shuffleServerInfoSet;
   private Map<Integer, Set<Long>> partitionToBlockIds;
   private ShuffleWriteClient shuffleWriteClient;
@@ -75,6 +77,8 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT_DEFAULT_VALUE);
     this.sendCheckInterval = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL,
         RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL_DEFAULT_VALUE);
+    this.sendSizeLimit = sparkConf.getSizeAsBytes(RssClientConfig.RSS_CLIENT_SEND_SIZE_LIMIT,
+        RssClientConfig.RSS_CLIENT_SEND_SIZE_LIMIT_DEFAULT_VALUE);
     this.partitionToBlockIds = Maps.newConcurrentMap();
     this.shuffleWriteClient = shuffleWriteClient;
   }
@@ -125,16 +129,16 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
    * 3. update [partition, blockIds], it will be set to MapStatus,
    * and shuffle reader will do the integration check with them
    *
-   * @param shuffleBlockInfos
+   * @param shuffleBlockInfoList
    * @param blockIds
    */
-  private void processShuffleBlockInfos(List<ShuffleBlockInfo> shuffleBlockInfos, Set<Long> blockIds) {
-    if (shuffleBlockInfos != null && !shuffleBlockInfos.isEmpty()) {
-      shuffleBlockInfos.parallelStream().forEach(sbi -> {
+  private void processShuffleBlockInfos(List<ShuffleBlockInfo> shuffleBlockInfoList, Set<Long> blockIds) {
+    if (shuffleBlockInfoList != null && !shuffleBlockInfoList.isEmpty()) {
+      shuffleBlockInfoList.parallelStream().forEach(sbi -> {
         long blockId = sbi.getBlockId();
         // add blockId to set, check if it is send later
         blockIds.add(blockId);
-        LOG.info("Block ready to queue " + sbi.toString());
+        LOG.debug("Block ready to queue " + sbi.toString());
         // update shuffle server info, they will be used in commit phase
         shuffleServerInfoSet.addAll(sbi.getShuffleServerInfos());
         // update [partition, blockIds], it will be set to MapStatus
@@ -145,8 +149,28 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         partitionToBlockIds.get(partitionId).add(blockId);
       });
 
+      postBlockEvent(shuffleBlockInfoList);
+    }
+  }
+
+  // don't send huge block to shuffle server, or there will be OOM if shuffle sever receives data more than expected
+  protected void postBlockEvent(List<ShuffleBlockInfo> shuffleBlockInfoList) {
+    long totalSize = 0;
+    List<ShuffleBlockInfo> shuffleBlockInfosPerEvent = Lists.newArrayList();
+    for (ShuffleBlockInfo sbi : shuffleBlockInfoList) {
+      totalSize += sbi.getLength();
+      shuffleBlockInfosPerEvent.add(sbi);
+      // split shuffle data according to the size
+      if (totalSize > sendSizeLimit) {
+        shuffleManager.getEventLoop().post(
+            new AddBlockEvent(taskId, shuffleBlockInfosPerEvent));
+        shuffleBlockInfosPerEvent = Lists.newArrayList();
+        totalSize = 0;
+      }
+    }
+    if (!shuffleBlockInfosPerEvent.isEmpty()) {
       shuffleManager.getEventLoop().post(
-          new AddBlockEvent(taskId, shuffleBlockInfos));
+          new AddBlockEvent(taskId, shuffleBlockInfosPerEvent));
     }
   }
 

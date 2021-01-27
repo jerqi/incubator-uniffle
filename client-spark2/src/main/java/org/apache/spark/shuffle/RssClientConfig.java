@@ -31,4 +31,6 @@ public class RssClientConfig {
   public static int RSS_CLIENT_RETRY_MAX_DEFAULT_VALUE = 3;
   public static String RSS_CLIENT_RETRY_INTERVAL = "spark.rss.client.retry.interval";
   public static long RSS_CLIENT_RETRY_INTERVAL_DEFAULT_VALUE = 15000;
+  public static String RSS_CLIENT_SEND_SIZE_LIMIT = "spark.rss.client.send.size.limit";
+  public static String RSS_CLIENT_SEND_SIZE_LIMIT_DEFAULT_VALUE = "32m";
 }

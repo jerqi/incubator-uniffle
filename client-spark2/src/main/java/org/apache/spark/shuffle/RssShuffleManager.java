@@ -17,9 +17,9 @@ import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkContext;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
+import org.apache.spark.deploy.SparkHadoopUtil$;
 import org.apache.spark.shuffle.reader.RssShuffleReader;
 import org.apache.spark.shuffle.writer.AddBlockEvent;
 import org.apache.spark.shuffle.writer.BufferManagerOptions;
@@ -214,7 +214,7 @@ public class RssShuffleManager implements ShuffleManager {
 
       return new RssShuffleReader<K, C>(startPartition, endPartition, context,
           rssShuffleHandle, fullShufflePath, indexReadLimit,
-          SparkContext.getOrCreate().hadoopConfiguration(), storageType);
+          SparkHadoopUtil$.MODULE$.newConfiguration(SparkEnv.get().conf()), storageType);
     } else {
       throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());
     }
