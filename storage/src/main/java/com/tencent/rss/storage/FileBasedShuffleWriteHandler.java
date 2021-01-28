@@ -55,10 +55,12 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
     accessTime = System.currentTimeMillis();
     String dataFileName = ShuffleStorageUtils.generateDataFileName(fileNamePrefix);
     String indexFileName = ShuffleStorageUtils.generateIndexFileName(fileNamePrefix);
+    long writeSize = shuffleBlocks.stream().mapToLong(ShufflePartitionedBlock::size).sum();
+
     try (FileBasedShuffleWriter dataWriter = createWriter(dataFileName);
         FileBasedShuffleWriter indexWriter = createWriter(indexFileName)) {
 
-      long start = System.currentTimeMillis();
+      long startTime = System.currentTimeMillis();
       for (ShufflePartitionedBlock block : shuffleBlocks) {
         LOG.debug("Write data " + block);
         long blockId = block.getBlockId();
@@ -74,17 +76,16 @@ public class FileBasedShuffleWriteHandler implements ShuffleStorageWriteHandler 
         indexWriter.writeIndex(segment);
       }
       LOG.debug(
-          "Write handler perf write {} blocks {} mb for {} ms without file open close",
+          "Write handler write {} blocks {} mb for {} ms without file open close",
           shuffleBlocks.size(),
-          shuffleBlocks.stream().map(ShufflePartitionedBlock::getLength).reduce(0, Integer::sum) / (1024 * 1024),
-          System.currentTimeMillis() - start);
+          writeSize,
+          (System.currentTimeMillis() - startTime) / 1000);
     }
-
     LOG.debug(
-        "Write handler perf write {} blocks {} mb for {} ms with file open close",
+        "Write handler write {} blocks {} mb for {} ms with file open close",
         shuffleBlocks.size(),
-        shuffleBlocks.stream().map(ShufflePartitionedBlock::getLength).reduce(0, Integer::sum) / (1024 * 1024),
-        System.currentTimeMillis() - accessTime);
+        writeSize,
+        (System.currentTimeMillis() - accessTime / 1000));
   }
 
   private FileBasedShuffleWriter createWriter(String fileName) throws IOException, IllegalStateException {

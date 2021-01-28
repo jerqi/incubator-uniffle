@@ -85,11 +85,11 @@ public class ShuffleFlushManager {
   }
 
   @VisibleForTesting
-  protected ConcurrentMap<String, FileBasedShuffleWriteHandler> getPathToHandler() {
+  ConcurrentMap<String, FileBasedShuffleWriteHandler> getPathToHandler() {
     return pathToHandler;
   }
 
-  public void clearHandler() {
+  void clearHandler() {
     List<String> removedKeys = Lists.newArrayList();
     try {
       for (Map.Entry<String, FileBasedShuffleWriteHandler> entry : pathToHandler.entrySet()) {
@@ -128,6 +128,7 @@ public class ShuffleFlushManager {
     String path = event.getShuffleFilePath();
     String shuffleDataFolder = RssUtils.getFullShuffleDataFolder(storageBasePath, path);
     List<ShufflePartitionedBlock> blocks = event.getShuffleBlocks();
+
     try {
       if (blocks == null || blocks.isEmpty()) {
         LOG.info("There is no block to be flushed: " + event);
@@ -139,28 +140,38 @@ public class ShuffleFlushManager {
           handler = pathToHandler.get(path);
         }
         handler.write(blocks);
-        LOG.debug("Write data success for " + event.toString());
+
+        long writeSize = event.getSize();
+        long writeTime = System.currentTimeMillis() - startTime;
+        if (shuffleServer != null) {
+          LOG.debug(
+              "Flush event {} {} kb to fs for {} ms and used buffer size is {}",
+              event.getEventId(),
+              writeSize,
+              writeTime,
+              shuffleServer.getBufferManager().size());
+        }
+        ShuffleServerMetrics.counterTotalWriteDataSize.inc(writeSize);
+
+        if (writeTime != 0) {
+          double writeSpeed = ((double) writeSize) / ((double) writeTime) / 1000.0;
+          ShuffleServerMetrics.histogramWriteSpeed.observe(writeSpeed);
+        }
       }
+
       pathToEventIds.putIfAbsent(path, Sets.newConcurrentHashSet());
       pathToEventIds.get(path).add(event.getEventId());
     } catch (Exception e) {
       // just log the error, don't throw the exception and stop the flush thread
+      String blocksString = blocks == null ? "null" : blocks.toString();
       LOG.error("Exception happened when process flush shuffle data for folder["
-          + shuffleDataFolder + "], blocks[" + blocks.toString() + "]", e);
+          + shuffleDataFolder + "], blocks[" + blocksString + "]", e);
     } finally {
       if (shuffleServer != null) {
         shuffleServer.getBufferManager().updateSize(-event.getSize());
-
-        LOG.debug(
-            "Flush event perf {} {} mb to fs for {} ms and used buffer size is {}",
-            event.getEventId(),
-            event.getSize() / 1024 / 1024,
-            System.currentTimeMillis() - startTime,
-            shuffleServer.getBufferManager().size());
       }
-
-
     }
+
   }
 
   public Set<Long> getEventIds(String path) {

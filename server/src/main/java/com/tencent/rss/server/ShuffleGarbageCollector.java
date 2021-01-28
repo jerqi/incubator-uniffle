@@ -73,13 +73,16 @@ public class ShuffleGarbageCollector {
       }
     }
 
+    int cnt = 0;
     List<String> engineKeys = new LinkedList<>();
     for (String key : keys) {
       ShuffleEngine shuffleEngine = shuffleEngineManager.getEngineMap().remove(key);
       shuffleEngine.reclaim();
+      ++cnt;
       engineKeys.add(shuffleEngine.makeKey());
       shuffleEngine = null;
     }
+    ShuffleServerMetrics.gaugeRegisteredShuffleEngine.dec(cnt);
 
     shuffleServer.getBufferManager().reclaim(engineKeys);
 
@@ -88,9 +91,9 @@ public class ShuffleGarbageCollector {
       String key = ShuffleTaskManager.constructKey(
         shuffleEngineManager.getAppId(), shuffleEngineManager.getShuffleId());
       shuffleServer.getShuffleTaskManager().getShuffleTaskEngines().remove(key);
+      ShuffleServerMetrics.gaugeRegisteredShuffle.dec();
     }
 
-    // LOG
   }
 
   public ExecutorService getExecutorService() {

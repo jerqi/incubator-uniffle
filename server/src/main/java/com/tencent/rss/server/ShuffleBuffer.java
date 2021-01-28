@@ -3,7 +3,6 @@ package com.tencent.rss.server;
 import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
-
 import java.util.LinkedList;
 import java.util.List;
 
@@ -29,29 +28,29 @@ public class ShuffleBuffer {
 
   public void clear() {
     blocks.clear();
+    ShuffleServerMetrics.gaugeBufferDataSize.dec(size);
     size = 0;
   }
 
   public StatusCode append(ShufflePartitionedData data) {
-      int mSize = 0;
+    int mSize = 0;
 
-      synchronized (this) {
-        for (ShufflePartitionedBlock block : data.getBlockList()) {
-          blocks.add(block);
-          mSize += block.getLength();
-          size += mSize;
-        }
+    synchronized (this) {
+      for (ShufflePartitionedBlock block : data.getBlockList()) {
+        blocks.add(block);
+        mSize += block.getLength();
+        size += mSize;
       }
 
       bufferManager.updateSize(mSize);
-      ShuffleServerMetrics.incBufferedBlockSize(mSize);
+      ShuffleServerMetrics.gaugeBufferDataSize.inc(mSize);
+    }
 
-
-      if (bufferManager.isFull()) {
-        bufferManager.flush();
-      } else if (isFull()) {
-        flush();
-      }
+    if (bufferManager.isFull()) {
+      bufferManager.flush();
+    } else if (isFull()) {
+      flush();
+    }
 
     return StatusCode.SUCCESS;
   }

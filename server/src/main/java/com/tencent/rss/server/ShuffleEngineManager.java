@@ -78,7 +78,7 @@ public class ShuffleEngineManager {
     synchronized (this) {
       partitionRangeMap.put(Range.closed(startPartition, endPartition), key);
     }
-    ShuffleServerMetrics.incRegisteredShuffleEngine();
+    ShuffleServerMetrics.gaugeRegisteredShuffleEngine.inc(1.0);
 
     return ret;
   }
@@ -147,7 +147,6 @@ public class ShuffleEngineManager {
       LOG.info("Checking commit result for appId[" + appId + "], shuffleId[" + shuffleId + "]");
     }
 
-    ShuffleServerMetrics.decRegisteredShuffleEngine();
     return StatusCode.SUCCESS;
   }
 

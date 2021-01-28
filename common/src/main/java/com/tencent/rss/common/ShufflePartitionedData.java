@@ -20,6 +20,10 @@ public class ShufflePartitionedData {
     this.blockList = Collections.singletonList(block);
   }
 
+  public long size() {
+    return blockList.stream().mapToLong(ShufflePartitionedBlock::size).sum();
+  }
+
   @Override
   public String toString() {
     return "ShufflePartitionedData{partitionId=" + partitionId + ", blockList=" + blockList + '}';
@@ -37,7 +41,4 @@ public class ShufflePartitionedData {
     return blockList;
   }
 
-  public void setBlockList(List<ShufflePartitionedBlock> blockList) {
-    this.blockList = blockList;
-  }
 }

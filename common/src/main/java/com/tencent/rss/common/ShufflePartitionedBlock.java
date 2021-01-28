@@ -28,9 +28,8 @@ public class ShufflePartitionedBlock {
     this.blockId = blockId;
   }
 
-  public int size() {
-    // block size is length, blockId is int64, length is int32 and crc is int64
-    return length + 8 + 4 + 8;
+  public long size() {
+    return (long) length;
   }
 
   @Override

@@ -26,6 +26,10 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
   private ShuffleServerConf shuffleServerConf = new ShuffleServerConf();
   private String storageBasePath = HDFS_URI + "rss/test";
 
+  static {
+    ShuffleServerMetrics.register();
+  }
+
   @Before
   public void prepare() {
     shuffleServerConf.setString("rss.storage.basePath", storageBasePath);
@@ -64,10 +68,13 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
   public void testGC() throws Exception {
     shuffleServerConf.setString("rss.server.flush.handler.expired", "5");
     shuffleServerConf.setString("rss.server.flush.gc.check.interval", "1");
-    ShuffleFlushManager manager = new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
-    ShuffleDataFlushEvent event1 = createShuffleDataFlushEvent("appId3", "1", 0, 1);
+    ShuffleFlushManager manager =
+        new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
+    ShuffleDataFlushEvent event1 =
+        createShuffleDataFlushEvent("appId3", "1", 0, 1);
     manager.addToFlushQueue(event1);
-    ShuffleDataFlushEvent event2 = createShuffleDataFlushEvent("appId3", "2", 0, 1);
+    ShuffleDataFlushEvent event2 =
+        createShuffleDataFlushEvent("appId3", "2", 0, 1);
     manager.addToFlushQueue(event2);
     Thread.sleep(4000);
     assertEquals(2, manager.getPathToHandler().size());
@@ -143,7 +150,7 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
       String appId, String shuffleId, int startPartition, int endPartition) {
     List<ShufflePartitionedBlock> spbs = createBlock(5, 32);
     return new ShuffleDataFlushEvent(ATOMIC_LONG.getAndIncrement(),
-        appId, shuffleId, startPartition, endPartition, -1, spbs);
+        appId, shuffleId, startPartition, endPartition, 1, spbs);
   }
 
   private List<ShufflePartitionedBlock> createBlock(int num, int length) {

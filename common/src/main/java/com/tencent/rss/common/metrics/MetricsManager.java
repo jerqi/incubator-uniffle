@@ -3,6 +3,7 @@ package com.tencent.rss.common.metrics;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
+import io.prometheus.client.Histogram;
 
 public class MetricsManager {
   private CollectorRegistry collectorRegistry;
@@ -28,8 +29,7 @@ public class MetricsManager {
   }
 
   public Counter addCounter(String name, String help, String[] labels) {
-    return Counter.build()
-      .name(name).labelNames(labels).help(help).register(collectorRegistry);
+    return Counter.build().name(name).labelNames(labels).help(help).register(collectorRegistry);
   }
 
   public Gauge addGauge(String name, String... labels) {
@@ -37,7 +37,14 @@ public class MetricsManager {
   }
 
   public Gauge addGauge(String name, String help, String[] labels) {
-    return Gauge.build()
-      .name(name).labelNames(labels).help(help).register(collectorRegistry);
+    return Gauge.build().name(name).labelNames(labels).help(help).register(collectorRegistry);
+  }
+
+  public Histogram addHistogram(String name, double[] buckets, String... labels) {
+    return addHistogram(name, "Histogram " + name, buckets, labels);
+  }
+
+  public Histogram addHistogram(String name, String help, double[] buckets, String[] labels) {
+    return Histogram.build().name(name).buckets(buckets).labelNames(labels).help(help).register(collectorRegistry);
   }
 }

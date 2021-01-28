@@ -43,8 +43,6 @@ public class GrpcService extends ShuffleServerImplBase {
         return RssProtos.StatusCode.NO_REGISTER;
       case NO_PARTITION:
         return RssProtos.StatusCode.NO_PARTITION;
-      case INTERNAL_ERROR:
-        return RssProtos.StatusCode.INTERNAL_ERROR;
       case TIMEOUT:
         return RssProtos.StatusCode.TIMEOUT;
       default:
@@ -55,8 +53,8 @@ public class GrpcService extends ShuffleServerImplBase {
   @Override
   public void registerShuffle(ShuffleRegisterRequest req,
       StreamObserver<ShuffleRegisterResponse> responseObserver) {
-    ShuffleServerMetrics.incTotalRequest();
-    ShuffleServerMetrics.incRegisterRequest();
+    ShuffleServerMetrics.counterTotalRequest.inc();
+    ShuffleServerMetrics.counterRegisterRequest.inc();
 
     ShuffleRegisterResponse reply;
     String appId = req.getAppId();
@@ -75,15 +73,13 @@ public class GrpcService extends ShuffleServerImplBase {
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
 
-    ShuffleServerMetrics.decTotalRequest();
-    ShuffleServerMetrics.decRegisterRequest();
   }
 
   @Override
   public void sendShuffleData(SendShuffleDataRequest req,
       StreamObserver<SendShuffleDataResponse> responseObserver) {
-    ShuffleServerMetrics.incTotalRequest();
-    ShuffleServerMetrics.incSendDataRequest();
+    ShuffleServerMetrics.counterTotalRequest.inc();
+    ShuffleServerMetrics.counterSendDataRequest.inc();
 
     SendShuffleDataResponse reply;
     String appId = req.getAppId();
@@ -93,8 +89,18 @@ public class GrpcService extends ShuffleServerImplBase {
     String responseMessage = "OK";
     if (req.getShuffleDataCount() > 0) {
       try {
-        List<ShufflePartitionedData> shufflePartitionedDatas = toPartitionedData(req);
-        for (ShufflePartitionedData spd : shufflePartitionedDatas) {
+        List<ShufflePartitionedData> shufflePartitionedData = toPartitionedData(req);
+
+        long recSize = shufflePartitionedData
+            .stream()
+            .flatMap(i -> i.getBlockList().stream())
+            .map(ShufflePartitionedBlock::getLength)
+            .map(i -> Long.valueOf(i)).reduce(0L, Long::sum);
+        LOG.debug("Received data {} mb", recSize);
+
+        ShuffleServerMetrics.counterTotalReceivedDataSize.inc(recSize);
+
+        for (ShufflePartitionedData spd : shufflePartitionedData) {
           ShuffleEngine shuffleEngine = shuffleServer
               .getShuffleTaskManager()
               .getShuffleEngine(appId, shuffleId, spd.getPartitionId());
@@ -168,15 +174,13 @@ public class GrpcService extends ShuffleServerImplBase {
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
 
-    ShuffleServerMetrics.decTotalRequest();
-    ShuffleServerMetrics.decSendDataRequest();
   }
 
   @Override
   public void commitShuffleTask(ShuffleCommitRequest req,
       StreamObserver<ShuffleCommitResponse> responseObserver) {
-    ShuffleServerMetrics.incTotalRequest();
-    ShuffleServerMetrics.incCommitRequest();
+    ShuffleServerMetrics.counterTotalRequest.inc();
+    ShuffleServerMetrics.counterCommitRequest.inc();
 
     ShuffleCommitResponse reply;
     String appId = req.getAppId();
@@ -197,8 +201,6 @@ public class GrpcService extends ShuffleServerImplBase {
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
 
-    ShuffleServerMetrics.decCommitRequest();
-    ShuffleServerMetrics.decCommitRequest();
   }
 
   private List<ShufflePartitionedData> toPartitionedData(SendShuffleDataRequest req) {

@@ -77,22 +77,23 @@ public class ShuffleServerMetricsTest {
 
   @Test
   public void testServerMetrics() throws Exception {
-    ShuffleServerMetrics.incTotalRequest();
-    ShuffleServerMetrics.incTotalRequest();
-    ShuffleServerMetrics.decTotalRequest();
-    ShuffleServerMetrics.incBlockWriteNum(1024);
+    ShuffleServerMetrics.counterTotalRequest.inc();
+    ShuffleServerMetrics.counterTotalRequest.inc();
+    ShuffleServerMetrics.counterTotalReceivedDataSize.inc();
+    ShuffleServerMetrics.histogramWriteSpeed.observe(1000);
 
     String content = httpGetMetrics(SERVER_METRICS_URL);
     ObjectMapper mapper = new ObjectMapper();
     JsonNode actualObj = mapper.readTree(content);
     assertEquals(2, actualObj.size());
-    assertEquals(13, actualObj.get("metrics").size());
+    assertEquals(19, actualObj.get("metrics").size());
   }
 
   @Test
   public void testServerMetricsConcurrently() throws Exception {
     ExecutorService executorService = Executors.newFixedThreadPool(3);
     List<Callable<Void>> calls = new ArrayList<>();
+    ShuffleServerMetrics.gaugeBufferDataSize.set(0);
 
     long expectedNum = 0;
     for (int i = 1; i < 5; ++i) {
@@ -101,7 +102,7 @@ public class ShuffleServerMetricsTest {
         calls.add(new Callable<Void>() {
           @Override
           public Void call() throws Exception {
-            ShuffleServerMetrics.incIndexWriteSize(cur);
+            ShuffleServerMetrics.gaugeBufferDataSize.inc(cur);
             return null;
           }
         });
@@ -110,7 +111,7 @@ public class ShuffleServerMetricsTest {
         calls.add(new Callable<Void>() {
           @Override
           public Void call() throws Exception {
-            ShuffleServerMetrics.decIndexWriteSize(cur);
+            ShuffleServerMetrics.gaugeBufferDataSize.dec(cur);
             return null;
           }
         });
@@ -130,7 +131,7 @@ public class ShuffleServerMetricsTest {
     final long tmp = expectedNum;
     actualObj.get("metrics").iterator().forEachRemaining(jsonNode -> {
       String name = jsonNode.get("name").textValue();
-      if (name.equals(ShuffleServerMetrics.INDEX_WRITE_SIZE)) {
+      if (name.equals("buffered_data_size")) {
         assertEquals(tmp, jsonNode.get("value").asLong());
       }
     });
