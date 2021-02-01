@@ -9,33 +9,29 @@ public class BufferManagerOptions {
 
   private static final Logger LOG = LoggerFactory.getLogger(BufferManagerOptions.class);
 
-  private long individualBufferSize;
-  private long individualBufferMax;
+  private long bufferSize;
+  private long serializerBufferSize;
+  private long serializerBufferMax;
   private long bufferSpillThreshold;
 
   public BufferManagerOptions(SparkConf sparkConf) {
-    individualBufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_BUFFER_SIZE,
+    bufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_BUFFER_SIZE,
         RssClientConfig.RSS_WRITER_BUFFER_SIZE_DEFAULT_VALUE);
-    individualBufferMax = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_BUFFER_MAX_SIZE,
-        RssClientConfig.RSS_WRITER_BUFFER_MAX_SIZE_DEFAULT_VALUE);
+    serializerBufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_SERIALIZER_BUFFER_SIZE,
+        RssClientConfig.RSS_WRITER_SERIALIZER_BUFFER_SIZE_DEFAULT_VALUE);
+    serializerBufferMax = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_SERIALIZER_BUFFER_MAX_SIZE,
+        RssClientConfig.RSS_WRITER_SERIALIZER_BUFFER_MAX_SIZE_DEFAULT_VALUE);
     bufferSpillThreshold = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE,
         RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE_DEFAULT_VALUE);
-    LOG.info(RssClientConfig.RSS_WRITER_BUFFER_SIZE + "=" + individualBufferSize);
-    LOG.info(RssClientConfig.RSS_WRITER_BUFFER_MAX_SIZE + "=" + individualBufferMax);
+    LOG.info(RssClientConfig.RSS_WRITER_BUFFER_SIZE + "=" + bufferSize);
     LOG.info(RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE + "=" + bufferSpillThreshold);
     checkBufferSize();
   }
 
   private void checkBufferSize() {
-    if (individualBufferSize < 0) {
+    if (bufferSize < 0) {
       throw new RuntimeException("Unexpected value of " + RssClientConfig.RSS_WRITER_BUFFER_SIZE
-          + "=" + individualBufferSize);
-    }
-    if (individualBufferMax < individualBufferSize) {
-      throw new RuntimeException(RssClientConfig.RSS_WRITER_BUFFER_MAX_SIZE + " should be great than "
-          + RssClientConfig.RSS_WRITER_BUFFER_SIZE + ", " + RssClientConfig.RSS_WRITER_BUFFER_MAX_SIZE
-          + "=" + individualBufferMax + ", " + RssClientConfig.RSS_WRITER_BUFFER_SIZE + "="
-          + individualBufferSize);
+          + "=" + bufferSize);
     }
     if (bufferSpillThreshold < 0) {
       throw new RuntimeException("Unexpected value of " + RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE
@@ -44,18 +40,23 @@ public class BufferManagerOptions {
   }
 
   // limit of buffer size is 2G
-  public int getIndividualBufferSize() {
-    if (individualBufferSize > Integer.MAX_VALUE) {
-      individualBufferSize = Integer.MAX_VALUE;
-    }
-    return (int) individualBufferSize;
+  public int getBufferSize() {
+    return parseToInt(bufferSize);
   }
 
-  public int getIndividualBufferMax() {
-    if (individualBufferMax > Integer.MAX_VALUE) {
-      individualBufferMax = Integer.MAX_VALUE;
+  public int getSerializerBufferSize() {
+    return parseToInt(serializerBufferSize);
+  }
+
+  public int getSerializerBufferMax() {
+    return parseToInt(serializerBufferMax);
+  }
+
+  private int parseToInt(long value) {
+    if (value > Integer.MAX_VALUE) {
+      value = Integer.MAX_VALUE;
     }
-    return (int) individualBufferMax;
+    return (int) value;
   }
 
   public long getBufferSpillThreshold() {

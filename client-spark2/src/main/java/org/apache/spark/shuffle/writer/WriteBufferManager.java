@@ -1,7 +1,6 @@
 package org.apache.spark.shuffle.writer;
 
 import com.clearspring.analytics.util.Lists;
-import com.esotericsoftware.kryo.io.Output;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.tencent.rss.client.util.ClientUtils;
@@ -14,21 +13,19 @@ import java.util.Map.Entry;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.TaskMemoryManager;
-import org.apache.spark.serializer.SerializationStream;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.serializer.SerializerInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.reflect.ClassTag$;
 
 public class WriteBufferManager extends MemoryConsumer {
 
   private static final Logger LOG = LoggerFactory.getLogger(WriteBufferManager.class);
 
   private int bufferSize;
-  private int maxBufferSize;
   private long spillSize;
-  private long totalBytes;
+  // allocated bytes from executor memory
+  private long allocatedBytes;
   private int executorId;
   private int shuffleId;
   private SerializerInstance instance;
@@ -36,6 +33,8 @@ public class WriteBufferManager extends MemoryConsumer {
   // cache partition -> records
   private Map<Integer, WriterBuffer> buffers;
   private Map<Integer, List<ShuffleServerInfo>> partitionToServers;
+  private int serializerBufferSize;
+  private int serializerMaxBufferSize;
 
   public WriteBufferManager(
       int shuffleId,
@@ -46,71 +45,56 @@ public class WriteBufferManager extends MemoryConsumer {
       TaskMemoryManager taskMemoryManager,
       ShuffleWriteMetrics shuffleWriteMetrics) {
     super(taskMemoryManager);
-    this.bufferSize = bufferManagerOptions.getIndividualBufferSize();
-    this.maxBufferSize = bufferManagerOptions.getIndividualBufferMax();
+    this.bufferSize = bufferManagerOptions.getBufferSize();
     this.spillSize = bufferManagerOptions.getBufferSpillThreshold();
     this.executorId = executorId;
     this.instance = serializer.newInstance();
     this.buffers = Maps.newHashMap();
-    this.totalBytes = 0L;
+    this.allocatedBytes = 0L;
     this.shuffleId = shuffleId;
     this.partitionToServers = partitionToServers;
     this.shuffleWriteMetrics = shuffleWriteMetrics;
+    this.serializerBufferSize = bufferManagerOptions.getSerializerBufferSize();
+    this.serializerMaxBufferSize = bufferManagerOptions.getSerializerBufferMax();
   }
 
   // add record to cache, return [partition, ShuffleBlock] if meet spill condition
   public List<ShuffleBlockInfo> addRecord(int partitionId, Object key, Object value) {
     List<ShuffleBlockInfo> result = Lists.newArrayList();
     if (buffers.containsKey(partitionId)) {
-      SerializationStream serializeStream = buffers.get(partitionId).getSerializeStream();
-      Output output = buffers.get(partitionId).getOutput();
-      int oldSize = output.position();
-      serializeStream.writeKey(key, ClassTag$.MODULE$.apply(key.getClass()));
-      serializeStream.writeValue(value, ClassTag$.MODULE$.apply(value.getClass()));
-      serializeStream.flush();
-      int newSize = output.position();
-      int kvSize = newSize - oldSize;
-      updateWriteMetrics(1L, kvSize);
-      if (newSize >= bufferSize) {
-        result.add(createShuffleBlock(partitionId, output.toBytes()));
-        serializeStream.close();
+      WriterBuffer wb = buffers.get(partitionId);
+      int[] addResult = wb.addRecord(key, value);
+      updateWriteMetrics(1L, addResult[WriterBuffer.INDEX_RECORD_SIZE]);
+      requestMemory(addResult[WriterBuffer.INDEX_EXTRA_MEMORY]);
+      int length = wb.getLength();
+      if (length > bufferSize) {
+        result.add(createShuffleBlock(partitionId, wb.getData(), wb.getMemorySize()));
+        wb.clear();
         buffers.remove(partitionId);
-        totalBytes -= oldSize;
         LOG.info("Single buffer is full for shuffleId[" + shuffleId
-            + "] partition[" + partitionId + "] with " + newSize + " bytes");
-      } else {
-        totalBytes += kvSize;
+            + "] partition[" + partitionId + "] with " + length + " bytes");
       }
     } else {
-      // Output will cost maxBufferSize memory at most, ask TaskMemoryManager for it
-      requestMemory(maxBufferSize);
-      Output output = new Output(bufferSize, maxBufferSize);
-      SerializationStream serializeStream = instance.serializeStream(output);
-      serializeStream.writeKey(key, ClassTag$.MODULE$.apply(key.getClass()));
-      serializeStream.writeValue(value, ClassTag$.MODULE$.apply(value.getClass()));
-      serializeStream.flush();
-      int newSize = output.position();
-      updateWriteMetrics(1L, newSize);
-      if (newSize >= bufferSize) {
-        result.add(createShuffleBlock(partitionId, output.toBytes()));
-        serializeStream.close();
+      requestMemory(serializerMaxBufferSize);
+      WriterBuffer wb = new WriterBuffer(instance, serializerBufferSize, serializerMaxBufferSize);
+      int[] addResult = wb.addRecord(key, value);
+      int length = addResult[WriterBuffer.INDEX_RECORD_SIZE];
+      updateWriteMetrics(1L, length);
+      if (length > bufferSize) {
+        // request here just for calculate accuracy when release the memory
+        requestMemory(length);
+        result.add(createShuffleBlock(partitionId, wb.getData(), wb.getMemorySize()));
+        wb.clear();
         LOG.info("Single buffer is full for shuffleId[" + shuffleId
-            + "] partition[" + partitionId + "] with " + newSize + " bytes");
+            + "] partition[" + partitionId + "] with " + length + " bytes");
       } else {
-        buffers.put(partitionId, new WriterBuffer(serializeStream, output));
-        totalBytes = totalBytes + newSize;
+        buffers.put(partitionId, wb);
       }
     }
 
     // check buffer size > spill threshold
-    if (totalBytes >= spillSize) {
-      for (Entry<Integer, WriterBuffer> entry : buffers.entrySet()) {
-        result.add(createShuffleBlock(entry.getKey(), entry.getValue().getOutput().toBytes()));
-        entry.getValue().getSerializeStream().close();
-      }
-      buffers.clear();
-      LOG.info("Total buffer is full for shuffleId[" + shuffleId + "] with " + totalBytes + " bytes");
-      totalBytes = 0;
+    if (allocatedBytes > spillSize) {
+      result = clear();
     }
 
     return result;
@@ -120,17 +104,24 @@ public class WriteBufferManager extends MemoryConsumer {
   public List<ShuffleBlockInfo> clear() {
     List<ShuffleBlockInfo> result = Lists.newArrayList();
     for (Entry<Integer, WriterBuffer> entry : buffers.entrySet()) {
-      result.add(createShuffleBlock(entry.getKey(), entry.getValue().getOutput().toBytes()));
-      entry.getValue().getSerializeStream().close();
+      WriterBuffer wb = entry.getValue();
+      if (wb.getLength() > 0) {
+        result.add(createShuffleBlock(entry.getKey(), wb.getData(), wb.getMemorySize()));
+      }
+      wb.clear();
     }
+    LOG.info("Flush total buffer for shuffleId[" + shuffleId + "] with allocated[" + allocatedBytes + "]");
     buffers.clear();
-    totalBytes = 0;
+    allocatedBytes = 0;
     return result;
   }
 
   // transform records to shuffleBlock
-  private ShuffleBlockInfo createShuffleBlock(int partitionId, byte[] data) {
+  private ShuffleBlockInfo createShuffleBlock(int partitionId, byte[] data, int freeMemory) {
     long crc32 = ChecksumUtils.getCrc32(data);
+    // just free memory from buffer manager, doesn't return to Executor now,
+    // it will happen after send block to shuffle server
+    allocatedBytes -= freeMemory;
     return new ShuffleBlockInfo(shuffleId, partitionId,
         ClientUtils.getBlockId(executorId, ClientUtils.getAtomicInteger()),
         data.length, crc32, data, partitionToServers.get(partitionId));
@@ -142,6 +133,9 @@ public class WriteBufferManager extends MemoryConsumer {
   }
 
   private void requestMemory(long requiredMem) {
+    if (requiredMem == 0) {
+      return;
+    }
     long gotMem = acquireMemory(requiredMem);
     int retry = 0;
     int maxRetry = 10;
@@ -157,12 +151,14 @@ public class WriteBufferManager extends MemoryConsumer {
       retry++;
       if (retry > maxRetry) {
         String message = "Can't get memory to cache shuffle data, request[" + requiredMem + "], got[" + gotMem + "],"
-            + " executor used[" + used + "], consider to optimize 'spark.executor.memory',"
-            + " 'spark.rss.writer.buffer.spill.size', 'spark.rss.writer.buffer.max.size'.";
+            + " WriteBufferManager used[" + allocatedBytes + "] task used[" + used
+            + "], consider to optimize 'spark.executor.memory',"
+            + " 'spark.rss.writer.buffer.spill.size'.";
         LOG.error(message);
         throw new OutOfMemoryError(message);
       }
     }
+    allocatedBytes += requiredMem;
   }
 
   @Override
@@ -172,8 +168,8 @@ public class WriteBufferManager extends MemoryConsumer {
   }
 
   @VisibleForTesting
-  protected long getTotalBytes() {
-    return totalBytes;
+  public long getAllocatedBytes() {
+    return allocatedBytes;
   }
 
   @VisibleForTesting

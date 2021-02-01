@@ -33,9 +33,8 @@ public class RepartitionShuffleTest extends SparkIntegrationTestBase {
     SparkConf sparkConf = createSparkConf();
     updateSparkConfWithRss(sparkConf);
     sparkConf.set("spark.executor.memory", "500m");
-    sparkConf.set("spark.rss.writer.buffer.size", "4m");
-    sparkConf.set("spark.rss.writer.buffer.max.size", "8m");
-    sparkConf.set("spark.rss.writer.buffer.spill.size", "20m");
+    sparkConf.set("spark.rss.writer.buffer.size", "8m");
+    sparkConf.set("spark.rss.writer.buffer.spill.size", "1024m");
 
     // oom if there has no memory release
     runSparkApp(sparkConf, fileName);

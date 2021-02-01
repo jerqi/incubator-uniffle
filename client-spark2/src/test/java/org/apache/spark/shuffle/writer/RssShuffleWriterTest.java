@@ -58,13 +58,12 @@ public class RssShuffleWriterTest {
     SparkContext sc = SparkContext.getOrCreate(conf);
     RssShuffleManager manager = new RssShuffleManager(conf, false);
 
-    Serializer mockSerializer = mock(Serializer.class);
+    Serializer kryoSerializer = new KryoSerializer(conf);
     ShuffleWriteClient mockShuffleWriteClient = mock(ShuffleWriteClient.class);
     Partitioner mockPartitioner = mock(Partitioner.class);
     ShuffleDependency mockDependency = mock(ShuffleDependency.class);
     RssShuffleHandle mockHandle = mock(RssShuffleHandle.class);
     when(mockHandle.getDependency()).thenReturn(mockDependency);
-    when(mockDependency.serializer()).thenReturn(mockSerializer);
     when(mockDependency.partitioner()).thenReturn(mockPartitioner);
     when(mockPartitioner.numPartitions()).thenReturn(2);
     when(mockHandle.getPartitionToServers()).thenReturn(Maps.newHashMap());
@@ -72,7 +71,7 @@ public class RssShuffleWriterTest {
 
     BufferManagerOptions bufferOptions = new BufferManagerOptions(conf);
     WriteBufferManager bufferManager = new WriteBufferManager(
-        0, 0, bufferOptions, mockSerializer,
+        0, 0, bufferOptions, kryoSerializer,
         Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics());
     WriteBufferManager bufferManagerSpy = spy(bufferManager);
     doReturn(1000000L).when(bufferManagerSpy).acquireMemory(anyLong());
@@ -112,8 +111,9 @@ public class RssShuffleWriterTest {
     conf.setAppName("testApp").setMaster("local[2]")
         .set("spark.rss.test", "true")
         .set("spark.rss.writer.buffer.size", "32")
-        .set("spark.rss.writer.buffer.max.size", "64")
-        .set("spark.rss.writer.buffer.spill.size", "64")
+        .set("spark.rss.writer.serializer.buffer.size", "32")
+        .set("spark.rss.writer.serializer.buffer.max.size", "64")
+        .set("spark.rss.writer.buffer.spill.size", "128")
         .set("spark.rss.writer.send.check.timeout", "10000")
         .set("spark.rss.writer.send.check.interval", "1000")
         .set("spark.rss.server.coordinator.ip", "127.0.0.1");

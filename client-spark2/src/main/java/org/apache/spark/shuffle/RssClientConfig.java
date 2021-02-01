@@ -6,9 +6,10 @@ public class RssClientConfig {
   public static int RSS_PARTITIONS_PER_SERVER_DEFAULT_VALUE = 5;
   public static String RSS_WRITER_BUFFER_SIZE = "spark.rss.writer.buffer.size";
   public static String RSS_WRITER_BUFFER_SIZE_DEFAULT_VALUE = "4m";
-  public static String RSS_WRITER_BUFFER_MAX_SIZE = "spark.rss.writer.buffer.max.size";
-  // RSS_WRITER_BUFFER_SIZE_DEFAULT_VALUE * 2
-  public static String RSS_WRITER_BUFFER_MAX_SIZE_DEFAULT_VALUE = "8m";
+  public static String RSS_WRITER_SERIALIZER_BUFFER_SIZE = "spark.rss.writer.serializer.buffer.size";
+  public static String RSS_WRITER_SERIALIZER_BUFFER_SIZE_DEFAULT_VALUE = "2m";
+  public static String RSS_WRITER_SERIALIZER_BUFFER_MAX_SIZE = "spark.rss.writer.serializer.buffer.max.size";
+  public static String RSS_WRITER_SERIALIZER_BUFFER_MAX_SIZE_DEFAULT_VALUE = "3m";
   public static String RSS_WRITER_BUFFER_SPILL_SIZE = "spark.rss.writer.buffer.spill.size";
   // RSS_WRITER_BUFFER_SIZE_DEFAULT_VALUE * 32
   public static String RSS_WRITER_BUFFER_SPILL_SIZE_DEFAULT_VALUE = "128m";

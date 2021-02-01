@@ -58,9 +58,8 @@ abstract public class SparkIntegrationTestBase extends IntegrationTestBase {
     sparkConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.RssShuffleManager");
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
     sparkConf.set("spark.rss.partitions.per.server", "2");
-    sparkConf.set("spark.rss.writer.buffer.size", "4m");
-    sparkConf.set("spark.rss.writer.buffer.max.size", "8m");
-    sparkConf.set("spark.rss.writer.buffer.spill.size", "16m");
+    sparkConf.set("spark.rss.writer.buffer.size", "8m");
+    sparkConf.set("spark.rss.writer.buffer.spill.size", "1024m");
     sparkConf.set("spark.rss.server.coordinator.ip", "127.0.0.1");
     sparkConf.set("spark.rss.server.coordinator.port", "19999");
     sparkConf.set("spark.rss.writer.send.check.timeout", "30000");
