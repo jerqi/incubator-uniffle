@@ -52,4 +52,12 @@ public class ServerNode {
     return timestamp;
   }
 
+  @Override
+  public String toString() {
+    return "ServerNode with id[" + id
+        + "], ip[" + ip
+        + "], port[" + port
+        + "], score[" + score + "]";
+  }
+
 }

@@ -6,7 +6,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.tencent.rss.client.api.ShuffleWriteClient;
-import com.tencent.rss.client.util.ClientUtils;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.Arrays;
@@ -28,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import scala.Function1;
 import scala.Option;
 import scala.Product2;
-import scala.Some;
 import scala.collection.Iterator;
 
 public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
@@ -52,6 +50,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private Set<ShuffleServerInfo> shuffleServerInfoSet;
   private Map<Integer, Set<Long>> partitionToBlockIds;
   private ShuffleWriteClient shuffleWriteClient;
+  private Set<ShuffleServerInfo> shuffleServerInfoForResult;
 
   public RssShuffleWriter(
       String appId,
@@ -62,7 +61,8 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       ShuffleDependency shuffleDependency,
       RssShuffleManager shuffleManager,
       SparkConf sparkConf,
-      ShuffleWriteClient shuffleWriteClient) {
+      ShuffleWriteClient shuffleWriteClient,
+      Set<ShuffleServerInfo> shuffleServerInfoForResult) {
     this.appId = appId;
     this.bufferManager = bufferManager;
     this.shuffleId = shuffleId;
@@ -71,6 +71,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.shuffleWriteMetrics = shuffleWriteMetrics;
     this.partitioner = shuffleDependency.partitioner();
     this.shuffleManager = shuffleManager;
+    this.shuffleServerInfoForResult = shuffleServerInfoForResult;
     this.shouldPartition = partitioner.numPartitions() > 1;
     this.shuffleServerInfoSet = Sets.newConcurrentHashSet();
     this.sendCheckTimeout = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT,
@@ -86,10 +87,10 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   /**
    * Create dummy BlockManagerId and embed partition->blockIds
    */
-  private BlockManagerId createDummyBlockManagerId(String executorId, String topologyInfo) {
+  private BlockManagerId createDummyBlockManagerId(String executorId) {
     // dummy values are used there for host and port check in BlockManagerId
     // hack: use topologyInfo field in BlockManagerId to store [partition, blockIds]
-    return BlockManagerId.apply(executorId, DUMMY_HOST, DUMMY_PORT, Some.apply(topologyInfo));
+    return BlockManagerId.apply(executorId, DUMMY_HOST, DUMMY_PORT, Option.apply(null));
   }
 
   @Override
@@ -222,18 +223,16 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         // fill partitionLengths with non zero dummy value so map output tracker could work correctly
         long[] partitionLengths = new long[partitioner.numPartitions()];
         Arrays.fill(partitionLengths, 1);
-        String jsonStr = ClientUtils.transBlockIdsToJson(partitionToBlockIds);
         BlockManagerId blockManagerId =
-            createDummyBlockManagerId(appId + "_" + taskId, jsonStr);
-
+            createDummyBlockManagerId(appId + "_" + taskId);
+        Map<Integer, List<Long>> ptb = Maps.newHashMap();
         for (Map.Entry<Integer, Set<Long>> entry : partitionToBlockIds.entrySet()) {
-          LOG.info("Finish send blocks for shuffleId[" + shuffleId + "], partitionId["
-              + entry.getKey() + "], blockIds[" + entry.getValue() + "]");
+          ptb.put(entry.getKey(), Lists.newArrayList(entry.getValue()));
         }
-
+        shuffleWriteClient.reportShuffleResult(shuffleServerInfoForResult, appId, shuffleId, ptb);
         return Option.apply(MapStatus$.MODULE$.apply(blockManagerId, partitionLengths, partitionLengths));
       } catch (Exception e) {
-        LOG.error("Error when create DummyBlockManagerId.", e);
+        LOG.error("Error when stop task.", e);
         throw new RuntimeException(e);
       }
     } else {

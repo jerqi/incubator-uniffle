@@ -1,23 +1,16 @@
 package org.apache.spark.shuffle.reader;
 
-import avro.shaded.com.google.common.collect.Sets;
 import com.tencent.rss.client.api.ShuffleReadClient;
 import com.tencent.rss.client.factory.ShuffleClientFactory;
 import com.tencent.rss.client.request.CreateShuffleReadClientRequest;
-import com.tencent.rss.client.util.ClientUtils;
-import java.io.IOException;
-import java.util.Map;
 import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.ShuffleDependency;
-import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.shuffle.RssShuffleHandle;
 import org.apache.spark.shuffle.ShuffleReader;
-import org.apache.spark.storage.BlockId;
-import org.apache.spark.storage.BlockManagerId;
 import org.apache.spark.util.CompletionIterator$;
 import org.apache.spark.util.collection.ExternalSorter;
 import org.slf4j.Logger;
@@ -26,9 +19,7 @@ import scala.Function0;
 import scala.Function1;
 import scala.Option;
 import scala.Product2;
-import scala.Tuple2;
 import scala.collection.Iterator;
-import scala.collection.Seq;
 import scala.runtime.AbstractFunction0;
 import scala.runtime.AbstractFunction1;
 import scala.runtime.BoxedUnit;
@@ -49,6 +40,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   private String basePath;
   private int indexReadLimit;
   private String storageType;
+  private Set<Long> expectedBlockIds;
 
   public RssShuffleReader(
       int startPartition,
@@ -58,7 +50,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
       String basePath,
       int indexReadLimit,
       Configuration hadoopConf,
-      String storageType) {
+      String storageType,
+      Set<Long> expectedBlockIds) {
     this.appId = rssShuffleHandle.getAppId();
     this.startPartition = startPartition;
     this.endPartition = endPartition;
@@ -71,6 +64,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     this.basePath = basePath;
     this.indexReadLimit = indexReadLimit;
     this.storageType = storageType;
+    this.expectedBlockIds = expectedBlockIds;
   }
 
   @Override
@@ -78,7 +72,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     LOG.info("Shuffle read started:" + getReadInfo());
 
     CreateShuffleReadClientRequest request = new CreateShuffleReadClientRequest(
-        storageType, basePath, hadoopConf, indexReadLimit, getExpectedBlockIds());
+        storageType, basePath, hadoopConf, indexReadLimit, expectedBlockIds);
     ShuffleReadClient shuffleReadClient = ShuffleClientFactory.getINSTANCE().createShuffleReadClient(request);
 
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator<K, C>(
@@ -139,49 +133,6 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
       resultIter = new InterruptibleIterator<>(context, resultIter);
     }
     return resultIter;
-  }
-
-  public Set<Long> getExpectedBlockIds() {
-    final long start = System.currentTimeMillis();
-    Set<Long> expectedBlockIds = Sets.newHashSet();
-    Iterator<Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>>> mapStatusIter =
-        SparkEnv.get().mapOutputTracker().getMapSizesByExecutorId(
-            shuffleId, startPartition, endPartition, false);
-    LOG.info("Start getExpectedBlockIds for shuffleId["
-        + shuffleId + "], partitionId[" + startPartition + "]");
-    while (mapStatusIter.hasNext()) {
-      Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>> tuple2 = mapStatusIter.next();
-      Option<String> topologyInfo = tuple2._1().topologyInfo();
-      if (topologyInfo.isDefined()) {
-        String jsonStr = tuple2._1().topologyInfo().get();
-        try {
-          Map<Integer, Set<Long>> partitionToBlockIds = ClientUtils.getBlockIdsFromJson(jsonStr);
-          for (Map.Entry<Integer, Set<Long>> entry : partitionToBlockIds.entrySet()) {
-            StringBuilder sb = new StringBuilder();
-            for (Long blockId : entry.getValue()) {
-              sb.append(blockId).append(",");
-            }
-            LOG.debug("Find BlockIds for shuffleId[" + shuffleId + "], partitionId["
-                + entry.getKey() + "], blockIds[" + sb.toString() + "]");
-          }
-          if (partitionToBlockIds.containsKey(startPartition)) {
-            expectedBlockIds.addAll(partitionToBlockIds.get(startPartition));
-          }
-        } catch (IOException ioe) {
-          LOG.error("Error happened when parse topologyInfo for partitionsToBlockIds:" + jsonStr, ioe);
-        }
-      } else {
-        LOG.error("Can't get partitionsToBlockIds for " + getReadInfo());
-      }
-    }
-    StringBuilder sb = new StringBuilder();
-    for (Long blockId : expectedBlockIds) {
-      sb.append(blockId).append(",");
-    }
-    long duration = System.currentTimeMillis() - start;
-    LOG.info("Finish getExpectedBlockIds with " + duration + " ms for shuffleId[" + shuffleId
-        + "], partitionId[" + startPartition + "], blockIds[" + sb.toString() + "]");
-    return expectedBlockIds;
   }
 
   private String getReadInfo() {

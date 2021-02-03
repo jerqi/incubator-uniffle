@@ -6,9 +6,39 @@ option java_generate_equals_and_hash = true;
 package rss.common;
 
 service ShuffleServer {
-  rpc registerShuffle (ShuffleRegisterRequest) returns (ShuffleRegisterResponse) {}
-  rpc sendShuffleData (SendShuffleDataRequest) returns (SendShuffleDataResponse) {}
-  rpc commitShuffleTask (ShuffleCommitRequest) returns (ShuffleCommitResponse) {}
+  rpc registerShuffle (ShuffleRegisterRequest) returns (ShuffleRegisterResponse);
+  rpc sendShuffleData (SendShuffleDataRequest) returns (SendShuffleDataResponse);
+  rpc commitShuffleTask (ShuffleCommitRequest) returns (ShuffleCommitResponse);
+  rpc reportShuffleResult (ReportShuffleResultRequest) returns (ReportShuffleResultResponse);
+  rpc getShuffleResult (GetShuffleResultRequest) returns (GetShuffleResultResponse);
+}
+
+message ReportShuffleResultRequest {
+  string appId = 1;
+  int32 shuffleId = 2;
+  repeated PartitionToBlockIds partitionToBlockIds = 3;
+}
+
+message PartitionToBlockIds {
+  int32 partitionId = 1;
+  repeated int64 blockIds = 2;
+}
+
+message ReportShuffleResultResponse {
+  StatusCode status = 1;
+  string retMsg = 2;
+}
+
+message GetShuffleResultRequest {
+  string appId = 1;
+  int32 shuffleId = 2;
+  int32 partitionId = 3;
+}
+
+message GetShuffleResultResponse {
+  StatusCode status = 1;
+  string retMsg = 2;
+  repeated int64 blockIds = 4;
 }
 
 message ShuffleRegisterRequest {
@@ -141,6 +171,7 @@ message PartitionRangeAssignment {
 message GetShuffleAssignmentsResponse {
   StatusCode status = 1;
   repeated PartitionRangeAssignment assignments = 2;
+  repeated ShuffleServerId serverForResult = 3;
 }
 
 message ReportShuffleClientOpRequest {

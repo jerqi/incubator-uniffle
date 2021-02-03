@@ -4,12 +4,12 @@ import com.tencent.rss.common.ShuffleBlockInfo;
 import java.util.List;
 import java.util.Map;
 
-public class SendShuffleDataRequest {
+public class RssSendShuffleDataRequest {
 
   private String appId;
   private Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleIdToBlocks;
 
-  public SendShuffleDataRequest(String appId,
+  public RssSendShuffleDataRequest(String appId,
       Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleIdToBlocks) {
     this.appId = appId;
     this.shuffleIdToBlocks = shuffleIdToBlocks;

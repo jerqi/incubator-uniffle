@@ -1,13 +1,18 @@
 package com.tencent.rss.coordinator;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BasicAssignmentStrategy implements AssignmentStrategy {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BasicAssignmentStrategy.class);
 
   private ClusterManager clusterManager;
 
@@ -15,6 +20,7 @@ public class BasicAssignmentStrategy implements AssignmentStrategy {
     this.clusterManager = clusterManager;
   }
 
+  @Override
   public PartitionRangeAssignment assign(int totalPartitionNum, int partitionNumPerServer, int replica) {
     List<PartitionRange> ranges = generateRanges(totalPartitionNum, partitionNumPerServer);
     int hint = ranges.size() * replica;
@@ -40,6 +46,20 @@ public class BasicAssignmentStrategy implements AssignmentStrategy {
     }
 
     return new PartitionRangeAssignment(assignments);
+  }
+
+  @Override
+  public List<ServerNode> assignServersForResult(int replica) {
+    List<ServerNode> servers = clusterManager.get(replica);
+    if (servers == null) {
+      LOG.warn("Can't get shuffle servers for shuffle result, expected["
+          + replica + "], got[0]");
+      return Lists.newArrayList();
+    } else if (servers.size() < replica) {
+      LOG.warn("Can't get expected shuffle servers for shuffle result, expected["
+          + replica + "], got[" + servers.size() + "] with " + servers);
+    }
+    return servers;
   }
 
   @VisibleForTesting

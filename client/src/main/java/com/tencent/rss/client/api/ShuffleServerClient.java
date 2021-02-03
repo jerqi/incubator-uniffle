@@ -1,19 +1,27 @@
 package com.tencent.rss.client.api;
 
-import com.tencent.rss.client.request.RegisterShuffleRequest;
-import com.tencent.rss.client.request.SendCommitRequest;
-import com.tencent.rss.client.request.SendShuffleDataRequest;
-import com.tencent.rss.client.response.RegisterShuffleResponse;
-import com.tencent.rss.client.response.SendCommitResponse;
-import com.tencent.rss.client.response.SendShuffleDataResponse;
+import com.tencent.rss.client.request.RssGetShuffleResultRequest;
+import com.tencent.rss.client.request.RssRegisterShuffleRequest;
+import com.tencent.rss.client.request.RssReportShuffleResultRequest;
+import com.tencent.rss.client.request.RssSendCommitRequest;
+import com.tencent.rss.client.request.RssSendShuffleDataRequest;
+import com.tencent.rss.client.response.RssGetShuffleResultResponse;
+import com.tencent.rss.client.response.RssRegisterShuffleResponse;
+import com.tencent.rss.client.response.RssReportShuffleResultResponse;
+import com.tencent.rss.client.response.RssSendCommitResponse;
+import com.tencent.rss.client.response.RssSendShuffleDataResponse;
 
 public interface ShuffleServerClient {
 
-  RegisterShuffleResponse registerShuffle(RegisterShuffleRequest request);
+  RssRegisterShuffleResponse registerShuffle(RssRegisterShuffleRequest request);
 
-  SendShuffleDataResponse sendShuffleData(SendShuffleDataRequest request);
+  RssSendShuffleDataResponse sendShuffleData(RssSendShuffleDataRequest request);
 
-  SendCommitResponse sendCommit(SendCommitRequest request);
+  RssSendCommitResponse sendCommit(RssSendCommitRequest request);
+
+  RssReportShuffleResultResponse reportShuffleResult(RssReportShuffleResultRequest request);
+
+  RssGetShuffleResultResponse getShuffleResult(RssGetShuffleResultRequest request);
 
   void close();
 }

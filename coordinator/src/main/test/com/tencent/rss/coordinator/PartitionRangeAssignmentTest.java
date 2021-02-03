@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.tencent.rss.proto.RssProtos;
-import com.tencent.rss.proto.RssProtos.GetShuffleAssignmentsResponse;
 import java.util.Collections;
 import java.util.List;
 import java.util.SortedMap;
@@ -23,11 +22,11 @@ public class PartitionRangeAssignmentTest {
     }
 
     PartitionRangeAssignment partitionRangeAssignment = new PartitionRangeAssignment(sortedMap);
-    GetShuffleAssignmentsResponse res = partitionRangeAssignment.convertToGrpcProto();
-    assertEquals(3, res.getAssignmentsCount());
+    List<RssProtos.PartitionRangeAssignment> res = partitionRangeAssignment.convertToGrpcProto();
+    assertEquals(3, res.size());
 
     for (int i = 0; i < 3; ++i) {
-      RssProtos.PartitionRangeAssignment pra = res.getAssignments(i);
+      RssProtos.PartitionRangeAssignment pra = res.get(i);
       assertEquals(1, pra.getServerCount());
       assertEquals(i, pra.getServer(0).getPort());
       assertEquals(3 * i, pra.getStartPartition());
@@ -36,7 +35,6 @@ public class PartitionRangeAssignmentTest {
 
     partitionRangeAssignment = new PartitionRangeAssignment(null);
     res = partitionRangeAssignment.convertToGrpcProto();
-    List<RssProtos.PartitionRangeAssignment> r = res.getAssignmentsList();
-    assertTrue(r.isEmpty());
+    assertTrue(res.isEmpty());
   }
 }

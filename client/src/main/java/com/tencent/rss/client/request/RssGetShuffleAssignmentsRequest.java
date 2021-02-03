@@ -1,13 +1,13 @@
 package com.tencent.rss.client.request;
 
-public class GetShuffleAssignmentsRequest {
+public class RssGetShuffleAssignmentsRequest {
 
   private String appId;
   private int shuffleId;
   private int partitionNum;
   private int partitionsPerServer;
 
-  public GetShuffleAssignmentsRequest(String appId, int shuffleId, int partitionNum, int partitionsPerServer) {
+  public RssGetShuffleAssignmentsRequest(String appId, int shuffleId, int partitionNum, int partitionsPerServer) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.partitionNum = partitionNum;

@@ -2,7 +2,6 @@ package com.tencent.rss.coordinator;
 
 import com.google.common.base.Objects;
 import com.tencent.rss.proto.RssProtos;
-import com.tencent.rss.proto.RssProtos.GetShuffleAssignmentsResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -17,12 +16,11 @@ public class PartitionRangeAssignment {
     this.assignments = assignments;
   }
 
-  public GetShuffleAssignmentsResponse convertToGrpcProto() {
-    if (assignments == null) {
-      return GetShuffleAssignmentsResponse.newBuilder().build();
-    }
-
+  public List<RssProtos.PartitionRangeAssignment> convertToGrpcProto() {
     List<RssProtos.PartitionRangeAssignment> praList = new ArrayList<>();
+    if (assignments == null) {
+      return praList;
+    }
 
     for (Entry<PartitionRange, List<ServerNode>> entry : assignments.entrySet()) {
       final int start = entry.getKey().getStart();
@@ -41,7 +39,7 @@ public class PartitionRangeAssignment {
       praList.add(partitionRangeAssignment);
     }
 
-    return GetShuffleAssignmentsResponse.newBuilder().addAllAssignments(praList).build();
+    return praList;
   }
 
   public SortedMap<PartitionRange, List<ServerNode>> getAssignments() {

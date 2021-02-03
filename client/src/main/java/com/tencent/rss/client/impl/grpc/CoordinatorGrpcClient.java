@@ -3,17 +3,20 @@ package com.tencent.rss.client.impl.grpc;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.protobuf.Empty;
 import com.tencent.rss.client.api.CoordinatorClient;
-import com.tencent.rss.client.request.GetShuffleAssignmentsRequest;
-import com.tencent.rss.client.request.SendHeartBeatRequest;
-import com.tencent.rss.client.response.GetShuffleAssignmentsResponse;
+import com.tencent.rss.client.request.RssGetShuffleAssignmentsRequest;
+import com.tencent.rss.client.request.RssSendHeartBeatRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
-import com.tencent.rss.client.response.SendHeartBeatResponse;
+import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
+import com.tencent.rss.client.response.RssSendHeartBeatResponse;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.CoordinatorServerGrpc;
 import com.tencent.rss.proto.CoordinatorServerGrpc.CoordinatorServerBlockingStub;
 import com.tencent.rss.proto.RssProtos;
+import com.tencent.rss.proto.RssProtos.GetShuffleServerListResponse;
 import com.tencent.rss.proto.RssProtos.PartitionRangeAssignment;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatResponse;
@@ -24,6 +27,7 @@ import io.grpc.StatusRuntimeException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -50,6 +54,10 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
   public CoordinatorGrpcClient(ManagedChannel channel) {
     super(channel);
     blockingStub = CoordinatorServerGrpc.newBlockingStub(channel);
+  }
+
+  public GetShuffleServerListResponse getShuffleServerList() {
+    return blockingStub.getShuffleServerList(Empty.newBuilder().build());
   }
 
   public ShuffleServerHeartBeatResponse doSendHeartBeat(
@@ -98,7 +106,7 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
   }
 
   @Override
-  public SendHeartBeatResponse sendHeartBeat(SendHeartBeatRequest request) {
+  public RssSendHeartBeatResponse sendHeartBeat(RssSendHeartBeatRequest request) {
     ShuffleServerHeartBeatResponse rpcResponse = doSendHeartBeat(
         request.getShuffleServerId(),
         request.getShuffleServerIp(),
@@ -106,47 +114,49 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
         request.getPercent(),
         request.getTimeout());
 
-    SendHeartBeatResponse response;
+    RssSendHeartBeatResponse response;
     StatusCode statusCode = rpcResponse.getStatus();
     switch (statusCode) {
       case SUCCESS:
-        response = new SendHeartBeatResponse(ResponseStatusCode.SUCCESS);
+        response = new RssSendHeartBeatResponse(ResponseStatusCode.SUCCESS);
         break;
       case TIMEOUT:
-        response = new SendHeartBeatResponse(ResponseStatusCode.TIMEOUT);
+        response = new RssSendHeartBeatResponse(ResponseStatusCode.TIMEOUT);
         break;
       default:
-        response = new SendHeartBeatResponse(ResponseStatusCode.INTERNAL_ERROR);
+        response = new RssSendHeartBeatResponse(ResponseStatusCode.INTERNAL_ERROR);
     }
     return response;
   }
 
   @Override
-  public GetShuffleAssignmentsResponse getShuffleAssignments(GetShuffleAssignmentsRequest request) {
+  public RssGetShuffleAssignmentsResponse getShuffleAssignments(RssGetShuffleAssignmentsRequest request) {
     RssProtos.GetShuffleAssignmentsResponse rpcResponse = doGetShuffleAssignments(
         request.getAppId(),
         request.getShuffleId(),
         request.getPartitionNum(),
         request.getPartitionsPerServer());
 
-    GetShuffleAssignmentsResponse response;
+    RssGetShuffleAssignmentsResponse response;
     StatusCode statusCode = rpcResponse.getStatus();
     switch (statusCode) {
       case SUCCESS:
-        response = new GetShuffleAssignmentsResponse(ResponseStatusCode.SUCCESS);
+        response = new RssGetShuffleAssignmentsResponse(ResponseStatusCode.SUCCESS);
         // get all register info according to coordinator's response
         List<ShuffleRegisterInfo> shuffleRegisterInfoList = getShuffleRegisterInfoList(rpcResponse);
         Map<Integer, List<ShuffleServerInfo>> partitionToServers = getPartitionToServers(rpcResponse);
+        Set<ShuffleServerInfo> shuffleServersForResult = getServersForResult(rpcResponse);
         response.setRegisterInfoList(shuffleRegisterInfoList);
         response.setPartitionToServers(partitionToServers);
+        response.setShuffleServersForResult(shuffleServersForResult);
         LOG.info("Successfully get shuffle assignments from coordinator, "
             + shuffleRegisterInfoList + ", " + partitionToServers);
         break;
       case TIMEOUT:
-        response = new GetShuffleAssignmentsResponse(ResponseStatusCode.TIMEOUT);
+        response = new RssGetShuffleAssignmentsResponse(ResponseStatusCode.TIMEOUT);
         break;
       default:
-        response = new GetShuffleAssignmentsResponse(ResponseStatusCode.INTERNAL_ERROR);
+        response = new RssGetShuffleAssignmentsResponse(ResponseStatusCode.INTERNAL_ERROR);
     }
 
     return response;
@@ -200,5 +210,17 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
       }
     }
     return shuffleRegisterInfoList;
+  }
+
+  private Set<ShuffleServerInfo> getServersForResult(RssProtos.GetShuffleAssignmentsResponse response) {
+    List<ShuffleServerId> shuffleServerIds = response.getServerForResultList();
+    if (shuffleServerIds == null || shuffleServerIds.isEmpty()) {
+      throw new RuntimeException("Failed to get shuffle server for report shuffle result");
+    }
+    Set<ShuffleServerInfo> shuffleServerInfoSet = Sets.newHashSet();
+    for (ShuffleServerId ssi : shuffleServerIds) {
+      shuffleServerInfoSet.add(new ShuffleServerInfo(ssi.getId(), ssi.getIp(), ssi.getPort()));
+    }
+    return shuffleServerInfoSet;
   }
 }

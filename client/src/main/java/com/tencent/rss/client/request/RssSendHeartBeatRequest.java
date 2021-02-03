@@ -1,6 +1,6 @@
 package com.tencent.rss.client.request;
 
-public class SendHeartBeatRequest {
+public class RssSendHeartBeatRequest {
 
   private String shuffleServerId;
   private String shuffleServerIp;
@@ -8,7 +8,7 @@ public class SendHeartBeatRequest {
   private int percent;
   private long timeout;
 
-  public SendHeartBeatRequest(String shuffleServerId, String shuffleServerIp, int shuffleServerPort,
+  public RssSendHeartBeatRequest(String shuffleServerId, String shuffleServerIp, int shuffleServerPort,
       int percent, long timeout) {
     this.shuffleServerId = shuffleServerId;
     this.shuffleServerIp = shuffleServerIp;

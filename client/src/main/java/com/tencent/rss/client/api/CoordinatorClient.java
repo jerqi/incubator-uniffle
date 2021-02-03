@@ -1,15 +1,15 @@
 package com.tencent.rss.client.api;
 
-import com.tencent.rss.client.request.GetShuffleAssignmentsRequest;
-import com.tencent.rss.client.request.SendHeartBeatRequest;
-import com.tencent.rss.client.response.GetShuffleAssignmentsResponse;
-import com.tencent.rss.client.response.SendHeartBeatResponse;
+import com.tencent.rss.client.request.RssGetShuffleAssignmentsRequest;
+import com.tencent.rss.client.request.RssSendHeartBeatRequest;
+import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
+import com.tencent.rss.client.response.RssSendHeartBeatResponse;
 
 public interface CoordinatorClient {
 
-  SendHeartBeatResponse sendHeartBeat(SendHeartBeatRequest request);
+  RssSendHeartBeatResponse sendHeartBeat(RssSendHeartBeatRequest request);
 
-  GetShuffleAssignmentsResponse getShuffleAssignments(GetShuffleAssignmentsRequest request);
+  RssGetShuffleAssignmentsResponse getShuffleAssignments(RssGetShuffleAssignmentsRequest request);
 
   void close();
 }

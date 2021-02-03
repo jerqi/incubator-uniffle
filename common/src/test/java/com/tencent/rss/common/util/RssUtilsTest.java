@@ -1,6 +1,8 @@
 package com.tencent.rss.common.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Map;
 import java.util.Objects;
@@ -20,4 +22,23 @@ public class RssUtilsTest {
         properties.get("rss.a.b.c.extraJavaOptions"));
   }
 
+  @Test
+  public void getShuffleDataPathWithRangeTest() {
+    String result = RssUtils.getShuffleDataPathWithRange("appId", 0, 1, 3, 6);
+    assertEquals("appId/0/0-2", result);
+    result = RssUtils.getShuffleDataPathWithRange("appId", 0, 2, 3, 6);
+    assertEquals("appId/0/0-2", result);
+    result = RssUtils.getShuffleDataPathWithRange("appId", 0, 3, 3, 6);
+    assertEquals("appId/0/3-5", result);
+    result = RssUtils.getShuffleDataPathWithRange("appId", 0, 5, 3, 6);
+    assertEquals("appId/0/3-5", result);
+    try {
+      RssUtils.getShuffleDataPathWithRange("appId", 0, 6, 3, 6);
+      fail("shouldn't be here");
+    } catch (Exception e) {
+      assertTrue(e.getMessage().startsWith("Can't generate ShuffleData Path"));
+    }
+    result = RssUtils.getShuffleDataPathWithRange("appId", 0, 6, 3, 7);
+    assertEquals("appId/0/6-8", result);
+  }
 }

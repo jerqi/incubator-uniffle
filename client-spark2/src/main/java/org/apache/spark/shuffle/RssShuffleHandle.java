@@ -3,41 +3,50 @@ package org.apache.spark.shuffle;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.spark.ShuffleDependency;
 
 public class RssShuffleHandle<K, V, C> extends ShuffleHandle {
 
-    private String appId;
-    private int numMaps;
-    private ShuffleDependency<K, V, C> dependency;
-    private Map<Integer, List<ShuffleServerInfo>> partitionToServers;
+  private String appId;
+  private int numMaps;
+  private ShuffleDependency<K, V, C> dependency;
+  private Map<Integer, List<ShuffleServerInfo>> partitionToServers;
+  private Set<ShuffleServerInfo> shuffleServersForResult;
 
-    public RssShuffleHandle(int shuffleId, String appId, int numMaps,
-            ShuffleDependency<K, V, C> dependency, Map<Integer, List<ShuffleServerInfo>> partitionToServers) {
-        super(shuffleId);
-        this.appId = appId;
-        this.numMaps = numMaps;
-        this.dependency = dependency;
-        this.partitionToServers = partitionToServers;
-    }
+  public RssShuffleHandle(int shuffleId, String appId, int numMaps,
+      ShuffleDependency<K, V, C> dependency,
+      Map<Integer, List<ShuffleServerInfo>> partitionToServers,
+      Set<ShuffleServerInfo> shuffleServersForResult) {
+    super(shuffleId);
+    this.appId = appId;
+    this.numMaps = numMaps;
+    this.dependency = dependency;
+    this.partitionToServers = partitionToServers;
+    this.shuffleServersForResult = shuffleServersForResult;
+  }
 
-    public String getAppId() {
-        return appId;
-    }
+  public String getAppId() {
+    return appId;
+  }
 
-    public int getNumMaps() {
-        return numMaps;
-    }
+  public int getNumMaps() {
+    return numMaps;
+  }
 
-    public ShuffleDependency<K, V, C> getDependency() {
-        return dependency;
-    }
+  public ShuffleDependency<K, V, C> getDependency() {
+    return dependency;
+  }
 
-    public Map<Integer, List<ShuffleServerInfo>> getPartitionToServers() {
-        return partitionToServers;
-    }
+  public Map<Integer, List<ShuffleServerInfo>> getPartitionToServers() {
+    return partitionToServers;
+  }
 
-    public int getShuffleId() {
-        return shuffleId();
-    }
+  public int getShuffleId() {
+    return shuffleId();
+  }
+
+  public Set<ShuffleServerInfo> getShuffleServersForResult() {
+    return shuffleServersForResult;
+  }
 }

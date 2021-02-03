@@ -15,6 +15,7 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
   protected static final int JETTY_PORT = 19998;
   private static final Logger LOG = LoggerFactory.getLogger(IntegrationTestBase.class);
   protected static int COORDINATOR_PORT = 19999;
+  protected static int SHUFFLE_SERVER_PORT = 20001;
   protected static String LOCALHOST = "127.0.0.1";
   private static ShuffleServer shuffleServer;
   private static CoordinatorServer coordinator;
@@ -31,7 +32,7 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     coordinator.start();
 
     ShuffleServerConf serverConf = new ShuffleServerConf();
-    serverConf.setInteger("rss.rpc.server.port", 20001);
+    serverConf.setInteger("rss.rpc.server.port", SHUFFLE_SERVER_PORT);
     serverConf.setString("rss.storage.type", "FILE");
     serverConf.setString("rss.storage.basePath", HDFS_URI + "rss/test");
     serverConf.setString("rss.server.buffer.capacity", "671088640");

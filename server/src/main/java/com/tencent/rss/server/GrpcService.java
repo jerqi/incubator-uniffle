@@ -1,8 +1,15 @@
 package com.tencent.rss.server;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.proto.RssProtos;
+import com.tencent.rss.proto.RssProtos.GetShuffleResultRequest;
+import com.tencent.rss.proto.RssProtos.GetShuffleResultResponse;
+import com.tencent.rss.proto.RssProtos.PartitionToBlockIds;
+import com.tencent.rss.proto.RssProtos.ReportShuffleResultRequest;
+import com.tencent.rss.proto.RssProtos.ReportShuffleResultResponse;
 import com.tencent.rss.proto.RssProtos.SendShuffleDataRequest;
 import com.tencent.rss.proto.RssProtos.SendShuffleDataResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleBlock;
@@ -16,6 +23,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -200,7 +208,64 @@ public class GrpcService extends ShuffleServerImplBase {
     reply = ShuffleCommitResponse.newBuilder().setStatus(valueOf(status)).setRetMsg(msg).build();
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
+  }
 
+  @Override
+  public void reportShuffleResult(ReportShuffleResultRequest request,
+      StreamObserver<ReportShuffleResultResponse> responseObserver) {
+    ShuffleServerMetrics.counterTotalRequest.inc();
+    String appId = request.getAppId();
+    int shuffleId = request.getShuffleId();
+    Map<Integer, List<Long>> partitionToBlockIds = toPartionBlocksMap(request.getPartitionToBlockIdsList());
+    StatusCode status = StatusCode.SUCCESS;
+    String msg = "OK";
+    ReportShuffleResultResponse reply;
+    String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "]";
+
+    if (partitionToBlockIds.isEmpty()) {
+      LOG.error("Report 0 block as shuffle result for " + requestInfo);
+    } else {
+      try {
+        shuffleServer.getShuffleTaskManager().addFinishedBlockIds(appId, shuffleId, partitionToBlockIds);
+      } catch (Exception e) {
+        status = StatusCode.INTERNAL_ERROR;
+        msg = e.getMessage();
+        LOG.error("Error happened when report shuffle result for " + requestInfo, e);
+      }
+    }
+
+    reply = ReportShuffleResultResponse.newBuilder().setStatus(valueOf(status)).setRetMsg(msg).build();
+    responseObserver.onNext(reply);
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void getShuffleResult(GetShuffleResultRequest request,
+      StreamObserver<GetShuffleResultResponse> responseObserver) {
+    ShuffleServerMetrics.counterTotalRequest.inc();
+
+    String appId = request.getAppId();
+    int shuffleId = request.getShuffleId();
+    int partitionId = request.getPartitionId();
+    StatusCode status = StatusCode.SUCCESS;
+    String msg = "OK";
+    GetShuffleResultResponse reply;
+    List<Long> blockIds = Lists.newArrayList();
+    String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "], partitionId[" + partitionId + "]";
+
+    try {
+      blockIds = shuffleServer.getShuffleTaskManager().getFinishedBlockIds(appId, shuffleId, partitionId);
+    } catch (Exception e) {
+      status = StatusCode.INTERNAL_ERROR;
+      msg = e.getMessage();
+      LOG.error("Error happened when report shuffle result for " + requestInfo, e);
+    }
+    reply = GetShuffleResultResponse.newBuilder()
+        .setStatus(valueOf(status))
+        .setRetMsg(msg)
+        .addAllBlockIds(blockIds).build();
+    responseObserver.onNext(reply);
+    responseObserver.onCompleted();
   }
 
   private List<ShufflePartitionedData> toPartitionedData(SendShuffleDataRequest req) {
@@ -227,5 +292,16 @@ public class GrpcService extends ShuffleServerImplBase {
     }
 
     return ret;
+  }
+
+  private Map<Integer, List<Long>> toPartionBlocksMap(List<PartitionToBlockIds> partitionToBlockIds) {
+    Map<Integer, List<Long>> result = Maps.newHashMap();
+    for (PartitionToBlockIds ptb : partitionToBlockIds) {
+      List<Long> blockIds = ptb.getBlockIdsList();
+      if (blockIds != null && !blockIds.isEmpty()) {
+        result.put(ptb.getPartitionId(), blockIds);
+      }
+    }
+    return result;
   }
 }

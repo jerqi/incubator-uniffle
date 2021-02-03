@@ -4,9 +4,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.client.api.CoordinatorClient;
 import com.tencent.rss.client.factory.CoordinatorClientFactory;
 import com.tencent.rss.client.impl.grpc.CoordinatorGrpcClient;
-import com.tencent.rss.client.request.SendHeartBeatRequest;
+import com.tencent.rss.client.request.RssSendHeartBeatRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
-import com.tencent.rss.client.response.SendHeartBeatResponse;
+import com.tencent.rss.client.response.RssSendHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -91,8 +91,8 @@ public class RegisterHeartBeat {
   boolean sendHeartBeat(String id, String ip, int port, int score) {
     LOGGER.debug("Start to send heartbeat " + System.currentTimeMillis());
     boolean sendSuccessfully = false;
-    SendHeartBeatRequest request = new SendHeartBeatRequest(id, ip, port, score, heartBeatTimeout);
-    SendHeartBeatResponse response = rpcClient.sendHeartBeat(request);
+    RssSendHeartBeatRequest request = new RssSendHeartBeatRequest(id, ip, port, score, heartBeatTimeout);
+    RssSendHeartBeatResponse response = rpcClient.sendHeartBeat(request);
     ResponseStatusCode status = response.getStatusCode();
 
     if (status != ResponseStatusCode.SUCCESS) {

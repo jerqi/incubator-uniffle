@@ -1,11 +1,11 @@
 package com.tencent.rss.client.request;
 
-public class SendCommitRequest {
+public class RssSendCommitRequest {
 
   private String appId;
   private int shuffleId;
 
-  public SendCommitRequest(String appId, int shuffleId) {
+  public RssSendCommitRequest(String appId, int shuffleId) {
     this.appId = appId;
     this.shuffleId = shuffleId;
   }

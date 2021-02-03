@@ -15,6 +15,7 @@ import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import io.grpc.stub.StreamObserver;
+import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +25,7 @@ import org.slf4j.LoggerFactory;
  */
 public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorServerImplBase {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(CoordinatorServiceImpl.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CoordinatorServiceImpl.class);
 
   private final CoordinatorServer coordinatorServer;
 
@@ -32,6 +33,7 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
     this.coordinatorServer = coordinatorServer;
   }
 
+  @Override
   public void getShuffleServerList(
       Empty request,
       StreamObserver<GetShuffleServerListResponse> responseObserver) {
@@ -48,6 +50,7 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
     responseObserver.onCompleted();
   }
 
+  @Override
   public void getShuffleServerNum(
       Empty request,
       StreamObserver<GetShuffleServerNumResponse> responseObserver) {
@@ -60,6 +63,7 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
     responseObserver.onCompleted();
   }
 
+  @Override
   public void getShuffleAssignments(
       GetShuffleServerRequest request,
       StreamObserver<GetShuffleAssignmentsResponse> responseObserver) {
@@ -69,12 +73,16 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
 
     final PartitionRangeAssignment pra =
         coordinatorServer.getAssignmentStrategy().assign(partitionNum, partitionPerServer, replica);
-    final GetShuffleAssignmentsResponse response = pra.convertToGrpcProto();
+    final List<ServerNode> serverNodes =
+        coordinatorServer.getAssignmentStrategy().assignServersForResult(replica);
+    final GetShuffleAssignmentsResponse response =
+        CoordinatorUtils.toGetShuffleAssignmentsResponse(pra, serverNodes);
 
     responseObserver.onNext(response);
     responseObserver.onCompleted();
   }
 
+  @Override
   public void heartbeat(
       ShuffleServerHeartBeatRequest request,
       StreamObserver<ShuffleServerHeartBeatResponse> responseObserver) {
@@ -85,10 +93,12 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
         .setRetMsg("")
         .setStatus(StatusCode.SUCCESS)
         .build();
+    LOG.debug("Got heartbeat from " + serverNode);
     responseObserver.onNext(response);
     responseObserver.onCompleted();
   }
 
+  @Override
   public void getShuffleDataStorageInfo(
       Empty request,
       StreamObserver<GetShuffleDataStorageInfoResponse> responseObserver) {
@@ -105,6 +115,7 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
     responseObserver.onCompleted();
   }
 
+  @Override
   public void checkServiceAvailable(
       Empty request,
       StreamObserver<CheckServiceAvailableResponse> responseObserver) {
@@ -116,6 +127,7 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
     responseObserver.onCompleted();
   }
 
+  @Override
   public void reportClientOperation(
       ReportShuffleClientOpRequest request,
       StreamObserver<ReportShuffleClientOpResponse> responseObserver) {
@@ -123,7 +135,7 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
     final int clientPort = request.getClientPort();
     final ShuffleServerId shuffleServer = request.getServer();
     final String operation = request.getOperation();
-    LOGGER.info(clientHost + ":" + clientPort + "->" + operation + "->" + shuffleServer);
+    LOG.info(clientHost + ":" + clientPort + "->" + operation + "->" + shuffleServer);
     final ReportShuffleClientOpResponse response = ReportShuffleClientOpResponse
         .newBuilder()
         .setRetMsg("")

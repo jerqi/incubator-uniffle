@@ -2,12 +2,12 @@ package com.tencent.rss.client.response;
 
 import java.util.List;
 
-public class SendShuffleDataResponse extends ClientResponse {
+public class RssSendShuffleDataResponse extends ClientResponse {
 
   private List<Long> successBlockIds;
   private List<Long> failedBlockIds;
 
-  public SendShuffleDataResponse(ResponseStatusCode statusCode) {
+  public RssSendShuffleDataResponse(ResponseStatusCode statusCode) {
     super(statusCode);
   }
 

@@ -69,4 +69,21 @@ public class RssUtils {
   public static String getFullShuffleDataFolder(String basePath, String subPath) {
     return String.join(HDFS_PATH_SEPARATOR, basePath, subPath);
   }
+
+  public static String getShuffleDataPathWithRange(
+      String appId, int shuffleId, int partitionId,
+      int partitionsPerServer, int partitionNum) {
+    int prNum = partitionNum % partitionsPerServer == 0
+        ? partitionNum / partitionsPerServer : partitionNum / partitionsPerServer + 1;
+    for (int i = 0; i < prNum; i++) {
+      int start = i * partitionsPerServer;
+      int end = (i + 1) * partitionsPerServer - 1;
+      if (partitionId >= start && partitionId <= end) {
+        return getShuffleDataPath(appId, String.valueOf(shuffleId), start, end);
+      }
+    }
+    throw new RuntimeException("Can't generate ShuffleData Path for appId[" + appId + "], shuffleId["
+        + shuffleId + "], partitionId[" + partitionId + "], partitionsPerServer[" + partitionsPerServer
+        + "], partitionNum[" + partitionNum + "]");
+  }
 }

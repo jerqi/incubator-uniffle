@@ -3,24 +3,30 @@ package com.tencent.rss.test.grpc;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+import com.google.common.collect.Sets;
 import com.tencent.rss.client.factory.CoordinatorClientFactory;
 import com.tencent.rss.client.impl.grpc.CoordinatorGrpcClient;
+import com.tencent.rss.client.request.RssGetShuffleAssignmentsRequest;
+import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.RssProtos;
 import com.tencent.rss.proto.RssProtos.GetShuffleAssignmentsResponse;
+import com.tencent.rss.proto.RssProtos.GetShuffleServerListResponse;
 import com.tencent.rss.proto.RssProtos.PartitionRangeAssignment;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
 import com.tencent.rss.test.IntegrationTestBase;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class CoordinatorGrpcClientTest extends IntegrationTestBase {
+public class CoordinatorGrpcTest extends IntegrationTestBase {
 
   private CoordinatorClientFactory factory = new CoordinatorClientFactory("GRPC");
   private CoordinatorGrpcClient coordinatorClient;
@@ -40,7 +46,6 @@ public class CoordinatorGrpcClientTest extends IntegrationTestBase {
 
   @Test
   public void testGetPartitionToServers() {
-
     GetShuffleAssignmentsResponse testResponse = generateShuffleAssignmentsResponse();
 
     Map<Integer, List<ShuffleServerInfo>> partitionToServers =
@@ -62,7 +67,7 @@ public class CoordinatorGrpcClientTest extends IntegrationTestBase {
   }
 
   @Test
-  public void getShuffleRegisterInfosTest() {
+  public void getShuffleRegisterInfoTest() {
     GetShuffleAssignmentsResponse testResponse = generateShuffleAssignmentsResponse();
     List<ShuffleRegisterInfo> shuffleRegisterInfos = coordinatorClient.getShuffleRegisterInfoList(testResponse);
     List<ShuffleRegisterInfo> expected = Arrays.asList(
@@ -74,6 +79,50 @@ public class CoordinatorGrpcClientTest extends IntegrationTestBase {
     for (ShuffleRegisterInfo sri : expected) {
       assertTrue(shuffleRegisterInfos.contains(sri));
     }
+  }
+
+  @Test
+  public void getShuffleAssignmentsTest() throws Exception {
+    waitForRegister(1);
+    RssGetShuffleAssignmentsRequest request = new RssGetShuffleAssignmentsRequest("appId", 1, 10, 4);
+    RssGetShuffleAssignmentsResponse response = coordinatorClient
+        .getShuffleAssignments(request);
+    Set<Integer> expectedStart = Sets.newHashSet(0, 4, 8);
+
+    assertEquals(3, response.getRegisterInfoList().size());
+    for (ShuffleRegisterInfo sri : response.getRegisterInfoList()) {
+      switch (sri.getStart()) {
+        case 0:
+          assertEquals(3, sri.getEnd());
+          expectedStart.remove(0);
+          break;
+        case 4:
+          assertEquals(7, sri.getEnd());
+          expectedStart.remove(4);
+          break;
+        case 8:
+          assertEquals(11, sri.getEnd());
+          expectedStart.remove(8);
+          break;
+        default:
+          fail("Shouldn't be here");
+      }
+    }
+    assertTrue(expectedStart.isEmpty());
+    assertEquals(1, response.getShuffleServersForResult().size());
+  }
+
+  private void waitForRegister(int expcetedServers) throws Exception {
+    GetShuffleServerListResponse response;
+    int count = 0;
+    do {
+      response = coordinatorClient.getShuffleServerList();
+      Thread.sleep(1000);
+      if (count > 10) {
+        throw new RuntimeException("No shuffle server connected");
+      }
+      count++;
+    } while (response.getServersCount() < expcetedServers);
   }
 
   private GetShuffleAssignmentsResponse generateShuffleAssignmentsResponse() {

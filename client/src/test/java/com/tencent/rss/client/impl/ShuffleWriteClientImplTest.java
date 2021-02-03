@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.Lists;
 import com.tencent.rss.client.api.ShuffleServerClient;
 import com.tencent.rss.client.response.ResponseStatusCode;
-import com.tencent.rss.client.response.SendShuffleDataResponse;
+import com.tencent.rss.client.response.RssSendShuffleDataResponse;
 import com.tencent.rss.client.response.SendShuffleDataResult;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
@@ -26,7 +26,7 @@ public class ShuffleWriteClientImplTest {
     ShuffleWriteClientImpl spyClient = spy(shuffleWriteClient);
     doReturn(mockShuffleServerClient).when(spyClient).getShuffleServerClient(any());
     when(mockShuffleServerClient.sendShuffleData(any())).thenReturn(
-        new SendShuffleDataResponse(ResponseStatusCode.NO_BUFFER));
+        new RssSendShuffleDataResponse(ResponseStatusCode.NO_BUFFER));
 
     List<ShuffleServerInfo> shuffleServerInfoList =
         Lists.newArrayList(new ShuffleServerInfo("id", "host", 0));

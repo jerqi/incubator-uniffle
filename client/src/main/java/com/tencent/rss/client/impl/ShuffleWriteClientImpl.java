@@ -8,16 +8,20 @@ import com.tencent.rss.client.api.ShuffleServerClient;
 import com.tencent.rss.client.api.ShuffleWriteClient;
 import com.tencent.rss.client.factory.CoordinatorClientFactory;
 import com.tencent.rss.client.factory.ShuffleServerClientFactory;
-import com.tencent.rss.client.request.GetShuffleAssignmentsRequest;
-import com.tencent.rss.client.request.RegisterShuffleRequest;
-import com.tencent.rss.client.request.SendCommitRequest;
-import com.tencent.rss.client.request.SendShuffleDataRequest;
+import com.tencent.rss.client.request.RssGetShuffleAssignmentsRequest;
+import com.tencent.rss.client.request.RssGetShuffleResultRequest;
+import com.tencent.rss.client.request.RssRegisterShuffleRequest;
+import com.tencent.rss.client.request.RssReportShuffleResultRequest;
+import com.tencent.rss.client.request.RssSendCommitRequest;
+import com.tencent.rss.client.request.RssSendShuffleDataRequest;
 import com.tencent.rss.client.response.ClientResponse;
-import com.tencent.rss.client.response.GetShuffleAssignmentsResponse;
-import com.tencent.rss.client.response.RegisterShuffleResponse;
 import com.tencent.rss.client.response.ResponseStatusCode;
-import com.tencent.rss.client.response.SendCommitResponse;
-import com.tencent.rss.client.response.SendShuffleDataResponse;
+import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
+import com.tencent.rss.client.response.RssGetShuffleResultResponse;
+import com.tencent.rss.client.response.RssRegisterShuffleResponse;
+import com.tencent.rss.client.response.RssReportShuffleResultResponse;
+import com.tencent.rss.client.response.RssSendCommitResponse;
+import com.tencent.rss.client.response.RssSendShuffleDataResponse;
 import com.tencent.rss.client.response.SendShuffleDataResult;
 import com.tencent.rss.client.response.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
@@ -38,14 +42,12 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   private CoordinatorClient coordinatorClient;
   private Map<ShuffleServerInfo, ShuffleServerClient> shuffleServerClients;
   private CoordinatorClientFactory coordinatorClientFactory;
-  private ShuffleServerClientFactory shuffleServerClientFactory;
 
   public ShuffleWriteClientImpl(String clientType, int retryMax, long retryInterval) {
     this.clientType = clientType;
     this.retryMax = retryMax;
     this.retryInterval = retryInterval;
     coordinatorClientFactory = new CoordinatorClientFactory(clientType);
-    shuffleServerClientFactory = new ShuffleServerClientFactory(clientType);
     shuffleServerClients = Maps.newHashMap();
   }
 
@@ -90,8 +92,8 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
         Map<Integer, List<ShuffleBlockInfo>>>> entry : serverToBlocks.entrySet()) {
       ShuffleServerInfo ssi = entry.getKey();
       try {
-        SendShuffleDataRequest rpcRequest = new SendShuffleDataRequest(appId, entry.getValue());
-        SendShuffleDataResponse rpcResponse = getShuffleServerClient(ssi).sendShuffleData(rpcRequest);
+        RssSendShuffleDataRequest rpcRequest = new RssSendShuffleDataRequest(appId, entry.getValue());
+        RssSendShuffleDataResponse rpcResponse = getShuffleServerClient(ssi).sendShuffleData(rpcRequest);
 
         // there is no buffer in shuffle server, try again
         int retry = 0;
@@ -131,8 +133,8 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
     shuffleServerInfoSet.parallelStream().forEach(ssi -> {
       LOG.info("SendCommit for appId[" + appId + "], shuffleId[" + shuffleId
           + "] to ShuffleServer[" + ssi.getId() + "]");
-      SendCommitRequest request = new SendCommitRequest(appId, shuffleId);
-      SendCommitResponse response = getShuffleServerClient(ssi).sendCommit(request);
+      RssSendCommitRequest request = new RssSendCommitRequest(appId, shuffleId);
+      RssSendCommitResponse response = getShuffleServerClient(ssi).sendCommit(request);
       String msg = "Can't commit shuffle data to " + ssi
           + " for [appId=" + request.getAppId() + ", shuffleId=" + shuffleId + "]";
       throwExceptionIfNecessary(response, msg);
@@ -142,8 +144,8 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   @Override
   public void registerShuffle(
       ShuffleServerInfo shuffleServerInfo, String appId, int shuffleId, int start, int end) {
-    RegisterShuffleRequest request = new RegisterShuffleRequest(appId, shuffleId, start, end);
-    RegisterShuffleResponse response = getShuffleServerClient(shuffleServerInfo).registerShuffle(request);
+    RssRegisterShuffleRequest request = new RssRegisterShuffleRequest(appId, shuffleId, start, end);
+    RssRegisterShuffleResponse response = getShuffleServerClient(shuffleServerInfo).registerShuffle(request);
     String msg = "Error happend when registerShuffle with appId[" + appId + "], shuffleId[" + shuffleId
         + "], start[" + start + "], end[" + end + "] to " + shuffleServerInfo;
     throwExceptionIfNecessary(response, msg);
@@ -159,13 +161,63 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   @Override
   public ShuffleAssignmentsInfo getShuffleAssignments(
       String appId, int shuffleId, int partitionNum, int partitionsPerServer) {
-    GetShuffleAssignmentsRequest request = new GetShuffleAssignmentsRequest(
+    RssGetShuffleAssignmentsRequest request = new RssGetShuffleAssignmentsRequest(
         appId, shuffleId, partitionNum, partitionsPerServer);
-    GetShuffleAssignmentsResponse response = coordinatorClient.getShuffleAssignments(request);
+    RssGetShuffleAssignmentsResponse response = coordinatorClient.getShuffleAssignments(request);
     String msg = "Error happend when getShuffleAssignments with appId[" + appId + "], shuffleId[" + shuffleId
         + "], numMaps[" + partitionNum + "], partitionsPerServer[" + partitionsPerServer + "] to coordinator";
     throwExceptionIfNecessary(response, msg);
-    return new ShuffleAssignmentsInfo(response.getPartitionToServers(), response.getRegisterInfoList());
+    return new ShuffleAssignmentsInfo(response.getPartitionToServers(),
+        response.getRegisterInfoList(), response.getShuffleServersForResult());
+  }
+
+  @Override
+  public void reportShuffleResult(Set<ShuffleServerInfo> shuffleServerInfoSet,
+      String appId, int shuffleId, Map<Integer, List<Long>> partitionToBlockIds) {
+    RssReportShuffleResultRequest request = new RssReportShuffleResultRequest(appId, shuffleId, partitionToBlockIds);
+    boolean isSuccessful = false;
+    for (ShuffleServerInfo ssi : shuffleServerInfoSet) {
+      try {
+        RssReportShuffleResultResponse response = getShuffleServerClient(ssi).reportShuffleResult(request);
+        if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {
+          isSuccessful = true;
+        }
+      } catch (Exception e) {
+        LOG.warn("Report shuffle result is failed to " + ssi
+            + " for appId[" + appId + "], shuffleId[" + shuffleId + "]");
+      }
+    }
+    if (!isSuccessful) {
+      throw new RuntimeException("Report shuffle result is failed for appId["
+          + appId + "], shuffleId[" + shuffleId + "]");
+    }
+  }
+
+  @Override
+  public List<Long> getShuffleResult(String clientType, Set<ShuffleServerInfo> shuffleServerInfoSet,
+      String appId, int shuffleId, int partitionId) {
+    RssGetShuffleResultRequest request = new RssGetShuffleResultRequest(appId, shuffleId, partitionId);
+    boolean isSuccessful = false;
+    List<Long> blockIds = Lists.newArrayList();
+    for (ShuffleServerInfo ssi : shuffleServerInfoSet) {
+      try {
+        RssGetShuffleResultResponse response = ShuffleServerClientFactory
+            .getInstance().getShuffleServerClient(clientType, ssi).getShuffleResult(request);
+        if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {
+          blockIds = response.getBlockIds();
+          isSuccessful = true;
+          break;
+        }
+      } catch (Exception e) {
+        LOG.warn("Get shuffle result is failed from " + ssi
+            + " for appId[" + appId + "], shuffleId[" + shuffleId + "]");
+      }
+    }
+    if (!isSuccessful) {
+      throw new RuntimeException("Get shuffle result is failed for appId["
+          + appId + "], shuffleId[" + shuffleId + "]");
+    }
+    return blockIds;
   }
 
   @Override
@@ -188,12 +240,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   }
 
   @VisibleForTesting
-  protected synchronized ShuffleServerClient getShuffleServerClient(ShuffleServerInfo shuffleServerInfo) {
-    if (shuffleServerClients.get(shuffleServerInfo) == null) {
-      shuffleServerClients.put(
-          shuffleServerInfo, shuffleServerClientFactory.createShuffleServerClient(
-              shuffleServerInfo.getHost(), shuffleServerInfo.getPort()));
-    }
-    return shuffleServerClients.get(shuffleServerInfo);
+  protected ShuffleServerClient getShuffleServerClient(ShuffleServerInfo shuffleServerInfo) {
+    return ShuffleServerClientFactory.getInstance().getShuffleServerClient(clientType, shuffleServerInfo);
   }
 }

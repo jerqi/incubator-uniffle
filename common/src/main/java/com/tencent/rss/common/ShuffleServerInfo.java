@@ -37,9 +37,14 @@ public class ShuffleServerInfo implements Serializable {
   public boolean equals(Object obj) {
     if (obj instanceof ShuffleServerInfo) {
       return id.equals(((ShuffleServerInfo) obj).getId())
-        && host.equals(((ShuffleServerInfo) obj).getHost())
-        && port == ((ShuffleServerInfo) obj).getPort();
+          && host.equals(((ShuffleServerInfo) obj).getHost())
+          && port == ((ShuffleServerInfo) obj).getPort();
     }
     return false;
+  }
+
+  @Override
+  public String toString() {
+    return "ShuffleServerInfo with id[" + id + "], host[" + host + "], port[" + port + "]";
   }
 }

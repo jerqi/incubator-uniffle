@@ -5,6 +5,7 @@ import com.tencent.rss.client.response.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public interface ShuffleWriteClient {
@@ -17,8 +18,14 @@ public interface ShuffleWriteClient {
 
   void registerCoordinatorClient(String host, int port);
 
+  void reportShuffleResult(Set<ShuffleServerInfo> shuffleServerInfoSet,
+      String appId, int shuffleId, Map<Integer, List<Long>> partitionToBlockIds);
+
   ShuffleAssignmentsInfo getShuffleAssignments(
       String appId, int shuffleId, int partitionNum, int partitionsPerServer);
+
+  List<Long> getShuffleResult(String clientType, Set<ShuffleServerInfo> shuffleServerInfoSet,
+      String appId, int shuffleId, int partitionId);
 
   void close();
 }

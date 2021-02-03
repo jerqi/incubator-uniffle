@@ -21,7 +21,7 @@ public class SparkSQLTest extends SparkIntegrationTestBase {
   private static final Logger LOG = LoggerFactory.getLogger(SparkSQLTest.class);
 
   @Test
-  public void test() throws Exception {
+  public void resultCompareTest() throws Exception {
     run();
   }
 

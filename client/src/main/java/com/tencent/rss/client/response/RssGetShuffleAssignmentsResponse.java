@@ -4,13 +4,15 @@ import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-public class GetShuffleAssignmentsResponse extends ClientResponse {
+public class RssGetShuffleAssignmentsResponse extends ClientResponse {
 
   private Map<Integer, List<ShuffleServerInfo>> partitionToServers;
   private List<ShuffleRegisterInfo> registerInfoList;
+  private Set<ShuffleServerInfo> shuffleServersForResult;
 
-  public GetShuffleAssignmentsResponse(ResponseStatusCode statusCode) {
+  public RssGetShuffleAssignmentsResponse(ResponseStatusCode statusCode) {
     super(statusCode);
   }
 
@@ -29,5 +31,13 @@ public class GetShuffleAssignmentsResponse extends ClientResponse {
   public void setPartitionToServers(
       Map<Integer, List<ShuffleServerInfo>> partitionToServers) {
     this.partitionToServers = partitionToServers;
+  }
+
+  public Set<ShuffleServerInfo> getShuffleServersForResult() {
+    return shuffleServersForResult;
+  }
+
+  public void setShuffleServersForResult(Set<ShuffleServerInfo> shuffleServersForResult) {
+    this.shuffleServersForResult = shuffleServersForResult;
   }
 }

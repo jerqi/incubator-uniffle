@@ -1,7 +1,6 @@
 package org.apache.spark.shuffle;
 
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -53,8 +52,7 @@ public class RssShuffleReaderTest extends RssReaderTestBase {
     when(dependencyMock.keyOrdering()).thenReturn(Option.empty());
 
     RssShuffleReader rssShuffleReaderSpy = spy(new RssShuffleReader<String, String>(0, 1, contextMock,
-        handleMock, basePath, 1000, conf, "FILE"));
-    doReturn(expectedBlockIds).when(rssShuffleReaderSpy).getExpectedBlockIds();
+        handleMock, basePath, 1000, conf, "FILE", expectedBlockIds));
 
     validateResult(rssShuffleReaderSpy.read(), expectedData, 10);
   }
