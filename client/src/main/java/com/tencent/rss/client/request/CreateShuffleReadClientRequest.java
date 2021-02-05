@@ -9,14 +9,16 @@ public class CreateShuffleReadClientRequest {
   private String basePath;
   private Configuration hadoopConf;
   private int indexReadLimit;
+  private int readBufferSize;
   private Set<Long> expectedBlockIds;
 
   public CreateShuffleReadClientRequest(String storageType, String basePath,
-      Configuration hadoopConf, int indexReadLimit, Set<Long> expectedBlockIds) {
+      Configuration hadoopConf, int indexReadLimit, int readBufferSize, Set<Long> expectedBlockIds) {
     this.storageType = storageType;
     this.basePath = basePath;
     this.hadoopConf = hadoopConf;
     this.indexReadLimit = indexReadLimit;
+    this.readBufferSize = readBufferSize;
     this.expectedBlockIds = expectedBlockIds;
   }
 
@@ -34,6 +36,10 @@ public class CreateShuffleReadClientRequest {
 
   public int getIndexReadLimit() {
     return indexReadLimit;
+  }
+
+  public int getReadBufferSize() {
+    return readBufferSize;
   }
 
   public Set<Long> getExpectedBlockIds() {

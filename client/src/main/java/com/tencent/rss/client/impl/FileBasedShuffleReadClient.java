@@ -12,11 +12,13 @@ import com.tencent.rss.storage.FileBasedShuffleReadHandler;
 import com.tencent.rss.storage.FileBasedShuffleSegment;
 import com.tencent.rss.storage.ShuffleStorageUtils;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -32,25 +34,37 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
   private String basePath;
   private Configuration hadoopConf;
   private int indexReadLimit;
+  private long readBufferSize;
+  private byte[] readBuffer;
   private Set<Long> expectedBlockIds;
   private Map<String, FileBasedShuffleReadHandler> pathToHandler;
-  private Map<Long, Queue<ShuffleSegmentWithPath>> blockIdToSegments = Maps.newHashMap();
+  private Map<String, List<FileBasedShuffleSegment>> pathToSegments = Maps.newHashMap();
+  private List<FileReadSegment> fileReadSegments = Lists.newArrayList();
   private Queue<Long> blockIdQueue = Queues.newLinkedBlockingQueue();
   private Set<Long> processedBlockIds = Sets.newHashSet();
+  private Map<Long, BufferSegment> processingBlockIds = Maps.newHashMap();
+  private AtomicInteger readSegments = new AtomicInteger(0);
   private AtomicLong readDataTime = new AtomicLong(0);
   private AtomicLong readIndexTime = new AtomicLong(0);
   private AtomicLong checkBlockIdsTime = new AtomicLong(0);
 
   public FileBasedShuffleReadClient(
-      String basePath, Configuration hadoopConf, int indexReadLimit, Set<Long> expectedBlockIds) {
+      String basePath, Configuration hadoopConf, int indexReadLimit,
+      int readBufferSize, Set<Long> expectedBlockIds) {
     this.basePath = basePath;
     this.hadoopConf = hadoopConf;
     this.indexReadLimit = indexReadLimit;
+    this.readBufferSize = readBufferSize;
     this.expectedBlockIds = expectedBlockIds;
   }
 
   @Override
   public void checkExpectedBlockIds() {
+    // there is no data
+    if (expectedBlockIds == null || expectedBlockIds.isEmpty()) {
+      LOG.info("There is no shuffle data for " + basePath);
+      return;
+    }
     final long start = System.currentTimeMillis();
     FileSystem fs;
     Path baseFolder = new Path(basePath);
@@ -75,8 +89,8 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
     }
 
     pathToHandler = getPathToHandler(basePath, hadoopConf, indexFiles);
-    Map<String, List<FileBasedShuffleSegment>> pathToSegments = readAllIndexSegments();
-    updateBlockIdToSegments(pathToSegments, expectedBlockIds);
+    readAllIndexSegments();
+    verifyBlockIds(pathToSegments, expectedBlockIds);
     checkBlockIdsTime.addAndGet(System.currentTimeMillis() - start);
   }
 
@@ -103,8 +117,7 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
   /**
    * Read all index files, and get all FileBasedShuffleSegment for every index file
    */
-  private Map<String, List<FileBasedShuffleSegment>> readAllIndexSegments() {
-    Map<String, List<FileBasedShuffleSegment>> pathToSegments = Maps.newHashMap();
+  private void readAllIndexSegments() {
     for (Entry<String, FileBasedShuffleReadHandler> entry : pathToHandler.entrySet()) {
       String path = entry.getKey();
       try {
@@ -113,26 +126,32 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
         long start = System.currentTimeMillis();
         List<FileBasedShuffleSegment> segments = handler.readIndex(indexReadLimit);
         List<FileBasedShuffleSegment> allSegments = Lists.newArrayList();
+        Set<Long> blockIds = Sets.newHashSet();
         while (!segments.isEmpty()) {
           LOG.debug("Get segment : " + segments);
           allSegments.addAll(segments);
+          for (FileBasedShuffleSegment segment : segments) {
+            long blockId = segment.getBlockId();
+            blockIds.add(blockId);
+          }
           segments = handler.readIndex(indexReadLimit);
         }
         readIndexTime.addAndGet((System.currentTimeMillis() - start));
         pathToSegments.put(path, allSegments);
+        fileReadSegments.addAll(mergeSegments(path, allSegments));
       } catch (Exception e) {
         LOG.warn("Can't read index segments for " + path, e);
       }
     }
-    return pathToSegments;
   }
 
   /**
    * Parse every FileBasedShuffleSegment, and check if have all required blockIds
    */
-  private void updateBlockIdToSegments(
+  private void verifyBlockIds(
       Map<String, List<FileBasedShuffleSegment>> pathToSegments,
       Set<Long> expectedBlockIds) {
+    Set<Long> actualBlockIds = Sets.newHashSet();
     for (Entry<String, List<FileBasedShuffleSegment>> entry : pathToSegments.entrySet()) {
       String path = entry.getKey();
       LOG.info("Check file segment for " + path);
@@ -140,74 +159,82 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
         long blockId = segment.getBlockId();
         LOG.debug("Find blockId " + blockId);
         if (expectedBlockIds.contains(blockId)) {
-          if (blockIdToSegments.get(blockId) == null) {
-            blockIdToSegments.put(blockId, Queues.newArrayDeque());
-            blockIdQueue.add(blockId);
-            LOG.info("Find needed blockId " + blockId);
-          }
-          blockIdToSegments.get(blockId).add(new ShuffleSegmentWithPath(path, segment));
+          actualBlockIds.add(blockId);
         }
       }
     }
     Set<Long> copy = Sets.newHashSet(expectedBlockIds);
-    copy.removeAll(blockIdToSegments.keySet());
-    if (copy.size() > 0) {
-      StringBuilder sb = new StringBuilder();
-      for (Long blockId : expectedBlockIds) {
-        sb.append(blockId).append(",");
+    if (actualBlockIds.size() < expectedBlockIds.size()) {
+      copy.removeAll(expectedBlockIds);
+      throw new RuntimeException("Can't find blockIds " + copy + ", expected[" + expectedBlockIds + "]");
+    }
+  }
+
+  private void readFileSegment() {
+    processingBlockIds = Maps.newHashMap();
+    if (fileReadSegments != null) {
+      Set<Long> expectedBlockIdsCp = Sets.newHashSet(expectedBlockIds);
+      expectedBlockIdsCp.removeAll(processedBlockIds);
+      // missing some blocks, keep reading
+      if (expectedBlockIdsCp.size() > 0) {
+        for (FileReadSegment fileSegment : fileReadSegments) {
+          Set<Long> leftIds = Sets.newHashSet(expectedBlockIdsCp);
+          leftIds.retainAll(fileSegment.blockIdToBufferSegment.keySet());
+          // if the fileSegment has missing blocks
+          if (leftIds.size() > 0) {
+            try {
+              long start = System.currentTimeMillis();
+              readBuffer = pathToHandler.get(fileSegment.path).readData(
+                  new FileBasedShuffleSegment(fileSegment.offset, fileSegment.length, 0, 0));
+              LOG.info("Read File segment: " + fileSegment.path + ", offset["
+                  + fileSegment.offset + "], length[" + fileSegment.length
+                  + "], cost:" + (System.currentTimeMillis() - start) + " ms, for " + leftIds);
+              readDataTime.addAndGet(System.currentTimeMillis() - start);
+              for (Long blockId : leftIds) {
+                processingBlockIds.put(blockId, fileSegment.blockIdToBufferSegment.get(blockId));
+                blockIdQueue.add(blockId);
+              }
+              break;
+            } catch (IOException e) {
+              LOG.warn("Can't read data for " + fileSegment.path + ", offset["
+                  + fileSegment.offset + "], length[" + fileSegment.length + "]");
+            }
+          }
+        }
       }
-      throw new RuntimeException("Can't find blockIds " + copy.toString() + ", expected[" + sb.toString() + "]");
     }
   }
 
   @Override
   public byte[] readShuffleData() {
+    // all blocks are read, return
+    if (expectedBlockIds.size() == processedBlockIds.size()) {
+      return null;
+    }
+    if (processingBlockIds.isEmpty()) {
+      readFileSegment();
+    }
     // get next blockId
     Long blockId = blockIdQueue.poll();
     if (blockId == null) {
       return null;
     }
-    // get segment queue
-    Queue<ShuffleSegmentWithPath> segmentQueue = blockIdToSegments.get(blockId);
-    ShuffleSegmentWithPath segment = segmentQueue.poll();
-    if (segment == null) {
-      throw new RuntimeException("Can't read data with blockId:" + blockId);
-    }
-    byte[] data = null;
-    long expectedLength = -1;
+    BufferSegment bs = processingBlockIds.get(blockId);
+    byte[] data = new byte[bs.getLength()];
     long expectedCrc = -1;
     long actualCrc = -1;
-    boolean readSuccess = false;
-    while (!readSuccess) {
-      try {
-        FileBasedShuffleSegment fss = segment.segment;
-        long start = System.currentTimeMillis();
-        data = pathToHandler.get(segment.path).readData(fss);
-        readDataTime.addAndGet(System.currentTimeMillis() - start);
-        expectedLength = fss.getLength();
-        expectedCrc = fss.getCrc();
-        readSuccess = true;
-        actualCrc = ChecksumUtils.getCrc32(data);
-      } catch (Exception e) {
-        // read failed for current segment, try next one if possible
-        LOG.warn("Can't read data from " + segment.path + "["
-            + segment.segment + "] for blockId[" + blockId + "]", e);
-        segment = segmentQueue.poll();
-        if (segment == null) {
-          throw new RuntimeException("Can't read data with blockId:" + blockId);
-        }
-      }
-    }
-    if (data == null) {
-      throw new RuntimeException("Can't read data for blockId[" + blockId + "]");
-    } else if (data.length != expectedLength) {
-      throw new RuntimeException("Unexpected data length for blockId[" + blockId
-          + "], expected:" + expectedLength + ", actual:" + data.length);
+    try {
+      System.arraycopy(readBuffer, bs.getOffset(), data, 0, bs.getLength());
+      expectedCrc = bs.getCrc();
+      actualCrc = ChecksumUtils.getCrc32(data);
+    } catch (Exception e) {
+      LOG.warn("Can't read data for blockId[" + blockId + "]", e);
     }
     if (expectedCrc != actualCrc) {
       throw new RuntimeException("Unexpected crc value for blockId[" + blockId
           + "], expected:" + expectedCrc + ", actual:" + actualCrc);
     }
+    processingBlockIds.remove(blockId);
     processedBlockIds.add(blockId);
     return data;
   }
@@ -237,7 +264,7 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
   @Override
   public void logStatics() {
     LOG.info("Metrics for path " + basePath + ", readIndexTime:" + readIndexTime + "ms, readDataTime:"
-        + readDataTime + "ms, checkBlockIdsTime:" + checkBlockIdsTime + "ms");
+        + readDataTime + "ms for " + readSegments + " segments, checkBlockIdsTime:" + checkBlockIdsTime + "ms");
   }
 
   @VisibleForTesting
@@ -245,14 +272,65 @@ public class FileBasedShuffleReadClient implements ShuffleReadClient {
     return blockIdQueue;
   }
 
-  class ShuffleSegmentWithPath {
+  @VisibleForTesting
+  protected List<FileReadSegment> mergeSegments(String path, List<FileBasedShuffleSegment> segments) {
+    List<FileReadSegment> fileReadSegments = Lists.newArrayList();
+    if (segments != null && !segments.isEmpty()) {
+      if (segments.size() == 1) {
+        Map<Long, BufferSegment> btb = Maps.newHashMap();
+        btb.put(segments.get(0).getBlockId(), new BufferSegment(0,
+            segments.get(0).getLength(), segments.get(0).getCrc()));
+        fileReadSegments.add(new FileReadSegment(
+            path, segments.get(0).getOffset(), segments.get(0).getLength(), btb));
+      } else {
+        Collections.sort(segments);
+        long start = -1;
+        long lastestPosition = -1;
+        long skipThreshold = readBufferSize / 2;
+        long lastPosition = Long.MAX_VALUE;
+        Map<Long, BufferSegment> btb = Maps.newHashMap();
+        for (FileBasedShuffleSegment segment : segments) {
+          // check if there has expected skip range, eg, [20, 100], [1000, 1001] and the skip range is [101, 999]
+          if (start > -1 && segment.getOffset() - lastPosition > skipThreshold) {
+            fileReadSegments.add(new FileReadSegment(
+                path, start, lastPosition - start, btb));
+            start = -1;
+          }
+          // previous FileBasedShuffleSegment are merged, start new merge process
+          if (start == -1) {
+            btb = Maps.newHashMap();
+            start = segment.getOffset();
+          }
+          lastestPosition = segment.getOffset() + segment.getLength();
+          btb.put(segment.getBlockId(), new BufferSegment(segment.getOffset() - start,
+              segment.getLength(), segment.getCrc()));
+          if (lastestPosition - start >= readBufferSize) {
+            fileReadSegments.add(new FileReadSegment(
+                path, start, lastestPosition - start, btb));
+            start = -1;
+          }
+          lastPosition = lastestPosition;
+        }
+        if (start > -1) {
+          fileReadSegments.add(new FileReadSegment(path, start, lastestPosition - start, btb));
+        }
+      }
+    }
+    return fileReadSegments;
+  }
+
+  class FileReadSegment {
 
     String path;
-    FileBasedShuffleSegment segment;
+    long offset;
+    long length;
+    Map<Long, BufferSegment> blockIdToBufferSegment;
 
-    ShuffleSegmentWithPath(String path, FileBasedShuffleSegment segment) {
+    FileReadSegment(String path, long offset, long length, Map<Long, BufferSegment> blockIdToBufferSegment) {
       this.path = path;
-      this.segment = segment;
+      this.offset = offset;
+      this.length = length;
+      this.blockIdToBufferSegment = blockIdToBufferSegment;
     }
   }
 }

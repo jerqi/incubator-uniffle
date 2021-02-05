@@ -24,7 +24,7 @@ public class RssClientConfig {
   public static String RSS_BASE_PATH = "spark.rss.base.path";
   public static String RSS_INDEX_READ_LIMIT = "spark.rss.index.read.limit";
   public static int RSS_INDEX_READ_LIMIT_DEFAULT_VALUE = 1000;
-  public static String RSS_CLIENT_TYPE = "spark.rss.rpc.client.type";
+  public static String RSS_CLIENT_TYPE = "spark.rss.client.type";
   public static String RSS_CLIENT_TYPE_DEFAULT_VALUE = "GRPC";
   public static String RSS_STORAGE_TYPE = "spark.rss.storage.type";
   public static String RSS_STORAGE_TYPE_DEFAULT_VALUE = "FILE";
@@ -34,4 +34,6 @@ public class RssClientConfig {
   public static long RSS_CLIENT_RETRY_INTERVAL_DEFAULT_VALUE = 15000;
   public static String RSS_CLIENT_SEND_SIZE_LIMIT = "spark.rss.client.send.size.limit";
   public static String RSS_CLIENT_SEND_SIZE_LIMIT_DEFAULT_VALUE = "32m";
+  public static String RSS_CLIENT_READ_BUFFER_SIZE = "spark.rss.client.read.buffer.size";
+  public static String RSS_CLIENT_READ_BUFFER_SIZE_DEFAULT_VALUE = "64m";
 }

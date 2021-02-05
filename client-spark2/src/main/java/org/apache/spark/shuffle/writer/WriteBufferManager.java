@@ -35,6 +35,7 @@ public class WriteBufferManager extends MemoryConsumer {
   private Map<Integer, List<ShuffleServerInfo>> partitionToServers;
   private int serializerBufferSize;
   private int serializerMaxBufferSize;
+  private long copyTime;
 
   public WriteBufferManager(
       int shuffleId,
@@ -50,7 +51,8 @@ public class WriteBufferManager extends MemoryConsumer {
     this.executorId = executorId;
     this.instance = serializer.newInstance();
     this.buffers = Maps.newHashMap();
-    this.allocatedBytes = 0L;
+    this.allocatedBytes = 0;
+    this.copyTime = 0;
     this.shuffleId = shuffleId;
     this.partitionToServers = partitionToServers;
     this.shuffleWriteMetrics = shuffleWriteMetrics;
@@ -70,6 +72,7 @@ public class WriteBufferManager extends MemoryConsumer {
       if (length > bufferSize) {
         result.add(createShuffleBlock(partitionId, wb.getData(), wb.getMemorySize()));
         wb.clear();
+        copyTime += wb.getCopyTime();
         buffers.remove(partitionId);
         LOG.info("Single buffer is full for shuffleId[" + shuffleId
             + "] partition[" + partitionId + "] with " + length + " bytes");
@@ -85,6 +88,7 @@ public class WriteBufferManager extends MemoryConsumer {
         requestMemory(length);
         result.add(createShuffleBlock(partitionId, wb.getData(), wb.getMemorySize()));
         wb.clear();
+        copyTime += wb.getCopyTime();
         LOG.info("Single buffer is full for shuffleId[" + shuffleId
             + "] partition[" + partitionId + "] with " + length + " bytes");
       } else {
@@ -109,6 +113,7 @@ public class WriteBufferManager extends MemoryConsumer {
         result.add(createShuffleBlock(entry.getKey(), wb.getData(), wb.getMemorySize()));
       }
       wb.clear();
+      copyTime += wb.getCopyTime();
     }
     LOG.info("Flush total buffer for shuffleId[" + shuffleId + "] with allocated[" + allocatedBytes + "]");
     buffers.clear();
@@ -185,5 +190,9 @@ public class WriteBufferManager extends MemoryConsumer {
   @VisibleForTesting
   protected void setShuffleWriteMetrics(ShuffleWriteMetrics shuffleWriteMetrics) {
     this.shuffleWriteMetrics = shuffleWriteMetrics;
+  }
+
+  public long getCopyTime() {
+    return copyTime;
   }
 }

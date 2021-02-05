@@ -25,8 +25,8 @@ public class ShuffleClientFactory {
   public ShuffleReadClient createShuffleReadClient(CreateShuffleReadClientRequest request) {
     if (StorageType.FILE.name().equalsIgnoreCase(request.getStorageType())) {
       return new FileBasedShuffleReadClient(
-          request.getBasePath(), request.getHadoopConf(),
-          request.getIndexReadLimit(), request.getExpectedBlockIds());
+          request.getBasePath(), request.getHadoopConf(), request.getIndexReadLimit(),
+          request.getReadBufferSize(), request.getExpectedBlockIds());
     } else {
       throw new UnsupportedOperationException("Unsupported client type " + request.getStorageType());
     }

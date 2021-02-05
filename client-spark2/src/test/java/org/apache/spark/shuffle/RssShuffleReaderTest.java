@@ -52,7 +52,7 @@ public class RssShuffleReaderTest extends RssReaderTestBase {
     when(dependencyMock.keyOrdering()).thenReturn(Option.empty());
 
     RssShuffleReader rssShuffleReaderSpy = spy(new RssShuffleReader<String, String>(0, 1, contextMock,
-        handleMock, basePath, 1000, conf, "FILE", expectedBlockIds));
+        handleMock, basePath, 1000, conf, "FILE", 1000, expectedBlockIds));
 
     validateResult(rssShuffleReaderSpy.read(), expectedData, 10);
   }

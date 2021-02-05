@@ -1,12 +1,5 @@
 package com.tencent.rss.storage;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;
@@ -14,10 +7,16 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FileBasedShuffleReader implements Closeable {
 
-  private static final Logger logger = LoggerFactory.getLogger(FileBasedShuffleReader.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FileBasedShuffleReader.class);
   private Path path;
   private Configuration hadoopConf;
   private FSDataInputStream fsDataInputStream;
@@ -32,7 +31,7 @@ public class FileBasedShuffleReader implements Closeable {
 
     if (!fileSystem.isFile(path)) {
       String msg = path + " don't exist or is not a file.";
-      logger.error(msg);
+      LOG.error(msg);
       throw new IllegalStateException(msg);
     }
 

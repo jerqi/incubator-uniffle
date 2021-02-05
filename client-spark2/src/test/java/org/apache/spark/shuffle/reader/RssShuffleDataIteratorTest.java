@@ -1,6 +1,7 @@
 package org.apache.spark.shuffle.reader;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,7 +42,7 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
         expectedBlockIds, "key", KRYO_SERIALIZER);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient,
         new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
@@ -51,7 +52,7 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
     expectedBlockIds.add(-1L);
     // can't find all expected block id, data loss
     readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     try {
       rssShuffleDataIterator.checkExpectedBlockIds();
@@ -77,7 +78,7 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
         expectedBlockIds, "key2", KRYO_SERIALIZER);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
         KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
@@ -114,7 +115,7 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
         new Path(basePath + "/test3_2.cp.index"), false, conf);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
         KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
@@ -134,7 +135,7 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
         expectedBlockIds, "key", KRYO_SERIALIZER);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
         KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
@@ -144,10 +145,12 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
     Thread.sleep(10000);
 
     try {
-      rssShuffleDataIterator.hasNext();
+      while (rssShuffleDataIterator.hasNext()) {
+        rssShuffleDataIterator.next();
+      }
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
-      assertTrue(e.getMessage().startsWith("Can't read data with blockId"));
+      assertTrue(e.getMessage().startsWith("Blocks read inconsistent: expected"));
     }
   }
 
@@ -163,7 +166,7 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
         expectedBlockIds, "key", KRYO_SERIALIZER);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
         KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
@@ -191,7 +194,7 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
     Thread.sleep(10000);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
         KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     try {
@@ -214,7 +217,7 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
         expectedBlockIds, "key", KRYO_SERIALIZER);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
         KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     rssShuffleDataIterator.checkExpectedBlockIds();
@@ -231,6 +234,20 @@ public class RssShuffleDataIteratorTest extends RssReaderTestBase {
         assertTrue(e.getMessage().startsWith("Unexpected crc value"));
       }
     }
+  }
 
+  @Test
+  public void readTest8() throws Exception {
+    String basePath = HDFS_URI + "readTest8";
+    FileBasedShuffleWriteHandler writeHandler =
+        new FileBasedShuffleWriteHandler(basePath, "test", conf);
+    Set<Long> expectedBlockIds = Sets.newHashSet();
+    // there is no data for basePath
+    FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
+        basePath, conf, 100, 10000, expectedBlockIds);
+    readClient.checkExpectedBlockIds();
+    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
+    assertFalse(rssShuffleDataIterator.hasNext());
   }
 }

@@ -1,6 +1,7 @@
 package com.tencent.rss.client.impl;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,8 +10,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.tencent.rss.client.api.ShuffleReadClient;
+import com.tencent.rss.client.impl.FileBasedShuffleReadClient.FileReadSegment;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.util.ChecksumUtils;
+import com.tencent.rss.storage.FileBasedShuffleSegment;
 import com.tencent.rss.storage.FileBasedShuffleWriteHandler;
 import com.tencent.rss.storage.HdfsTestBase;
 import java.util.Arrays;
@@ -42,7 +45,7 @@ public class FileBasedShuffleReadClientTest extends HdfsTestBase {
         expectedBlockIds);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 31, expectedBlockIds);
     readClient.checkExpectedBlockIds();
 
     validateResult(readClient, expectedData);
@@ -51,7 +54,7 @@ public class FileBasedShuffleReadClientTest extends HdfsTestBase {
 
     expectedBlockIds.add(-1L);
     // can't find all expected block id, data loss
-    readClient = new FileBasedShuffleReadClient(basePath, conf, 100, expectedBlockIds);
+    readClient = new FileBasedShuffleReadClient(basePath, conf, 100, 1000, expectedBlockIds);
     try {
       readClient.checkExpectedBlockIds();
       fail(EXPECTED_EXCEPTION_MESSAGE);
@@ -78,7 +81,7 @@ public class FileBasedShuffleReadClientTest extends HdfsTestBase {
         expectedBlockIds);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 1000, expectedBlockIds);
     readClient.checkExpectedBlockIds();
 
     validateResult(readClient, expectedData);
@@ -112,7 +115,7 @@ public class FileBasedShuffleReadClientTest extends HdfsTestBase {
         new Path(basePath + "/test3_2.cp.index"), false, conf);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     readClient.checkExpectedBlockIds();
 
     validateResult(readClient, expectedData);
@@ -132,18 +135,19 @@ public class FileBasedShuffleReadClientTest extends HdfsTestBase {
         expectedBlockIds);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     readClient.checkExpectedBlockIds();
     // data file is deleted after readClient checkExpectedBlockIds
     fs.delete(new Path(basePath + "/test1.data"), true);
     // sleep to wait delete operation
     Thread.sleep(10000);
+    assertNull(readClient.readShuffleData());
 
     try {
-      readClient.readShuffleData();
+      readClient.checkProcessedBlockIds();
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
-      assertTrue(e.getMessage().startsWith("Can't read data with blockId"));
+      assertTrue(e.getMessage().startsWith("Blocks read inconsistent: expected"));
     }
     readClient.close();
   }
@@ -160,7 +164,7 @@ public class FileBasedShuffleReadClientTest extends HdfsTestBase {
         expectedBlockIds);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     readClient.checkExpectedBlockIds();
     // index file is deleted after iterator initialization, it should be ok, all index infos are read already
     fs.delete(new Path(basePath + "/test.index"), true);
@@ -188,7 +192,7 @@ public class FileBasedShuffleReadClientTest extends HdfsTestBase {
     Thread.sleep(10000);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     try {
       readClient.checkExpectedBlockIds();
       fail(EXPECTED_EXCEPTION_MESSAGE);
@@ -210,15 +214,14 @@ public class FileBasedShuffleReadClientTest extends HdfsTestBase {
         expectedBlockIds);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 50, expectedBlockIds);
     readClient.checkExpectedBlockIds();
-
-    // discard one block
-    readClient.getBlockIdQueue().poll();
 
     byte[] data = readClient.readShuffleData();
     while (data != null) {
       data = readClient.readShuffleData();
+      // discard block
+      readClient.getBlockIdQueue().poll();
     }
     try {
       readClient.checkProcessedBlockIds();
@@ -241,7 +244,7 @@ public class FileBasedShuffleReadClientTest extends HdfsTestBase {
         expectedBlockIds);
 
     FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
-        basePath, conf, 100, expectedBlockIds);
+        basePath, conf, 100, 10000, expectedBlockIds);
     readClient.checkExpectedBlockIds();
     // crc32 is incorrect
     try (MockedStatic<ChecksumUtils> checksumUtilsMock = Mockito.mockStatic(ChecksumUtils.class)) {
@@ -257,6 +260,170 @@ public class FileBasedShuffleReadClientTest extends HdfsTestBase {
       }
     }
     readClient.close();
+  }
+
+  @Test
+  public void readTest9() {
+    FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
+        "basePath", conf, 100, 10000, Sets.newHashSet());
+    readClient.checkExpectedBlockIds();
+    assertNull(readClient.readShuffleData());
+  }
+
+  @Test
+  public void mergeSegmentsTest() throws Exception {
+    FileBasedShuffleReadClient readClient = new FileBasedShuffleReadClient(
+        "basePath", conf, 100, 100, Sets.newHashSet());
+
+    List<FileBasedShuffleSegment> segments = Lists.newArrayList(
+        new FileBasedShuffleSegment(0, 40, 0, 1));
+    List<FileReadSegment> fileSegments = readClient.mergeSegments("path", segments);
+    assertEquals(1, fileSegments.size());
+    for (FileReadSegment seg : fileSegments) {
+      assertEquals(0, seg.offset);
+      assertEquals(40, seg.length);
+      assertEquals("path", seg.path);
+      Map<Long, BufferSegment> blockIdToBufferSegment = seg.blockIdToBufferSegment;
+      assertEquals(1, blockIdToBufferSegment.size());
+      assertEquals(new BufferSegment(0, 40, 0), blockIdToBufferSegment.get(1L));
+    }
+
+    segments = Lists.newArrayList(
+        new FileBasedShuffleSegment(0, 40, 0, 1),
+        new FileBasedShuffleSegment(40, 40, 0, 2),
+        new FileBasedShuffleSegment(80, 20, 0, 3));
+    fileSegments = readClient.mergeSegments("path", segments);
+    assertEquals(1, fileSegments.size());
+    for (FileReadSegment seg : fileSegments) {
+      assertEquals(0, seg.offset);
+      assertEquals(100, seg.length);
+      assertEquals("path", seg.path);
+      Map<Long, BufferSegment> blockIdToBufferSegment = seg.blockIdToBufferSegment;
+      assertEquals(3, blockIdToBufferSegment.size());
+      assertEquals(new BufferSegment(0, 40, 0), blockIdToBufferSegment.get(1L));
+      assertEquals(new BufferSegment(40, 40, 0), blockIdToBufferSegment.get(2L));
+      assertEquals(new BufferSegment(80, 20, 0), blockIdToBufferSegment.get(3L));
+    }
+
+    segments = Lists.newArrayList(
+        new FileBasedShuffleSegment(0, 40, 0, 1),
+        new FileBasedShuffleSegment(40, 40, 0, 2),
+        new FileBasedShuffleSegment(80, 20, 0, 3),
+        new FileBasedShuffleSegment(100, 20, 0, 4));
+    fileSegments = readClient.mergeSegments("path", segments);
+    assertEquals(2, fileSegments.size());
+    boolean tested = false;
+    for (FileReadSegment seg : fileSegments) {
+      if (seg.offset == 100) {
+        tested = true;
+        assertEquals(20, seg.length);
+        assertEquals("path", seg.path);
+        Map<Long, BufferSegment> blockIdToBufferSegment = seg.blockIdToBufferSegment;
+        assertEquals(1, blockIdToBufferSegment.size());
+        assertEquals(new BufferSegment(0, 20, 0), blockIdToBufferSegment.get(4L));
+      }
+    }
+    assertTrue(tested);
+
+    segments = Lists.newArrayList(
+        new FileBasedShuffleSegment(0, 40, 0, 1),
+        new FileBasedShuffleSegment(40, 40, 0, 2),
+        new FileBasedShuffleSegment(80, 20, 0, 3),
+        new FileBasedShuffleSegment(100, 20, 0, 4),
+        new FileBasedShuffleSegment(120, 100, 0, 5));
+    fileSegments = readClient.mergeSegments("path", segments);
+    assertEquals(2, fileSegments.size());
+    tested = false;
+    for (FileReadSegment seg : fileSegments) {
+      if (seg.offset == 100) {
+        tested = true;
+        assertEquals(120, seg.length);
+        assertEquals("path", seg.path);
+        Map<Long, BufferSegment> blockIdToBufferSegment = seg.blockIdToBufferSegment;
+        assertEquals(2, blockIdToBufferSegment.size());
+        assertEquals(new BufferSegment(0, 20, 0), blockIdToBufferSegment.get(4L));
+        assertEquals(new BufferSegment(20, 100, 0), blockIdToBufferSegment.get(5L));
+      }
+    }
+    assertTrue(tested);
+
+    segments = Lists.newArrayList(
+        new FileBasedShuffleSegment(10, 40, 0, 1),
+        new FileBasedShuffleSegment(80, 20, 0, 2),
+        new FileBasedShuffleSegment(500, 120, 0, 3),
+        new FileBasedShuffleSegment(700, 20, 0, 4));
+    fileSegments = readClient.mergeSegments("path", segments);
+    assertEquals(3, fileSegments.size());
+    Set<Long> expectedOffset = Sets.newHashSet(10L, 500L, 700L);
+    for (FileReadSegment seg : fileSegments) {
+      if (seg.offset == 10) {
+        assertEquals(90, seg.length);
+        Map<Long, BufferSegment> blockIdToBufferSegment = seg.blockIdToBufferSegment;
+        assertEquals(2, blockIdToBufferSegment.size());
+        assertEquals(new BufferSegment(0, 40, 0), blockIdToBufferSegment.get(1L));
+        assertEquals(new BufferSegment(70, 20, 0), blockIdToBufferSegment.get(2L));
+        expectedOffset.remove(10L);
+      }
+      if (seg.offset == 500) {
+        assertEquals(120, seg.length);
+        Map<Long, BufferSegment> blockIdToBufferSegment = seg.blockIdToBufferSegment;
+        assertEquals(1, blockIdToBufferSegment.size());
+        assertEquals(new BufferSegment(0, 120, 0), blockIdToBufferSegment.get(3L));
+        expectedOffset.remove(500L);
+      }
+      if (seg.offset == 700) {
+        assertEquals(20, seg.length);
+        Map<Long, BufferSegment> blockIdToBufferSegment = seg.blockIdToBufferSegment;
+        assertEquals(1, blockIdToBufferSegment.size());
+        assertEquals(new BufferSegment(0, 20, 0), blockIdToBufferSegment.get(4L));
+        expectedOffset.remove(700L);
+      }
+    }
+    assertTrue(expectedOffset.isEmpty());
+
+    segments = Lists.newArrayList(
+        new FileBasedShuffleSegment(500, 120, 0, 5),
+        new FileBasedShuffleSegment(630, 10, 0, 3),
+        new FileBasedShuffleSegment(80, 20, 0, 2),
+        new FileBasedShuffleSegment(10, 40, 0, 1),
+        new FileBasedShuffleSegment(769, 20, 0, 6),
+        new FileBasedShuffleSegment(700, 20, 0, 4));
+    fileSegments = readClient.mergeSegments("path", segments);
+    assertEquals(4, fileSegments.size());
+    expectedOffset = Sets.newHashSet(10L, 500L, 630L, 700L);
+    for (FileReadSegment seg : fileSegments) {
+      if (seg.offset == 10) {
+        assertEquals(90, seg.length);
+        Map<Long, BufferSegment> blockIdToBufferSegment = seg.blockIdToBufferSegment;
+        assertEquals(2, blockIdToBufferSegment.size());
+        assertEquals(new BufferSegment(0, 40, 0), blockIdToBufferSegment.get(1L));
+        assertEquals(new BufferSegment(70, 20, 0), blockIdToBufferSegment.get(2L));
+        expectedOffset.remove(10L);
+      }
+      if (seg.offset == 500) {
+        assertEquals(120, seg.length);
+        Map<Long, BufferSegment> blockIdToBufferSegment = seg.blockIdToBufferSegment;
+        assertEquals(1, blockIdToBufferSegment.size());
+        assertEquals(new BufferSegment(0, 120, 0), blockIdToBufferSegment.get(5L));
+        expectedOffset.remove(500L);
+      }
+      if (seg.offset == 630) {
+        assertEquals(10, seg.length);
+        Map<Long, BufferSegment> blockIdToBufferSegment = seg.blockIdToBufferSegment;
+        assertEquals(1, blockIdToBufferSegment.size());
+        assertEquals(new BufferSegment(0, 10, 0), blockIdToBufferSegment.get(3L));
+        expectedOffset.remove(630L);
+      }
+      if (seg.offset == 700) {
+        assertEquals(89, seg.length);
+        Map<Long, BufferSegment> blockIdToBufferSegment = seg.blockIdToBufferSegment;
+        assertEquals(2, blockIdToBufferSegment.size());
+        assertEquals(new BufferSegment(0, 20, 0), blockIdToBufferSegment.get(4L));
+        assertEquals(new BufferSegment(69, 20, 0), blockIdToBufferSegment.get(6L));
+        expectedOffset.remove(700L);
+      }
+    }
+    assertTrue(expectedOffset.isEmpty());
   }
 
   private void writeTestData(

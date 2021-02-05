@@ -15,6 +15,7 @@ public class WriterBuffer {
   private byte[] buffer;
   private int serializerBufferSize;
   private int serializerMaxBufferSize;
+  private long copyTime;
 
   public WriterBuffer(SerializerInstance instance, int serializerBufferSize, int serializerMaxBufferSize) {
     this.buffer = new byte[0];
@@ -22,6 +23,7 @@ public class WriterBuffer {
     this.serializerMaxBufferSize = serializerMaxBufferSize;
     output = new Output(serializerBufferSize, serializerMaxBufferSize);
     serializeStream = instance.serializeStream(output);
+    copyTime = 0;
   }
 
   // write record and check extra memory
@@ -34,7 +36,9 @@ public class WriterBuffer {
     int extraMemory = 0;
     if (output.position() > serializerBufferSize) {
       extraMemory = output.position();
+      long s = System.currentTimeMillis();
       buffer = ArrayUtils.addAll(buffer, output.toBytes());
+      copyTime += System.currentTimeMillis() - s;
       output.clear();
     }
     return new int[]{recordSize, extraMemory};
@@ -46,7 +50,10 @@ public class WriterBuffer {
     } else if (output.position() == 0) {
       return buffer;
     }
-    return ArrayUtils.addAll(buffer, output.toBytes());
+    long s = System.currentTimeMillis();
+    byte[] result = ArrayUtils.addAll(buffer, output.toBytes());
+    copyTime += System.currentTimeMillis() - s;
+    return result;
   }
 
   public int getLength() {
@@ -64,5 +71,9 @@ public class WriterBuffer {
   public void clear() {
     buffer = null;
     serializeStream.close();
+  }
+
+  public long getCopyTime() {
+    return copyTime;
   }
 }

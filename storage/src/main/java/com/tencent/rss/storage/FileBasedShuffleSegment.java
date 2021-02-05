@@ -2,7 +2,7 @@ package com.tencent.rss.storage;
 
 import java.util.Objects;
 
-public class FileBasedShuffleSegment extends ShuffleSegment {
+public class FileBasedShuffleSegment extends ShuffleSegment implements Comparable<FileBasedShuffleSegment> {
 
   private long offset;
   private long length;
@@ -61,6 +61,16 @@ public class FileBasedShuffleSegment extends ShuffleSegment {
         && length == that.length
         && crc == that.crc
         && blockId == that.blockId;
+  }
+
+  @Override
+  public int compareTo(FileBasedShuffleSegment fss) {
+    if (this.offset > fss.getOffset()) {
+      return 1;
+    } else if (this.offset < fss.getOffset()) {
+      return -1;
+    }
+    return 0;
   }
 
   @Override
