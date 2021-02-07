@@ -47,7 +47,7 @@ public class RssShuffleDataIterator<K, C> extends AbstractIterator<Product2<K, C
     if (recordsIterator == null || !recordsIterator.hasNext()) {
       // read next segment
       long startFetch = System.currentTimeMillis();
-      byte[] data = shuffleReadClient.readShuffleData();
+      byte[] data = shuffleReadClient.readShuffleBlockData();
       long fetchDuration = System.currentTimeMillis() - startFetch;
       shuffleReadMetrics.incFetchWaitTime(fetchDuration);
       if (data != null) {

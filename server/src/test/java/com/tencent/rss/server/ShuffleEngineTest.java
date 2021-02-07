@@ -50,7 +50,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
   @Test
   public void testBasePath() {
     ShuffleEngine shuffleEngine =
-        new ShuffleEngine("1", "2", 3, 4,
+        new ShuffleEngine("1", 2, 3, 4,
             conf, bufferManager);
     shuffleEngine.init();
     String actual = shuffleEngine.getBasePath();
@@ -61,7 +61,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
   @Test
   public void testWrite() throws Exception {
     ShuffleEngine shuffleEngine =
-        new ShuffleEngine("1", "2", 3, 4,
+        new ShuffleEngine("1", 2, 3, 4,
             conf, bufferManager);
     shuffleEngine.init();
     String basePath = shuffleEngine.getBasePath();
@@ -89,10 +89,10 @@ public class ShuffleEngineTest extends HdfsTestBase {
   @Test
   public void testWriteCommit() throws IOException, InterruptedException {
     ShuffleEngine shuffleEngine =
-        new ShuffleEngine("1", "2", 3, 4,
+        new ShuffleEngine("1", 2, 3, 4,
             conf, bufferManager);
     ShuffleEngine shuffleEngine1 =
-        new ShuffleEngine("1", "2", 0, 2,
+        new ShuffleEngine("1", 2, 0, 2,
             conf, bufferManager);
 
     shuffleEngine.init();
@@ -134,7 +134,7 @@ public class ShuffleEngineTest extends HdfsTestBase {
   @Test
   public void testWriteCommitConcurrent() throws InterruptedException, ExecutionException, IOException {
     ShuffleEngine shuffleEngine =
-        new ShuffleEngine("1", "2", 3, 4,
+        new ShuffleEngine("1", 2, 3, 4,
             conf, bufferManager);
     String basePath = shuffleEngine.getBasePath();
     Path path = new Path(basePath);

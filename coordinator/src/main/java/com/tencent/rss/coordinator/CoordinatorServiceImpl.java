@@ -103,13 +103,9 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
       Empty request,
       StreamObserver<GetShuffleDataStorageInfoResponse> responseObserver) {
     final String storage = coordinatorServer.getCoordinatorConf().getDataStorage();
-    final String storagePath = coordinatorServer.getCoordinatorConf().getDataStoragePath();
-    final String storagePattern = coordinatorServer.getCoordinatorConf().getDataStoragePattern();
     final GetShuffleDataStorageInfoResponse response = GetShuffleDataStorageInfoResponse
         .newBuilder()
         .setStorage(storage)
-        .setStoragePath(storagePath)
-        .setStoragePattern(storagePattern)
         .build();
     responseObserver.onNext(response);
     responseObserver.onCompleted();

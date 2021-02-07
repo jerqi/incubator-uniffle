@@ -1,4 +1,4 @@
-package com.tencent.rss.client.impl;
+package com.tencent.rss.storage.common;
 
 public class BufferSegment {
 
@@ -6,7 +6,7 @@ public class BufferSegment {
   private long length;
   private long crc;
 
-  BufferSegment(long offset, long length, long crc) {
+  public BufferSegment(long offset, long length, long crc) {
     this.offset = offset;
     this.length = length;
     this.crc = crc;

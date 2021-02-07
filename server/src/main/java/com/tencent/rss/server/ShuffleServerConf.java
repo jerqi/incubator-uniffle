@@ -8,24 +8,6 @@ import java.util.Map;
 
 public class ShuffleServerConf extends RssBaseConf {
 
-  public static final ConfigOption<String> DATA_STORAGE_TYPE = ConfigOptions
-      .key("rss.storage.type")
-      .stringType()
-      .noDefaultValue()
-      .withDescription("Data storage for remote shuffle service");
-
-  public static final ConfigOption<String> DATA_STORAGE_BASE_PATH = ConfigOptions
-      .key("rss.storage.basePath")
-      .stringType()
-      .noDefaultValue()
-      .withDescription("Common storage path for remote shuffle data");
-
-  public static final ConfigOption<Integer> DATA_STORAGE_REPLICA = ConfigOptions
-      .key("rss.storage.replica")
-      .intType()
-      .defaultValue(1)
-      .withDescription("Size of each buffer in this server");
-
   public static final ConfigOption<Long> BUFFER_CAPACITY = ConfigOptions
       .key("rss.server.buffer.capacity")
       .longType()
@@ -167,18 +149,6 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (RPC_SERVER_PORT.key().equalsIgnoreCase(k)) {
         set(RPC_SERVER_PORT, Integer.valueOf(v));
-      }
-
-      if (DATA_STORAGE_TYPE.key().equalsIgnoreCase(k)) {
-        set(DATA_STORAGE_TYPE, v.toUpperCase());
-      }
-
-      if (DATA_STORAGE_BASE_PATH.key().equalsIgnoreCase(k)) {
-        set(DATA_STORAGE_BASE_PATH, v);
-      }
-
-      if (DATA_STORAGE_REPLICA.key().equalsIgnoreCase(k)) {
-        set(DATA_STORAGE_REPLICA, Integer.valueOf(k));
       }
 
       if (BUFFER_CAPACITY.key().equalsIgnoreCase(k)) {

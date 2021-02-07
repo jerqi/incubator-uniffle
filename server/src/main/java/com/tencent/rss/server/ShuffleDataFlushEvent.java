@@ -8,7 +8,7 @@ public class ShuffleDataFlushEvent {
 
   private long eventId;
   private String appId;
-  private String shuffleId;
+  private int shuffleId;
   private int startPartition;
   private int endPartition;
   private int size;
@@ -17,7 +17,7 @@ public class ShuffleDataFlushEvent {
   public ShuffleDataFlushEvent(
       long eventId,
       String appId,
-      String shuffleId,
+      int shuffleId,
       int startPartition,
       int endPartition,
       int size,
@@ -45,6 +45,22 @@ public class ShuffleDataFlushEvent {
 
   public long getSize() {
     return size;
+  }
+
+  public String getAppId() {
+    return appId;
+  }
+
+  public int getShuffleId() {
+    return shuffleId;
+  }
+
+  public int getStartPartition() {
+    return startPartition;
+  }
+
+  public int getEndPartition() {
+    return endPartition;
   }
 
   @Override

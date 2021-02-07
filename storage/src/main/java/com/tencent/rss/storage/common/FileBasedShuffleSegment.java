@@ -1,4 +1,4 @@
-package com.tencent.rss.storage;
+package com.tencent.rss.storage.common;
 
 import java.util.Objects;
 

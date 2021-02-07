@@ -1,14 +1,13 @@
-package com.tencent.rss.storage;
+package com.tencent.rss.storage.utils;
 
 import com.tencent.rss.common.util.Constants;
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 public class ShuffleStorageUtils {
 

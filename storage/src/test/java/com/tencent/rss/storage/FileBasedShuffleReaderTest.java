@@ -1,6 +1,18 @@
 package com.tencent.rss.storage;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import com.google.protobuf.ByteString;
+import com.tencent.rss.storage.common.FileBasedShuffleSegment;
+import com.tencent.rss.storage.handler.impl.FileBasedShuffleReader;
+import com.tencent.rss.storage.handler.impl.FileBasedShuffleWriter;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Random;
 import org.apache.hadoop.fs.Path;
 import org.hamcrest.core.StringStartsWith;
 import org.junit.Rule;
@@ -8,15 +20,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Random;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 @RunWith(JUnit4.class)
 public class FileBasedShuffleReaderTest extends HdfsTestBase {
@@ -74,9 +77,7 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
 
       // EOF exception is expected
       segment = new FileBasedShuffleSegment(offset * 2, length, 1, 23);
-      thrown.expect(IllegalStateException.class);
-      thrown.expectMessage("No data from the index " + segment + " of " + HDFS_URI + "readDataTest");
-      reader.readData(segment);
+      assertNull(reader.readData(segment));
     }
   }
 
@@ -84,9 +85,9 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
   public void readIndexTest() throws IOException {
     Path path = new Path(HDFS_URI, "readIndexTest");
     FileBasedShuffleSegment[] segments = {
-      new FileBasedShuffleSegment(0, 32, 1, 123),
-      new FileBasedShuffleSegment(32, 23, 2, 223),
-      new FileBasedShuffleSegment(64, 32, 3, 323)
+        new FileBasedShuffleSegment(0, 32, 1, 123),
+        new FileBasedShuffleSegment(32, 23, 2, 223),
+        new FileBasedShuffleSegment(64, 32, 3, 323)
     };
 
     try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
@@ -124,9 +125,9 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
   public void readIndexFailTest() throws IOException {
     Path path = new Path(HDFS_URI, "readIndexFailTest");
     FileBasedShuffleSegment[] segments = {
-      new FileBasedShuffleSegment(0, 32, 1, 123),
-      new FileBasedShuffleSegment(32, 23, 2, 223),
-      new FileBasedShuffleSegment(64, 32, 3, 323)
+        new FileBasedShuffleSegment(0, 32, 1, 123),
+        new FileBasedShuffleSegment(32, 23, 2, 223),
+        new FileBasedShuffleSegment(64, 32, 3, 323)
     };
 
     try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
@@ -149,7 +150,7 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
       int limit = 10;
       thrown.expect(IllegalStateException.class);
       thrown.expectMessage("Invalid index file "
-        + path + " " + 4 + " bytes left, can't be parsed as long.");
+          + path + " " + 4 + " bytes left, can't be parsed as long.");
       List<FileBasedShuffleSegment> idx = reader.readIndex(limit);
     }
   }

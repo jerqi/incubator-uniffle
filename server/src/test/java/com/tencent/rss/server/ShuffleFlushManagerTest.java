@@ -4,14 +4,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.util.ChecksumUtils;
-import com.tencent.rss.common.util.RssUtils;
-import com.tencent.rss.storage.FileBasedShuffleReadHandler;
-import com.tencent.rss.storage.FileBasedShuffleSegment;
 import com.tencent.rss.storage.HdfsTestBase;
+import com.tencent.rss.storage.handler.impl.HdfsShuffleReadHandler;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.log4j.Level;
@@ -23,16 +23,18 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
 
   private static AtomicInteger ATOMIC_INT = new AtomicInteger(0);
   private static AtomicLong ATOMIC_LONG = new AtomicLong(0);
-  private ShuffleServerConf shuffleServerConf = new ShuffleServerConf();
-  private String storageBasePath = HDFS_URI + "rss/test";
 
   static {
     ShuffleServerMetrics.register();
   }
 
+  private ShuffleServerConf shuffleServerConf = new ShuffleServerConf();
+  private String storageBasePath = HDFS_URI + "rss/test";
+
   @Before
   public void prepare() {
     shuffleServerConf.setString("rss.storage.basePath", storageBasePath);
+    shuffleServerConf.setString("rss.storage.type", "HDFS");
     LogManager.getRootLogger().setLevel(Level.INFO);
   }
 
@@ -41,26 +43,24 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     ShuffleFlushManager manager =
         new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
     ShuffleDataFlushEvent event1 =
-        createShuffleDataFlushEvent("appId1", "1", 0, 1);
+        createShuffleDataFlushEvent("appId1", 1, 0, 1);
     List<ShufflePartitionedBlock> blocks1 = event1.getShuffleBlocks();
     manager.addToFlushQueue(event1);
     ShuffleDataFlushEvent event21 =
-        createShuffleDataFlushEvent("appId1", "2", 0, 1);
+        createShuffleDataFlushEvent("appId1", 2, 0, 1);
     List<ShufflePartitionedBlock> blocks21 = event21.getShuffleBlocks();
     manager.addToFlushQueue(event21);
     ShuffleDataFlushEvent event22 =
-        createShuffleDataFlushEvent("appId1", "2", 0, 1);
+        createShuffleDataFlushEvent("appId1", 2, 0, 1);
     List<ShufflePartitionedBlock> blocks22 = event22.getShuffleBlocks();
     manager.addToFlushQueue(event22);
     // wait for write data
     Thread.sleep(5000);
-    String shuffleDataFolder = RssUtils.getFullShuffleDataFolder(storageBasePath, event1.getShuffleFilePath());
-    validate(blocks1, shuffleDataFolder, "shuffleServerId");
+    validate("appId1", 1, 0, blocks1, 2, storageBasePath);
     assertEquals(1, manager.getEventIds(event1.getShuffleFilePath()).size());
 
-    shuffleDataFolder = RssUtils.getFullShuffleDataFolder(storageBasePath, event21.getShuffleFilePath());
     blocks21.addAll(blocks22);
-    validate(blocks21, shuffleDataFolder, "shuffleServerId");
+    validate("appId1", 2, 0, blocks21, 2, storageBasePath);
     assertEquals(2, manager.getEventIds(event21.getShuffleFilePath()).size());
   }
 
@@ -71,16 +71,16 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     ShuffleFlushManager manager =
         new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
     ShuffleDataFlushEvent event1 =
-        createShuffleDataFlushEvent("appId3", "1", 0, 1);
+        createShuffleDataFlushEvent("appId3", 1, 0, 1);
     manager.addToFlushQueue(event1);
     ShuffleDataFlushEvent event2 =
-        createShuffleDataFlushEvent("appId3", "2", 0, 1);
+        createShuffleDataFlushEvent("appId3", 2, 0, 1);
     manager.addToFlushQueue(event2);
     Thread.sleep(4000);
     assertEquals(2, manager.getPathToHandler().size());
     assertEquals(1, manager.getEventIds(event1.getShuffleFilePath()).size());
     assertEquals(1, manager.getEventIds(event2.getShuffleFilePath()).size());
-    event2 = createShuffleDataFlushEvent("appId3", "2", 0, 1);
+    event2 = createShuffleDataFlushEvent("appId3", 2, 0, 1);
     manager.addToFlushQueue(event2);
     Thread.sleep(4000);
     assertEquals(1, manager.getPathToHandler().size());
@@ -102,8 +102,8 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     ShuffleFlushManager manager = new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
     String shuffleFilePath = "";
     for (int i = 0; i < 30; i++) {
-      ShuffleDataFlushEvent flushEvent1 = createShuffleDataFlushEvent("appId4", "1", 0, 1);
-      ShuffleDataFlushEvent flushEvent2 = createShuffleDataFlushEvent("appId4", "1", 0, 1);
+      ShuffleDataFlushEvent flushEvent1 = createShuffleDataFlushEvent("appId4", 1, 0, 1);
+      ShuffleDataFlushEvent flushEvent2 = createShuffleDataFlushEvent("appId4", 1, 0, 1);
       expectedBlocks.addAll(flushEvent1.getShuffleBlocks());
       expectedBlocks.addAll(flushEvent2.getShuffleBlocks());
       flushEvents1.add(flushEvent1);
@@ -142,12 +142,11 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
       }
     }
 
-    String shuffleDataFolder = RssUtils.getFullShuffleDataFolder(storageBasePath, shuffleFilePath);
-    validate(expectedBlocks, shuffleDataFolder, "shuffleServerId");
+    validate("appId4", 1, 0, expectedBlocks, 2, storageBasePath);
   }
 
   private ShuffleDataFlushEvent createShuffleDataFlushEvent(
-      String appId, String shuffleId, int startPartition, int endPartition) {
+      String appId, int shuffleId, int startPartition, int endPartition) {
     List<ShufflePartitionedBlock> spbs = createBlock(5, 32);
     return new ShuffleDataFlushEvent(ATOMIC_LONG.getAndIncrement(),
         appId, shuffleId, startPartition, endPartition, 1, spbs);
@@ -164,24 +163,16 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     return blocks;
   }
 
-  private void validate(List<ShufflePartitionedBlock> blocks,
-      String basePath, String fileNamePrefix) throws Exception {
-    FileBasedShuffleReadHandler handler = new FileBasedShuffleReadHandler(basePath, fileNamePrefix, conf);
-    List<FileBasedShuffleSegment> allSegments = Lists.newArrayList();
-    List<FileBasedShuffleSegment> segments = handler.readIndex(100);
-    while (!segments.isEmpty()) {
-      allSegments.addAll(segments);
-      segments = handler.readIndex(100);
-    }
-    assertEquals(blocks.size(), allSegments.size());
+  private void validate(String appId, int shuffleId, int partitionId, List<ShufflePartitionedBlock> blocks,
+      int partitionsPerServer, String basePath) {
+    HdfsShuffleReadHandler handler = new HdfsShuffleReadHandler(appId, shuffleId, partitionId,
+        100, partitionsPerServer, 10, 1000, basePath, Sets.newHashSet(1L));
+    Set<Long> blockIds = handler.getAllBlockIds();
+    assertEquals(blocks.size(), blockIds.size());
     int matchNum = 0;
     for (ShufflePartitionedBlock block : blocks) {
-      for (FileBasedShuffleSegment segment : allSegments) {
-        if (block.getBlockId() == segment.getBlockId()) {
-          assertEquals(block.getLength(), segment.getLength());
-          assertEquals(block.getCrc(), segment.getCrc());
-          matchNum++;
-        }
+      if (blockIds.contains(block.getBlockId())) {
+        matchNum++;
       }
     }
     assertEquals(blocks.size(), matchNum);

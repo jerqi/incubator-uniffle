@@ -6,9 +6,11 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShufflePartitionedBlock;
-import com.tencent.rss.common.util.RssUtils;
+import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.server.ShuffleGarbageCollector.NamedDaemonThreadFactory;
-import com.tencent.rss.storage.FileBasedShuffleWriteHandler;
+import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
+import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
+import com.tencent.rss.storage.request.CreateShuffleWriteHandlerRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,12 +32,13 @@ public class ShuffleFlushManager {
   private final ShuffleServer shuffleServer;
   private final ScheduledExecutorService scheduledExecutorService;
   private final BlockingQueue<ShuffleDataFlushEvent> flushQueue = Queues.newLinkedBlockingQueue();
-  private final ConcurrentMap<String, FileBasedShuffleWriteHandler> pathToHandler = Maps.newConcurrentMap();
+  private final ConcurrentMap<String, ShuffleWriteHandler> pathToHandler = Maps.newConcurrentMap();
   private final ConcurrentMap<String, Set<Long>> pathToEventIds = Maps.newConcurrentMap();
   private final ThreadPoolExecutor threadPoolExecutor;
   private final ShuffleServerConf shuffleServerConf;
   private final String storageBasePath;
   private final String shuffleServerId;
+  private final String storageType;
   private final Configuration hadoopConf;
   private boolean isRunning;
   private long expired;
@@ -49,6 +52,7 @@ public class ShuffleFlushManager {
     hadoopConf.setInt("dfs.replication", shuffleServerConf.getInteger(ShuffleServerConf.DATA_STORAGE_REPLICA));
     int poolSize = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_SIZE);
     long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.SERVER_FLUSH_THREAD_ALIVE);
+    storageType = shuffleServerConf.get(RssBaseConf.DATA_STORAGE_TYPE);
     int waitQueueSize = shuffleServerConf.getInteger(
         ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE);
     BlockingQueue<Runnable> waitQueue = Queues.newLinkedBlockingQueue(waitQueueSize);
@@ -85,15 +89,15 @@ public class ShuffleFlushManager {
   }
 
   @VisibleForTesting
-  ConcurrentMap<String, FileBasedShuffleWriteHandler> getPathToHandler() {
+  ConcurrentMap<String, ShuffleWriteHandler> getPathToHandler() {
     return pathToHandler;
   }
 
   void clearHandler() {
     List<String> removedKeys = Lists.newArrayList();
     try {
-      for (Map.Entry<String, FileBasedShuffleWriteHandler> entry : pathToHandler.entrySet()) {
-        FileBasedShuffleWriteHandler handler = entry.getValue();
+      for (Map.Entry<String, ShuffleWriteHandler> entry : pathToHandler.entrySet()) {
+        ShuffleWriteHandler handler = entry.getValue();
         if (handler != null) {
           long duration = (System.currentTimeMillis() - handler.getAccessTime()) / 1000;
           LOG.debug("Handler for " + entry.getKey() + ", duration=" + duration);
@@ -126,17 +130,18 @@ public class ShuffleFlushManager {
   private void flushToFile(ShuffleDataFlushEvent event) {
     long startTime = System.currentTimeMillis();
     String path = event.getShuffleFilePath();
-    String shuffleDataFolder = RssUtils.getFullShuffleDataFolder(storageBasePath, path);
     List<ShufflePartitionedBlock> blocks = event.getShuffleBlocks();
 
     try {
       if (blocks == null || blocks.isEmpty()) {
         LOG.info("There is no block to be flushed: " + event);
       } else {
-        FileBasedShuffleWriteHandler handler;
+        ShuffleWriteHandler handler;
         synchronized (this) {
-          pathToHandler.putIfAbsent(path,
-              new FileBasedShuffleWriteHandler(shuffleDataFolder, shuffleServerId, hadoopConf));
+          pathToHandler.putIfAbsent(path, ShuffleHandlerFactory.getInstance().createShuffleWriteHandler(
+              new CreateShuffleWriteHandlerRequest(
+                  storageType, event.getAppId(), event.getShuffleId(), event.getStartPartition(),
+                  event.getEndPartition(), storageBasePath, shuffleServerId, hadoopConf)));
           handler = pathToHandler.get(path);
         }
         handler.write(blocks);
@@ -164,8 +169,7 @@ public class ShuffleFlushManager {
     } catch (Exception e) {
       // just log the error, don't throw the exception and stop the flush thread
       String blocksString = blocks == null ? "null" : blocks.toString();
-      LOG.error("Exception happened when process flush shuffle data for folder["
-          + shuffleDataFolder + "], blocks[" + blocksString + "]", e);
+      LOG.error("Exception happened when process flush shuffle data for " + event, e);
     } finally {
       if (shuffleServer != null) {
         shuffleServer.getBufferManager().updateSize(-event.getSize());

@@ -1,7 +1,9 @@
-package com.tencent.rss.storage;
+package com.tencent.rss.storage.handler.impl;
 
+import com.tencent.rss.storage.api.ShuffleReader;
+import com.tencent.rss.storage.common.FileBasedShuffleSegment;
+import com.tencent.rss.storage.utils.ShuffleStorageUtils;
 import java.io.Closeable;
-import java.io.EOFException;
 import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
@@ -14,7 +16,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FileBasedShuffleReader implements Closeable {
+public class FileBasedShuffleReader implements ShuffleReader, Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedShuffleReader.class);
   private Path path;
@@ -38,17 +40,19 @@ public class FileBasedShuffleReader implements Closeable {
     fsDataInputStream = fileSystem.open(path);
   }
 
-  public byte[] readData(FileBasedShuffleSegment segment) throws IOException, IllegalStateException {
+  public byte[] readData(FileBasedShuffleSegment segment) {
     try {
       fsDataInputStream.seek(segment.getOffset());
       int length = (int) segment.getLength();
       byte[] buf = new byte[length];
       fsDataInputStream.readFully(buf);
       return buf;
-    } catch (EOFException e) {
-      String msg = "No data from the index " + segment + " of " + path;
-      throw new IllegalStateException(msg);
+    } catch (Exception e) {
+//      String msg = "No data from the index " + segment + " of " + path;
+//      throw new IllegalStateException(msg);
+      LOG.warn("Can't read data for path:" + path + ", with " + segment);
     }
+    return null;
   }
 
   public List<FileBasedShuffleSegment> readIndex(int limit) throws IOException, IllegalStateException {
@@ -113,7 +117,9 @@ public class FileBasedShuffleReader implements Closeable {
 
   @Override
   public synchronized void close() throws IOException {
-    fsDataInputStream.close();
+    if (fsDataInputStream != null) {
+      fsDataInputStream.close();
+    }
   }
 
 }

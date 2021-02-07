@@ -8,9 +8,8 @@ import com.google.common.collect.Sets;
 import com.tencent.rss.client.util.ClientUtils;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.util.ChecksumUtils;
-import com.tencent.rss.storage.FileBasedShuffleWriteHandler;
 import com.tencent.rss.storage.HdfsTestBase;
-import java.io.IOException;
+import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,9 +36,9 @@ public class RssReaderTestBase extends HdfsTestBase {
     assertEquals(expectedData.keySet(), actualKeys);
   }
 
-  protected void writeTestData(FileBasedShuffleWriteHandler writeHandler,
+  protected void writeTestData(ShuffleWriteHandler handler,
       int blockNum, int recordNum, Map<String, String> expectedData,
-      Set<Long> expectedBlockIds, String keyPrefix, Serializer serializer) throws IOException {
+      Set<Long> expectedBlockIds, String keyPrefix, Serializer serializer) throws Exception {
     List<ShufflePartitionedBlock> blocks = Lists.newArrayList();
     SerializerInstance serializerInstance = serializer.newInstance();
     for (int i = 0; i < blockNum; i++) {
@@ -56,7 +55,7 @@ public class RssReaderTestBase extends HdfsTestBase {
       blocks.add(createShuffleBlock(output.toBytes(), blockId));
       serializeStream.close();
     }
-    writeHandler.write(blocks);
+    handler.write(blocks);
   }
 
   protected ShufflePartitionedBlock createShuffleBlock(byte[] data, long blockId) {

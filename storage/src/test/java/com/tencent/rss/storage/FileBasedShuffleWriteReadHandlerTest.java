@@ -4,11 +4,19 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShufflePartitionedBlock;
+import com.tencent.rss.storage.common.BufferSegment;
+import com.tencent.rss.storage.common.FileBasedShuffleSegment;
+import com.tencent.rss.storage.handler.impl.HdfsShuffleReadHandler;
+import com.tencent.rss.storage.handler.impl.HdfsShuffleWriteHandler;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import org.apache.hadoop.fs.Path;
 import org.junit.Rule;
 import org.junit.Test;
@@ -25,7 +33,7 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
   @Test
   public void initTest() throws IOException {
     String basePath = HDFS_URI + "test_base";
-    new FileBasedShuffleWriteHandler(basePath, "test", conf);
+    new HdfsShuffleWriteHandler("appId", 0, 0, 1, basePath, "test", conf);
     Path path = new Path(basePath);
     assertTrue(fs.isDirectory(path));
   }
@@ -33,8 +41,8 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
   @Test
   public void writeTest() throws IOException, IllegalStateException {
     String basePath = HDFS_URI + "writeTest";
-    FileBasedShuffleWriteHandler writeHandler =
-        new FileBasedShuffleWriteHandler(basePath, "test", conf);
+    HdfsShuffleWriteHandler writeHandler =
+        new HdfsShuffleWriteHandler("appId", 1, 0, 1, basePath, "test", conf);
     List<ShufflePartitionedBlock> blocks = new LinkedList<>();
     List<byte[]> expectedData = new LinkedList<>();
     List<FileBasedShuffleSegment> expectedIndex = new LinkedList<>();
@@ -54,7 +62,7 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
     fs.isFile(new Path(basePath, "test.data"));
     fs.isFile(new Path(basePath, "test.index"));
 
-    compareDataAndIndex(basePath, "test", expectedData, expectedIndex);
+    compareDataAndIndex("appId", 1, 1, basePath, expectedData);
 
     // append the exist data and index files
     List<ShufflePartitionedBlock> blocksAppend = new LinkedList<>();
@@ -68,44 +76,39 @@ public class FileBasedShuffleWriteReadHandlerTest extends HdfsTestBase {
     }
     writeHandler.write(blocksAppend);
 
-    compareDataAndIndex(basePath, "test", expectedData, expectedIndex);
+    compareDataAndIndex("appId", 1, 1, basePath, expectedData);
   }
 
   private void compareDataAndIndex(
-      String path,
-      String filenamePrefix,
-      List<byte[]> expectedData,
-      List<FileBasedShuffleSegment> index) throws IOException, IllegalStateException {
+      String appId,
+      int shuffleId,
+      int partitionId,
+      String basePath,
+      List<byte[]> expectedData) throws IOException, IllegalStateException {
     // read directly and compare
-    try (FileBasedShuffleReadHandler readHandler = new FileBasedShuffleReadHandler(path, filenamePrefix, conf)) {
+    HdfsShuffleReadHandler readHandler = new HdfsShuffleReadHandler(
+        appId, shuffleId, partitionId, 100, 2, 10,
+        10000, basePath, Sets.newHashSet(1L));
+    try {
       List<byte[]> actual = readData(readHandler);
       compareBytes(expectedData, actual);
-    }
-
-    // read index and use the index to read data
-    try (FileBasedShuffleReadHandler readHandler = new FileBasedShuffleReadHandler(path, filenamePrefix, conf)) {
-      assertEquals(1024 * 1024, readHandler.getIndexReadLimit());
-      assertEquals(1024, readHandler.getDataReadLimit());
-      List<FileBasedShuffleSegment> actualIndex = readHandler.readIndex();
-      assertEquals(index, actualIndex);
-
-      List<byte[]> actual = new LinkedList<>();
-      for (FileBasedShuffleSegment segment : actualIndex) {
-        actual.add(readHandler.readData(segment));
-      }
-      compareBytes(expectedData, actual);
+    } finally {
+      readHandler.close();
     }
   }
 
-  private List<byte[]> readData(FileBasedShuffleReadHandler reader) throws IOException, IllegalStateException {
-    List<FileBasedShuffleSegment> fileBasedShuffleSegments = reader.readIndex();
-    List<byte[]> ret = new LinkedList<>();
-
-    for (FileBasedShuffleSegment segment : fileBasedShuffleSegments) {
-      ret.add(reader.readData(segment));
+  private List<byte[]> readData(HdfsShuffleReadHandler handler) throws IOException, IllegalStateException {
+    Set<Long> blockIds = handler.getAllBlockIds();
+    byte[] readBuffer = handler.readShuffleData(blockIds);
+    Map<Long, BufferSegment> processingBlockIds = handler.getBlockIdToBufferSegment();
+    List<byte[]> result = Lists.newArrayList();
+    for (Map.Entry<Long, BufferSegment> entry : processingBlockIds.entrySet()) {
+      BufferSegment bs = entry.getValue();
+      byte[] data = new byte[bs.getLength()];
+      System.arraycopy(readBuffer, bs.getOffset(), data, 0, bs.getLength());
+      result.add(data);
     }
-
-    return ret;
+    return result;
   }
 
   private void compareBytes(List<byte[]> expected, List<byte[]> actual) {

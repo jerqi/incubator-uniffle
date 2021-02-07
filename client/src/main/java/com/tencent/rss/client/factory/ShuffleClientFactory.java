@@ -2,10 +2,9 @@ package com.tencent.rss.client.factory;
 
 import com.tencent.rss.client.api.ShuffleReadClient;
 import com.tencent.rss.client.api.ShuffleWriteClient;
-import com.tencent.rss.client.impl.FileBasedShuffleReadClient;
+import com.tencent.rss.client.impl.ShuffleReadClientImpl;
 import com.tencent.rss.client.impl.ShuffleWriteClientImpl;
 import com.tencent.rss.client.request.CreateShuffleReadClientRequest;
-import com.tencent.rss.storage.StorageType;
 
 public class ShuffleClientFactory {
 
@@ -23,12 +22,9 @@ public class ShuffleClientFactory {
   }
 
   public ShuffleReadClient createShuffleReadClient(CreateShuffleReadClientRequest request) {
-    if (StorageType.FILE.name().equalsIgnoreCase(request.getStorageType())) {
-      return new FileBasedShuffleReadClient(
-          request.getBasePath(), request.getHadoopConf(), request.getIndexReadLimit(),
-          request.getReadBufferSize(), request.getExpectedBlockIds());
-    } else {
-      throw new UnsupportedOperationException("Unsupported client type " + request.getStorageType());
-    }
+    return new ShuffleReadClientImpl(request.getStorageType(), request.getAppId(), request.getShuffleId(),
+        request.getPartitionId(), request.getIndexReadLimit(), request.getPartitionsPerServer(),
+        request.getPartitionNum(), request.getReadBufferSize(), request.getBasePath(),
+        request.getExpectedBlockIds());
   }
 }

@@ -1,7 +1,7 @@
 package com.tencent.rss.client.api;
 
 import com.tencent.rss.client.response.SendShuffleDataResult;
-import com.tencent.rss.client.response.ShuffleAssignmentsInfo;
+import com.tencent.rss.common.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;

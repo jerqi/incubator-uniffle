@@ -1,5 +1,7 @@
 package com.tencent.rss.server;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -10,9 +12,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static java.util.Objects.requireNonNull;
-
 public class ShuffleGarbageCollector {
+
   private final ShuffleServer shuffleServer;
   private final long gcInitialDelay;
   private final long gcInterval;
@@ -28,12 +29,11 @@ public class ShuffleGarbageCollector {
     this.gcInterval = conf.getLong(ShuffleServerConf.GC_INTERVAL);
     this.gcThreshold = conf.getLong(ShuffleServerConf.GC_THRESHOLD);
 
-
     int threadNum = conf.getInteger(ShuffleServerConf.GC_THREAD_NUM);
     executorService = Executors.newFixedThreadPool(
-      threadNum, NamedDaemonThreadFactory.defaultThreadFactory(true));
+        threadNum, NamedDaemonThreadFactory.defaultThreadFactory(true));
     scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
-      NamedDaemonThreadFactory.defaultThreadFactory(true));
+        NamedDaemonThreadFactory.defaultThreadFactory(true));
   }
 
   public void startGC() {
@@ -47,7 +47,7 @@ public class ShuffleGarbageCollector {
 
   public void doGC() {
     List<ShuffleEngineManager> shuffleEngineManagerList =
-      new LinkedList<>(shuffleServer.getShuffleTaskManager().getShuffleTaskEngines().values());
+        new LinkedList<>(shuffleServer.getShuffleTaskManager().getShuffleTaskEngines().values());
     long currentTimestamp = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
     for (ShuffleEngineManager shuffleEngineManager : shuffleEngineManagerList) {
       Runnable runnable = new Runnable() {
@@ -89,7 +89,7 @@ public class ShuffleGarbageCollector {
     if (shuffleEngineManager.getEngineMap().isEmpty()) {
       shuffleEngineManager.reclaim();
       String key = ShuffleTaskManager.constructKey(
-        shuffleEngineManager.getAppId(), shuffleEngineManager.getShuffleId());
+          shuffleEngineManager.getAppId(), String.valueOf(shuffleEngineManager.getShuffleId()));
       shuffleServer.getShuffleTaskManager().getShuffleTaskEngines().remove(key);
       ShuffleServerMetrics.gaugeRegisteredShuffle.dec();
     }
@@ -101,6 +101,7 @@ public class ShuffleGarbageCollector {
   }
 
   static class NamedDaemonThreadFactory implements ThreadFactory {
+
     private static final AtomicInteger POOL_NUMBER = new AtomicInteger(1);
     private final int poolNumber;
     private final AtomicInteger threadNumber;

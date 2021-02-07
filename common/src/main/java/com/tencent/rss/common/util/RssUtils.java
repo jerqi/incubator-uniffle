@@ -58,7 +58,7 @@ public class RssUtils {
     return result;
   }
 
-  public static String getShuffleDataPath(String appId, String shuffleId, int start, int end) {
+  public static String getShuffleDataPath(String appId, int shuffleId, int start, int end) {
     return String.join(
         HDFS_PATH_SEPARATOR,
         appId,
@@ -79,7 +79,7 @@ public class RssUtils {
       int start = i * partitionsPerServer;
       int end = (i + 1) * partitionsPerServer - 1;
       if (partitionId >= start && partitionId <= end) {
-        return getShuffleDataPath(appId, String.valueOf(shuffleId), start, end);
+        return getShuffleDataPath(appId, shuffleId, start, end);
       }
     }
     throw new RuntimeException("Can't generate ShuffleData Path for appId[" + appId + "], shuffleId["

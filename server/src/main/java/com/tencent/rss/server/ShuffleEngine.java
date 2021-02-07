@@ -15,7 +15,7 @@ public class ShuffleEngine {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleEngine.class);
   private final String appId;
-  private final String shuffleId;
+  private final int shuffleId;
   private final int startPartition;
   private final int endPartition;
   private final ShuffleServerConf conf;
@@ -28,7 +28,7 @@ public class ShuffleEngine {
 
   public ShuffleEngine(
       String appId,
-      String shuffleId,
+      int shuffleId,
       int startPartition,
       int endPartition,
       ShuffleServerConf conf,
@@ -45,7 +45,7 @@ public class ShuffleEngine {
 
   public ShuffleEngine(
       String appId,
-      String shuffleId,
+      int shuffleId,
       int startPartition,
       int endPartition) {
     this.appId = appId;
@@ -71,7 +71,8 @@ public class ShuffleEngine {
     if (buffer == null) {
       // TODO: should not be here, buffer is null only after gc but engine would be null then.
       String engineDesc =
-          String.join("-", appId, shuffleId, String.valueOf(startPartition), String.valueOf(endPartition));
+          String.join("-", appId, String.valueOf(shuffleId),
+              String.valueOf(startPartition), String.valueOf(endPartition));
       String msg = "Buffer of engine: "
           + engineDesc
           + " is null, which should only happen after gc but engine would be null too.";
@@ -95,7 +96,8 @@ public class ShuffleEngine {
     if (buffer == null) {
       // TODO: should not be here, buffer is null only after gc but engine would be null then.
       String engineDesc =
-          String.join("-", appId, shuffleId, String.valueOf(startPartition), String.valueOf(endPartition));
+          String.join("-", appId, String.valueOf(shuffleId),
+              String.valueOf(startPartition), String.valueOf(endPartition));
       String msg = "Buffer of engine: "
           + engineDesc
           + " is null, which should only happen after gc but engine would be null too.";
@@ -118,7 +120,7 @@ public class ShuffleEngine {
     return String.join(
         "~",
         appId,
-        shuffleId,
+        String.valueOf(shuffleId),
         String.valueOf(startPartition),
         String.valueOf(endPartition));
   }
@@ -145,7 +147,7 @@ public class ShuffleEngine {
   @VisibleForTesting
   String getBasePath() {
     String basePath = conf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH);
-    String subPath = RssUtils.getShuffleDataPath(appId, String.valueOf(shuffleId), startPartition, endPartition);
+    String subPath = RssUtils.getShuffleDataPath(appId, shuffleId, startPartition, endPartition);
     return RssUtils.getFullShuffleDataFolder(basePath, subPath);
   }
 
@@ -162,7 +164,7 @@ public class ShuffleEngine {
     return appId;
   }
 
-  public String getShuffleId() {
+  public int getShuffleId() {
     return shuffleId;
   }
 

@@ -76,10 +76,10 @@ public class GrpcShuffleServiceTest extends MetricsTestBase {
   @Test
   public void registerTest() throws IOException, IllegalStateException {
     when(mockShuffleTaskManager
-        .registerShuffle("", "0", 0, 0))
+        .registerShuffle("", 0, 0, 0))
         .thenReturn(StatusCode.NO_BUFFER);
     when(mockShuffleTaskManager
-        .registerShuffle("test", "1", 0, 10))
+        .registerShuffle("test", 1, 0, 10))
         .thenReturn(StatusCode.SUCCESS);
 
     // test default request param
@@ -90,7 +90,7 @@ public class GrpcShuffleServiceTest extends MetricsTestBase {
         .setStatus(valueOf(StatusCode.NO_BUFFER))
         .build();
     verify(mockShuffleTaskManager, atLeastOnce()).registerShuffle(
-        "", "0", 0, 0);
+        "", 0, 0, 0);
     assertEquals(expected, actual);
 
     req = ShuffleRegisterRequest.newBuilder().setAppId("test").setShuffleId(1).setStart(0).setEnd(10).build();
@@ -100,7 +100,7 @@ public class GrpcShuffleServiceTest extends MetricsTestBase {
         .setStatus(valueOf(StatusCode.SUCCESS))
         .build();
     verify(mockShuffleTaskManager, atLeastOnce()).registerShuffle(
-        "test", "1", 0, 10);
+        "test", 1, 0, 10);
     assertEquals(expected, actual);
   }
 
@@ -162,7 +162,7 @@ public class GrpcShuffleServiceTest extends MetricsTestBase {
   public void commitShuffleTaskTest() throws Exception {
 
     when(mockShuffleTaskManager
-        .commitShuffle("", "0"))
+        .commitShuffle("", 0))
         .thenReturn(StatusCode.SUCCESS);
 
     ShuffleCommitRequest req = ShuffleCommitRequest.newBuilder().build();

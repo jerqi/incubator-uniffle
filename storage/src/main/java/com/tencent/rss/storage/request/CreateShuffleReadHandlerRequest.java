@@ -1,36 +1,37 @@
-package com.tencent.rss.client.request;
+package com.tencent.rss.storage.request;
 
 import java.util.Set;
-import org.apache.hadoop.conf.Configuration;
 
-public class CreateShuffleReadClientRequest {
+public class CreateShuffleReadHandlerRequest {
 
+  private String storageType;
   private String appId;
   private int shuffleId;
   private int partitionId;
-  private String storageType;
-  private String basePath;
-  private Configuration hadoopConf;
   private int indexReadLimit;
-  private int readBufferSize;
   private int partitionsPerServer;
   private int partitionNum;
+  private int readBufferSize;
+  private String storageBasePath;
   private Set<Long> expectedBlockIds;
 
-  public CreateShuffleReadClientRequest(String appId, int shuffleId, int partitionId, String storageType,
-      String basePath, Configuration hadoopConf, int indexReadLimit, int readBufferSize, int partitionsPerServer,
-      int partitionNum, Set<Long> expectedBlockIds) {
+  public CreateShuffleReadHandlerRequest(String storageType, String appId, int shuffleId, int partitionId,
+      int indexReadLimit, int partitionsPerServer, int partitionNum, int readBufferSize, String storageBasePath,
+      Set<Long> expectedBlockIds) {
+    this.storageType = storageType;
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.partitionId = partitionId;
-    this.storageType = storageType;
-    this.basePath = basePath;
-    this.hadoopConf = hadoopConf;
     this.indexReadLimit = indexReadLimit;
-    this.readBufferSize = readBufferSize;
     this.partitionsPerServer = partitionsPerServer;
     this.partitionNum = partitionNum;
+    this.readBufferSize = readBufferSize;
+    this.storageBasePath = storageBasePath;
     this.expectedBlockIds = expectedBlockIds;
+  }
+
+  public String getStorageType() {
+    return storageType;
   }
 
   public String getAppId() {
@@ -45,6 +46,10 @@ public class CreateShuffleReadClientRequest {
     return partitionId;
   }
 
+  public int getIndexReadLimit() {
+    return indexReadLimit;
+  }
+
   public int getPartitionsPerServer() {
     return partitionsPerServer;
   }
@@ -53,24 +58,12 @@ public class CreateShuffleReadClientRequest {
     return partitionNum;
   }
 
-  public String getStorageType() {
-    return storageType;
-  }
-
-  public String getBasePath() {
-    return basePath;
-  }
-
-  public Configuration getHadoopConf() {
-    return hadoopConf;
-  }
-
-  public int getIndexReadLimit() {
-    return indexReadLimit;
-  }
-
   public int getReadBufferSize() {
     return readBufferSize;
+  }
+
+  public String getStorageBasePath() {
+    return storageBasePath;
   }
 
   public Set<Long> getExpectedBlockIds() {

@@ -40,6 +40,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   private String basePath;
   private int indexReadLimit;
   private int readBufferSize;
+  private int partitionsPerServer;
+  private int partitionNum;
   private String storageType;
   private Set<Long> expectedBlockIds;
 
@@ -53,6 +55,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
       Configuration hadoopConf,
       String storageType,
       int readBufferSize,
+      int partitionsPerServer,
+      int partitionNum,
       Set<Long> expectedBlockIds) {
     this.appId = rssShuffleHandle.getAppId();
     this.startPartition = startPartition;
@@ -67,6 +71,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     this.indexReadLimit = indexReadLimit;
     this.storageType = storageType;
     this.readBufferSize = readBufferSize;
+    this.partitionsPerServer = partitionsPerServer;
+    this.partitionNum = partitionNum;
     this.expectedBlockIds = expectedBlockIds;
   }
 
@@ -75,7 +81,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     LOG.info("Shuffle read started:" + getReadInfo());
 
     CreateShuffleReadClientRequest request = new CreateShuffleReadClientRequest(
-        storageType, basePath, hadoopConf, indexReadLimit, readBufferSize, expectedBlockIds);
+        appId, shuffleId, startPartition, storageType, basePath, hadoopConf, indexReadLimit,
+        readBufferSize, partitionsPerServer, partitionNum, expectedBlockIds);
     ShuffleReadClient shuffleReadClient = ShuffleClientFactory.getINSTANCE().createShuffleReadClient(request);
 
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator<K, C>(

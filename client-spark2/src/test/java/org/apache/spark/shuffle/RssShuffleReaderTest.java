@@ -7,7 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.tencent.rss.storage.FileBasedShuffleWriteHandler;
+import com.tencent.rss.storage.handler.impl.HdfsShuffleWriteHandler;
+import com.tencent.rss.storage.utils.StorageType;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.ShuffleDependency;
@@ -28,8 +29,8 @@ public class RssShuffleReaderTest extends RssReaderTestBase {
   public void readTest() throws Exception {
 
     String basePath = HDFS_URI + "readTest1";
-    FileBasedShuffleWriteHandler writeHandler =
-        new FileBasedShuffleWriteHandler(basePath, "test", conf);
+    HdfsShuffleWriteHandler writeHandler =
+        new HdfsShuffleWriteHandler("appId", 0, 0, 1, basePath, "test", conf);
 
     Map<String, String> expectedData = Maps.newHashMap();
     Set<Long> expectedBlockIds = Sets.newHashSet();
@@ -39,7 +40,7 @@ public class RssShuffleReaderTest extends RssReaderTestBase {
     TaskContext contextMock = mock(TaskContext.class);
     RssShuffleHandle handleMock = mock(RssShuffleHandle.class);
     ShuffleDependency dependencyMock = mock(ShuffleDependency.class);
-    when(handleMock.getAppId()).thenReturn("testAppId");
+    when(handleMock.getAppId()).thenReturn("appId");
     when(handleMock.getShuffleId()).thenReturn(1);
     when(handleMock.getDependency()).thenReturn(dependencyMock);
     when(dependencyMock.serializer()).thenReturn(KRYO_SERIALIZER);
@@ -52,7 +53,8 @@ public class RssShuffleReaderTest extends RssReaderTestBase {
     when(dependencyMock.keyOrdering()).thenReturn(Option.empty());
 
     RssShuffleReader rssShuffleReaderSpy = spy(new RssShuffleReader<String, String>(0, 1, contextMock,
-        handleMock, basePath, 1000, conf, "FILE", 1000, expectedBlockIds));
+        handleMock, basePath, 1000, conf, StorageType.HDFS.name(),
+        1000, 2, 10, expectedBlockIds));
 
     validateResult(rssShuffleReaderSpy.read(), expectedData, 10);
   }

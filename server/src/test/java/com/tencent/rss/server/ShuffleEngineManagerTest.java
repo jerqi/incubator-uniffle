@@ -8,15 +8,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.common.util.RssUtils;
-import com.tencent.rss.storage.FileBasedShuffleReadHandler;
-import com.tencent.rss.storage.FileBasedShuffleSegment;
 import com.tencent.rss.storage.HdfsTestBase;
+import com.tencent.rss.storage.common.BufferSegment;
+import com.tencent.rss.storage.handler.impl.HdfsShuffleReadHandler;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -26,7 +29,7 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
   private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
   private static AtomicInteger ATOMIC_INT = new AtomicInteger(0);
 
-  private ShuffleEngineManager shuffleEngineManager = new ShuffleEngineManager("test", "1");
+  private ShuffleEngineManager shuffleEngineManager = new ShuffleEngineManager("test", 1);
   private ShuffleEngine mockShuffleEngine = mock(ShuffleEngine.class);
 
   @BeforeClass
@@ -59,10 +62,12 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
     ShuffleServerConf conf = new ShuffleServerConf(confFile);
     String storageBasePath = HDFS_URI + "rss/test";
     String appId = "testAppId";
-    String shuffleId = "1";
+    int shuffleId = 1;
     conf.setString("rss.server.buffer.capacity", "64");
     conf.setString("rss.server.buffer.size", "64");
     conf.setString("rss.storage.basePath", storageBasePath);
+    conf.setString("rss.storage.type", "HDFS");
+    conf.setString("rss.server.commit.timeout", "10000");
     ShuffleServer shuffleServer = new ShuffleServer(conf);
     BufferManager bufferManager = shuffleServer.getBufferManager();
     String serverId = shuffleServer.getId();
@@ -71,8 +76,10 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
         appId, shuffleId, conf, bufferManager, shuffleFlushManager);
     shuffleEngineManager.registerShuffleEngine(0, 1);
     shuffleEngineManager.registerShuffleEngine(2, 3);
+    List<ShufflePartitionedBlock> expectedBlocks0 = Lists.newArrayList();
     List<ShufflePartitionedBlock> expectedBlocks1 = Lists.newArrayList();
     List<ShufflePartitionedBlock> expectedBlocks2 = Lists.newArrayList();
+    List<ShufflePartitionedBlock> expectedBlocks3 = Lists.newArrayList();
     String shuffleFilePath1 = RssUtils.getShuffleDataPath(appId, shuffleId, 0, 1);
     String shuffleFilePath2 = RssUtils.getShuffleDataPath(appId, shuffleId, 2, 3);
 
@@ -90,7 +97,7 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
 
     // flush for partition 0-1
     ShufflePartitionedData partitionedData1 = createPartitionedData(0, 2, 35);
-    expectedBlocks1.addAll(partitionedData1.getBlockList());
+    expectedBlocks0.addAll(partitionedData1.getBlockList());
     sc = shuffleEngineManager.getShuffleEngine(0).write(partitionedData1);
     assertEquals(StatusCode.SUCCESS, sc);
     waitForFlush(shuffleFlushManager, shuffleFilePath1, 2, false);
@@ -109,7 +116,7 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
 
     // flush for partition 2-3
     ShufflePartitionedData partitionedData4 = createPartitionedData(3, 1, 35);
-    expectedBlocks2.addAll(partitionedData4.getBlockList());
+    expectedBlocks3.addAll(partitionedData4.getBlockList());
     sc = shuffleEngineManager.getShuffleEngine(3).write(partitionedData4);
     assertEquals(StatusCode.SUCCESS, sc);
 
@@ -135,11 +142,10 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
     assertEquals(4, shuffleFlushManager.getEventIds(shuffleFilePath1).size());
     assertEquals(1, shuffleFlushManager.getEventIds(shuffleFilePath2).size());
 
-    String shuffleDataFolder = RssUtils.getFullShuffleDataFolder(storageBasePath, shuffleFilePath1);
-    validate(expectedBlocks1, shuffleDataFolder, serverId);
-
-    shuffleDataFolder = RssUtils.getFullShuffleDataFolder(storageBasePath, shuffleFilePath2);
-    validate(expectedBlocks2, shuffleDataFolder, serverId);
+    validate(appId, shuffleId, 0, expectedBlocks0, storageBasePath);
+    validate(appId, shuffleId, 1, expectedBlocks1, storageBasePath);
+    validate(appId, shuffleId, 2, expectedBlocks2, storageBasePath);
+    validate(appId, shuffleId, 3, expectedBlocks3, storageBasePath);
 
     // flush for partition 0-1
     ShufflePartitionedData partitionedData7 = createPartitionedData(0, 2, 35);
@@ -190,24 +196,21 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
     return blocks;
   }
 
-  private void validate(List<ShufflePartitionedBlock> blocks,
-      String basePath, String fileNamePrefix) throws Exception {
-    FileBasedShuffleReadHandler handler = new FileBasedShuffleReadHandler(basePath, fileNamePrefix, conf);
-    List<FileBasedShuffleSegment> allSegments = Lists.newArrayList();
-    List<FileBasedShuffleSegment> segments = handler.readIndex(100);
-    while (!segments.isEmpty()) {
-      allSegments.addAll(segments);
-      segments = handler.readIndex(100);
-    }
-    assertEquals(blocks.size(), allSegments.size());
+  private void validate(String appId, int shuffleId, int partitionId, List<ShufflePartitionedBlock> blocks,
+      String basePath) {
+    HdfsShuffleReadHandler handler = new HdfsShuffleReadHandler(appId, shuffleId, partitionId,
+        100, 2, 10, 1000, basePath, Sets.newHashSet(1L));
+
+    Set<Long> blockIds = handler.getAllBlockIds();
+    handler.readShuffleData(blockIds);
+
+    Map<Long, BufferSegment> processingBlockIds = handler.getBlockIdToBufferSegment();
     int matchNum = 0;
     for (ShufflePartitionedBlock block : blocks) {
-      for (FileBasedShuffleSegment segment : allSegments) {
-        if (block.getBlockId() == segment.getBlockId()) {
-          assertEquals(block.getLength(), segment.getLength());
-          assertEquals(block.getCrc(), segment.getCrc());
-          matchNum++;
-        }
+      if (processingBlockIds.keySet().contains(block.getBlockId())) {
+        assertEquals(block.getLength(), processingBlockIds.get(block.getBlockId()).getLength());
+        assertEquals(block.getCrc(), processingBlockIds.get(block.getBlockId()).getCrc());
+        matchNum++;
       }
     }
     assertEquals(blocks.size(), matchNum);

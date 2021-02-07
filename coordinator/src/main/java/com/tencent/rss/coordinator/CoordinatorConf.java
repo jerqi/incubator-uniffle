@@ -37,16 +37,6 @@ public class CoordinatorConf extends RssBaseConf {
       .stringType()
       .defaultValue("local")
       .withDescription("Data storage for remote shuffle service");
-  private static final ConfigOption<String> DATA_STORAGE_PATH = ConfigOptions
-      .key("rss.storage.path")
-      .stringType()
-      .defaultValue("")
-      .withDescription("Common storage path for remote shuffle data");
-  private static final ConfigOption<String> DATA_STORAGE_PATTERN = ConfigOptions
-      .key("rss.storage.pattern")
-      .stringType()
-      .defaultValue("partition")
-      .withDescription("Data layout in remote shuffle service cluster");
 
   public CoordinatorConf() {
   }
@@ -71,14 +61,6 @@ public class CoordinatorConf extends RssBaseConf {
     properties.forEach((k, v) -> {
       if (DATA_STORAGE.key().equalsIgnoreCase(k)) {
         set(DATA_STORAGE, v.toUpperCase());
-      }
-
-      if (DATA_STORAGE_PATH.key().equalsIgnoreCase(k)) {
-        set(DATA_STORAGE_PATH, v);
-      }
-
-      if (DATA_STORAGE_PATTERN.key().equalsIgnoreCase(k)) {
-        set(DATA_STORAGE_PATTERN, v);
       }
 
       if (SHUFFLE_SERVER_REPLICA.key().equalsIgnoreCase(k)) {
@@ -106,16 +88,8 @@ public class CoordinatorConf extends RssBaseConf {
     return this.getString(DATA_STORAGE);
   }
 
-  public String getDataStoragePath() {
-    return this.getString(DATA_STORAGE_PATH);
-  }
-
   public int getShuffleServerReplica() {
     return this.getInteger(SHUFFLE_SERVER_REPLICA);
-  }
-
-  public String getDataStoragePattern() {
-    return this.getString(DATA_STORAGE_PATTERN);
   }
 
   public String getShuffleServerAssignmentStrategy() {

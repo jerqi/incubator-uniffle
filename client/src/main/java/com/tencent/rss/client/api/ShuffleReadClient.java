@@ -4,7 +4,7 @@ public interface ShuffleReadClient {
 
   void checkExpectedBlockIds();
 
-  byte[] readShuffleData();
+  byte[] readShuffleBlockData();
 
   void checkProcessedBlockIds();
 

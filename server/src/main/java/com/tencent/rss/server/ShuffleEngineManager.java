@@ -20,7 +20,7 @@ public class ShuffleEngineManager {
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleEngineManager.class);
 
   private final String appId;
-  private final String shuffleId;
+  private final int shuffleId;
   private final ShuffleServerConf conf;
   private final BufferManager bufferManager;
   private final ShuffleFlushManager shuffleFlushManager;
@@ -30,7 +30,7 @@ public class ShuffleEngineManager {
 
   public ShuffleEngineManager(
       String appId,
-      String shuffleId,
+      int shuffleId,
       ShuffleServerConf conf,
       BufferManager bufferManager,
       ShuffleFlushManager shuffleFlushManager) {
@@ -45,7 +45,7 @@ public class ShuffleEngineManager {
     this.shuffleFlushManager = shuffleFlushManager;
   }
 
-  public ShuffleEngineManager(String appId, String shuffleId) {
+  public ShuffleEngineManager(String appId, int shuffleId) {
     engineMap = new ConcurrentHashMap<>();
     partitionRangeMap = TreeRangeMap.create();
     this.appId = appId;
@@ -158,7 +158,7 @@ public class ShuffleEngineManager {
     return this.appId;
   }
 
-  public String getShuffleId() {
+  public int getShuffleId() {
     return this.shuffleId;
   }
 }

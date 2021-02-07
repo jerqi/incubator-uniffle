@@ -33,7 +33,7 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
 
     ShuffleServerConf serverConf = new ShuffleServerConf();
     serverConf.setInteger("rss.rpc.server.port", SHUFFLE_SERVER_PORT);
-    serverConf.setString("rss.storage.type", "FILE");
+    serverConf.setString("rss.storage.type", "HDFS");
     serverConf.setString("rss.storage.basePath", HDFS_URI + "rss/test");
     serverConf.setString("rss.server.buffer.capacity", "671088640");
     serverConf.setString("rss.server.buffer.size", "67108864");

@@ -117,6 +117,24 @@ public class RssBaseConf extends RssConf {
       .defaultValue("GRPC")
       .withDescription("client type for rss");
 
+  public static final ConfigOption<String> DATA_STORAGE_TYPE = ConfigOptions
+      .key("rss.storage.type")
+      .stringType()
+      .noDefaultValue()
+      .withDescription("Data storage for remote shuffle service");
+
+  public static final ConfigOption<String> DATA_STORAGE_BASE_PATH = ConfigOptions
+      .key("rss.storage.basePath")
+      .stringType()
+      .noDefaultValue()
+      .withDescription("Common storage path for remote shuffle data");
+
+  public static final ConfigOption<Integer> DATA_STORAGE_REPLICA = ConfigOptions
+      .key("rss.storage.replica")
+      .intType()
+      .defaultValue(1)
+      .withDescription("Size of each buffer in this server");
+
   public boolean loadCommonConf(Map<String, String> properties) {
     if (properties == null) {
       return false;
@@ -195,6 +213,17 @@ public class RssBaseConf extends RssConf {
         set(RSS_CLIENT_TYPE, v);
       }
 
+      if (DATA_STORAGE_TYPE.key().equalsIgnoreCase(k)) {
+        set(DATA_STORAGE_TYPE, v.toUpperCase());
+      }
+
+      if (DATA_STORAGE_BASE_PATH.key().equalsIgnoreCase(k)) {
+        set(DATA_STORAGE_BASE_PATH, v);
+      }
+
+      if (DATA_STORAGE_REPLICA.key().equalsIgnoreCase(k)) {
+        set(DATA_STORAGE_REPLICA, Integer.valueOf(k));
+      }
     });
 
     return true;

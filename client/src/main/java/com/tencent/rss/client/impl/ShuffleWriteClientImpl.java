@@ -23,7 +23,7 @@ import com.tencent.rss.client.response.RssReportShuffleResultResponse;
 import com.tencent.rss.client.response.RssSendCommitResponse;
 import com.tencent.rss.client.response.RssSendShuffleDataResponse;
 import com.tencent.rss.client.response.SendShuffleDataResult;
-import com.tencent.rss.client.response.ShuffleAssignmentsInfo;
+import com.tencent.rss.common.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;

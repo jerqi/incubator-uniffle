@@ -18,26 +18,26 @@ public class ShuffleGarbageCollectorTest extends MetricsTestBase {
   public void setUp() throws UnknownHostException, FileNotFoundException {
     shuffleServer = new ShuffleServer(confFile);
     shuffleGarbageCollector = new ShuffleGarbageCollector(shuffleServer);
-    shuffleServer.getShuffleTaskManager().registerShuffle("testApp1", "s1", 0, 2);
-    shuffleServer.getShuffleTaskManager().registerShuffle("testApp1", "s1", 3, 4);
-    shuffleServer.getShuffleTaskManager().registerShuffle("testApp2", "s1", 0, 4);
-    shuffleServer.getShuffleTaskManager().registerShuffle("testApp2", "s1", 5, 10);
-    shuffleServer.getShuffleTaskManager().registerShuffle("testApp3", "s1", 0, 10);
+    shuffleServer.getShuffleTaskManager().registerShuffle("testApp1", 1, 0, 2);
+    shuffleServer.getShuffleTaskManager().registerShuffle("testApp1", 1, 3, 4);
+    shuffleServer.getShuffleTaskManager().registerShuffle("testApp2", 1, 0, 4);
+    shuffleServer.getShuffleTaskManager().registerShuffle("testApp2", 1, 5, 10);
+    shuffleServer.getShuffleTaskManager().registerShuffle("testApp3", 1, 0, 10);
   }
 
   @Test
   public void testGC() throws Exception {
-    shuffleServer.getShuffleTaskManager().commitShuffle("testApp1", "s1");
-    shuffleServer.getShuffleTaskManager().commitShuffle("testApp2", "s1");
-    ShuffleEngine shuffleEngine = getShuffleEngine("testApp3", "s1", "0", "10");
+    shuffleServer.getShuffleTaskManager().commitShuffle("testApp1", 1);
+    shuffleServer.getShuffleTaskManager().commitShuffle("testApp2", 1);
+    ShuffleEngine shuffleEngine = getShuffleEngine("testApp3", "1", "0", "10");
     shuffleEngine.setTimestamp(Long.MAX_VALUE);
     Thread.sleep(5000);
     shuffleGarbageCollector.doGC();
     shuffleGarbageCollector.getExecutorService().shutdown();
     shuffleGarbageCollector.getExecutorService().awaitTermination(5, TimeUnit.SECONDS);
     assertEquals(1, shuffleServer.getShuffleTaskManager().getShuffleTaskEngines().size());
-    assertEquals(1, getShuffleEngineManager("testApp3", "s1").getEngineMap().size());
-    assertEquals(shuffleEngine, getShuffleEngineManager("testApp3", "s1").getEngineMap().get("0~10"));
+    assertEquals(1, getShuffleEngineManager("testApp3", "1").getEngineMap().size());
+    assertEquals(shuffleEngine, getShuffleEngineManager("testApp3", "1").getEngineMap().get("0~10"));
   }
 
   private ShuffleEngineManager getShuffleEngineManager(String appId, String shuffleId) {

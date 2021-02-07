@@ -50,7 +50,7 @@ public class ShuffleTaskManager {
     return String.join(KEY_DELIMITER, vars);
   }
 
-  public StatusCode registerShuffle(String appId, String shuffleId, int startPartition, int endPartition) {
+  public StatusCode registerShuffle(String appId, int shuffleId, int startPartition, int endPartition) {
     if (bufferManager.isFull()) {
       return StatusCode.NO_BUFFER;
     }
@@ -62,8 +62,8 @@ public class ShuffleTaskManager {
   }
 
   public StatusCode registerShuffle(
-      String appId, String shuffleId, int startPartition, int endPartition, ShuffleEngineManager engineManager) {
-    String key = constructKey(appId, shuffleId);
+      String appId, int shuffleId, int startPartition, int endPartition, ShuffleEngineManager engineManager) {
+    String key = constructKey(appId, String.valueOf(shuffleId));
     ShuffleEngineManager shuffleEngineManager = shuffleTaskEngines.putIfAbsent(key, engineManager);
 
     if (shuffleEngineManager == null) {
@@ -86,8 +86,8 @@ public class ShuffleTaskManager {
     return shuffleEngineManager.getShuffleEngine(partition);
   }
 
-  public StatusCode commitShuffle(String appId, String shuffleId) throws Exception {
-    String key = constructKey(appId, shuffleId);
+  public StatusCode commitShuffle(String appId, int shuffleId) throws Exception {
+    String key = constructKey(appId, String.valueOf(shuffleId));
     ShuffleEngineManager shuffleEngineManager = shuffleTaskEngines.get(key);
 
     if (shuffleEngineManager == null) {

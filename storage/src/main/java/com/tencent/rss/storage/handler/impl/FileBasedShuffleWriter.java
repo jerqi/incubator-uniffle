@@ -1,5 +1,7 @@
-package com.tencent.rss.storage;
+package com.tencent.rss.storage.handler.impl;
 
+import com.tencent.rss.storage.common.FileBasedShuffleSegment;
+import com.tencent.rss.storage.utils.ShuffleStorageUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;

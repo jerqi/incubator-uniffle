@@ -6,15 +6,13 @@ import com.google.common.collect.Sets;
 import com.tencent.rss.client.api.ShuffleWriteClient;
 import com.tencent.rss.client.factory.ShuffleClientFactory;
 import com.tencent.rss.client.response.SendShuffleDataResult;
-import com.tencent.rss.client.response.ShuffleAssignmentsInfo;
+import com.tencent.rss.common.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
-import com.tencent.rss.common.util.RssUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkEnv;
@@ -217,28 +215,22 @@ public class RssShuffleManager implements ShuffleManager {
       RssShuffleHandle rssShuffleHandle = (RssShuffleHandle) handle;
       int partitionsPerServer = sparkConf.getInt(RssClientConfig.RSS_PARTITIONS_PER_SERVER,
           RssClientConfig.RSS_PARTITIONS_PER_SERVER_DEFAULT_VALUE);
+      int partitionNum = rssShuffleHandle.getDependency().partitioner().numPartitions();
       long readBufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE,
           RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE_DEFAULT_VALUE);
       if (readBufferSize > Integer.MAX_VALUE) {
         LOG.warn(RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE + " can support 2g as max");
         readBufferSize = Integer.MAX_VALUE;
       }
-      String fullShufflePath = RssUtils.getFullShuffleDataFolder(shuffleDataBasePath,
-          RssUtils.getShuffleDataPathWithRange(appId, rssShuffleHandle.getShuffleId(),
-              startPartition, partitionsPerServer,
-              rssShuffleHandle.getDependency().partitioner().numPartitions()));
-      if (StringUtils.isEmpty(shuffleDataBasePath)) {
-        throw new RuntimeException("Can't get shuffle base path");
-      }
-
       List<Long> expectedBlockIds = shuffleWriteClient.getShuffleResult(
           clientType, rssShuffleHandle.getShuffleServersForResult(),
           appId, rssShuffleHandle.getShuffleId(), startPartition);
 
       return new RssShuffleReader<K, C>(startPartition, endPartition, context,
-          rssShuffleHandle, fullShufflePath, indexReadLimit,
+          rssShuffleHandle, shuffleDataBasePath, indexReadLimit,
           SparkHadoopUtil$.MODULE$.newConfiguration(SparkEnv.get().conf()),
-          storageType, (int) readBufferSize, Sets.newHashSet(expectedBlockIds));
+          storageType, (int) readBufferSize, partitionsPerServer, partitionNum,
+          Sets.newHashSet(expectedBlockIds));
     } else {
       throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());
     }

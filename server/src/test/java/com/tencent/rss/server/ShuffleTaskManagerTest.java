@@ -42,9 +42,9 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
     when(mockEngineManager.registerShuffleEngine(21, 30))
         .thenReturn(StatusCode.SUCCESS);
 
-    shuffleTaskManager.registerShuffle("test", "1", 1, 10, mockEngineManager);
-    shuffleTaskManager.registerShuffle("test", "1", 11, 20, mockEngineManager);
-    shuffleTaskManager.registerShuffle("test", "1", 21, 30, mockEngineManager);
+    shuffleTaskManager.registerShuffle("test", 1, 1, 10, mockEngineManager);
+    shuffleTaskManager.registerShuffle("test", 1, 11, 20, mockEngineManager);
+    shuffleTaskManager.registerShuffle("test", 1, 21, 30, mockEngineManager);
 
     String key = ShuffleTaskManager.constructKey("test", "1");
     ShuffleEngineManager shuffleEngineManager = shuffleTaskManager
@@ -73,7 +73,7 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
       int start = i;
       int end = i + 9;
       calls.add(
-          () -> shuffleTaskManager.registerShuffle("test", "1", start, end, mockEngineManager));
+          () -> shuffleTaskManager.registerShuffle("test", 1, start, end, mockEngineManager));
     }
 
     List<Future<StatusCode>> results = executorService.invokeAll(calls);
@@ -101,16 +101,16 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
     when(mockEngineManager.registerShuffleEngine(21, 30))
         .thenReturn(StatusCode.SUCCESS);
 
-    ShuffleEngine shuffleEngine1 = new ShuffleEngine("test", "1", 1, 10);
-    ShuffleEngine shuffleEngine2 = new ShuffleEngine("test", "1", 11, 20);
-    ShuffleEngine shuffleEngine3 = new ShuffleEngine("test", "1", 21, 30);
+    ShuffleEngine shuffleEngine1 = new ShuffleEngine("test", 1, 1, 10);
+    ShuffleEngine shuffleEngine2 = new ShuffleEngine("test", 1, 11, 20);
+    ShuffleEngine shuffleEngine3 = new ShuffleEngine("test", 1, 21, 30);
     when(mockEngineManager.getShuffleEngine(1)).thenReturn(shuffleEngine1);
     when(mockEngineManager.getShuffleEngine(13)).thenReturn(shuffleEngine2);
     when(mockEngineManager.getShuffleEngine(25)).thenReturn(shuffleEngine3);
 
-    shuffleTaskManager.registerShuffle("test", "1", 1, 10, mockEngineManager);
-    shuffleTaskManager.registerShuffle("test", "1", 11, 20, mockEngineManager);
-    shuffleTaskManager.registerShuffle("test", "1", 21, 30, mockEngineManager);
+    shuffleTaskManager.registerShuffle("test", 1, 1, 10, mockEngineManager);
+    shuffleTaskManager.registerShuffle("test", 1, 11, 20, mockEngineManager);
+    shuffleTaskManager.registerShuffle("test", 1, 21, 30, mockEngineManager);
 
     ShuffleEngine actual1 = shuffleTaskManager.getShuffleEngine("test", "1", 1);
     assertEquals(shuffleEngine1, actual1);
@@ -129,15 +129,15 @@ public class ShuffleTaskManagerTest extends MetricsTestBase {
 
     when(mockEngineManager.commit()).thenReturn(StatusCode.SUCCESS);
 
-    shuffleTaskManager.registerShuffle("test", "1", 1, 10, mockEngineManager);
-    shuffleTaskManager.registerShuffle("test", "1", 11, 20, mockEngineManager);
-    shuffleTaskManager.registerShuffle("test", "1", 21, 30, mockEngineManager);
+    shuffleTaskManager.registerShuffle("test", 1, 1, 10, mockEngineManager);
+    shuffleTaskManager.registerShuffle("test", 1, 11, 20, mockEngineManager);
+    shuffleTaskManager.registerShuffle("test", 1, 21, 30, mockEngineManager);
 
-    StatusCode actual = shuffleTaskManager.commitShuffle("test", "1");
+    StatusCode actual = shuffleTaskManager.commitShuffle("test", 1);
     StatusCode expected = StatusCode.SUCCESS;
     assertEquals(expected, actual);
 
-    actual = shuffleTaskManager.commitShuffle("test", "2");
+    actual = shuffleTaskManager.commitShuffle("test", 2);
     expected = StatusCode.NO_REGISTER;
     assertEquals(expected, actual);
 

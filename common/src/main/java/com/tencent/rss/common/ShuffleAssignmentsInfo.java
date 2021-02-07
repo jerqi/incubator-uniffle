@@ -1,7 +1,5 @@
-package com.tencent.rss.client.response;
+package com.tencent.rss.common;
 
-import com.tencent.rss.common.ShuffleRegisterInfo;
-import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

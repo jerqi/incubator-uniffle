@@ -66,7 +66,7 @@ public class GrpcService extends ShuffleServerImplBase {
 
     ShuffleRegisterResponse reply;
     String appId = req.getAppId();
-    String shuffleId = String.valueOf(req.getShuffleId());
+    int shuffleId = req.getShuffleId();
     int start = req.getStart();
     int end = req.getEnd();
 
@@ -192,7 +192,7 @@ public class GrpcService extends ShuffleServerImplBase {
 
     ShuffleCommitResponse reply;
     String appId = req.getAppId();
-    String shuffleId = String.valueOf(req.getShuffleId());
+    int shuffleId = req.getShuffleId();
 
     StatusCode status = StatusCode.SUCCESS;
     String msg = "OK";
