@@ -5,7 +5,7 @@ import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShufflePartitionedData;
-import com.tencent.rss.common.util.RssUtils;
+import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.IOException;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -147,8 +147,8 @@ public class ShuffleEngine {
   @VisibleForTesting
   String getBasePath() {
     String basePath = conf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH);
-    String subPath = RssUtils.getShuffleDataPath(appId, shuffleId, startPartition, endPartition);
-    return RssUtils.getFullShuffleDataFolder(basePath, subPath);
+    String subPath = ShuffleStorageUtils.getShuffleDataPath(appId, shuffleId, startPartition, endPartition);
+    return ShuffleStorageUtils.getFullShuffleDataFolder(basePath, subPath);
   }
 
   @VisibleForTesting

@@ -32,10 +32,6 @@ public class RssShuffleDataIterator<K, C> extends AbstractIterator<Product2<K, C
     this.shuffleReadMetrics = shuffleReadMetrics;
   }
 
-  public void checkExpectedBlockIds() {
-    shuffleReadClient.checkExpectedBlockIds();
-  }
-
   public Iterator<Tuple2<Object, Object>> createKVIterator(byte[] data) {
     Input deserializationInput = new Input(data, 0, data.length);
     DeserializationStream ds = serializerInstance.deserializeStream(deserializationInput);

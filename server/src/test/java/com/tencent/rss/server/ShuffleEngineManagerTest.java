@@ -9,18 +9,19 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.tencent.rss.common.BufferSegment;
+import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.common.util.ChecksumUtils;
-import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.storage.HdfsTestBase;
-import com.tencent.rss.storage.common.BufferSegment;
-import com.tencent.rss.storage.handler.impl.HdfsShuffleReadHandler;
+import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
+import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -80,8 +81,8 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
     List<ShufflePartitionedBlock> expectedBlocks1 = Lists.newArrayList();
     List<ShufflePartitionedBlock> expectedBlocks2 = Lists.newArrayList();
     List<ShufflePartitionedBlock> expectedBlocks3 = Lists.newArrayList();
-    String shuffleFilePath1 = RssUtils.getShuffleDataPath(appId, shuffleId, 0, 1);
-    String shuffleFilePath2 = RssUtils.getShuffleDataPath(appId, shuffleId, 2, 3);
+    String shuffleFilePath1 = ShuffleStorageUtils.getShuffleDataPath(appId, shuffleId, 0, 1);
+    String shuffleFilePath2 = ShuffleStorageUtils.getShuffleDataPath(appId, shuffleId, 2, 3);
 
     shuffleEngineManager.commit();
 
@@ -198,19 +199,22 @@ public class ShuffleEngineManagerTest extends HdfsTestBase {
 
   private void validate(String appId, int shuffleId, int partitionId, List<ShufflePartitionedBlock> blocks,
       String basePath) {
-    HdfsShuffleReadHandler handler = new HdfsShuffleReadHandler(appId, shuffleId, partitionId,
-        100, 2, 10, 1000, basePath, Sets.newHashSet(1L));
+    Set<Long> blockIds = Sets.newHashSet(blocks.stream().map(spb -> spb.getBlockId()).collect(Collectors.toList()));
+    HdfsClientReadHandler handler = new HdfsClientReadHandler(appId, shuffleId, partitionId,
+        100, 2, 10, 1000, basePath, blockIds);
 
-    Set<Long> blockIds = handler.getAllBlockIds();
-    handler.readShuffleData(blockIds);
+    ShuffleDataResult sdr = handler.readShuffleData(blockIds);
 
-    Map<Long, BufferSegment> processingBlockIds = handler.getBlockIdToBufferSegment();
+    List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     int matchNum = 0;
     for (ShufflePartitionedBlock block : blocks) {
-      if (processingBlockIds.keySet().contains(block.getBlockId())) {
-        assertEquals(block.getLength(), processingBlockIds.get(block.getBlockId()).getLength());
-        assertEquals(block.getCrc(), processingBlockIds.get(block.getBlockId()).getCrc());
-        matchNum++;
+      for (BufferSegment bs : bufferSegments) {
+        if (bs.getBlockId() == block.getBlockId()) {
+          assertEquals(block.getLength(), bs.getLength());
+          assertEquals(block.getCrc(), bs.getCrc());
+          matchNum++;
+          break;
+        }
       }
     }
     assertEquals(blocks.size(), matchNum);

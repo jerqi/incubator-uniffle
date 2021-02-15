@@ -1,4 +1,4 @@
-package com.tencent.rss.storage;
+package com.tencent.rss.storage.handler.impl;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -6,9 +6,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
+import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
-import com.tencent.rss.storage.handler.impl.FileBasedShuffleReader;
-import com.tencent.rss.storage.handler.impl.FileBasedShuffleWriter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -18,11 +17,8 @@ import org.hamcrest.core.StringStartsWith;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
-public class FileBasedShuffleReaderTest extends HdfsTestBase {
+public class HdfsFileReaderTest extends HdfsTestBase {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -32,7 +28,7 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
     Path path = new Path(HDFS_URI, "createStreamTest");
     fs.create(path);
 
-    try (FileBasedShuffleReader reader = new FileBasedShuffleReader(path, conf)) {
+    try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
       reader.createStream();
       assertTrue(fs.isFile(path));
       assertEquals(0L, reader.getOffset());
@@ -46,7 +42,7 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
     Path path = new Path(HDFS_URI, "createStreamFirstTest");
 
     assertFalse(fs.isFile(path));
-    try (FileBasedShuffleReader reader = new FileBasedShuffleReader(path, conf)) {
+    try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
       thrown.expect(IllegalStateException.class);
       thrown.expectMessage(StringStartsWith.startsWith(HDFS_URI + "createStreamFirstTest don't exist"));
       reader.createStream();
@@ -59,7 +55,7 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
     byte[] data = new byte[160];
     new Random().nextBytes(data);
 
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       ByteString byteString = ByteString.copyFrom(data);
       writer.createStream();
       writer.writeData(byteString.asReadOnlyByteBuffer());
@@ -67,8 +63,8 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
 
     int offset = 128;
     int length = 32;
-    FileBasedShuffleSegment segment = new FileBasedShuffleSegment(offset, length, 0xdeadbeef, 23);
-    try (FileBasedShuffleReader reader = new FileBasedShuffleReader(path, conf)) {
+    FileBasedShuffleSegment segment = new FileBasedShuffleSegment(23, offset, length, 0xdeadbeef);
+    try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
       reader.createStream();
       byte[] actual = reader.readData(segment);
       for (int i = 0; i < length; ++i) {
@@ -76,7 +72,7 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
       }
 
       // EOF exception is expected
-      segment = new FileBasedShuffleSegment(offset * 2, length, 1, 23);
+      segment = new FileBasedShuffleSegment(23, offset * 2, length, 1);
       assertNull(reader.readData(segment));
     }
   }
@@ -85,19 +81,19 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
   public void readIndexTest() throws IOException {
     Path path = new Path(HDFS_URI, "readIndexTest");
     FileBasedShuffleSegment[] segments = {
-        new FileBasedShuffleSegment(0, 32, 1, 123),
-        new FileBasedShuffleSegment(32, 23, 2, 223),
-        new FileBasedShuffleSegment(64, 32, 3, 323)
+        new FileBasedShuffleSegment(123, 0, 32, 1),
+        new FileBasedShuffleSegment(223, 32, 23, 2),
+        new FileBasedShuffleSegment(323, 64, 32, 3)
     };
 
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       writer.createStream();
       for (int i = 0; i < segments.length; ++i) {
         writer.writeIndex(segments[i]);
       }
     }
 
-    try (FileBasedShuffleReader reader = new FileBasedShuffleReader(path, conf)) {
+    try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
       reader.createStream();
 
       // test limit
@@ -125,12 +121,12 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
   public void readIndexFailTest() throws IOException {
     Path path = new Path(HDFS_URI, "readIndexFailTest");
     FileBasedShuffleSegment[] segments = {
-        new FileBasedShuffleSegment(0, 32, 1, 123),
-        new FileBasedShuffleSegment(32, 23, 2, 223),
-        new FileBasedShuffleSegment(64, 32, 3, 323)
+        new FileBasedShuffleSegment(123, 0, 32, 1),
+        new FileBasedShuffleSegment(223, 32, 23, 2),
+        new FileBasedShuffleSegment(323, 64, 32, 3)
     };
 
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       writer.createStream();
       for (int i = 0; i < segments.length; ++i) {
         writer.writeIndex(segments[i]);
@@ -143,7 +139,7 @@ public class FileBasedShuffleReaderTest extends HdfsTestBase {
       writer.writeData(buf);
     }
 
-    try (FileBasedShuffleReader reader = new FileBasedShuffleReader(path, conf)) {
+    try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
       reader.createStream();
 
       // test limit

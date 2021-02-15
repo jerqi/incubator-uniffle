@@ -1,17 +1,15 @@
 package com.tencent.rss.storage.handler.impl;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.tencent.rss.common.BufferSegment;
+import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.util.Constants;
-import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.storage.api.ShuffleReader;
-import com.tencent.rss.storage.common.BufferSegment;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
-import com.tencent.rss.storage.utils.ShuffleStorageUtils;
+import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -24,24 +22,22 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HdfsShuffleReadHandler extends AbstractFileShuffleReadHandler {
+public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
 
-  private static final Logger LOG = LoggerFactory.getLogger(HdfsShuffleReadHandler.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HdfsClientReadHandler.class);
   private final int indexReadLimit;
-  private Map<String, FileBasedShuffleReader> dataReaderMap = Maps.newHashMap();
-  private Map<String, FileBasedShuffleReader> indexReaderMap = Maps.newHashMap();
-  private Set<Long> blockIds = Sets.newHashSet();
+  private Map<String, HdfsFileReader> dataReaderMap = Maps.newHashMap();
+  private Map<String, HdfsFileReader> indexReaderMap = Maps.newHashMap();
+  private Set<Long> expectedBlockIds = Sets.newHashSet();
   private List<FileReadSegment> fileReadSegments = Lists.newArrayList();
   private int partitionsPerServer;
   private int partitionNum;
   private int readBufferSize;
   private String storageBasePath;
-  private Map<Long, BufferSegment> blockIdToBufferSegment = Maps.newHashMap();
-  //  private Map<String, List<FileBasedShuffleSegment>> pathToSegments = Maps.newHashMap();
   private AtomicLong readIndexTime = new AtomicLong(0);
   private AtomicLong readDataTime = new AtomicLong(0);
 
-  public HdfsShuffleReadHandler(
+  public HdfsClientReadHandler(
       String appId,
       int shuffleId,
       int partitionId,
@@ -59,14 +55,16 @@ public class HdfsShuffleReadHandler extends AbstractFileShuffleReadHandler {
     this.partitionNum = partitionNum;
     this.readBufferSize = readBufferSize;
     this.storageBasePath = storageBasePath;
+    this.expectedBlockIds = expectedBlockIds;
     if (expectedBlockIds != null && !expectedBlockIds.isEmpty()) {
       init();
     }
   }
 
   private void init() {
-    String fullShufflePath = RssUtils.getFullShuffleDataFolder(storageBasePath,
-        RssUtils.getShuffleDataPathWithRange(appId, shuffleId, partitionId, partitionsPerServer, partitionNum));
+    String fullShufflePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
+        ShuffleStorageUtils.getShuffleDataPathWithRange(appId,
+            shuffleId, partitionId, partitionsPerServer, partitionNum));
 
     FileSystem fs;
     Path baseFolder = new Path(fullShufflePath);
@@ -115,7 +113,8 @@ public class HdfsShuffleReadHandler extends AbstractFileShuffleReadHandler {
    * Read all index files, and get all FileBasedShuffleSegment for every index file
    */
   private void readAllIndexSegments() {
-    for (Entry<String, FileBasedShuffleReader> entry : indexReaderMap.entrySet()) {
+    Set<Long> blockIds = Sets.newHashSet();
+    for (Entry<String, HdfsFileReader> entry : indexReaderMap.entrySet()) {
       String path = entry.getKey();
       try {
         LOG.info("Read index file for: " + path);
@@ -132,37 +131,40 @@ public class HdfsShuffleReadHandler extends AbstractFileShuffleReadHandler {
           segments = reader.readIndex(indexReadLimit);
         }
         readIndexTime.addAndGet((System.currentTimeMillis() - start));
-//        pathToSegments.put(path, allSegments);
-        fileReadSegments.addAll(mergeSegments(path, allSegments));
+        fileReadSegments.addAll(ShuffleStorageUtils.mergeSegments(path, allSegments, readBufferSize));
       } catch (Exception e) {
         LOG.warn("Can't read index segments for " + path, e);
       }
     }
+
+    if (!blockIds.containsAll(expectedBlockIds)) {
+      Set<Long> copy = Sets.newHashSet(expectedBlockIds);
+      copy.removeAll(blockIds);
+      throw new RuntimeException("Can't find blockIds " + copy + ", expected[" + expectedBlockIds + "]");
+    }
   }
 
   @Override
-  public byte[] readShuffleData(Set<Long> blockIds) {
+  public ShuffleDataResult readShuffleData(Set<Long> blockIds) {
     byte[] readBuffer = null;
-    blockIdToBufferSegment.clear();
+    List<BufferSegment> bufferSegments = Lists.newArrayList();
     if (fileReadSegments != null) {
       // missing some blocks, keep reading
       if (blockIds.size() > 0) {
         for (FileReadSegment fileSegment : fileReadSegments) {
           Set<Long> leftIds = Sets.newHashSet(blockIds);
-          leftIds.retainAll(fileSegment.getBlockIdToBufferSegment().keySet());
+          leftIds.retainAll(fileSegment.getBlockIds());
           // if the fileSegment has missing blocks
           if (leftIds.size() > 0) {
             try {
               long start = System.currentTimeMillis();
               readBuffer = dataReaderMap.get(fileSegment.getPath()).readData(
-                  new FileBasedShuffleSegment(fileSegment.getOffset(), fileSegment.getLength(), 0, 0));
+                  new FileBasedShuffleSegment(0, fileSegment.getOffset(), fileSegment.getLength(), 0));
               LOG.info("Read File segment: " + fileSegment.getPath() + ", offset["
                   + fileSegment.getOffset() + "], length[" + fileSegment.getLength()
                   + "], cost:" + (System.currentTimeMillis() - start) + " ms, for " + leftIds);
               readDataTime.addAndGet(System.currentTimeMillis() - start);
-              for (Long blockId : leftIds) {
-                blockIdToBufferSegment.put(blockId, fileSegment.getBlockIdToBufferSegment().get(blockId));
-              }
+              bufferSegments.addAll(fileSegment.getBufferSegments());
               break;
             } catch (Exception e) {
               LOG.warn("Can't read data for " + fileSegment.getPath() + ", offset["
@@ -172,23 +174,12 @@ public class HdfsShuffleReadHandler extends AbstractFileShuffleReadHandler {
         }
       }
     }
-    return readBuffer;
-  }
-
-  @Override
-  public Map<Long, BufferSegment> getBlockIdToBufferSegment() {
-    return blockIdToBufferSegment;
-  }
-
-
-  @Override
-  public Set<Long> getAllBlockIds() {
-    return blockIds;
+    return new ShuffleDataResult(readBuffer, bufferSegments);
   }
 
   @Override
   public synchronized void close() {
-    for (Map.Entry<String, FileBasedShuffleReader> entry : dataReaderMap.entrySet()) {
+    for (Map.Entry<String, HdfsFileReader> entry : dataReaderMap.entrySet()) {
       try {
         entry.getValue().close();
       } catch (IOException ioe) {
@@ -197,7 +188,7 @@ public class HdfsShuffleReadHandler extends AbstractFileShuffleReadHandler {
       }
     }
 
-    for (Map.Entry<String, FileBasedShuffleReader> entry : indexReaderMap.entrySet()) {
+    for (Map.Entry<String, HdfsFileReader> entry : indexReaderMap.entrySet()) {
       try {
         entry.getValue().close();
       } catch (IOException ioe) {
@@ -207,58 +198,11 @@ public class HdfsShuffleReadHandler extends AbstractFileShuffleReadHandler {
     }
   }
 
-  private FileBasedShuffleReader createHdfsReader(
+  private HdfsFileReader createHdfsReader(
       String folder, String fileName, Configuration hadoopConf) throws IOException, IllegalStateException {
     Path path = new Path(folder, fileName);
-    FileBasedShuffleReader reader = new FileBasedShuffleReader(path, hadoopConf);
+    HdfsFileReader reader = new HdfsFileReader(path, hadoopConf);
     reader.createStream();
     return reader;
-  }
-
-  @VisibleForTesting
-  protected List<FileReadSegment> mergeSegments(String path, List<FileBasedShuffleSegment> segments) {
-    List<FileReadSegment> fileReadSegments = Lists.newArrayList();
-    if (segments != null && !segments.isEmpty()) {
-      if (segments.size() == 1) {
-        Map<Long, BufferSegment> btb = Maps.newHashMap();
-        btb.put(segments.get(0).getBlockId(), new BufferSegment(0,
-            segments.get(0).getLength(), segments.get(0).getCrc()));
-        fileReadSegments.add(new FileReadSegment(
-            path, segments.get(0).getOffset(), segments.get(0).getLength(), btb));
-      } else {
-        Collections.sort(segments);
-        long start = -1;
-        long lastestPosition = -1;
-        long skipThreshold = readBufferSize / 2;
-        long lastPosition = Long.MAX_VALUE;
-        Map<Long, BufferSegment> btb = Maps.newHashMap();
-        for (FileBasedShuffleSegment segment : segments) {
-          // check if there has expected skip range, eg, [20, 100], [1000, 1001] and the skip range is [101, 999]
-          if (start > -1 && segment.getOffset() - lastPosition > skipThreshold) {
-            fileReadSegments.add(new FileReadSegment(
-                path, start, lastPosition - start, btb));
-            start = -1;
-          }
-          // previous FileBasedShuffleSegment are merged, start new merge process
-          if (start == -1) {
-            btb = Maps.newHashMap();
-            start = segment.getOffset();
-          }
-          lastestPosition = segment.getOffset() + segment.getLength();
-          btb.put(segment.getBlockId(), new BufferSegment(segment.getOffset() - start,
-              segment.getLength(), segment.getCrc()));
-          if (lastestPosition - start >= readBufferSize) {
-            fileReadSegments.add(new FileReadSegment(
-                path, start, lastestPosition - start, btb));
-            start = -1;
-          }
-          lastPosition = lastestPosition;
-        }
-        if (start > -1) {
-          fileReadSegments.add(new FileReadSegment(path, start, lastestPosition - start, btb));
-        }
-      }
-    }
-    return fileReadSegments;
   }
 }

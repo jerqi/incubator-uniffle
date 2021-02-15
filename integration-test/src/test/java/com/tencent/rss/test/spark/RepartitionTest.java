@@ -18,7 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
-public class RepartitionShuffleTest extends SparkIntegrationTestBase {
+public abstract class RepartitionTest extends SparkIntegrationTestBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(IntegrationTestBase.class);
 
@@ -35,6 +35,7 @@ public class RepartitionShuffleTest extends SparkIntegrationTestBase {
     sparkConf.set("spark.executor.memory", "500m");
     sparkConf.set("spark.rss.writer.buffer.size", "8m");
     sparkConf.set("spark.rss.writer.buffer.spill.size", "1024m");
+    updateRssStorage(sparkConf);
 
     // oom if there has no memory release
     runSparkApp(sparkConf, fileName);
@@ -49,6 +50,13 @@ public class RepartitionShuffleTest extends SparkIntegrationTestBase {
   public String generateTestFile() throws Exception {
     return generateTextFile(1000, 5000);
   }
+
+  @Override
+  public void updateSparkConfCustomer(SparkConf sparkConf) {
+    updateRssStorage(sparkConf);
+  }
+
+  public abstract void updateRssStorage(SparkConf sparkConf);
 
   private String generateTextFile(int wordsPerRow, int rows) throws Exception {
     String tempDir = Files.createTempDirectory("rss").toString();

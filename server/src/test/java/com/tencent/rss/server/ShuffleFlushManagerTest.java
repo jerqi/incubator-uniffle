@@ -5,15 +5,18 @@ import static org.junit.Assert.assertNull;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.tencent.rss.common.BufferSegment;
+import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
-import com.tencent.rss.storage.handler.impl.HdfsShuffleReadHandler;
+import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.junit.Before;
@@ -165,16 +168,27 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
 
   private void validate(String appId, int shuffleId, int partitionId, List<ShufflePartitionedBlock> blocks,
       int partitionsPerServer, String basePath) {
-    HdfsShuffleReadHandler handler = new HdfsShuffleReadHandler(appId, shuffleId, partitionId,
-        100, partitionsPerServer, 10, 1000, basePath, Sets.newHashSet(1L));
-    Set<Long> blockIds = handler.getAllBlockIds();
-    assertEquals(blocks.size(), blockIds.size());
+    Set<Long> blockIds = Sets.newHashSet(blocks.stream().map(spb -> spb.getBlockId()).collect(Collectors.toList()));
+    HdfsClientReadHandler handler = new HdfsClientReadHandler(appId, shuffleId, partitionId,
+        100, partitionsPerServer, 10, 1000, basePath, blockIds);
+    ShuffleDataResult sdr = null;
     int matchNum = 0;
-    for (ShufflePartitionedBlock block : blocks) {
-      if (blockIds.contains(block.getBlockId())) {
-        matchNum++;
+    Set<Long> remainIds = Sets.newHashSet(blockIds);
+    do {
+      sdr = handler.readShuffleData(remainIds);
+      List<BufferSegment> bufferSegments = sdr.getBufferSegments();
+      for (ShufflePartitionedBlock block : blocks) {
+        for (BufferSegment bs : bufferSegments) {
+          if (bs.getBlockId() == block.getBlockId()) {
+            matchNum++;
+            break;
+          }
+        }
       }
-    }
+      for (BufferSegment bs : bufferSegments) {
+        remainIds.remove(bs.getBlockId());
+      }
+    } while (sdr.getData() != null);
     assertEquals(blocks.size(), matchNum);
   }
 }

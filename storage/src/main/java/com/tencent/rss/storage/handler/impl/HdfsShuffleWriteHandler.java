@@ -1,10 +1,9 @@
 package com.tencent.rss.storage.handler.impl;
 
 import com.tencent.rss.common.ShufflePartitionedBlock;
-import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
-import com.tencent.rss.storage.utils.ShuffleStorageUtils;
+import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
@@ -33,13 +32,12 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
     this.hadoopConf = hadoopConf;
     this.fileNamePrefix = fileNamePrefix;
     this.accessTime = System.currentTimeMillis();
-    this.basePath = RssUtils.getFullShuffleDataFolder(storageBasePath,
-        RssUtils.getShuffleDataPath(appId, shuffleId, startPartition, endPartition));
+    this.basePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
+        ShuffleStorageUtils.getShuffleDataPath(appId, shuffleId, startPartition, endPartition));
     createBasePath();
   }
 
   private void createBasePath() throws IOException, IllegalStateException {
-
     Path path = new Path(basePath);
     FileSystem fileSystem = ShuffleStorageUtils.getFileSystemForPath(path, hadoopConf);
     // check if shuffle folder exist
@@ -70,8 +68,8 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
     String indexFileName = ShuffleStorageUtils.generateIndexFileName(fileNamePrefix);
     long writeSize = shuffleBlocks.stream().mapToLong(ShufflePartitionedBlock::size).sum();
 
-    try (FileBasedShuffleWriter dataWriter = createWriter(dataFileName);
-        FileBasedShuffleWriter indexWriter = createWriter(indexFileName)) {
+    try (HdfsFileWriter dataWriter = createWriter(dataFileName);
+        HdfsFileWriter indexWriter = createWriter(indexFileName)) {
 
       long startTime = System.currentTimeMillis();
       for (ShufflePartitionedBlock block : shuffleBlocks) {
@@ -84,7 +82,7 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
         long endOffset = dataWriter.nextOffset();
         long len = endOffset - startOffset;
 
-        FileBasedShuffleSegment segment = new FileBasedShuffleSegment(startOffset, len, crc, blockId);
+        FileBasedShuffleSegment segment = new FileBasedShuffleSegment(blockId, startOffset, len, crc);
         LOG.debug("Write index " + segment);
         indexWriter.writeIndex(segment);
       }
@@ -101,9 +99,9 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
         (System.currentTimeMillis() - accessTime / 1000));
   }
 
-  private FileBasedShuffleWriter createWriter(String fileName) throws IOException, IllegalStateException {
+  private HdfsFileWriter createWriter(String fileName) throws IOException, IllegalStateException {
     Path path = new Path(basePath, fileName);
-    FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, hadoopConf);
+    HdfsFileWriter writer = new HdfsFileWriter(path, hadoopConf);
     writer.createStream();
     return writer;
   }

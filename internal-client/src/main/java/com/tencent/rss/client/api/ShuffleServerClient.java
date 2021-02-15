@@ -1,10 +1,12 @@
 package com.tencent.rss.client.api;
 
+import com.tencent.rss.client.request.RssGetShuffleDataRequest;
 import com.tencent.rss.client.request.RssGetShuffleResultRequest;
 import com.tencent.rss.client.request.RssRegisterShuffleRequest;
 import com.tencent.rss.client.request.RssReportShuffleResultRequest;
 import com.tencent.rss.client.request.RssSendCommitRequest;
 import com.tencent.rss.client.request.RssSendShuffleDataRequest;
+import com.tencent.rss.client.response.RssGetShuffleDataResponse;
 import com.tencent.rss.client.response.RssGetShuffleResultResponse;
 import com.tencent.rss.client.response.RssRegisterShuffleResponse;
 import com.tencent.rss.client.response.RssReportShuffleResultResponse;
@@ -22,6 +24,8 @@ public interface ShuffleServerClient {
   RssReportShuffleResultResponse reportShuffleResult(RssReportShuffleResultRequest request);
 
   RssGetShuffleResultResponse getShuffleResult(RssGetShuffleResultRequest request);
+
+  RssGetShuffleDataResponse getShuffleData(RssGetShuffleDataRequest request);
 
   void close();
 }

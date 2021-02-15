@@ -8,9 +8,34 @@ package rss.common;
 service ShuffleServer {
   rpc registerShuffle (ShuffleRegisterRequest) returns (ShuffleRegisterResponse);
   rpc sendShuffleData (SendShuffleDataRequest) returns (SendShuffleDataResponse);
+  rpc getShuffleData (GetShuffleDataRequest) returns (GetShuffleDataResponse);
   rpc commitShuffleTask (ShuffleCommitRequest) returns (ShuffleCommitResponse);
   rpc reportShuffleResult (ReportShuffleResultRequest) returns (ReportShuffleResultResponse);
   rpc getShuffleResult (GetShuffleResultRequest) returns (GetShuffleResultResponse);
+}
+
+message ShuffleDataBlockSegment {
+  int64 blockId = 1;
+  int64 offset = 2;
+  int64 length = 3;
+  int64 crc = 4;
+}
+
+message GetShuffleDataRequest {
+  string appId = 1;
+  int32 shuffleId = 2;
+  int32 partitionId = 3;
+  int32 partitionsPerServer = 4;
+  int32 partitionNum = 5;
+  int32 readBufferSize = 6;
+  repeated int64 blockIds = 7;
+}
+
+message GetShuffleDataResponse {
+  bytes data = 1;
+  repeated ShuffleDataBlockSegment blockSegments = 2;
+  StatusCode status = 3;
+  string retMsg = 4;
 }
 
 message ReportShuffleResultRequest {

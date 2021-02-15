@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.tencent.rss.storage.handler.impl.HdfsShuffleWriteHandler;
-import com.tencent.rss.storage.utils.StorageType;
+import com.tencent.rss.storage.util.StorageType;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.ShuffleDependency;
@@ -21,7 +21,7 @@ import org.apache.spark.shuffle.reader.RssShuffleReader;
 import org.junit.Test;
 import scala.Option;
 
-public class RssShuffleReaderTest extends RssReaderTestBase {
+public class RssShuffleReaderTest extends AbstractRssReaderTest {
 
   private static final Serializer KRYO_SERIALIZER = new KryoSerializer(new SparkConf(false));
 

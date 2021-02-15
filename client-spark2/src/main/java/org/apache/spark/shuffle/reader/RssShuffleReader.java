@@ -3,6 +3,8 @@ package org.apache.spark.shuffle.reader;
 import com.tencent.rss.client.api.ShuffleReadClient;
 import com.tencent.rss.client.factory.ShuffleClientFactory;
 import com.tencent.rss.client.request.CreateShuffleReadClientRequest;
+import com.tencent.rss.common.ShuffleServerInfo;
+import java.util.List;
 import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.InterruptibleIterator;
@@ -44,6 +46,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   private int partitionNum;
   private String storageType;
   private Set<Long> expectedBlockIds;
+  private List<ShuffleServerInfo> shuffleServerInfoList;
 
   public RssShuffleReader(
       int startPartition,
@@ -74,6 +77,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     this.partitionsPerServer = partitionsPerServer;
     this.partitionNum = partitionNum;
     this.expectedBlockIds = expectedBlockIds;
+    this.shuffleServerInfoList =
+        (List<ShuffleServerInfo>) (rssShuffleHandle.getPartitionToServers().get(startPartition));
   }
 
   @Override
@@ -82,12 +87,11 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
 
     CreateShuffleReadClientRequest request = new CreateShuffleReadClientRequest(
         appId, shuffleId, startPartition, storageType, basePath, hadoopConf, indexReadLimit,
-        readBufferSize, partitionsPerServer, partitionNum, expectedBlockIds);
+        readBufferSize, partitionsPerServer, partitionNum, expectedBlockIds, shuffleServerInfoList);
     ShuffleReadClient shuffleReadClient = ShuffleClientFactory.getINSTANCE().createShuffleReadClient(request);
 
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator<K, C>(
         shuffleDependency.serializer(), shuffleReadClient, context.taskMetrics().shuffleReadMetrics());
-    rssShuffleDataIterator.checkExpectedBlockIds();
 
     Iterator<Product2<K, C>> resultIter = null;
     Iterator<Product2<K, C>> aggregatedIter = null;

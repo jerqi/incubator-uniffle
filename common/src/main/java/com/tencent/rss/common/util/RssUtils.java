@@ -13,8 +13,6 @@ import org.slf4j.LoggerFactory;
 
 public class RssUtils {
 
-  static final String HDFS_PATH_SEPARATOR = "/";
-  static final String HDFS_DIRNAME_SEPARATOR = "-";
   private static final Logger LOGGER = LoggerFactory.getLogger(RssUtils.class);
 
   /**
@@ -56,34 +54,5 @@ public class RssUtils {
     }
 
     return result;
-  }
-
-  public static String getShuffleDataPath(String appId, int shuffleId, int start, int end) {
-    return String.join(
-        HDFS_PATH_SEPARATOR,
-        appId,
-        String.valueOf(shuffleId),
-        String.join(HDFS_DIRNAME_SEPARATOR, String.valueOf(start), String.valueOf(end)));
-  }
-
-  public static String getFullShuffleDataFolder(String basePath, String subPath) {
-    return String.join(HDFS_PATH_SEPARATOR, basePath, subPath);
-  }
-
-  public static String getShuffleDataPathWithRange(
-      String appId, int shuffleId, int partitionId,
-      int partitionsPerServer, int partitionNum) {
-    int prNum = partitionNum % partitionsPerServer == 0
-        ? partitionNum / partitionsPerServer : partitionNum / partitionsPerServer + 1;
-    for (int i = 0; i < prNum; i++) {
-      int start = i * partitionsPerServer;
-      int end = (i + 1) * partitionsPerServer - 1;
-      if (partitionId >= start && partitionId <= end) {
-        return getShuffleDataPath(appId, shuffleId, start, end);
-      }
-    }
-    throw new RuntimeException("Can't generate ShuffleData Path for appId[" + appId + "], shuffleId["
-        + shuffleId + "], partitionId[" + partitionId + "], partitionsPerServer[" + partitionsPerServer
-        + "], partitionNum[" + partitionNum + "]");
   }
 }

@@ -14,10 +14,7 @@ import java.util.concurrent.Future;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
 public class ShuffleTaskManagerTest extends MetricsTestBase {
 
   private ShuffleTaskManager shuffleTaskManager;

@@ -5,8 +5,12 @@ import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.tencent.rss.common.ShuffleDataResult;
+import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
+import com.tencent.rss.storage.request.CreateShuffleReadHandlerRequest;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,6 +129,22 @@ public class ShuffleTaskManager {
       return Lists.newArrayList();
     }
     return blockIds;
+  }
+
+  public ShuffleDataResult getShuffleData(
+      String appId, Integer shuffleId, Integer partitionId, int partitionsPerServer,
+      int partitionNum, int readBufferSize, String storageType, Set<Long> expectedBlockIds) {
+    CreateShuffleReadHandlerRequest request = new CreateShuffleReadHandlerRequest();
+    request.setAppId(appId);
+    request.setShuffleId(shuffleId);
+    request.setPartitionId(partitionId);
+    request.setPartitionsPerServer(partitionsPerServer);
+    request.setPartitionNum(partitionNum);
+    request.setReadBufferSize(readBufferSize);
+    request.setExpectedBlockIds(expectedBlockIds);
+    request.setStorageType(storageType);
+    request.setRssBaseConf(conf);
+    return ShuffleHandlerFactory.getInstance().getServerReadHandler(request).getShuffleData(expectedBlockIds);
   }
 
   @VisibleForTesting

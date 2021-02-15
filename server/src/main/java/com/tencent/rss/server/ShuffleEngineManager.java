@@ -7,7 +7,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
-import com.tencent.rss.common.util.RssUtils;
+import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -109,7 +109,7 @@ public class ShuffleEngineManager {
 
       // skip empty eventId
       if (!eventIds.isEmpty()) {
-        String path = RssUtils.getShuffleDataPath(
+        String path = ShuffleStorageUtils.getShuffleDataPath(
             appId, shuffleId, engine.getStartPartition(), engine.getEndPartition());
         pathToEventIds.put(path, eventIds);
         LOG.info("Commit for " + path + " and get expectedEventIds: " + eventIds);
@@ -125,7 +125,7 @@ public class ShuffleEngineManager {
         Set<Long> committedIds = shuffleFlushManager.getEventIds(path);
         if (committedIds != null && !committedIds.isEmpty()) {
           Set<Long> expectedEventIds = entry.getValue();
-          LOG.info("Got expectedEventIds for " + path + ": "
+          LOG.debug("Got expectedEventIds for " + path + ": "
               + expectedEventIds + ", current commit: " + committedIds);
           expectedEventIds.removeAll(committedIds);
           if (expectedEventIds.isEmpty()) {

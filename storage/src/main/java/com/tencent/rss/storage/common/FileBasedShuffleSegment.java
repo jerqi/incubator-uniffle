@@ -9,7 +9,7 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
   private long crc;
   private long blockId;
 
-  public FileBasedShuffleSegment(long offset, long length, long crc, long blockId) {
+  public FileBasedShuffleSegment(long blockId, long offset, long length, long crc) {
     this.offset = offset;
     this.length = length;
     this.crc = crc;
@@ -80,7 +80,7 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
 
   @Override
   public String toString() {
-    return "HDFSShuffleSegment{"
+    return "FileBasedShuffleSegment{"
         + "offset="
         + offset
         + ", length="

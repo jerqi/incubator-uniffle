@@ -16,7 +16,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SparkSQLTest extends SparkIntegrationTestBase {
+public abstract class SparkSQLTest extends SparkIntegrationTestBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkSQLTest.class);
 
@@ -46,7 +46,10 @@ public class SparkSQLTest extends SparkIntegrationTestBase {
   @Override
   public void updateSparkConfCustomer(SparkConf sparkConf) {
     sparkConf.set("spark.sql.shuffle.partitions", "4");
+    updateRssStorage(sparkConf);
   }
+
+  public abstract void updateRssStorage(SparkConf sparkConf);
 
   protected String generateCsvFile() throws Exception {
     int rows = 1000;

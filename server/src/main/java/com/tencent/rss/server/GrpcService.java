@@ -2,9 +2,16 @@ package com.tencent.rss.server;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.protobuf.ByteString;
+import com.tencent.rss.common.BufferSegment;
+import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
+import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.proto.RssProtos;
+import com.tencent.rss.proto.RssProtos.GetShuffleDataRequest;
+import com.tencent.rss.proto.RssProtos.GetShuffleDataResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleResultRequest;
 import com.tencent.rss.proto.RssProtos.GetShuffleResultResponse;
 import com.tencent.rss.proto.RssProtos.PartitionToBlockIds;
@@ -16,14 +23,16 @@ import com.tencent.rss.proto.RssProtos.ShuffleBlock;
 import com.tencent.rss.proto.RssProtos.ShuffleCommitRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleCommitResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleData;
+import com.tencent.rss.proto.RssProtos.ShuffleDataBlockSegment;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerImplBase;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +41,7 @@ public class GrpcService extends ShuffleServerImplBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(GrpcService.class);
   private final ShuffleServer shuffleServer;
+  private AtomicLong readDataTime = new AtomicLong(0);
 
   public GrpcService(ShuffleServer shuffleServer) {
     this.shuffleServer = shuffleServer;
@@ -80,7 +90,6 @@ public class GrpcService extends ShuffleServerImplBase {
         .build();
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
-
   }
 
   @Override
@@ -268,8 +277,70 @@ public class GrpcService extends ShuffleServerImplBase {
     responseObserver.onCompleted();
   }
 
+  @Override
+  public void getShuffleData(GetShuffleDataRequest request,
+      StreamObserver<GetShuffleDataResponse> responseObserver) {
+    ShuffleServerMetrics.counterTotalRequest.inc();
+
+    String appId = request.getAppId();
+    int shuffleId = request.getShuffleId();
+    int partitionId = request.getPartitionId();
+    int partitionsPerServer = request.getPartitionsPerServer();
+    int partitionNum = request.getPartitionNum();
+    int readBufferSize = request.getReadBufferSize();
+    String storageType = shuffleServer.getShuffleServerConf().get(RssBaseConf.DATA_STORAGE_TYPE);
+    Set<Long> blockIds = Sets.newHashSet(request.getBlockIdsList());
+    StatusCode status = StatusCode.SUCCESS;
+    String msg = "OK";
+    GetShuffleDataResponse reply;
+    ShuffleDataResult sdr;
+    String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "], partitionId["
+        + partitionId + "]";
+
+    try {
+      long start = System.currentTimeMillis();
+      sdr = shuffleServer.getShuffleTaskManager().getShuffleData(appId, shuffleId, partitionId,
+          partitionsPerServer, partitionNum, readBufferSize, storageType, blockIds);
+      readDataTime.addAndGet(System.currentTimeMillis() - start);
+      LOG.debug("Rpc server[getShuffleData] cost " + (System.currentTimeMillis() - start)
+          + " ms for " + requestInfo);
+      reply = GetShuffleDataResponse.newBuilder()
+          .setStatus(valueOf(status))
+          .setRetMsg(msg)
+          .setData(ByteString.copyFrom(sdr.getData()))
+          .addAllBlockSegments(toBlockSegments(sdr.getBufferSegments()))
+          .build();
+    } catch (Exception e) {
+      status = StatusCode.INTERNAL_ERROR;
+      msg = e.getMessage();
+      LOG.error("Error happened when get shuffle data for " + requestInfo, e);
+      reply = GetShuffleDataResponse.newBuilder()
+          .setStatus(valueOf(status))
+          .setRetMsg(msg)
+          .build();
+    }
+
+    responseObserver.onNext(reply);
+    responseObserver.onCompleted();
+  }
+
+  private List<ShuffleDataBlockSegment> toBlockSegments(List<BufferSegment> bufferSegments) {
+    List<ShuffleDataBlockSegment> ret = Lists.newArrayList();
+
+    for (BufferSegment segment : bufferSegments) {
+      ret.add(ShuffleDataBlockSegment.newBuilder()
+          .setBlockId(segment.getBlockId())
+          .setOffset(segment.getOffset())
+          .setLength(segment.getLength())
+          .setCrc(segment.getCrc())
+          .build());
+    }
+
+    return ret;
+  }
+
   private List<ShufflePartitionedData> toPartitionedData(SendShuffleDataRequest req) {
-    List<ShufflePartitionedData> ret = new LinkedList<>();
+    List<ShufflePartitionedData> ret = Lists.newArrayList();
 
     for (ShuffleData data : req.getShuffleDataList()) {
       ret.add(new ShufflePartitionedData(
@@ -281,7 +352,7 @@ public class GrpcService extends ShuffleServerImplBase {
   }
 
   private List<ShufflePartitionedBlock> toPartitionedBlock(List<ShuffleBlock> blocks) {
-    List<ShufflePartitionedBlock> ret = new LinkedList<>();
+    List<ShufflePartitionedBlock> ret = Lists.newArrayList();
 
     for (ShuffleBlock block : blocks) {
       ret.add(new ShufflePartitionedBlock(

@@ -14,13 +14,14 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.handler.impl.HdfsShuffleWriteHandler;
-import com.tencent.rss.storage.utils.StorageType;
+import com.tencent.rss.storage.util.StorageType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.junit.Test;
@@ -44,19 +45,17 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
         expectedBlockIds);
 
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
-        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds);
-    readClient.checkExpectedBlockIds();
+        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
 
     validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
     readClient.close();
 
     expectedBlockIds.add(-1L);
-    // can't find all expected block id, data loss
-    readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
-        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds);
     try {
-      readClient.checkExpectedBlockIds();
+      // can't find all expected block id, data loss
+      readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
+          "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
       assertTrue(e.getMessage().startsWith("Can't find blockIds"));
@@ -81,8 +80,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
         expectedBlockIds);
 
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
-        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds);
-    readClient.checkExpectedBlockIds();
+        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
 
     validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
@@ -116,8 +114,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
         new Path(basePath + "/test3_2.cp.index"), false, conf);
 
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
-        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds);
-    readClient.checkExpectedBlockIds();
+        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
 
     validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
@@ -136,8 +133,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
         expectedBlockIds);
 
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
-        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds);
-    readClient.checkExpectedBlockIds();
+        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
     Path dataFile = new Path(basePath + "/appId/0/0-1/test1.data");
     // data file is deleted after readClient checkExpectedBlockIds
     fs.delete(new Path(basePath + "/appId/0/0-1/test1.data"), true);
@@ -171,8 +167,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
         expectedBlockIds);
 
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
-        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds);
-    readClient.checkExpectedBlockIds();
+        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
     // index file is deleted after iterator initialization, it should be ok, all index infos are read already
     Path indexFile = new Path(basePath + "/appId/0/0-1/test.index");
     fs.delete(indexFile, true);
@@ -212,7 +207,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
 
     try {
       new ShuffleReadClientImpl(StorageType.HDFS.name(),
-          "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds);
+          "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
       assertTrue(e.getMessage().startsWith("No index file found"));
@@ -225,28 +220,27 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
     HdfsShuffleWriteHandler writeHandler =
         new HdfsShuffleWriteHandler("appId", 0, 0, 1, basePath, "test", conf);
 
-    Map<Long, byte[]> expectedData = Maps.newHashMap();
-    Set<Long> expectedBlockIds = Sets.newHashSet();
-    writeTestData(writeHandler, 5, 30, expectedData,
-        expectedBlockIds);
+    Map<Long, byte[]> expectedData1 = Maps.newHashMap();
+    Set<Long> expectedBlockIds1 = Sets.newHashSet();
+    writeTestData(writeHandler, 10, 30, expectedData1, expectedBlockIds1);
 
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
-        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds);
-    readClient.checkExpectedBlockIds();
+    Map<Long, byte[]> expectedData2 = Maps.newHashMap();
+    Set<Long> expectedBlockIds2 = Sets.newHashSet();
+    writeTestData(writeHandler, 10, 30, expectedData2, expectedBlockIds2);
 
-    byte[] data = readClient.readShuffleBlockData();
-    while (data != null) {
-      data = readClient.readShuffleBlockData();
-      // discard block
-      readClient.getBlockIdQueue().poll();
-    }
-    try {
-      readClient.checkProcessedBlockIds();
-      fail(EXPECTED_EXCEPTION_MESSAGE);
-    } catch (Exception e) {
-      assertTrue(e.getMessage().startsWith("Blocks read inconsistent:"));
-    }
-    readClient.close();
+    writeTestData(writeHandler, 10, 30, expectedData1, expectedBlockIds1);
+
+    ShuffleReadClientImpl readClient1 = new ShuffleReadClientImpl(StorageType.HDFS.name(),
+        "appId", 0, 0, 100, 2, 10, 100, basePath, expectedBlockIds1, Lists.newArrayList());
+    ShuffleReadClientImpl readClient2 = new ShuffleReadClientImpl(StorageType.HDFS.name(),
+        "appId", 0, 1, 100, 2, 10, 100, basePath, expectedBlockIds2, Lists.newArrayList());
+    validateResult(readClient1, expectedData1);
+    readClient1.checkProcessedBlockIds();
+    readClient1.close();
+
+    validateResult(readClient2, expectedData2);
+    readClient2.checkProcessedBlockIds();
+    readClient2.close();
   }
 
   @Test
@@ -261,8 +255,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
         expectedBlockIds);
 
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
-        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds);
-    readClient.checkExpectedBlockIds();
+        "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
     // crc32 is incorrect
     try (MockedStatic<ChecksumUtils> checksumUtilsMock = Mockito.mockStatic(ChecksumUtils.class)) {
       checksumUtilsMock.when(() -> ChecksumUtils.getCrc32(any())).thenReturn(-1L);
@@ -282,9 +275,28 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
   @Test
   public void readTest9() {
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
-        "appId", 0, 1, 100, 2, 10, 1000, "basePath", Sets.newHashSet());
-    readClient.checkExpectedBlockIds();
+        "appId", 0, 1, 100, 2, 10, 1000, "basePath", Sets.newHashSet(), Lists.newArrayList());
     assertNull(readClient.readShuffleBlockData());
+  }
+
+  @Test
+  public void readTest10() throws Exception {
+    String basePath = HDFS_URI + "clientReadTest10";
+    HdfsShuffleWriteHandler writeHandler =
+        new HdfsShuffleWriteHandler("appId", 0, 0, 1, basePath, "test", conf);
+
+    Map<Long, byte[]> expectedData = Maps.newHashMap();
+    Set<Long> expectedBlockIds = Sets.newHashSet();
+    writeTestData(writeHandler, 5, 30, expectedData, expectedBlockIds);
+    Set<Long> wrongIds = expectedBlockIds.stream().map(blockId -> blockId + 1000).collect(Collectors.toSet());
+
+    try {
+      new ShuffleReadClientImpl(StorageType.HDFS.name(),
+          "appId", 0, 0, 100, 2, 10, 100, basePath, wrongIds, Lists.newArrayList());
+      fail(EXPECTED_EXCEPTION_MESSAGE);
+    } catch (Exception e) {
+      assertTrue(e.getMessage().startsWith("Can't find blockIds"));
+    }
   }
 
   private void writeTestData(

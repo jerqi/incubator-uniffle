@@ -1,14 +1,11 @@
 package com.tencent.rss.common;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-import picocli.CommandLine;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-@RunWith(JUnit4.class)
+import org.junit.Test;
+import picocli.CommandLine;
+
 public class ArgumentsTest {
 
   private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();

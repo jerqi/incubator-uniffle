@@ -17,12 +17,22 @@
   <dependencies>
     <dependency>
       <groupId>com.tencent.rss</groupId>
+      <artifactId>rss-internal-client</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.tencent.rss</groupId>
       <artifactId>shuffle-server</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.tencent.rss</groupId>
       <artifactId>coordinator</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.tencent.rss</groupId>
+      <artifactId>rss-client</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

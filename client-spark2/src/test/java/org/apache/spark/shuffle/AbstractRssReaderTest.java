@@ -20,7 +20,7 @@ import scala.Product2;
 import scala.collection.Iterator;
 import scala.reflect.ClassTag$;
 
-public class RssReaderTestBase extends HdfsTestBase {
+public abstract class AbstractRssReaderTest extends HdfsTestBase {
 
   protected void validateResult(Iterator iterator,
       Map<String, String> expectedData, int recordNum) {

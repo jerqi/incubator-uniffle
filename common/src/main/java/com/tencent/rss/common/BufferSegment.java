@@ -1,12 +1,14 @@
-package com.tencent.rss.storage.common;
+package com.tencent.rss.common;
 
 public class BufferSegment {
 
+  private long blockId;
   private long offset;
   private long length;
   private long crc;
 
-  public BufferSegment(long offset, long length, long crc) {
+  public BufferSegment(long blockId, long offset, long length, long crc) {
+    this.blockId = blockId;
     this.offset = offset;
     this.length = length;
     this.crc = crc;
@@ -15,9 +17,10 @@ public class BufferSegment {
   @Override
   public boolean equals(Object obj) {
     if (obj instanceof BufferSegment) {
-      return offset == ((BufferSegment) obj).offset
-          && length == ((BufferSegment) obj).length
-          && crc == ((BufferSegment) obj).crc;
+      return blockId == ((BufferSegment) obj).getBlockId()
+          && offset == ((BufferSegment) obj).getOffset()
+          && length == ((BufferSegment) obj).getLength()
+          && crc == ((BufferSegment) obj).getCrc();
     }
     return false;
   }
@@ -34,6 +37,10 @@ public class BufferSegment {
       throw new RuntimeException("Unsupported length[" + length + "] for BufferSegment");
     }
     return (int) length;
+  }
+
+  public long getBlockId() {
+    return blockId;
   }
 
   public long getCrc() {

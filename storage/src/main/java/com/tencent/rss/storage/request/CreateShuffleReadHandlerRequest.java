@@ -1,5 +1,8 @@
 package com.tencent.rss.storage.request;
 
+import com.tencent.rss.common.ShuffleServerInfo;
+import com.tencent.rss.common.config.RssBaseConf;
+import java.util.List;
 import java.util.Set;
 
 public class CreateShuffleReadHandlerRequest {
@@ -14,59 +17,105 @@ public class CreateShuffleReadHandlerRequest {
   private int readBufferSize;
   private String storageBasePath;
   private Set<Long> expectedBlockIds;
+  private RssBaseConf rssBaseConf;
+  private List<ShuffleServerInfo> shuffleServerInfoList;
 
-  public CreateShuffleReadHandlerRequest(String storageType, String appId, int shuffleId, int partitionId,
-      int indexReadLimit, int partitionsPerServer, int partitionNum, int readBufferSize, String storageBasePath,
-      Set<Long> expectedBlockIds) {
-    this.storageType = storageType;
-    this.appId = appId;
-    this.shuffleId = shuffleId;
-    this.partitionId = partitionId;
-    this.indexReadLimit = indexReadLimit;
-    this.partitionsPerServer = partitionsPerServer;
-    this.partitionNum = partitionNum;
-    this.readBufferSize = readBufferSize;
-    this.storageBasePath = storageBasePath;
-    this.expectedBlockIds = expectedBlockIds;
+  public CreateShuffleReadHandlerRequest() {
+  }
+
+  public RssBaseConf getRssBaseConf() {
+    return rssBaseConf;
+  }
+
+  public void setRssBaseConf(RssBaseConf rssBaseConf) {
+    this.rssBaseConf = rssBaseConf;
   }
 
   public String getStorageType() {
     return storageType;
   }
 
+  public void setStorageType(String storageType) {
+    this.storageType = storageType;
+  }
+
   public String getAppId() {
     return appId;
+  }
+
+  public void setAppId(String appId) {
+    this.appId = appId;
   }
 
   public int getShuffleId() {
     return shuffleId;
   }
 
+  public void setShuffleId(int shuffleId) {
+    this.shuffleId = shuffleId;
+  }
+
   public int getPartitionId() {
     return partitionId;
+  }
+
+  public void setPartitionId(int partitionId) {
+    this.partitionId = partitionId;
   }
 
   public int getIndexReadLimit() {
     return indexReadLimit;
   }
 
+  public void setIndexReadLimit(int indexReadLimit) {
+    this.indexReadLimit = indexReadLimit;
+  }
+
   public int getPartitionsPerServer() {
     return partitionsPerServer;
+  }
+
+  public void setPartitionsPerServer(int partitionsPerServer) {
+    this.partitionsPerServer = partitionsPerServer;
   }
 
   public int getPartitionNum() {
     return partitionNum;
   }
 
+  public void setPartitionNum(int partitionNum) {
+    this.partitionNum = partitionNum;
+  }
+
   public int getReadBufferSize() {
     return readBufferSize;
+  }
+
+  public void setReadBufferSize(int readBufferSize) {
+    this.readBufferSize = readBufferSize;
   }
 
   public String getStorageBasePath() {
     return storageBasePath;
   }
 
+  public void setStorageBasePath(String storageBasePath) {
+    this.storageBasePath = storageBasePath;
+  }
+
   public Set<Long> getExpectedBlockIds() {
     return expectedBlockIds;
+  }
+
+  public void setExpectedBlockIds(Set<Long> expectedBlockIds) {
+    this.expectedBlockIds = expectedBlockIds;
+  }
+
+  public List<ShuffleServerInfo> getShuffleServerInfoList() {
+    return shuffleServerInfoList;
+  }
+
+  public void setShuffleServerInfoList(List<ShuffleServerInfo> shuffleServerInfoList) {
+    this.shuffleServerInfoList = shuffleServerInfoList;
   }
 }

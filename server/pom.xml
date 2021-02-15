@@ -16,10 +16,6 @@
   <dependencies>
     <dependency>
       <groupId>com.tencent.rss</groupId>
-      <artifactId>rss-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.tencent.rss</groupId>
       <artifactId>shuffle-storage</artifactId>
     </dependency>
     <dependency>

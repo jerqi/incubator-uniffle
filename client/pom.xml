@@ -17,14 +17,6 @@
   <dependencies>
     <dependency>
       <groupId>com.tencent.rss</groupId>
-      <artifactId>rss-proto</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.tencent.rss</groupId>
-      <artifactId>rss-common</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.tencent.rss</groupId>
       <artifactId>shuffle-storage</artifactId>
     </dependency>
     <dependency>
@@ -32,14 +24,6 @@
       <artifactId>shuffle-storage</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>

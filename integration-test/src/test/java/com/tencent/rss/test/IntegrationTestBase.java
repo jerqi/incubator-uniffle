@@ -1,12 +1,14 @@
 package com.tencent.rss.test;
 
+import com.google.common.collect.Lists;
 import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.coordinator.CoordinatorServer;
 import com.tencent.rss.server.ShuffleServer;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.storage.HdfsTestBase;
+import com.tencent.rss.storage.util.StorageType;
+import java.util.List;
 import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,23 +19,42 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
   protected static int COORDINATOR_PORT = 19999;
   protected static int SHUFFLE_SERVER_PORT = 20001;
   protected static String LOCALHOST = "127.0.0.1";
-  private static ShuffleServer shuffleServer;
-  private static CoordinatorServer coordinator;
+  private static List<ShuffleServer> shuffleServers = Lists.newArrayList();
+  private static List<CoordinatorServer> coordinators = Lists.newArrayList();
 
-  @BeforeClass
-  public static void setupServers() throws Exception {
-    // Load configuration from config files
+  public static void startServers() throws Exception {
+    for (CoordinatorServer coordinator : coordinators) {
+      coordinator.start();
+    }
+    for (ShuffleServer shuffleServer : shuffleServers) {
+      shuffleServer.start();
+    }
+  }
+
+  @AfterClass
+  public static void shutdownServers() throws Exception {
+    for (CoordinatorServer coordinator : coordinators) {
+      coordinator.stopServer();
+    }
+    for (ShuffleServer shuffleServer : shuffleServers) {
+      shuffleServer.stopServer();
+    }
+    shuffleServers = Lists.newArrayList();
+    coordinators = Lists.newArrayList();
+  }
+
+  protected static CoordinatorConf getCoordinatorConf() {
     CoordinatorConf coordinatorConf = new CoordinatorConf();
     coordinatorConf.setInteger("rss.rpc.server.port", COORDINATOR_PORT);
     coordinatorConf.setInteger("rss.jetty.http.port", JETTY_PORT);
     coordinatorConf.setInteger("rss.coordinator.server.replica", 1);
-    // Start the coordinator service
-    coordinator = new CoordinatorServer(coordinatorConf);
-    coordinator.start();
+    return coordinatorConf;
+  }
 
+  protected static ShuffleServerConf getShuffleServerConf() {
     ShuffleServerConf serverConf = new ShuffleServerConf();
     serverConf.setInteger("rss.rpc.server.port", SHUFFLE_SERVER_PORT);
-    serverConf.setString("rss.storage.type", "HDFS");
+    serverConf.setString("rss.storage.type", StorageType.HDFS.name());
     serverConf.setString("rss.storage.basePath", HDFS_URI + "rss/test");
     serverConf.setString("rss.server.buffer.capacity", "671088640");
     serverConf.setString("rss.server.buffer.size", "67108864");
@@ -43,14 +64,14 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     serverConf.setString("rss.server.heartbeat.interval", "2000");
     serverConf.setInteger("rss.jetty.http.port", 18080);
     serverConf.setInteger("rss.jetty.corePool.size", 64);
-
-    shuffleServer = new ShuffleServer(serverConf);
-    shuffleServer.start();
+    return serverConf;
   }
 
-  @AfterClass
-  public static void shutdownServers() throws Exception {
-    shuffleServer.stopServer();
-    coordinator.stopServer();
+  protected static void createCoordinatorServer(CoordinatorConf coordinatorConf) throws Exception {
+    coordinators.add(new CoordinatorServer(coordinatorConf));
+  }
+
+  protected static void createShuffleServer(ShuffleServerConf serverConf) throws Exception {
+    shuffleServers.add(new ShuffleServer(serverConf));
   }
 }

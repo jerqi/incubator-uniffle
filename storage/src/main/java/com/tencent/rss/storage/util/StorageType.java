@@ -1,4 +1,4 @@
-package com.tencent.rss.storage.utils;
+package com.tencent.rss.storage.util;
 
 public enum StorageType {
   HDFS,

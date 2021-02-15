@@ -1,23 +1,19 @@
 package com.tencent.rss.common.metrics;
 
+import static io.prometheus.client.Collector.MetricFamilySamples;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.junit.Test;
 
-import static io.prometheus.client.Collector.MetricFamilySamples;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-
-@RunWith(JUnit4.class)
 public class MetricsManagerTest {
 
   @Test
@@ -54,9 +50,9 @@ public class MetricsManagerTest {
     List<MetricFamilySamples.Sample> f = metricsSamples.get(expectedName2).samples;
     assertEquals(2, metricsSamples.get(expectedName2).samples.size());
     String[] actualLabelValues = metricsSamples
-      .get(expectedName2).samples
-      .stream().map(i -> i.labelValues.get(0))
-      .collect(Collectors.toList()).toArray(new String[0]);
+        .get(expectedName2).samples
+        .stream().map(i -> i.labelValues.get(0))
+        .collect(Collectors.toList()).toArray(new String[0]);
     Arrays.sort(actualLabelValues);
     assertArrayEquals(new String[]{"lv1", "lv2"}, actualLabelValues);
   }

@@ -12,6 +12,7 @@ import com.tencent.rss.client.request.RssGetShuffleAssignmentsRequest;
 import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
+import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.proto.RssProtos;
 import com.tencent.rss.proto.RssProtos.GetShuffleAssignmentsResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleServerListResponse;
@@ -24,12 +25,20 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class CoordinatorGrpcTest extends IntegrationTestBase {
 
   private CoordinatorClientFactory factory = new CoordinatorClientFactory("GRPC");
   private CoordinatorGrpcClient coordinatorClient;
+
+  @BeforeClass
+  public static void setupServers() throws Exception {
+    CoordinatorConf coordinatorConf = getCoordinatorConf();
+    createCoordinatorServer(coordinatorConf);
+    startServers();
+  }
 
   @Before
   public void createClient() {
@@ -85,8 +94,7 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
   public void getShuffleAssignmentsTest() throws Exception {
     waitForRegister(1);
     RssGetShuffleAssignmentsRequest request = new RssGetShuffleAssignmentsRequest("appId", 1, 10, 4);
-    RssGetShuffleAssignmentsResponse response = coordinatorClient
-        .getShuffleAssignments(request);
+    RssGetShuffleAssignmentsResponse response = coordinatorClient.getShuffleAssignments(request);
     Set<Integer> expectedStart = Sets.newHashSet(0, 4, 8);
 
     assertEquals(3, response.getRegisterInfoList().size());

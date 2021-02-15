@@ -35,8 +35,7 @@ public class ShuffleFlushManager {
   private final ConcurrentMap<String, ShuffleWriteHandler> pathToHandler = Maps.newConcurrentMap();
   private final ConcurrentMap<String, Set<Long>> pathToEventIds = Maps.newConcurrentMap();
   private final ThreadPoolExecutor threadPoolExecutor;
-  private final ShuffleServerConf shuffleServerConf;
-  private final String storageBasePath;
+  private final String[] storageBasePaths;
   private final String shuffleServerId;
   private final String storageType;
   private final Configuration hadoopConf;
@@ -46,7 +45,6 @@ public class ShuffleFlushManager {
 
   public ShuffleFlushManager(ShuffleServerConf shuffleServerConf, String shuffleServerId, ShuffleServer shuffleServer) {
     this.shuffleServerId = shuffleServerId;
-    this.shuffleServerConf = shuffleServerConf;
     this.shuffleServer = shuffleServer;
     this.hadoopConf = new Configuration();
     hadoopConf.setInt("dfs.replication", shuffleServerConf.getInteger(ShuffleServerConf.DATA_STORAGE_REPLICA));
@@ -57,7 +55,7 @@ public class ShuffleFlushManager {
         ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE);
     BlockingQueue<Runnable> waitQueue = Queues.newLinkedBlockingQueue(waitQueueSize);
     threadPoolExecutor = new ThreadPoolExecutor(poolSize, poolSize, keepAliveTime, TimeUnit.SECONDS, waitQueue);
-    storageBasePath = shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH);
+    storageBasePaths = shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH).split(",");
     isRunning = true;
 
     // the thread for flush data
@@ -141,7 +139,7 @@ public class ShuffleFlushManager {
           pathToHandler.putIfAbsent(path, ShuffleHandlerFactory.getInstance().createShuffleWriteHandler(
               new CreateShuffleWriteHandlerRequest(
                   storageType, event.getAppId(), event.getShuffleId(), event.getStartPartition(),
-                  event.getEndPartition(), storageBasePath, shuffleServerId, hadoopConf)));
+                  event.getEndPartition(), storageBasePaths, shuffleServerId, hadoopConf)));
           handler = pathToHandler.get(path);
         }
         handler.write(blocks);

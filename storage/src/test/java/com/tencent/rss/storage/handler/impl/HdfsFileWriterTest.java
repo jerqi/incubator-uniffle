@@ -1,12 +1,12 @@
-package com.tencent.rss.storage;
+package com.tencent.rss.storage.handler.impl;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
+import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
-import com.tencent.rss.storage.handler.impl.FileBasedShuffleWriter;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -17,11 +17,8 @@ import org.apache.hadoop.fs.Path;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
-public class FileBasedShuffleWriterTest extends HdfsTestBase {
+public class HdfsFileWriterTest extends HdfsTestBase {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -29,7 +26,7 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
   @Test
   public void createStreamFirstTest() throws IOException {
     Path path = new Path(HDFS_URI, "createStreamFirstTest");
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       assertFalse(fs.exists(path));
       writer.createStream();
       assertTrue(fs.isFile(path));
@@ -45,7 +42,7 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
 
     // create a file and fill 32 bytes
     Path path = new Path(HDFS_URI, "createStreamAppendTest");
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       writer.createStream();
       assertEquals(0, writer.nextOffset());
       writer.writeData(byteString.asReadOnlyByteBuffer());
@@ -53,7 +50,7 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
     }
 
     // open existing file using append
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       assertTrue(fs.isFile(path));
       writer.createStream();
       assertEquals(32, writer.nextOffset());
@@ -61,7 +58,7 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
 
     // disable the append support
     conf.setBoolean("dfs.support.append", false);
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       assertTrue(fs.isFile(path));
       thrown.expect(IllegalStateException.class);
       thrown.expectMessage(path + " exists but append mode is not support!");
@@ -76,7 +73,7 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
     fs.mkdirs(path);
 
     // open existing file using append
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       assertTrue(fs.isDirectory(path));
       thrown.expect(IllegalStateException.class);
       thrown.expectMessage(HDFS_URI + "createStreamDirectory is a directory!");
@@ -94,7 +91,7 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
     buf.put(data);
     Path path = new Path(HDFS_URI, "createStreamTest");
 
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       writer.createStream();
       assertEquals(0, writer.nextOffset());
       buf.flip();
@@ -111,7 +108,7 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
     ByteString byteString = ByteString.copyFrom(data);
 
     Path path = new Path(HDFS_URI, "writeBufferTest");
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       writer.createStream();
       assertEquals(0, writer.nextOffset());
       writer.writeData(byteString.asReadOnlyByteBuffer());
@@ -137,7 +134,7 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
     buf.asIntBuffer().put(data);
 
     Path path = new Path(HDFS_URI, "writeBufferArrayTest");
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       assertEquals(0, writer.nextOffset());
       writer.createStream();
       writer.writeData(buf);
@@ -156,10 +153,10 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
 
   @Test
   public void writeSegmentTest() throws IOException {
-    FileBasedShuffleSegment segment = new FileBasedShuffleSegment(128, 32, 0xdeadbeef, 23);
+    FileBasedShuffleSegment segment = new FileBasedShuffleSegment(23, 128, 32, 0xdeadbeef);
 
     Path path = new Path(HDFS_URI, "writeSegmentTest");
-    try (FileBasedShuffleWriter writer = new FileBasedShuffleWriter(path, conf)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       writer.createStream();
       writer.writeIndex(segment);
     }
@@ -171,6 +168,5 @@ public class FileBasedShuffleWriterTest extends HdfsTestBase {
       assertEquals(0xdeadbeef, in.readLong());
       assertEquals(23, in.readLong());
     }
-
   }
 }

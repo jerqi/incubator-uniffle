@@ -100,11 +100,12 @@
   </repositories>
 
   <modules>
+    <module>proto</module>
     <module>common</module>
     <module>coordinator</module>
-    <module>proto</module>
-    <module>server</module>
+    <module>internal-client</module>
     <module>storage</module>
+    <module>server</module>
     <module>client</module>
     <module>client-spark2</module>
     <module>integration-test</module>
@@ -211,6 +212,11 @@
       <dependency>
         <groupId>com.tencent.rss</groupId>
         <artifactId>rss-common</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.tencent.rss</groupId>
+        <artifactId>rss-internal-client</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -568,7 +574,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.22.0</version>
+          <version>2.22.2</version>
           <configuration>
             <systemProperties>
               <java.awt.headless>true</java.awt.headless>
@@ -577,7 +583,7 @@
             </systemProperties>
             <redirectTestOutputToFile>${test.redirectToFile}</redirectTestOutputToFile>
             <useFile>${test.redirectToFile}</useFile>
-            <argLine>-ea -Xmx2g -Xss4m</argLine>
+            <argLine>-ea -Xmx2g</argLine>
             <failIfNoTests>false</failIfNoTests>
           </configuration>
         </plugin>

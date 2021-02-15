@@ -5,30 +5,37 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.tencent.rss.client.factory.ShuffleServerClientFactory;
 import com.tencent.rss.client.impl.grpc.ShuffleServerGrpcClient;
 import com.tencent.rss.client.request.RssGetShuffleResultRequest;
 import com.tencent.rss.client.request.RssReportShuffleResultRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
 import com.tencent.rss.client.response.RssGetShuffleResultResponse;
 import com.tencent.rss.client.response.RssReportShuffleResultResponse;
-import com.tencent.rss.common.ShuffleServerInfo;
+import com.tencent.rss.coordinator.CoordinatorConf;
+import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.test.IntegrationTestBase;
 import java.util.List;
 import java.util.Map;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ShuffleServerGrpcTest extends IntegrationTestBase {
 
-  private ShuffleServerClientFactory factory = ShuffleServerClientFactory.getInstance();
   private ShuffleServerGrpcClient shuffleServerClient;
+
+  @BeforeClass
+  public static void setupServers() throws Exception {
+    CoordinatorConf coordinatorConf = getCoordinatorConf();
+    createCoordinatorServer(coordinatorConf);
+    ShuffleServerConf shuffleServerConf = getShuffleServerConf();
+    createShuffleServer(shuffleServerConf);
+    startServers();
+  }
 
   @Before
   public void createClient() {
-    shuffleServerClient =
-        (ShuffleServerGrpcClient) factory.getShuffleServerClient(
-            "GRPC", new ShuffleServerInfo("test", LOCALHOST, SHUFFLE_SERVER_PORT));
+    shuffleServerClient = new ShuffleServerGrpcClient(LOCALHOST, SHUFFLE_SERVER_PORT);
   }
 
   @Test

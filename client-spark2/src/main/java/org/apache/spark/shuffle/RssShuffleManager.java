@@ -207,9 +207,9 @@ public class RssShuffleManager implements ShuffleManager {
     if (handle instanceof RssShuffleHandle) {
       // SparkContext is created after RssShuffleManager, can't get appId in RssShuffleManager's construct
       setAppId();
-      String shuffleDataBasePath = sparkConf.get(RssClientConfig.RSS_BASE_PATH);
-      String storageType = sparkConf.get(RssClientConfig.RSS_STORAGE_TYPE,
-          RssClientConfig.RSS_STORAGE_TYPE_DEFAULT_VALUE);
+      // spark.rss.base.path is not necessary for every storage type, eg, hdfs need but localfile doesn't
+      String shuffleDataBasePath = sparkConf.get(RssClientConfig.RSS_BASE_PATH, "");
+      String storageType = sparkConf.get(RssClientConfig.RSS_STORAGE_TYPE);
       int indexReadLimit = sparkConf.getInt(RssClientConfig.RSS_INDEX_READ_LIMIT,
           RssClientConfig.RSS_INDEX_READ_LIMIT_DEFAULT_VALUE);
       RssShuffleHandle rssShuffleHandle = (RssShuffleHandle) handle;

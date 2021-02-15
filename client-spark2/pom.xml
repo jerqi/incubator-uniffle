@@ -65,7 +65,7 @@
               <shadedArtifactAttached>false</shadedArtifactAttached>
               <artifactSet>
                 <includes>
-                  <include> com.tencent.rss:*</include>
+                  <include>com.tencent.rss:*</include>
                   <include>com.google.protobuf:*</include>
                   <include>com.google.code.gson:gson</include>
                   <include>io.grpc:*</include>

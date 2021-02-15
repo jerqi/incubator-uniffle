@@ -1,5 +1,7 @@
 package com.tencent.rss.client.request;
 
+import com.tencent.rss.common.ShuffleServerInfo;
+import java.util.List;
 import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 
@@ -16,10 +18,11 @@ public class CreateShuffleReadClientRequest {
   private int partitionsPerServer;
   private int partitionNum;
   private Set<Long> expectedBlockIds;
+  private List<ShuffleServerInfo> shuffleServerInfoList;
 
   public CreateShuffleReadClientRequest(String appId, int shuffleId, int partitionId, String storageType,
       String basePath, Configuration hadoopConf, int indexReadLimit, int readBufferSize, int partitionsPerServer,
-      int partitionNum, Set<Long> expectedBlockIds) {
+      int partitionNum, Set<Long> expectedBlockIds, List<ShuffleServerInfo> shuffleServerInfoList) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.partitionId = partitionId;
@@ -31,6 +34,7 @@ public class CreateShuffleReadClientRequest {
     this.partitionsPerServer = partitionsPerServer;
     this.partitionNum = partitionNum;
     this.expectedBlockIds = expectedBlockIds;
+    this.shuffleServerInfoList = shuffleServerInfoList;
   }
 
   public String getAppId() {
@@ -75,5 +79,9 @@ public class CreateShuffleReadClientRequest {
 
   public Set<Long> getExpectedBlockIds() {
     return expectedBlockIds;
+  }
+
+  public List<ShuffleServerInfo> getShuffleServerInfoList() {
+    return shuffleServerInfoList;
   }
 }

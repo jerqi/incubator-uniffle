@@ -1,8 +1,8 @@
 package com.tencent.rss.storage.handler.impl;
 
-import com.tencent.rss.storage.handler.api.ShuffleReadHandler;
+import com.tencent.rss.storage.handler.api.ClientReadHandler;
 
-public abstract class AbstractFileShuffleReadHandler implements ShuffleReadHandler {
+public abstract class AbstractFileClientReadHandler implements ClientReadHandler {
 
   protected String appId;
   protected int shuffleId;

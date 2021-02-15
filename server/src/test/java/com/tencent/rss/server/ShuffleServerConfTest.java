@@ -11,10 +11,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
 public class ShuffleServerConfTest {
 
   private static final String confFile = ClassLoader.getSystemResource("confTest.conf").getFile();

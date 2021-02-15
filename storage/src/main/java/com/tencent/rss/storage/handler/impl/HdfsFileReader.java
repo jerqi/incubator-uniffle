@@ -2,7 +2,7 @@ package com.tencent.rss.storage.handler.impl;
 
 import com.tencent.rss.storage.api.ShuffleReader;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
-import com.tencent.rss.storage.utils.ShuffleStorageUtils;
+import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.BufferUnderflowException;
@@ -16,14 +16,14 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FileBasedShuffleReader implements ShuffleReader, Closeable {
+public class HdfsFileReader implements ShuffleReader, Closeable {
 
-  private static final Logger LOG = LoggerFactory.getLogger(FileBasedShuffleReader.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HdfsFileReader.class);
   private Path path;
   private Configuration hadoopConf;
   private FSDataInputStream fsDataInputStream;
 
-  public FileBasedShuffleReader(Path path, Configuration hadoopConf) {
+  public HdfsFileReader(Path path, Configuration hadoopConf) {
     this.path = path;
     this.hadoopConf = hadoopConf;
   }
@@ -48,8 +48,6 @@ public class FileBasedShuffleReader implements ShuffleReader, Closeable {
       fsDataInputStream.readFully(buf);
       return buf;
     } catch (Exception e) {
-//      String msg = "No data from the index " + segment + " of " + path;
-//      throw new IllegalStateException(msg);
       LOG.warn("Can't read data for path:" + path + ", with " + segment);
     }
     return null;
@@ -81,7 +79,7 @@ public class FileBasedShuffleReader implements ShuffleReader, Closeable {
     long crc = getLongFromStream(buf);
     long blockId = getLongFromStream(buf);
 
-    return new FileBasedShuffleSegment(offset, length, crc, blockId);
+    return new FileBasedShuffleSegment(blockId, offset, length, crc);
   }
 
   private long getLongFromStream(ByteBuffer buf) throws IOException, IllegalStateException {
