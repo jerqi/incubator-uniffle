@@ -14,6 +14,4 @@ public interface ShuffleWriteHandler {
    * @throws IllegalStateException
    */
   void write(List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException;
-
-  long getAccessTime();
 }

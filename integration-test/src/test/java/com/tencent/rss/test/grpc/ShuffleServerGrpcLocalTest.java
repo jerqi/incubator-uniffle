@@ -72,7 +72,6 @@ public class ShuffleServerGrpcLocalTest extends IntegrationTestBase {
     shuffleServerClient.registerShuffle(rrsr);
 
     Map<Long, byte[]> expectedData = Maps.newHashMap();
-    Map<Long, Set<Long>> expectedBlockId = Maps.newHashMap();
     Set<Long> expectedBlockIds1 = Sets.newHashSet();
     Set<Long> expectedBlockIds2 = Sets.newHashSet();
     Set<Long> expectedBlockIds3 = Sets.newHashSet();

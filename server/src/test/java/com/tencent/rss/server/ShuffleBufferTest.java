@@ -1,66 +1,70 @@
 package com.tencent.rss.server;
 
-import com.tencent.rss.common.ShufflePartitionedBlock;
-import com.tencent.rss.common.ShufflePartitionedData;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
-import java.io.FileNotFoundException;
-import java.net.UnknownHostException;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.Executors;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.booleanThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-public class ShuffleBufferTest extends MetricsTestBase {
+import com.google.common.collect.Sets;
+import com.tencent.rss.common.ShufflePartitionedBlock;
+import com.tencent.rss.common.ShufflePartitionedData;
+import java.util.Random;
+import java.util.Set;
+import org.junit.Test;
 
-  private static final String confFile = ClassLoader.getSystemResource("server.conf").getFile();
-  private BufferManager bufferManager;
-  private ShuffleBuffer shuffleBuffer;
+public class ShuffleBufferTest {
 
-  @Before
-  public void setUp() throws UnknownHostException, FileNotFoundException {
-    ShuffleServer shuffleServer = new ShuffleServer(confFile);
-    bufferManager = shuffleServer.getBufferManager();
-    bufferManager.setCapacity(200);
-    bufferManager.setBufferSize(100);
-
-    ShuffleEngine engine = mock(ShuffleEngine.class);
-    when(engine.makeKey()).thenReturn("key");
-    shuffleBuffer = bufferManager.getBuffer(engine);
-  }
-
-  @After
-  public void tearDown() {
-
+  static {
+    ShuffleServerMetrics.register();
   }
 
   @Test
-  public void testAppend() {
+  public void appendTest() {
+    ShuffleBuffer shuffleBuffer = new ShuffleBuffer(100);
     shuffleBuffer.append(createData(10));
     assertEquals(10, shuffleBuffer.getSize());
     assertFalse(shuffleBuffer.isFull());
+
+    shuffleBuffer.append(createData(90));
+    assertEquals(100, shuffleBuffer.getSize());
+    assertFalse(shuffleBuffer.isFull());
+
+    shuffleBuffer.append(createData(1));
+    assertEquals(101, shuffleBuffer.getSize());
+    assertTrue(shuffleBuffer.isFull());
   }
 
   @Test
-  public void testFlush() {
+  public void toFlushEventTest() {
+    ShuffleBuffer shuffleBuffer = new ShuffleBuffer(100);
+    Set<Long> expectedEventIds = Sets.newHashSet();
+    ShuffleDataFlushEvent event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
+    assertNull(event);
     shuffleBuffer.append(createData(10));
-    ShuffleDataFlushEvent event = shuffleBuffer.flush();
+    assertEquals(10, shuffleBuffer.getSize());
+    event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
+    expectedEventIds.add(event.getEventId());
     assertEquals(10, event.getSize());
     assertEquals(0, shuffleBuffer.getSize());
-    assertNull(shuffleBuffer.flush());
     assertEquals(0, shuffleBuffer.getBlocks().size());
-    assertEquals(0, shuffleBuffer.getSize());
+
+    shuffleBuffer.append(createData(10));
+    event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
+    expectedEventIds.add(event.getEventId());
+    Set<Long> eventIds = shuffleBuffer.getAndClearEventIds();
+    assertTrue(expectedEventIds.containsAll(eventIds));
+    assertTrue(eventIds.containsAll(expectedEventIds));
+
+    expectedEventIds.clear();
+    shuffleBuffer.append(createData(10));
+    event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
+    expectedEventIds.add(event.getEventId());
+    shuffleBuffer.append(createData(10));
+    event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
+    expectedEventIds.add(event.getEventId());
+    eventIds = shuffleBuffer.getAndClearEventIds();
+    assertTrue(expectedEventIds.containsAll(eventIds));
+    assertTrue(eventIds.containsAll(expectedEventIds));
   }
 
   private ShufflePartitionedData createData(int len) {

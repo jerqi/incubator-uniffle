@@ -1,7 +1,6 @@
 package com.tencent.rss.server;
 
 import com.tencent.rss.common.ShufflePartitionedBlock;
-import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.util.List;
 
 public class ShuffleDataFlushEvent {
@@ -29,10 +28,6 @@ public class ShuffleDataFlushEvent {
     this.endPartition = endPartition;
     this.size = size;
     this.shuffleBlocks = shuffleBlocks;
-  }
-
-  public String getShuffleFilePath() {
-    return ShuffleStorageUtils.getShuffleDataPath(appId, shuffleId, startPartition, endPartition);
   }
 
   public List<ShufflePartitionedBlock> getShuffleBlocks() {

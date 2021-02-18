@@ -107,8 +107,4 @@ public class LocalFileWriteHandler implements ShuffleWriteHandler {
     return basePath;
   }
 
-  @Override
-  public long getAccessTime() {
-    return 0;
-  }
 }

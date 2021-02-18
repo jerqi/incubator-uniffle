@@ -1,9 +1,9 @@
 package com.tencent.rss.server;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.ShuffleDataResult;
@@ -42,7 +42,7 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
   }
 
   @Test
-  public void testWrite() throws Exception {
+  public void writeTest() throws Exception {
     ShuffleFlushManager manager =
         new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
     ShuffleDataFlushEvent event1 =
@@ -60,50 +60,21 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     // wait for write data
     Thread.sleep(5000);
     validate("appId1", 1, 0, blocks1, 2, storageBasePath);
-    assertEquals(1, manager.getEventIds(event1.getShuffleFilePath()).size());
+    assertEquals(1, manager.getEventIds("appId1", 1, Range.closed(0, 1)).size());
 
     blocks21.addAll(blocks22);
     validate("appId1", 2, 0, blocks21, 2, storageBasePath);
-    assertEquals(2, manager.getEventIds(event21.getShuffleFilePath()).size());
+    assertEquals(2, manager.getEventIds("appId1", 2, Range.closed(0, 1)).size());
   }
 
   @Test
-  public void testGC() throws Exception {
-    shuffleServerConf.setString("rss.server.flush.handler.expired", "5");
-    shuffleServerConf.setString("rss.server.flush.gc.check.interval", "1");
-    ShuffleFlushManager manager =
-        new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
-    ShuffleDataFlushEvent event1 =
-        createShuffleDataFlushEvent("appId3", 1, 0, 1);
-    manager.addToFlushQueue(event1);
-    ShuffleDataFlushEvent event2 =
-        createShuffleDataFlushEvent("appId3", 2, 0, 1);
-    manager.addToFlushQueue(event2);
-    Thread.sleep(4000);
-    assertEquals(2, manager.getPathToHandler().size());
-    assertEquals(1, manager.getEventIds(event1.getShuffleFilePath()).size());
-    assertEquals(1, manager.getEventIds(event2.getShuffleFilePath()).size());
-    event2 = createShuffleDataFlushEvent("appId3", 2, 0, 1);
-    manager.addToFlushQueue(event2);
-    Thread.sleep(4000);
-    assertEquals(1, manager.getPathToHandler().size());
-    assertNull(manager.getEventIds(event1.getShuffleFilePath()));
-    assertEquals(2, manager.getEventIds(event2.getShuffleFilePath()).size());
-    Thread.sleep(4000);
-    assertEquals(0, manager.getPathToHandler().size());
-    assertNull(manager.getEventIds(event1.getShuffleFilePath()));
-    assertNull(manager.getEventIds(event2.getShuffleFilePath()));
-  }
-
-  @Test
-  public void testComplexWrite() throws Exception {
+  public void complexWriteTest() throws Exception {
     shuffleServerConf.setString("rss.server.flush.handler.expired", "3");
     shuffleServerConf.setString("rss.server.flush.gc.check.interval", "1");
     List<ShufflePartitionedBlock> expectedBlocks = Lists.newArrayList();
     List<ShuffleDataFlushEvent> flushEvents1 = Lists.newArrayList();
     List<ShuffleDataFlushEvent> flushEvents2 = Lists.newArrayList();
     ShuffleFlushManager manager = new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
-    String shuffleFilePath = "";
     for (int i = 0; i < 30; i++) {
       ShuffleDataFlushEvent flushEvent1 = createShuffleDataFlushEvent("appId4", 1, 0, 1);
       ShuffleDataFlushEvent flushEvent2 = createShuffleDataFlushEvent("appId4", 1, 0, 1);
@@ -111,9 +82,6 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
       expectedBlocks.addAll(flushEvent2.getShuffleBlocks());
       flushEvents1.add(flushEvent1);
       flushEvents2.add(flushEvent2);
-      if ("".equals(shuffleFilePath)) {
-        shuffleFilePath = flushEvent1.getShuffleFilePath();
-      }
     }
     Thread flushThread1 = new Thread(() -> {
       for (ShuffleDataFlushEvent event : flushEvents1) {
@@ -134,8 +102,8 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     int retryNum = 0;
     // wait for flush thread
     while (true) {
-      if (manager.getEventIds(shuffleFilePath) != null
-          && manager.getEventIds(shuffleFilePath).size() == 60) {
+      Set<Long> eventIds = manager.getEventIds("appId4", 1, Range.closed(0, 1));
+      if (eventIds != null && eventIds.size() == 60) {
         break;
       }
       Thread.sleep(1000);

@@ -1,6 +1,5 @@
 package com.tencent.rss.server;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.common.Arguments;
 import com.tencent.rss.common.metrics.JvmMetrics;
 import com.tencent.rss.common.rpc.ServerInterface;
@@ -21,7 +20,6 @@ public class ShuffleServer {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleServer.class);
   private RegisterHeartBeat registerHeartBeat;
-  private BufferManager bufferManager;
   private String id;
   private String ip;
   private int port;
@@ -30,6 +28,7 @@ public class ShuffleServer {
   private ShuffleTaskManager shuffleTaskManager;
   private ServerInterface server;
   private ShuffleFlushManager shuffleFlushManager;
+  private ShuffleBufferManager shuffleBufferManager;
 
   public ShuffleServer(ShuffleServerConf shuffleServerConf) throws UnknownHostException, FileNotFoundException {
     this.shuffleServerConf = shuffleServerConf;
@@ -89,8 +88,9 @@ public class ShuffleServer {
     id = ip + "-" + port;
     registerHeartBeat = new RegisterHeartBeat(this);
     shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id, this);
-    bufferManager = new BufferManager(shuffleServerConf, this);
-    shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, bufferManager, shuffleFlushManager, id);
+    shuffleBufferManager = new ShuffleBufferManager(shuffleServerConf, shuffleFlushManager);
+
+    shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, shuffleFlushManager, shuffleBufferManager);
 
     RemoteServerFactory shuffleServerFactory = new RemoteServerFactory(this);
     server = shuffleServerFactory.getServer();
@@ -148,26 +148,16 @@ public class ShuffleServer {
     return shuffleTaskManager;
   }
 
-  public void setShuffleTaskManager(ShuffleTaskManager shuffleTaskManager) {
-    this.shuffleTaskManager = shuffleTaskManager;
-  }
-
-  public BufferManager getBufferManager() {
-    return bufferManager;
-  }
-
   public ShuffleFlushManager getShuffleFlushManager() {
     return shuffleFlushManager;
   }
 
-  @VisibleForTesting
-  public void setShuffleFlushManager(ShuffleFlushManager shuffleFlushManager) {
-    this.shuffleFlushManager = shuffleFlushManager;
-  }
-
   // TODO: add score calculation strategy
   public int calcScore() {
-    return 100 - bufferManager.getBufferUsedPercent();
+    return 100 - shuffleBufferManager.getBufferUsedPercent();
   }
 
+  public ShuffleBufferManager getShuffleBufferManager() {
+    return shuffleBufferManager;
+  }
 }

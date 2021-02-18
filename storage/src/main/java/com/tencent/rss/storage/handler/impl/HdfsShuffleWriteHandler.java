@@ -19,7 +19,6 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
   private Configuration hadoopConf;
   private String basePath;
   private String fileNamePrefix;
-  private long accessTime;
 
   public HdfsShuffleWriteHandler(
       String appId,
@@ -31,7 +30,6 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
       Configuration hadoopConf) throws IOException, IllegalStateException {
     this.hadoopConf = hadoopConf;
     this.fileNamePrefix = fileNamePrefix;
-    this.accessTime = System.currentTimeMillis();
     this.basePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
         ShuffleStorageUtils.getShuffleDataPath(appId, shuffleId, startPartition, endPartition));
     createBasePath();
@@ -56,22 +54,17 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
   }
 
   @Override
-  public long getAccessTime() {
-    return accessTime;
-  }
-
-  @Override
   public synchronized void write(
       List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException {
-    accessTime = System.currentTimeMillis();
     String dataFileName = ShuffleStorageUtils.generateDataFileName(fileNamePrefix);
     String indexFileName = ShuffleStorageUtils.generateIndexFileName(fileNamePrefix);
     long writeSize = shuffleBlocks.stream().mapToLong(ShufflePartitionedBlock::size).sum();
 
+    long startTimeOuter = System.currentTimeMillis();
     try (HdfsFileWriter dataWriter = createWriter(dataFileName);
         HdfsFileWriter indexWriter = createWriter(indexFileName)) {
 
-      long startTime = System.currentTimeMillis();
+      long startTimeInner = System.currentTimeMillis();
       for (ShufflePartitionedBlock block : shuffleBlocks) {
         LOG.debug("Write data " + block);
         long blockId = block.getBlockId();
@@ -90,13 +83,13 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
           "Write handler write {} blocks {} mb for {} ms without file open close",
           shuffleBlocks.size(),
           writeSize,
-          (System.currentTimeMillis() - startTime) / 1000);
+          (System.currentTimeMillis() - startTimeInner) / 1000);
     }
     LOG.debug(
         "Write handler write {} blocks {} mb for {} ms with file open close",
         shuffleBlocks.size(),
         writeSize,
-        (System.currentTimeMillis() - accessTime / 1000));
+        (System.currentTimeMillis() - startTimeOuter) / 1000);
   }
 
   private HdfsFileWriter createWriter(String fileName) throws IOException, IllegalStateException {

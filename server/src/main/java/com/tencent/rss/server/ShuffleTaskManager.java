@@ -1,11 +1,11 @@
 package com.tencent.rss.server;
 
-import static java.util.Objects.requireNonNull;
-
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Range;
+import com.google.common.collect.RangeMap;
 import com.tencent.rss.common.ShuffleDataResult;
+import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
 import com.tencent.rss.storage.request.CreateShuffleReadHandlerRequest;
 import java.util.List;
@@ -16,90 +16,67 @@ import org.slf4j.LoggerFactory;
 
 public class ShuffleTaskManager {
 
-  public static final String KEY_DELIMITER = "~";
-  private static final Logger LOG = LoggerFactory.getLogger(ShuffleEngine.class);
-  private final BufferManager bufferManager;
+  private static final Logger LOG = LoggerFactory.getLogger(ShuffleTaskManager.class);
   private final ShuffleFlushManager shuffleFlushManager;
-  private final String serverId;
   private ShuffleServerConf conf;
-  private Map<String, ShuffleEngineManager> shuffleTaskEngines;
   // appId -> shuffleId -> partitionId -> blockIds to avoid too many appId
   private Map<String, Map<Integer, Map<Integer, List<Long>>>> partitionsToBlockIds;
-
-  public ShuffleTaskManager() {
-    this.bufferManager = null;
-    this.shuffleFlushManager = null;
-    this.conf = null;
-    this.serverId = "";
-    this.shuffleTaskEngines = Maps.newConcurrentMap();
-    this.partitionsToBlockIds = Maps.newConcurrentMap();
-  }
+  private ShuffleBufferManager shuffleBufferManager;
 
   public ShuffleTaskManager(
       ShuffleServerConf conf,
-      BufferManager bufferManager,
       ShuffleFlushManager shuffleFlushManager,
-      String serverId) {
-    requireNonNull(conf);
-    requireNonNull(bufferManager);
-    this.bufferManager = bufferManager;
+      ShuffleBufferManager shuffleBufferManager) {
     this.conf = conf;
-    this.serverId = serverId;
     this.shuffleFlushManager = shuffleFlushManager;
-    this.shuffleTaskEngines = Maps.newConcurrentMap();
     this.partitionsToBlockIds = Maps.newConcurrentMap();
-  }
-
-  public static String constructKey(String... vars) {
-    return String.join(KEY_DELIMITER, vars);
+    this.shuffleBufferManager = shuffleBufferManager;
   }
 
   public StatusCode registerShuffle(String appId, int shuffleId, int startPartition, int endPartition) {
-    if (bufferManager.isFull()) {
-      return StatusCode.NO_BUFFER;
-    }
-
-    ShuffleEngineManager shuffleEngineManager =
-        new ShuffleEngineManager(appId, shuffleId, conf, bufferManager, shuffleFlushManager);
-
-    return registerShuffle(appId, shuffleId, startPartition, endPartition, shuffleEngineManager);
+    return shuffleBufferManager.registerBuffer(appId, shuffleId, startPartition, endPartition);
   }
 
-  public StatusCode registerShuffle(
-      String appId, int shuffleId, int startPartition, int endPartition, ShuffleEngineManager engineManager) {
-    String key = constructKey(appId, String.valueOf(shuffleId));
-    ShuffleEngineManager shuffleEngineManager = shuffleTaskEngines.putIfAbsent(key, engineManager);
-
-    if (shuffleEngineManager == null) {
-      ShuffleServerMetrics.gaugeRegisteredShuffle.inc();
-      shuffleEngineManager = engineManager;
-    }
-
-    return shuffleEngineManager.registerShuffleEngine(startPartition, endPartition);
+  public StatusCode cacheShuffleData(String appId, int shuffleId, ShufflePartitionedData spd) {
+    return shuffleBufferManager.cacheShuffleData(appId, shuffleId, spd);
   }
 
-  public ShuffleEngine getShuffleEngine(String appId, String shuffleId, int partition) {
-    String key = constructKey(appId, shuffleId);
-    ShuffleEngineManager shuffleEngineManager = shuffleTaskEngines.get(key);
+  public synchronized StatusCode commitShuffle(String appId, int shuffleId) throws Exception {
+    RangeMap<Integer, Set<Long>> partitionToEventIds = shuffleBufferManager.commitShuffleTask(appId, shuffleId);
 
-    if (shuffleEngineManager == null) {
-      LOG.error("Shuffle task {}~{} {} is not register yet", appId, shuffleId, partition);
-      return null;
+    long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
+    long start = System.currentTimeMillis();
+    while (true) {
+      List<Range<Integer>> removedRanges = Lists.newArrayList();
+      for (Map.Entry<Range<Integer>, Set<Long>> entry : partitionToEventIds.asMapOfRanges().entrySet()) {
+        Range<Integer> range = entry.getKey();
+        Set<Long> committedIds = shuffleFlushManager.getEventIds(appId, shuffleId, range);
+        if (committedIds != null && !committedIds.isEmpty()) {
+          Set<Long> expectedEventIds = entry.getValue();
+          LOG.debug("Got expectedEventIds for appId[" + appId + "], shuffleId[" + shuffleId + "], partitionRange["
+              + range + "], " + expectedEventIds + ", current commit: " + committedIds);
+          expectedEventIds.removeAll(committedIds);
+          if (expectedEventIds.isEmpty()) {
+            removedRanges.add(range);
+          }
+        }
+      }
+      for (Range<Integer> range : removedRanges) {
+        partitionToEventIds.remove(range);
+        LOG.info("appId[" + appId + "], shuffleId[" + shuffleId + "], partitionRange["
+            + range + "] is committed for current request.");
+      }
+      if (partitionToEventIds.asMapOfRanges().isEmpty()) {
+        break;
+      }
+      Thread.sleep(1000);
+      if (System.currentTimeMillis() - start > commitTimeout) {
+        throw new RuntimeException("Shuffle data commit timeout for " + commitTimeout + " ms");
+      }
+      LOG.info("Checking commit result for appId[" + appId + "], shuffleId[" + shuffleId + "]");
     }
 
-    return shuffleEngineManager.getShuffleEngine(partition);
-  }
-
-  public StatusCode commitShuffle(String appId, int shuffleId) throws Exception {
-    String key = constructKey(appId, String.valueOf(shuffleId));
-    ShuffleEngineManager shuffleEngineManager = shuffleTaskEngines.get(key);
-
-    if (shuffleEngineManager == null) {
-      LOG.error("{}~{} try to commit a non-exist shuffle task in this server", appId, shuffleId);
-      return StatusCode.NO_REGISTER;
-    }
-
-    return shuffleEngineManager.commit();
+    return StatusCode.SUCCESS;
   }
 
   public synchronized void addFinishedBlockIds(
@@ -145,16 +122,6 @@ public class ShuffleTaskManager {
     request.setStorageType(storageType);
     request.setRssBaseConf(conf);
     return ShuffleHandlerFactory.getInstance().getServerReadHandler(request).getShuffleData(expectedBlockIds);
-  }
-
-  @VisibleForTesting
-  Map<String, ShuffleEngineManager> getShuffleTaskEngines() {
-    return this.shuffleTaskEngines;
-  }
-
-  @VisibleForTesting
-  void clear() {
-    shuffleTaskEngines.clear();
   }
 
 }

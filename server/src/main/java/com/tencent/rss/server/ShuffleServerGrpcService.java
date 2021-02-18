@@ -28,7 +28,6 @@ import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerImplBase;
 import io.grpc.stub.StreamObserver;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,13 +36,13 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GrpcService extends ShuffleServerImplBase {
+public class ShuffleServerGrpcService extends ShuffleServerImplBase {
 
-  private static final Logger LOG = LoggerFactory.getLogger(GrpcService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ShuffleServerGrpcService.class);
   private final ShuffleServer shuffleServer;
   private AtomicLong readDataTime = new AtomicLong(0);
 
-  public GrpcService(ShuffleServer shuffleServer) {
+  public ShuffleServerGrpcService(ShuffleServer shuffleServer) {
     this.shuffleServer = shuffleServer;
   }
 
@@ -100,7 +99,7 @@ public class GrpcService extends ShuffleServerImplBase {
 
     SendShuffleDataResponse reply;
     String appId = req.getAppId();
-    String shuffleId = String.valueOf(req.getShuffleId());
+    int shuffleId = req.getShuffleId();
 
     StatusCode ret = StatusCode.SUCCESS;
     String responseMessage = "OK";
@@ -118,20 +117,9 @@ public class GrpcService extends ShuffleServerImplBase {
         ShuffleServerMetrics.counterTotalReceivedDataSize.inc(recSize);
 
         for (ShufflePartitionedData spd : shufflePartitionedData) {
-          ShuffleEngine shuffleEngine = shuffleServer
-              .getShuffleTaskManager()
-              .getShuffleEngine(appId, shuffleId, spd.getPartitionId());
-
           String shuffleDataInfo = "appId[" + appId + "], shuffleId[" + shuffleId
               + "], partitionId[" + spd.getPartitionId() + "]";
 
-          if (shuffleEngine == null) {
-            String errorMsg = "Can't get ShuffleEngine for " + shuffleDataInfo;
-            LOG.error(errorMsg);
-            ret = StatusCode.NO_REGISTER;
-            responseMessage = errorMsg;
-            break;
-          }
           try {
             long writeTimeout =
                 shuffleServer.getShuffleServerConf().get(ShuffleServerConf.SERVER_WRITE_TIMEOUT);
@@ -144,7 +132,9 @@ public class GrpcService extends ShuffleServerImplBase {
                 responseMessage = errorMsg;
                 break;
               }
-              ret = shuffleEngine.write(spd);
+              ret = shuffleServer
+                  .getShuffleTaskManager()
+                  .cacheShuffleData(appId, shuffleId, spd);
               if (ret == StatusCode.NO_BUFFER) {
                 LOG.warn("Buffer is full for writing shuffle data, wait 1s");
                 Thread.sleep(1000);
@@ -158,7 +148,7 @@ public class GrpcService extends ShuffleServerImplBase {
               responseMessage = errorMsg;
               break;
             }
-          } catch (IOException | IllegalStateException e) {
+          } catch (Exception e) {
             String errorMsg = "Error happened when shuffleEngine.write for "
                 + shuffleDataInfo + ": " + e.getMessage();
             ret = StatusCode.INTERNAL_ERROR;
