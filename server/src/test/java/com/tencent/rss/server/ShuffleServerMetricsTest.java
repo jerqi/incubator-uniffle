@@ -5,8 +5,8 @@ import static org.junit.Assert.assertEquals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tencent.rss.common.metrics.JvmMetrics;
+import com.tencent.rss.common.web.CommonMetricsServlet;
 import com.tencent.rss.common.web.JettyServer;
-import com.tencent.rss.common.web.MetricsServlet;
 import io.prometheus.client.CollectorRegistry;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -19,6 +19,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class ShuffleServerMetricsTest {
 
@@ -26,22 +29,22 @@ public class ShuffleServerMetricsTest {
   private static final String SERVER_JVM_URL = "http://127.0.0.1:12345/metrics/jvm";
   private static JettyServer server;
 
-  //  @BeforeClass
+  @BeforeClass
   public static void setUp() throws Exception {
     ShuffleServerConf ssc = new ShuffleServerConf();
     ssc.setString("rss.jetty.http.port", "12345");
-    ssc.setString("rss.jetty.corePool.size", "64");
+    ssc.setString("rss.jetty.corePool.size", "128");
     server = new JettyServer(ssc);
     CollectorRegistry shuffleServerCollectorRegistry = new CollectorRegistry(true);
     ShuffleServerMetrics.register(shuffleServerCollectorRegistry);
     CollectorRegistry jvmCollectorRegistry = new CollectorRegistry(true);
     JvmMetrics.register(jvmCollectorRegistry);
-    server.addServlet(new MetricsServlet(ShuffleServerMetrics.getCollectorRegistry()), "/metrics/server");
-    server.addServlet(new MetricsServlet(JvmMetrics.getCollectorRegistry()), "/metrics/jvm");
+    server.addServlet(new CommonMetricsServlet(ShuffleServerMetrics.getCollectorRegistry()), "/metrics/server");
+    server.addServlet(new CommonMetricsServlet(JvmMetrics.getCollectorRegistry()), "/metrics/jvm");
     server.start();
   }
 
-  //  @AfterClass
+  @AfterClass
   public static void tearDown() throws Exception {
     server.stop();
   }
@@ -61,7 +64,7 @@ public class ShuffleServerMetricsTest {
     return content.toString();
   }
 
-  //  @Test
+  @Test
   public void testJvmMetrics() throws Exception {
     String content = httpGetMetrics(SERVER_JVM_URL);
     ObjectMapper mapper = new ObjectMapper();
@@ -69,7 +72,7 @@ public class ShuffleServerMetricsTest {
     assertEquals(2, actualObj.size());
   }
 
-  //  @Test
+  @Test
   public void testServerMetrics() throws Exception {
     ShuffleServerMetrics.counterTotalRequest.inc();
     ShuffleServerMetrics.counterTotalRequest.inc();
@@ -83,7 +86,7 @@ public class ShuffleServerMetricsTest {
     assertEquals(19, actualObj.get("metrics").size());
   }
 
-  //  @Test
+  @Test
   public void testServerMetricsConcurrently() throws Exception {
     ExecutorService executorService = Executors.newFixedThreadPool(3);
     List<Callable<Void>> calls = new ArrayList<>();

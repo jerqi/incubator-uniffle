@@ -3,8 +3,8 @@ package com.tencent.rss.server;
 import com.tencent.rss.common.Arguments;
 import com.tencent.rss.common.metrics.JvmMetrics;
 import com.tencent.rss.common.rpc.ServerInterface;
+import com.tencent.rss.common.web.CommonMetricsServlet;
 import com.tencent.rss.common.web.JettyServer;
-import com.tencent.rss.common.web.MetricsServlet;
 import io.prometheus.client.CollectorRegistry;
 import java.io.FileNotFoundException;
 import java.net.InetAddress;
@@ -109,8 +109,18 @@ public class ShuffleServer {
 
   private void addServlet(JettyServer jettyServer) {
     LOG.info("Add metrics servlet");
-    jettyServer.addServlet(new MetricsServlet(ShuffleServerMetrics.getCollectorRegistry()), "/metrics/server");
-    jettyServer.addServlet(new MetricsServlet(JvmMetrics.getCollectorRegistry()), "/metrics/jvm");
+    jettyServer.addServlet(
+        new CommonMetricsServlet(ShuffleServerMetrics.getCollectorRegistry()),
+        "/metrics/server");
+    jettyServer.addServlet(
+        new CommonMetricsServlet(JvmMetrics.getCollectorRegistry()),
+        "/metrics/jvm");
+    jettyServer.addServlet(
+        new CommonMetricsServlet(ShuffleServerMetrics.getCollectorRegistry(), true),
+        "/prometheus/metrics/server");
+    jettyServer.addServlet(
+        new CommonMetricsServlet(JvmMetrics.getCollectorRegistry(), true),
+        "/prometheus/metrics/jvm");
   }
 
   /**

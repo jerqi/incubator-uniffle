@@ -2,12 +2,9 @@ package com.tencent.rss.common.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.prometheus.client.Collector;
+import io.prometheus.client.Collector.MetricFamilySamples.Sample;
 import io.prometheus.client.CollectorRegistry;
-
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import io.prometheus.client.exporter.MetricsServlet;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Writer;
@@ -18,38 +15,42 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
-public class MetricsServlet extends HttpServlet {
+public class CommonMetricsServlet extends MetricsServlet {
+
+  final boolean isPrometheus;
   private CollectorRegistry registry;
 
-  public MetricsServlet() {
-    this(CollectorRegistry.defaultRegistry);
+  public CommonMetricsServlet(CollectorRegistry registry) {
+    this(registry, false);
   }
 
-  public MetricsServlet(CollectorRegistry registry) {
+  public CommonMetricsServlet(CollectorRegistry registry, boolean isPrometheus) {
+    super(registry);
     this.registry = registry;
-  }
-
-  protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-    this.doGet(req, resp);
+    this.isPrometheus = isPrometheus;
   }
 
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-    resp.setStatus(200);
-    resp.setContentType("text/plain; version=0.0.4; charset=utf-8");
-    BufferedWriter writer = new BufferedWriter(resp.getWriter());
+    if (isPrometheus) {
+      super.doGet(req, resp);
+    } else {
+      resp.setStatus(200);
+      resp.setContentType("text/plain; version=0.0.4; charset=utf-8");
 
-    try {
-      toJson(writer, getSamples(req));
-      writer.flush();
-    } finally {
-      writer.close();
+      try (BufferedWriter writer = new BufferedWriter(resp.getWriter())) {
+        toJson(writer, getSamples(req));
+        writer.flush();
+      }
     }
   }
 
   private Set<String> parse(HttpServletRequest req) {
     String[] includedParam = req.getParameterValues("name[]");
-    return (Set) (includedParam == null ? Collections.emptySet() : new HashSet(Arrays.asList(includedParam)));
+    return includedParam == null ? Collections.emptySet() : new HashSet<>(Arrays.asList(includedParam));
   }
 
   private Enumeration<Collector.MetricFamilySamples> getSamples(HttpServletRequest req) {
@@ -60,7 +61,7 @@ public class MetricsServlet extends HttpServlet {
 
     List<Collector.MetricFamilySamples.Sample> metrics = new LinkedList<>();
     while (mfs.hasMoreElements()) {
-      Collector.MetricFamilySamples metricFamilySamples = (Collector.MetricFamilySamples) mfs.nextElement();
+      Collector.MetricFamilySamples metricFamilySamples = mfs.nextElement();
       metrics.addAll(metricFamilySamples.samples);
     }
 
@@ -71,6 +72,7 @@ public class MetricsServlet extends HttpServlet {
   }
 
   private static class MetricsJsonObj {
+
     private final List<Collector.MetricFamilySamples.Sample> metrics;
     private final long timeStamp;
 
@@ -79,12 +81,12 @@ public class MetricsServlet extends HttpServlet {
       this.timeStamp = timeStamp;
     }
 
-    public List<Collector.MetricFamilySamples.Sample> getMetrics() {
-      return this.metrics;
+    public List<Sample> getMetrics() {
+      return metrics;
     }
 
     public long getTimeStamp() {
-      return this.timeStamp;
+      return timeStamp;
     }
 
   }
