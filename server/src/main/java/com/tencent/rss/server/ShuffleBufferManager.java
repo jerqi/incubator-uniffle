@@ -6,6 +6,7 @@ import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
 import com.tencent.rss.common.ShufflePartitionedData;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -119,6 +120,28 @@ public class ShuffleBufferManager {
     if (event != null) {
       shuffleFlushManager.addToFlushQueue(event);
     }
+  }
+
+  public void removeBuffer(String appId) {
+    Map<Integer, RangeMap<Integer, ShuffleBuffer>> shuffleIdToBuffers = bufferPool.get(appId);
+    if (shuffleIdToBuffers == null) {
+      return;
+    }
+    // calculate released size
+    long size = 0;
+    for (RangeMap<Integer, ShuffleBuffer> rangeMap : shuffleIdToBuffers.values()) {
+      if (rangeMap != null) {
+        Collection<ShuffleBuffer> buffers = rangeMap.asMapOfRanges().values();
+        if (buffers != null) {
+          for (ShuffleBuffer buffer : buffers) {
+            size += buffer.getSize();
+          }
+        }
+      }
+    }
+    // release memory
+    updateSize(-size);
+    bufferPool.remove(appId);
   }
 
   long updateSize(long delta) {

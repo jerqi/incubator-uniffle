@@ -8,6 +8,7 @@ import com.tencent.rss.client.api.ShuffleServerClient;
 import com.tencent.rss.client.api.ShuffleWriteClient;
 import com.tencent.rss.client.factory.CoordinatorClientFactory;
 import com.tencent.rss.client.factory.ShuffleServerClientFactory;
+import com.tencent.rss.client.request.RssAppHeartBeatRequest;
 import com.tencent.rss.client.request.RssGetShuffleAssignmentsRequest;
 import com.tencent.rss.client.request.RssGetShuffleResultRequest;
 import com.tencent.rss.client.request.RssRegisterShuffleRequest;
@@ -16,6 +17,7 @@ import com.tencent.rss.client.request.RssSendCommitRequest;
 import com.tencent.rss.client.request.RssSendShuffleDataRequest;
 import com.tencent.rss.client.response.ClientResponse;
 import com.tencent.rss.client.response.ResponseStatusCode;
+import com.tencent.rss.client.response.RssAppHeartBeatResponse;
 import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
 import com.tencent.rss.client.response.RssGetShuffleResultResponse;
 import com.tencent.rss.client.response.RssRegisterShuffleResponse;
@@ -218,6 +220,15 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
           + appId + "], shuffleId[" + shuffleId + "]");
     }
     return blockIds;
+  }
+
+  @Override
+  public void sendAppHeartbeat(String appId) {
+    RssAppHeartBeatRequest request = new RssAppHeartBeatRequest(appId);
+    RssAppHeartBeatResponse response = coordinatorClient.sendAppHeartBeat(request);
+    if (response.getStatusCode() != ResponseStatusCode.SUCCESS) {
+      LOG.warn("Send heartbeat failed for application[" + appId + "]");
+    }
   }
 
   @Override

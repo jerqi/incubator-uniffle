@@ -2,9 +2,10 @@ package com.tencent.rss.coordinator;
 
 import com.google.protobuf.Empty;
 import com.tencent.rss.proto.CoordinatorServerGrpc;
+import com.tencent.rss.proto.RssProtos.AppHeartBeatRequest;
+import com.tencent.rss.proto.RssProtos.AppHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.CheckServiceAvailableResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleAssignmentsResponse;
-import com.tencent.rss.proto.RssProtos.GetShuffleDataStorageInfoResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleServerListResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleServerNumResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleServerRequest;
@@ -23,13 +24,13 @@ import org.slf4j.LoggerFactory;
 /**
  * Implementation class for services defined in protobuf
  */
-public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorServerImplBase {
+public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorServerImplBase {
 
-  private static final Logger LOG = LoggerFactory.getLogger(CoordinatorServiceImpl.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CoordinatorGrpcService.class);
 
   private final CoordinatorServer coordinatorServer;
 
-  CoordinatorServiceImpl(CoordinatorServer coordinatorServer) {
+  CoordinatorGrpcService(CoordinatorServer coordinatorServer) {
     this.coordinatorServer = coordinatorServer;
   }
 
@@ -90,23 +91,11 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
     coordinatorServer.getClusterManager().add(serverNode);
     final ShuffleServerHeartBeatResponse response = ShuffleServerHeartBeatResponse
         .newBuilder()
+        .addAllAppId(coordinatorServer.getApplicationManager().getAppIds())
         .setRetMsg("")
         .setStatus(StatusCode.SUCCESS)
         .build();
     LOG.debug("Got heartbeat from " + serverNode);
-    responseObserver.onNext(response);
-    responseObserver.onCompleted();
-  }
-
-  @Override
-  public void getShuffleDataStorageInfo(
-      Empty request,
-      StreamObserver<GetShuffleDataStorageInfoResponse> responseObserver) {
-    final String storage = coordinatorServer.getCoordinatorConf().getDataStorage();
-    final GetShuffleDataStorageInfoResponse response = GetShuffleDataStorageInfoResponse
-        .newBuilder()
-        .setStorage(storage)
-        .build();
     responseObserver.onNext(response);
     responseObserver.onCompleted();
   }
@@ -133,6 +122,22 @@ public class CoordinatorServiceImpl extends CoordinatorServerGrpc.CoordinatorSer
     final String operation = request.getOperation();
     LOG.info(clientHost + ":" + clientPort + "->" + operation + "->" + shuffleServer);
     final ReportShuffleClientOpResponse response = ReportShuffleClientOpResponse
+        .newBuilder()
+        .setRetMsg("")
+        .setStatus(StatusCode.SUCCESS)
+        .build();
+    responseObserver.onNext(response);
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void appHeartbeat(
+      AppHeartBeatRequest request,
+      StreamObserver<AppHeartBeatResponse> responseObserver) {
+    String appId = request.getAppId();
+    coordinatorServer.getApplicationManager().refreshAppId(appId);
+    LOG.info("Got heartbeat for application: " + appId);
+    AppHeartBeatResponse response = AppHeartBeatResponse
         .newBuilder()
         .setRetMsg("")
         .setStatus(StatusCode.SUCCESS)

@@ -9,18 +9,15 @@ import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.util.StorageType;
 import java.util.List;
 import org.junit.AfterClass;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 abstract public class IntegrationTestBase extends HdfsTestBase {
 
   protected static final int JETTY_PORT = 19998;
-  private static final Logger LOG = LoggerFactory.getLogger(IntegrationTestBase.class);
   protected static int COORDINATOR_PORT = 19999;
   protected static int SHUFFLE_SERVER_PORT = 20001;
   protected static String LOCALHOST = "127.0.0.1";
-  private static List<ShuffleServer> shuffleServers = Lists.newArrayList();
-  private static List<CoordinatorServer> coordinators = Lists.newArrayList();
+  protected static List<ShuffleServer> shuffleServers = Lists.newArrayList();
+  protected static List<CoordinatorServer> coordinators = Lists.newArrayList();
 
   public static void startServers() throws Exception {
     for (CoordinatorServer coordinator : coordinators) {
@@ -48,6 +45,7 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     coordinatorConf.setInteger("rss.rpc.server.port", COORDINATOR_PORT);
     coordinatorConf.setInteger("rss.jetty.http.port", JETTY_PORT);
     coordinatorConf.setInteger("rss.coordinator.server.replica", 1);
+
     return coordinatorConf;
   }
 
@@ -61,7 +59,7 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     serverConf.setString("rss.server.coordinator.ip", "127.0.0.1");
     serverConf.setInteger("rss.server.coordinator.port", COORDINATOR_PORT);
     serverConf.setString("rss.server.heartbeat.delay", "1000");
-    serverConf.setString("rss.server.heartbeat.interval", "2000");
+    serverConf.setString("rss.server.heartbeat.interval", "1000");
     serverConf.setInteger("rss.jetty.http.port", 18080);
     serverConf.setInteger("rss.jetty.corePool.size", 64);
     return serverConf;

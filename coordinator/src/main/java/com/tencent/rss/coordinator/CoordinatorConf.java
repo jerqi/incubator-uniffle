@@ -32,11 +32,11 @@ public class CoordinatorConf extends RssBaseConf {
       .stringType()
       .defaultValue("BASIC")
       .withDescription("Strategy for assigning shuffle server to write partitions");
-  private static final ConfigOption<String> DATA_STORAGE = ConfigOptions
-      .key("rss.storage.type")
-      .stringType()
-      .defaultValue("local")
-      .withDescription("Data storage for remote shuffle service");
+  static final ConfigOption<Long> COORDINATOR_APP_EXPIRED = ConfigOptions
+      .key("rss.coordinator.app.expired")
+      .longType()
+      .defaultValue(60 * 1000L)
+      .withDescription("Application expired time (ms), the heartbeat interval must be less than it");
 
   public CoordinatorConf() {
   }
@@ -59,10 +59,6 @@ public class CoordinatorConf extends RssBaseConf {
     loadCommonConf(properties);
 
     properties.forEach((k, v) -> {
-      if (DATA_STORAGE.key().equalsIgnoreCase(k)) {
-        set(DATA_STORAGE, v.toUpperCase());
-      }
-
       if (SHUFFLE_SERVER_REPLICA.key().equalsIgnoreCase(k)) {
         set(SHUFFLE_SERVER_REPLICA, Integer.valueOf(v));
       }
@@ -79,13 +75,12 @@ public class CoordinatorConf extends RssBaseConf {
         set(USABLE_THRESHOLD, Integer.valueOf(v));
       }
 
+      if (COORDINATOR_APP_EXPIRED.key().equalsIgnoreCase(k)) {
+        set(COORDINATOR_APP_EXPIRED, Long.valueOf(v));
+      }
     });
 
     return true;
-  }
-
-  public String getDataStorage() {
-    return this.getString(DATA_STORAGE);
   }
 
   public int getShuffleServerReplica() {

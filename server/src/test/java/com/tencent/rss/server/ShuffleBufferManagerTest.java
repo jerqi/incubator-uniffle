@@ -213,6 +213,16 @@ public class ShuffleBufferManagerTest {
     waitForFlush(shuffleFlushManager, appId, shuffleId, Range.closed(6, 7), 1);
     waitForFlush(shuffleFlushManager, appId, shuffleId, Range.closed(8, 9), 1);
     assertEquals(0, shuffleBufferManager.getSize());
+
+    shuffleBufferManager.registerBuffer("bufferSizeTest1", shuffleId, 0, 1);
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 32));
+    assertEquals(32, shuffleBufferManager.getSize());
+    shuffleBufferManager.cacheShuffleData("bufferSizeTest1", shuffleId, createData(0, 32));
+    assertEquals(64, shuffleBufferManager.getSize());
+    assertEquals(2, shuffleBufferManager.getBufferPool().keySet().size());
+    shuffleBufferManager.removeBuffer(appId);
+    assertEquals(32, shuffleBufferManager.getSize());
+    assertEquals(1, shuffleBufferManager.getBufferPool().keySet().size());
   }
 
   private void waitForFlush(ShuffleFlushManager shuffleFlushManager,

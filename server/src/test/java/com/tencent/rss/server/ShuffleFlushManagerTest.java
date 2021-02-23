@@ -1,9 +1,11 @@
 package com.tencent.rss.server;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.google.common.collect.RangeMap;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.ShuffleDataResult;
@@ -12,6 +14,7 @@ import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -58,7 +61,7 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     List<ShufflePartitionedBlock> blocks22 = event22.getShuffleBlocks();
     manager.addToFlushQueue(event22);
     // wait for write data
-    Thread.sleep(5000);
+    waitForFlush(manager, 3);
     validate("appId1", 1, 0, blocks1, 2, storageBasePath);
     assertEquals(1, manager.getEventIds("appId1", 1, Range.closed(0, 1)).size());
 
@@ -99,21 +102,52 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     flushThread1.join();
     flushThread2.join();
 
-    int retryNum = 0;
-    // wait for flush thread
-    while (true) {
-      Set<Long> eventIds = manager.getEventIds("appId4", 1, Range.closed(0, 1));
-      if (eventIds != null && eventIds.size() == 60) {
-        break;
-      }
-      Thread.sleep(1000);
-      retryNum++;
-      if (retryNum > 120) {
-        throw new RuntimeException("Failed to pass test");
-      }
-    }
+    waitForFlush(manager, 60);
 
     validate("appId4", 1, 0, expectedBlocks, 2, storageBasePath);
+  }
+
+  @Test
+  public void clearTest() throws Exception {
+    ShuffleFlushManager manager =
+        new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
+    ShuffleDataFlushEvent event1 =
+        createShuffleDataFlushEvent("appId1", 1, 0, 1);
+    manager.addToFlushQueue(event1);
+    ShuffleDataFlushEvent event2 =
+        createShuffleDataFlushEvent("appId2", 1, 0, 1);
+    manager.addToFlushQueue(event2);
+    waitForFlush(manager, 2);
+    assertEquals(2, manager.getEventIds().size());
+    assertEquals(2, manager.getHandlers().size());
+    manager.removeResources("appId1");
+    assertEquals(1, manager.getEventIds().size());
+    assertEquals(1, manager.getHandlers().size());
+    manager.removeResources("appId2");
+    assertEquals(0, manager.getEventIds().size());
+    assertEquals(0, manager.getHandlers().size());
+  }
+
+  private void waitForFlush(ShuffleFlushManager manager, int expectedNum) throws Exception {
+    Map<String, Map<Integer, RangeMap<Integer, Set<Long>>>> eventIds;
+    int retry = 0;
+    int size = 0;
+    do {
+      Thread.sleep(500);
+      if (retry > 100) {
+        fail("Unexpected flush process");
+      }
+      retry++;
+      eventIds = manager.getEventIds();
+      size = 0;
+      for (Map<Integer, RangeMap<Integer, Set<Long>>> shuffleIdToEventIds : eventIds.values()) {
+        for (RangeMap<Integer, Set<Long>> rangeMap : shuffleIdToEventIds.values()) {
+          for (Set<Long> ids : rangeMap.asMapOfRanges().values()) {
+            size += ids.size();
+          }
+        }
+      }
+    } while (size < expectedNum);
   }
 
   private ShuffleDataFlushEvent createShuffleDataFlushEvent(

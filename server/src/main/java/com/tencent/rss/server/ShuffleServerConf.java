@@ -122,6 +122,18 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(30000L)
       .withDescription("Timeout when write shuffle data (ms)");
 
+  public static final ConfigOption<Long> SERVER_APP_EXPIRED_WITH_HEARTBEAT = ConfigOptions
+      .key("rss.server.app.expired.withHeartbeat")
+      .longType()
+      .defaultValue(24 * 60 * 60 * 1000L)
+      .withDescription("Expired time (ms) for application which has heartbeat with coordinator");
+
+  public static final ConfigOption<Long> SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT = ConfigOptions
+      .key("rss.server.app.expired.withoutHeartbeat")
+      .longType()
+      .defaultValue(60 * 1000L)
+      .withDescription("Expired time (ms) for application which has no heartbeat with coordinator");
+
   public ShuffleServerConf() {
   }
 
@@ -221,6 +233,14 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (SERVER_WRITE_TIMEOUT.key().equalsIgnoreCase(k)) {
         set(SERVER_WRITE_TIMEOUT, Long.valueOf(v));
+      }
+
+      if (SERVER_APP_EXPIRED_WITH_HEARTBEAT.key().equalsIgnoreCase(k)) {
+        set(SERVER_APP_EXPIRED_WITH_HEARTBEAT, Long.valueOf(v));
+      }
+
+      if (SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT.key().equalsIgnoreCase(k)) {
+        set(SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT, Long.valueOf(v));
       }
     });
 

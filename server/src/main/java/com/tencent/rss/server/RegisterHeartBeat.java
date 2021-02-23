@@ -8,6 +8,7 @@ import com.tencent.rss.client.request.RssSendHeartBeatRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
 import com.tencent.rss.client.response.RssSendHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -103,6 +104,7 @@ public class RegisterHeartBeat {
       failedHeartBeatCount = 0;
       isRegistered = true;
       sendSuccessfully = true;
+      checkResourceStatus(response.getAppIds());
     }
 
     if (failedHeartBeatCount >= maxHeartBeatRetry) {
@@ -114,6 +116,10 @@ public class RegisterHeartBeat {
     }
 
     return sendSuccessfully;
+  }
+
+  private void checkResourceStatus(Set<String> appIds) {
+    shuffleServer.getShuffleTaskManager().checkResourceStatus(appIds);
   }
 
   @VisibleForTesting

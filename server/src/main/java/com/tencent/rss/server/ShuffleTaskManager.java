@@ -1,9 +1,11 @@
 package com.tencent.rss.server;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
+import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
@@ -19,9 +21,12 @@ public class ShuffleTaskManager {
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleTaskManager.class);
   private final ShuffleFlushManager shuffleFlushManager;
   private ShuffleServerConf conf;
+  private long appExpiredWithHB;
+  private long appExpiredWithoutHB;
   // appId -> shuffleId -> partitionId -> blockIds to avoid too many appId
   private Map<String, Map<Integer, Map<Integer, List<Long>>>> partitionsToBlockIds;
   private ShuffleBufferManager shuffleBufferManager;
+  private Map<String, Long> appIds = Maps.newConcurrentMap();
 
   public ShuffleTaskManager(
       ShuffleServerConf conf,
@@ -31,19 +36,23 @@ public class ShuffleTaskManager {
     this.shuffleFlushManager = shuffleFlushManager;
     this.partitionsToBlockIds = Maps.newConcurrentMap();
     this.shuffleBufferManager = shuffleBufferManager;
+    this.appExpiredWithHB = conf.getLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITH_HEARTBEAT);
+    this.appExpiredWithoutHB = conf.getLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT);
   }
 
   public StatusCode registerShuffle(String appId, int shuffleId, int startPartition, int endPartition) {
+    refreshAppId(appId);
     return shuffleBufferManager.registerBuffer(appId, shuffleId, startPartition, endPartition);
   }
 
   public StatusCode cacheShuffleData(String appId, int shuffleId, ShufflePartitionedData spd) {
+    refreshAppId(appId);
     return shuffleBufferManager.cacheShuffleData(appId, shuffleId, spd);
   }
 
   public synchronized StatusCode commitShuffle(String appId, int shuffleId) throws Exception {
+    refreshAppId(appId);
     RangeMap<Integer, Set<Long>> partitionToEventIds = shuffleBufferManager.commitShuffleTask(appId, shuffleId);
-
     long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
     long start = System.currentTimeMillis();
     while (true) {
@@ -81,6 +90,7 @@ public class ShuffleTaskManager {
 
   public synchronized void addFinishedBlockIds(
       String appId, Integer shuffleId, Map<Integer, List<Long>> partitionToBlockIds) {
+    refreshAppId(appId);
     partitionsToBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
     Map<Integer, Map<Integer, List<Long>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
     shuffleToPartitions.putIfAbsent(shuffleId, Maps.newConcurrentMap());
@@ -93,6 +103,7 @@ public class ShuffleTaskManager {
   }
 
   public List<Long> getFinishedBlockIds(String appId, Integer shuffleId, Integer partitionId) {
+    refreshAppId(appId);
     Map<Integer, Map<Integer, List<Long>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
     if (shuffleToPartitions == null) {
       return Lists.newArrayList();
@@ -111,6 +122,7 @@ public class ShuffleTaskManager {
   public ShuffleDataResult getShuffleData(
       String appId, Integer shuffleId, Integer partitionId, int partitionsPerServer,
       int partitionNum, int readBufferSize, String storageType, Set<Long> expectedBlockIds) {
+    refreshAppId(appId);
     CreateShuffleReadHandlerRequest request = new CreateShuffleReadHandlerRequest();
     request.setAppId(appId);
     request.setShuffleId(shuffleId);
@@ -124,4 +136,47 @@ public class ShuffleTaskManager {
     return ShuffleHandlerFactory.getInstance().getServerReadHandler(request).getShuffleData(expectedBlockIds);
   }
 
+  public void checkResourceStatus(Set<String> aliveAppIds) {
+    LOG.debug("Exist appIds:" + appIds);
+    Set<String> removed = Sets.newHashSet(appIds.keySet());
+    removed.removeAll(aliveAppIds);
+    // remove applications not in coordinator's list and timeout according to rss.server.app.expired.withoutHeartbeat
+    for (String appId : removed) {
+      if (System.currentTimeMillis() - appIds.get(appId) > appExpiredWithoutHB) {
+        removeResources(appId);
+      }
+    }
+    LOG.debug("Remove resources for expired applications according "
+        + "to rss.server.app.expired.withoutHeartbeat:" + removed);
+
+    // remove expired applications in coordinator's list but timeout according to rss.server.app.expired.withHeartbeat
+    removed = Sets.newHashSet();
+    for (Map.Entry<String, Long> entry : appIds.entrySet()) {
+      if (System.currentTimeMillis() - entry.getValue() > appExpiredWithHB) {
+        removed.add(entry.getKey());
+      }
+    }
+
+    LOG.debug("Remove resources for expired applications according "
+        + "to rss.server.app.expired.withHeartbeat:" + removed);
+    for (String appId : removed) {
+      removeResources(appId);
+    }
+  }
+
+  private void removeResources(String appId) {
+    partitionsToBlockIds.remove(appId);
+    shuffleBufferManager.removeBuffer(appId);
+    shuffleFlushManager.removeResources(appId);
+    appIds.remove(appId);
+  }
+
+  private void refreshAppId(String appId) {
+    appIds.put(appId, System.currentTimeMillis());
+  }
+
+  @VisibleForTesting
+  public Map<String, Long> getAppIds() {
+    return appIds;
+  }
 }

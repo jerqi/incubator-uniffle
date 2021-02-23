@@ -20,8 +20,10 @@ public class CoordinatorServer {
   private ServerInterface server;
   private ClusterManager clusterManager;
   private AssignmentStrategy assignmentStrategy;
+  private ApplicationManager applicationManager;
 
   public CoordinatorServer(CoordinatorConf coordinatorConf) throws FileNotFoundException {
+    this.applicationManager = new ApplicationManager(coordinatorConf);
     this.coordinatorConf = coordinatorConf;
 
     ClusterManagerFactory clusterManagerFactory =
@@ -89,6 +91,10 @@ public class CoordinatorServer {
 
   public CoordinatorConf getCoordinatorConf() {
     return coordinatorConf;
+  }
+
+  public ApplicationManager getApplicationManager() {
+    return applicationManager;
   }
 
   /**

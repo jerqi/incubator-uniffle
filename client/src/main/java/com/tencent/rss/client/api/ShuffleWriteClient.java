@@ -12,6 +12,8 @@ public interface ShuffleWriteClient {
 
   SendShuffleDataResult sendShuffleData(String appId, List<ShuffleBlockInfo> shuffleBlockInfoList);
 
+  void sendAppHeartbeat(String appId);
+
   void registerShuffle(ShuffleServerInfo shuffleServerInfo, String appId, int shuffleId, int start, int end);
 
   void sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId);

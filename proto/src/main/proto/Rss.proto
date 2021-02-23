@@ -117,8 +117,9 @@ message ShuffleServerHeartBeatRequest {
 }
 
 message ShuffleServerHeartBeatResponse {
-  StatusCode status = 1;
-  string retMsg = 2;
+  repeated string appId = 1;
+  StatusCode status = 2;
+  string retMsg = 3;
 }
 
 message ShuffleServerId {
@@ -145,8 +146,6 @@ enum StatusCode {
   // add more status
 }
 
-
-
 service CoordinatorServer {
   // Get Shuffle Server list
   rpc getShuffleServerList(google.protobuf.Empty) returns (GetShuffleServerListResponse);
@@ -166,6 +165,18 @@ service CoordinatorServer {
 
   // Report a client operation's result to coordinator server
   rpc reportClientOperation(ReportShuffleClientOpRequest) returns (ReportShuffleClientOpResponse);
+
+  // Heartbeat between Shuffle Application and Coordinator Server
+  rpc appHeartbeat(AppHeartBeatRequest) returns (AppHeartBeatResponse);
+}
+
+message AppHeartBeatRequest {
+  string appId = 1;
+}
+
+message AppHeartBeatResponse {
+  StatusCode status = 1;
+  string retMsg = 2;
 }
 
 message GetShuffleServerListResponse {

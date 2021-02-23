@@ -170,6 +170,53 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     }
   }
 
+  @Test
+  public void clearTest() throws Exception {
+    ShuffleServerConf conf = new ShuffleServerConf();
+    String storageBasePath = HDFS_URI + "rss/clearTest";
+    int shuffleId = 1;
+    conf.setString("rss.rpc.server.port", "1234");
+    conf.setString("rss.server.coordinator.ip", "localhost");
+    conf.setString("rss.server.coordinator.port", "9527");
+    conf.setString("rss.jetty.http.port", "12345");
+    conf.setString("rss.jetty.corePool.size", "64");
+    conf.setString("rss.server.buffer.capacity", "64");
+    conf.setString("rss.server.buffer.size", "64");
+    conf.setString("rss.storage.basePath", storageBasePath);
+    conf.setString("rss.storage.type", "HDFS");
+    conf.setString("rss.server.commit.timeout", "10000");
+    conf.setString("rss.server.app.expired.withHeartbeat", "5000");
+    conf.setString("rss.server.app.expired.withoutHeartbeat", "2000");
+    ShuffleServer shuffleServer = new ShuffleServer(conf);
+    ShuffleBufferManager shuffleBufferManager = shuffleServer.getShuffleBufferManager();
+    ShuffleFlushManager shuffleFlushManager = shuffleServer.getShuffleFlushManager();
+    ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf, shuffleFlushManager, shuffleBufferManager);
+    shuffleTaskManager.registerShuffle("clearTest1", shuffleId, 0, 1);
+    shuffleTaskManager.registerShuffle("clearTest2", shuffleId, 0, 1);
+    assertEquals(2, shuffleTaskManager.getAppIds().size());
+    ShufflePartitionedData partitionedData0 = createPartitionedData(1, 1, 35);
+
+    // keep refresh status of application "clearTest1"
+    int retry = 0;
+    while (retry < 10) {
+      Thread.sleep(1000);
+      shuffleTaskManager.cacheShuffleData("clearTest1", shuffleId, partitionedData0);
+      shuffleTaskManager.checkResourceStatus(Sets.newHashSet("clearTest1", "clearTest2"));
+      retry++;
+    }
+    // application "clearTest2" was removed according to rss.server.app.expired.withHeartbeat
+    assertEquals(Sets.newHashSet("clearTest1"), shuffleTaskManager.getAppIds().keySet());
+
+    // register again
+    shuffleTaskManager.registerShuffle("clearTest2", shuffleId, 0, 1);
+    shuffleTaskManager.checkResourceStatus(Sets.newHashSet("clearTest1"));
+    assertEquals(Sets.newHashSet("clearTest1", "clearTest2"), shuffleTaskManager.getAppIds().keySet());
+    Thread.sleep(3000);
+    // application "clearTest2" was removed according to rss.server.app.expired.withoutHeartbeat
+    shuffleTaskManager.checkResourceStatus(Sets.newHashSet("clearTest1"));
+    assertEquals(Sets.newHashSet("clearTest1"), shuffleTaskManager.getAppIds().keySet());
+  }
+
   private void waitForFlush(ShuffleFlushManager shuffleFlushManager,
       String appId, int shuffleId, Range<Integer> range, int eventNum, boolean isClear) throws Exception {
     int retry = 0;

@@ -6,9 +6,11 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Empty;
 import com.tencent.rss.client.api.CoordinatorClient;
+import com.tencent.rss.client.request.RssAppHeartBeatRequest;
 import com.tencent.rss.client.request.RssGetShuffleAssignmentsRequest;
 import com.tencent.rss.client.request.RssSendHeartBeatRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
+import com.tencent.rss.client.response.RssAppHeartBeatResponse;
 import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
 import com.tencent.rss.client.response.RssSendHeartBeatResponse;
 import com.tencent.rss.common.ShuffleRegisterInfo;
@@ -16,6 +18,8 @@ import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.CoordinatorServerGrpc;
 import com.tencent.rss.proto.CoordinatorServerGrpc.CoordinatorServerBlockingStub;
 import com.tencent.rss.proto.RssProtos;
+import com.tencent.rss.proto.RssProtos.AppHeartBeatRequest;
+import com.tencent.rss.proto.RssProtos.AppHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleServerListResponse;
 import com.tencent.rss.proto.RssProtos.PartitionRangeAssignment;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
@@ -119,12 +123,30 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
     switch (statusCode) {
       case SUCCESS:
         response = new RssSendHeartBeatResponse(ResponseStatusCode.SUCCESS);
+        response.setAppIds(Sets.newHashSet(rpcResponse.getAppIdList()));
         break;
       case TIMEOUT:
         response = new RssSendHeartBeatResponse(ResponseStatusCode.TIMEOUT);
         break;
       default:
         response = new RssSendHeartBeatResponse(ResponseStatusCode.INTERNAL_ERROR);
+    }
+    return response;
+  }
+
+  @Override
+  public RssAppHeartBeatResponse sendAppHeartBeat(RssAppHeartBeatRequest request) {
+    AppHeartBeatRequest rpcRequest = AppHeartBeatRequest.newBuilder().setAppId(request.getAppId()).build();
+    AppHeartBeatResponse rpcResponse = blockingStub.appHeartbeat(rpcRequest);
+
+    RssAppHeartBeatResponse response;
+    StatusCode statusCode = rpcResponse.getStatus();
+    switch (statusCode) {
+      case SUCCESS:
+        response = new RssAppHeartBeatResponse(ResponseStatusCode.SUCCESS);
+        break;
+      default:
+        response = new RssAppHeartBeatResponse(ResponseStatusCode.INTERNAL_ERROR);
     }
     return response;
   }

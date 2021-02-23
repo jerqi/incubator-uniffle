@@ -41,6 +41,8 @@ public class RssShuffleManager implements ShuffleManager {
   private Map<String, Set<Long>> taskToSuccessBlockIds = Maps.newHashMap();
   private Map<String, Set<Long>> taskToFailedBlockIds = Maps.newHashMap();
   private Map<String, WriteBufferManager> taskToBuffManager = Maps.newHashMap();
+  private boolean heartbeatStarted = false;
+  private long heartbeatInterval = 0;
   private EventLoop eventLoop = new EventLoop<AddBlockEvent>("ShuffleDataQueue") {
 
     @Override
@@ -90,6 +92,8 @@ public class RssShuffleManager implements ShuffleManager {
     this.isDriver = isDriver;
     this.clientType = sparkConf.get(RssClientConfig.RSS_CLIENT_TYPE,
         RssClientConfig.RSS_CLIENT_TYPE_DEFAULT_VALUE);
+    this.heartbeatInterval = sparkConf.getLong(RssClientConfig.RSS_HEARTBEAT_INTERVAL,
+        RssClientConfig.RSS_HEARTBEAT_INTERVAL_DEFAULT_VALUE);
     int retryMax = sparkConf.getInt(RssClientConfig.RSS_CLIENT_RETRY_MAX,
         RssClientConfig.RSS_CLIENT_RETRY_MAX_DEFAULT_VALUE);
     long retryInterval = sparkConf.getLong(RssClientConfig.RSS_CLIENT_RETRY_INTERVAL,
@@ -100,7 +104,7 @@ public class RssShuffleManager implements ShuffleManager {
     serializerBufferSize = bufferOptions.getSerializerBufferSize();
     serializerMaxBufferSize = bufferOptions.getSerializerBufferMax();
     registerCoordinator();
-    if (!sparkConf.getBoolean(RssClientConfig.RSS_TEST_FLAG, false) || !isDriver) {
+    if (!sparkConf.getBoolean(RssClientConfig.RSS_TEST_FLAG, false)) {
       // for non-driver executor, start a thread for sending shuffle data to shuffle server
       LOG.info("RSS data send thread is starting");
       eventLoop.start();
@@ -121,6 +125,7 @@ public class RssShuffleManager implements ShuffleManager {
   public <K, V, C> ShuffleHandle registerShuffle(int shuffleId, int numMaps, ShuffleDependency<K, V, C> dependency) {
     // SparkContext is created after RssShuffleManager, can't get appId in RssShuffleManager's construct
     setAppId();
+    startHeartbeat();
 
     int partitionsPerServer = sparkConf.getInt(RssClientConfig.RSS_PARTITIONS_PER_SERVER,
         RssClientConfig.RSS_PARTITIONS_PER_SERVER_DEFAULT_VALUE);
@@ -143,6 +148,22 @@ public class RssShuffleManager implements ShuffleManager {
     }
 
     return new RssShuffleHandle(shuffleId, appId, numMaps, dependency, partitionToServers, shuffleServerForResult);
+  }
+
+  private void startHeartbeat() {
+    if (!sparkConf.getBoolean(RssClientConfig.RSS_TEST_FLAG, false) && !heartbeatStarted) {
+      new Thread(() -> {
+        try {
+          while (true) {
+            shuffleWriteClient.sendAppHeartbeat(appId);
+            Thread.sleep(heartbeatInterval);
+          }
+        } catch (Exception e) {
+          LOG.warn("Error happened when keep heartbeat from application to coordinator");
+        }
+      }).start();
+      heartbeatStarted = true;
+    }
   }
 
   @VisibleForTesting

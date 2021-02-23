@@ -8,7 +8,10 @@ import static org.junit.Assert.fail;
 import com.google.common.collect.Sets;
 import com.tencent.rss.client.factory.CoordinatorClientFactory;
 import com.tencent.rss.client.impl.grpc.CoordinatorGrpcClient;
+import com.tencent.rss.client.request.RssAppHeartBeatRequest;
 import com.tencent.rss.client.request.RssGetShuffleAssignmentsRequest;
+import com.tencent.rss.client.response.ResponseStatusCode;
+import com.tencent.rss.client.response.RssAppHeartBeatResponse;
 import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
@@ -18,6 +21,7 @@ import com.tencent.rss.proto.RssProtos.GetShuffleAssignmentsResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleServerListResponse;
 import com.tencent.rss.proto.RssProtos.PartitionRangeAssignment;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
+import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.test.IntegrationTestBase;
 import java.util.Arrays;
 import java.util.List;
@@ -36,7 +40,10 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
   @BeforeClass
   public static void setupServers() throws Exception {
     CoordinatorConf coordinatorConf = getCoordinatorConf();
+    coordinatorConf.setLong("rss.coordinator.app.expired", 2000);
     createCoordinatorServer(coordinatorConf);
+    ShuffleServerConf shuffleServerConf = getShuffleServerConf();
+    createShuffleServer(shuffleServerConf);
     startServers();
   }
 
@@ -118,6 +125,27 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
     }
     assertTrue(expectedStart.isEmpty());
     assertEquals(1, response.getShuffleServersForResult().size());
+  }
+
+  @Test
+  public void appHeartbeatTest() throws Exception {
+    RssAppHeartBeatResponse response =
+        coordinatorClient.sendAppHeartBeat(new RssAppHeartBeatRequest("appHeartbeatTest1"));
+    assertEquals(ResponseStatusCode.SUCCESS, response.getStatusCode());
+    assertEquals(Sets.newHashSet("appHeartbeatTest1"),
+        coordinators.get(0).getApplicationManager().getAppIds());
+    coordinatorClient.sendAppHeartBeat(new RssAppHeartBeatRequest("appHeartbeatTest2"));
+    assertEquals(Sets.newHashSet("appHeartbeatTest1", "appHeartbeatTest2"),
+        coordinators.get(0).getApplicationManager().getAppIds());
+    int retry = 0;
+    while (retry < 5) {
+      coordinatorClient.sendAppHeartBeat(new RssAppHeartBeatRequest("appHeartbeatTest1"));
+      retry++;
+      Thread.sleep(1000);
+    }
+    // appHeartbeatTest2 was removed because of expired
+    assertEquals(Sets.newHashSet("appHeartbeatTest1"),
+        coordinators.get(0).getApplicationManager().getAppIds());
   }
 
   private void waitForRegister(int expcetedServers) throws Exception {

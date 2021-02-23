@@ -1,5 +1,6 @@
 package com.tencent.rss.server;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
@@ -143,5 +144,20 @@ public class ShuffleFlushManager {
       return Sets.newHashSet();
     }
     return eventIdRangeMap.get(range.lowerEndpoint());
+  }
+
+  @VisibleForTesting
+  protected Map<String, Map<Integer, RangeMap<Integer, Set<Long>>>> getEventIds() {
+    return eventIds;
+  }
+
+  public void removeResources(String appId) {
+    eventIds.remove(appId);
+    handlers.remove(appId);
+  }
+
+  @VisibleForTesting
+  protected Map<String, Map<Integer, RangeMap<Integer, ShuffleWriteHandler>>> getHandlers() {
+    return handlers;
   }
 }
