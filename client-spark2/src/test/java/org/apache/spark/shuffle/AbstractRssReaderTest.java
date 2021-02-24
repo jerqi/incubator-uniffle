@@ -13,6 +13,8 @@ import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.spark.SparkConf;
+import org.apache.spark.io.CompressionCodec$;
 import org.apache.spark.serializer.SerializationStream;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.serializer.SerializerInstance;
@@ -59,8 +61,10 @@ public abstract class AbstractRssReaderTest extends HdfsTestBase {
   }
 
   protected ShufflePartitionedBlock createShuffleBlock(byte[] data, long blockId) {
-    long crc = ChecksumUtils.getCrc32(data);
-    return new ShufflePartitionedBlock(data.length, crc, blockId, data);
+    byte[] compressData = RssShuffleUtils.compressData(
+        CompressionCodec$.MODULE$.createCodec(new SparkConf()), data);
+    long crc = ChecksumUtils.getCrc32(compressData);
+    return new ShufflePartitionedBlock(compressData.length, crc, blockId, compressData);
   }
 
   protected void writeData(SerializationStream serializeStream, String key, String value) {
@@ -68,5 +72,4 @@ public abstract class AbstractRssReaderTest extends HdfsTestBase {
     serializeStream.writeValue(value, ClassTag$.MODULE$.apply(value.getClass()));
     serializeStream.flush();
   }
-
 }

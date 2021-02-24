@@ -26,6 +26,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.executor.TaskMetrics;
+import org.apache.spark.io.CompressionCodec$;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.serializer.Serializer;
@@ -72,7 +73,8 @@ public class RssShuffleWriterTest {
     BufferManagerOptions bufferOptions = new BufferManagerOptions(conf);
     WriteBufferManager bufferManager = new WriteBufferManager(
         0, 0, bufferOptions, kryoSerializer,
-        Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics());
+        Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics(),
+        CompressionCodec$.MODULE$.createCodec(new SparkConf()));
     WriteBufferManager bufferManagerSpy = spy(bufferManager);
     doReturn(1000000L).when(bufferManagerSpy).acquireMemory(anyLong());
 
@@ -175,7 +177,8 @@ public class RssShuffleWriterTest {
     BufferManagerOptions bufferOptions = new BufferManagerOptions(conf);
     WriteBufferManager bufferManager = new WriteBufferManager(
         0, 0, bufferOptions, kryoSerializer,
-        partitionToServers, mockTaskMemoryManager, shuffleWriteMetrics);
+        partitionToServers, mockTaskMemoryManager, shuffleWriteMetrics,
+        CompressionCodec$.MODULE$.createCodec(conf));
     WriteBufferManager bufferManagerSpy = spy(bufferManager);
     doReturn(1000000L).when(bufferManagerSpy).acquireMemory(anyLong());
 
@@ -199,12 +202,13 @@ public class RssShuffleWriterTest {
 
     assertTrue(rssShuffleWriterSpy.getShuffleWriteMetrics().shuffleWriteTime() > 0);
     assertEquals(6, rssShuffleWriterSpy.getShuffleWriteMetrics().shuffleRecordsWritten());
-    assertEquals(132, rssShuffleWriterSpy.getShuffleWriteMetrics().shuffleBytesWritten());
+    assertEquals(384, rssShuffleWriterSpy.getShuffleWriteMetrics().shuffleBytesWritten());
 
     assertEquals(6, shuffleBlockInfos.size());
     for (ShuffleBlockInfo shuffleBlockInfo : shuffleBlockInfos) {
       assertEquals(0, shuffleBlockInfo.getShuffleId());
-      assertEquals(22, shuffleBlockInfo.getLength());
+      assertEquals(64, shuffleBlockInfo.getLength());
+      assertEquals(22, shuffleBlockInfo.getUncompressLength());
       if (shuffleBlockInfo.getPartitionId() == 0) {
         assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi12);
       } else if (shuffleBlockInfo.getPartitionId() == 1) {
@@ -235,7 +239,8 @@ public class RssShuffleWriterTest {
     assertEquals(3, shuffleBlockInfos.size());
     for (ShuffleBlockInfo shuffleBlockInfo : shuffleBlockInfos) {
       assertEquals(0, shuffleBlockInfo.getShuffleId());
-      assertEquals(44, shuffleBlockInfo.getLength());
+      assertEquals(81, shuffleBlockInfo.getLength());
+      assertEquals(44, shuffleBlockInfo.getUncompressLength());
       if (shuffleBlockInfo.getPartitionId() == 0) {
         assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi12);
       } else if (shuffleBlockInfo.getPartitionId() == 1) {
@@ -357,7 +362,7 @@ public class RssShuffleWriterTest {
     List<ShuffleBlockInfo> shuffleBlockInfoList = Lists.newArrayList();
     for (int i = 0; i < blockNum; i++) {
       shuffleBlockInfoList.add(new ShuffleBlockInfo(
-          0, 0, 10, blockLength, 10, new byte[]{1}, shuffleServerInfoList));
+          0, 0, 10, blockLength, 10, new byte[]{1}, shuffleServerInfoList, blockLength));
     }
     return shuffleBlockInfoList;
   }

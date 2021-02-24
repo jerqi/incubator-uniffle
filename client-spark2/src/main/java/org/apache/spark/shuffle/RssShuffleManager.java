@@ -19,6 +19,8 @@ import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.deploy.SparkHadoopUtil$;
 import org.apache.spark.executor.ShuffleWriteMetrics;
+import org.apache.spark.io.CompressionCodec;
+import org.apache.spark.io.CompressionCodec$;
 import org.apache.spark.shuffle.reader.RssShuffleReader;
 import org.apache.spark.shuffle.writer.AddBlockEvent;
 import org.apache.spark.shuffle.writer.BufferManagerOptions;
@@ -57,8 +59,8 @@ public class RssShuffleManager implements ShuffleManager {
         // data is already send, release the memory to executor
         long releaseSize = 0;
         for (ShuffleBlockInfo sbi : shuffleDataInfoList) {
-          if (sbi.getLength() > serializerBufferSize) {
-            releaseSize += sbi.getLength() + serializerMaxBufferSize;
+          if (sbi.getUncompressLength() > serializerBufferSize) {
+            releaseSize += sbi.getUncompressLength() + serializerMaxBufferSize;
           } else {
             releaseSize += serializerMaxBufferSize;
           }
@@ -206,10 +208,11 @@ public class RssShuffleManager implements ShuffleManager {
       String taskId = "" + context.taskAttemptId() + "_" + context.attemptNumber();
       BufferManagerOptions bufferOptions = new BufferManagerOptions(sparkConf);
       ShuffleWriteMetrics writeMetrics = context.taskMetrics().shuffleWriteMetrics();
+      CompressionCodec compressionCodec = CompressionCodec$.MODULE$.createCodec(sparkConf);
       WriteBufferManager bufferManager = new WriteBufferManager(
           shuffleId, executorId, bufferOptions, rssHandle.getDependency().serializer(),
           rssHandle.getPartitionToServers(), context.taskMemoryManager(),
-          writeMetrics);
+          writeMetrics, compressionCodec);
       taskToBuffManager.put(taskId, bufferManager);
 
       return new RssShuffleWriter(appId, shuffleId, taskId, bufferManager,
@@ -236,6 +239,8 @@ public class RssShuffleManager implements ShuffleManager {
       RssShuffleHandle rssShuffleHandle = (RssShuffleHandle) handle;
       int partitionsPerServer = sparkConf.getInt(RssClientConfig.RSS_PARTITIONS_PER_SERVER,
           RssClientConfig.RSS_PARTITIONS_PER_SERVER_DEFAULT_VALUE);
+      int compressionBlockSize = sparkConf.getInt(RssClientConfig.RSS_COMPRESSION_BLOCK_SIZE,
+          RssClientConfig.RSS_COMPRESSION_BLOCK_SIZE_DEFAULT_VALUE);
       int partitionNum = rssShuffleHandle.getDependency().partitioner().numPartitions();
       long readBufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE,
           RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE_DEFAULT_VALUE);
@@ -246,12 +251,13 @@ public class RssShuffleManager implements ShuffleManager {
       List<Long> expectedBlockIds = shuffleWriteClient.getShuffleResult(
           clientType, rssShuffleHandle.getShuffleServersForResult(),
           appId, rssShuffleHandle.getShuffleId(), startPartition);
+      CompressionCodec compressionCodec = CompressionCodec$.MODULE$.createCodec(sparkConf);
 
       return new RssShuffleReader<K, C>(startPartition, endPartition, context,
           rssShuffleHandle, shuffleDataBasePath, indexReadLimit,
           SparkHadoopUtil$.MODULE$.newConfiguration(SparkEnv.get().conf()),
           storageType, (int) readBufferSize, partitionsPerServer, partitionNum,
-          Sets.newHashSet(expectedBlockIds));
+          Sets.newHashSet(expectedBlockIds), compressionCodec, compressionBlockSize);
     } else {
       throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());
     }

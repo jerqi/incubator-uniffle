@@ -11,9 +11,10 @@ public class ShuffleBlockInfo {
   private long crc;
   private byte[] data;
   private List<ShuffleServerInfo> shuffleServerInfos;
+  private long uncompressLength;
 
   public ShuffleBlockInfo(int shuffleId, int partitionId, long blockId, int length, long crc,
-      byte[] data, List<ShuffleServerInfo> shuffleServerInfos) {
+      byte[] data, List<ShuffleServerInfo> shuffleServerInfos, long uncompressLength) {
     this.partitionId = partitionId;
     this.blockId = blockId;
     this.length = length;
@@ -21,6 +22,7 @@ public class ShuffleBlockInfo {
     this.data = data;
     this.shuffleId = shuffleId;
     this.shuffleServerInfos = shuffleServerInfos;
+    this.uncompressLength = uncompressLength;
   }
 
   public long getBlockId() {
@@ -51,6 +53,10 @@ public class ShuffleBlockInfo {
     return shuffleServerInfos;
   }
 
+  public long getUncompressLength() {
+    return uncompressLength;
+  }
+
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
@@ -59,6 +65,7 @@ public class ShuffleBlockInfo {
     sb.append("partitionId[" + partitionId + "],");
     sb.append("blockId[" + blockId + "],");
     sb.append("length[" + length + "],");
+    sb.append("uncompressLength[" + uncompressLength + "],");
     sb.append("crc[" + crc + "],");
     if (shuffleServerInfos != null) {
       sb.append("shuffleServer[");

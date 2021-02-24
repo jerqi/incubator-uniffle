@@ -131,7 +131,7 @@ public class ShuffleServerGrpcLocalTest extends IntegrationTestBase {
       blockIds.add(blockId);
       dataMap.put(blockId, buf);
       shuffleBlockInfoList.add(new ShuffleBlockInfo(
-          shuffleId, partitionId, blockId, length, ChecksumUtils.getCrc32(buf), buf, shuffleServerInfoList));
+          shuffleId, partitionId, blockId, length, ChecksumUtils.getCrc32(buf), buf, shuffleServerInfoList, length));
     }
     return shuffleBlockInfoList;
   }

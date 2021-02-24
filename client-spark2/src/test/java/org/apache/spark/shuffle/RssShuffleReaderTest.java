@@ -15,6 +15,7 @@ import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.executor.TaskMetrics;
+import org.apache.spark.io.CompressionCodec$;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.shuffle.reader.RssShuffleReader;
@@ -54,7 +55,8 @@ public class RssShuffleReaderTest extends AbstractRssReaderTest {
 
     RssShuffleReader rssShuffleReaderSpy = spy(new RssShuffleReader<String, String>(0, 1, contextMock,
         handleMock, basePath, 1000, conf, StorageType.HDFS.name(),
-        1000, 2, 10, expectedBlockIds));
+        1000, 2, 10, expectedBlockIds,
+        CompressionCodec$.MODULE$.createCodec(new SparkConf()), 10240));
 
     validateResult(rssShuffleReaderSpy.read(), expectedData, 10);
   }

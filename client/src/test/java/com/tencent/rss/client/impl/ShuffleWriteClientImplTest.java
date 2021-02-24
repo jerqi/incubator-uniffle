@@ -31,7 +31,7 @@ public class ShuffleWriteClientImplTest {
     List<ShuffleServerInfo> shuffleServerInfoList =
         Lists.newArrayList(new ShuffleServerInfo("id", "host", 0));
     List<ShuffleBlockInfo> shuffleBlockInfoList = Lists.newArrayList(new ShuffleBlockInfo(
-        0, 0, 10, 10, 10, new byte[]{1}, shuffleServerInfoList));
+        0, 0, 10, 10, 10, new byte[]{1}, shuffleServerInfoList, 10));
     SendShuffleDataResult result = spyClient.sendShuffleData("appId", shuffleBlockInfoList);
 
     assertTrue(result.getFailedBlockIds().contains(10L));

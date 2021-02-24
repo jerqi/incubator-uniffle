@@ -11,10 +11,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.spark.executor.ShuffleWriteMetrics;
+import org.apache.spark.io.CompressionCodec;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.serializer.SerializerInstance;
+import org.apache.spark.shuffle.RssShuffleUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +38,7 @@ public class WriteBufferManager extends MemoryConsumer {
   private int serializerBufferSize;
   private int serializerMaxBufferSize;
   private long copyTime;
+  private CompressionCodec compressionCodec;
 
   public WriteBufferManager(
       int shuffleId,
@@ -44,7 +47,8 @@ public class WriteBufferManager extends MemoryConsumer {
       Serializer serializer,
       Map<Integer, List<ShuffleServerInfo>> partitionToServers,
       TaskMemoryManager taskMemoryManager,
-      ShuffleWriteMetrics shuffleWriteMetrics) {
+      ShuffleWriteMetrics shuffleWriteMetrics,
+      CompressionCodec compressionCodec) {
     super(taskMemoryManager);
     this.bufferSize = bufferManagerOptions.getBufferSize();
     this.spillSize = bufferManagerOptions.getBufferSpillThreshold();
@@ -58,6 +62,7 @@ public class WriteBufferManager extends MemoryConsumer {
     this.shuffleWriteMetrics = shuffleWriteMetrics;
     this.serializerBufferSize = bufferManagerOptions.getSerializerBufferSize();
     this.serializerMaxBufferSize = bufferManagerOptions.getSerializerBufferMax();
+    this.compressionCodec = compressionCodec;
   }
 
   // add record to cache, return [partition, ShuffleBlock] if meet spill condition
@@ -66,7 +71,6 @@ public class WriteBufferManager extends MemoryConsumer {
     if (buffers.containsKey(partitionId)) {
       WriterBuffer wb = buffers.get(partitionId);
       int[] addResult = wb.addRecord(key, value);
-      updateWriteMetrics(1L, addResult[WriterBuffer.INDEX_RECORD_SIZE]);
       requestMemory(addResult[WriterBuffer.INDEX_EXTRA_MEMORY]);
       int length = wb.getLength();
       if (length > bufferSize) {
@@ -82,7 +86,6 @@ public class WriteBufferManager extends MemoryConsumer {
       WriterBuffer wb = new WriterBuffer(instance, serializerBufferSize, serializerMaxBufferSize);
       int[] addResult = wb.addRecord(key, value);
       int length = addResult[WriterBuffer.INDEX_RECORD_SIZE];
-      updateWriteMetrics(1L, length);
       if (length > bufferSize) {
         // request here just for calculate accuracy when release the memory
         requestMemory(length);
@@ -95,6 +98,7 @@ public class WriteBufferManager extends MemoryConsumer {
         buffers.put(partitionId, wb);
       }
     }
+    shuffleWriteMetrics.incRecordsWritten(1L);
 
     // check buffer size > spill threshold
     if (allocatedBytes > spillSize) {
@@ -123,18 +127,16 @@ public class WriteBufferManager extends MemoryConsumer {
 
   // transform records to shuffleBlock
   private ShuffleBlockInfo createShuffleBlock(int partitionId, byte[] data, int freeMemory) {
-    long crc32 = ChecksumUtils.getCrc32(data);
+    long uncompressLength = data.length;
+    byte[] compressed = RssShuffleUtils.compressData(compressionCodec, data);
+    long crc32 = ChecksumUtils.getCrc32(compressed);
+    shuffleWriteMetrics.incBytesWritten(compressed.length);
     // just free memory from buffer manager, doesn't return to Executor now,
     // it will happen after send block to shuffle server
     allocatedBytes -= freeMemory;
     return new ShuffleBlockInfo(shuffleId, partitionId,
         ClientUtils.getBlockId(executorId, ClientUtils.getAtomicInteger()),
-        data.length, crc32, data, partitionToServers.get(partitionId));
-  }
-
-  private void updateWriteMetrics(long recordNum, long size) {
-    shuffleWriteMetrics.incRecordsWritten(recordNum);
-    shuffleWriteMetrics.incBytesWritten(size);
+        compressed.length, crc32, compressed, partitionToServers.get(partitionId), uncompressLength);
   }
 
   private void requestMemory(long requiredMem) {

@@ -11,6 +11,7 @@ import com.tencent.rss.common.ShuffleBlockInfo;
 import java.util.List;
 import org.apache.spark.SparkConf;
 import org.apache.spark.executor.ShuffleWriteMetrics;
+import org.apache.spark.io.CompressionCodec$;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.serializer.JavaSerializer;
 import org.apache.spark.serializer.KryoSerializer;
@@ -38,13 +39,15 @@ public class WriteBufferManagerTest {
     BufferManagerOptions bufferOptions = new BufferManagerOptions(conf);
     WriteBufferManager wbm1 = new WriteBufferManager(
         0, 0, bufferOptions, kryoSerializer,
-        Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics());
+        Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics(),
+        CompressionCodec$.MODULE$.createCodec(new SparkConf()));
     MANAGER_WITH_KRYO_SER = spy(wbm1);
     doReturn(1000000L).when(MANAGER_WITH_KRYO_SER).acquireMemory(anyLong());
 
     WriteBufferManager wbm2 = new WriteBufferManager(
         0, 0, bufferOptions, javaSerializer,
-        Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics());
+        Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics(),
+        CompressionCodec$.MODULE$.createCodec(new SparkConf()));
     MANAGER_WITH_JAVA_SER = spy(wbm2);
     doReturn(1000000L).when(MANAGER_WITH_JAVA_SER).acquireMemory(anyLong());
   }
@@ -58,7 +61,7 @@ public class WriteBufferManagerTest {
   @Test
   public void addRecordTest1() {
     MANAGER_WITH_KRYO_SER.setShuffleWriteMetrics(new ShuffleWriteMetrics());
-    // after serialized: key + value = 20 byte
+    // after serialized: key + value = 20 byte, after compression, 64b
     String testKey = "Key";
     String testValue = "Value";
     List<ShuffleBlockInfo> result = MANAGER_WITH_KRYO_SER.addRecord(0, testKey, testValue);
@@ -76,16 +79,16 @@ public class WriteBufferManagerTest {
     assertEquals(1, result.size());
     assertEquals(0, MANAGER_WITH_KRYO_SER.getAllocatedBytes());
     assertEquals(0, MANAGER_WITH_KRYO_SER.getBuffers().size());
-    result.stream().forEach(e -> assertEquals(36, e.getData().length));
+    result.stream().forEach(e -> assertEquals(64, e.getData().length));
 
     assertEquals(3, MANAGER_WITH_KRYO_SER.getShuffleWriteMetrics().recordsWritten());
-    assertEquals(36, MANAGER_WITH_KRYO_SER.getShuffleWriteMetrics().bytesWritten());
+    assertEquals(64, MANAGER_WITH_KRYO_SER.getShuffleWriteMetrics().bytesWritten());
   }
 
   @Test
   public void addRecordTest2() {
     MANAGER_WITH_KRYO_SER.setShuffleWriteMetrics(new ShuffleWriteMetrics());
-    // after serialized: key + value = 31 byte
+    // after serialized: key + value = 31 byte, after compression, 73b
     String testKey = "testKey12345678901";
     String testValue = "testValue";
     List<ShuffleBlockInfo> result = MANAGER_WITH_KRYO_SER.addRecord(0, testKey, testValue);
@@ -100,15 +103,15 @@ public class WriteBufferManagerTest {
     assertEquals(3, result.size());
     assertEquals(0, MANAGER_WITH_KRYO_SER.getAllocatedBytes());
     assertEquals(0, MANAGER_WITH_KRYO_SER.getBuffers().size());
-    result.stream().forEach(e -> assertEquals(31, e.getData().length));
+    result.stream().forEach(e -> assertEquals(73, e.getData().length));
 
     assertEquals(3, MANAGER_WITH_KRYO_SER.getShuffleWriteMetrics().recordsWritten());
-    assertEquals(93, MANAGER_WITH_KRYO_SER.getShuffleWriteMetrics().bytesWritten());
+    assertEquals(219, MANAGER_WITH_KRYO_SER.getShuffleWriteMetrics().bytesWritten());
   }
 
   @Test
   public void addRecordTest3() {
-    // after serialized: key + value = 49 byte
+    // after serialized: key + value = 49 byte, after compression, 79b
     String testKey = "testKey12345678901testKey12345678901";
     String testValue = "testValue";
     // record > buffer size, flush
@@ -116,12 +119,12 @@ public class WriteBufferManagerTest {
     assertEquals(1, result.size());
     assertEquals(0, MANAGER_WITH_KRYO_SER.getAllocatedBytes());
     assertEquals(0, MANAGER_WITH_KRYO_SER.getBuffers().size());
-    result.stream().forEach(e -> assertEquals(49, e.getData().length));
+    result.stream().forEach(e -> assertEquals(79, e.getData().length));
   }
 
   @Test
   public void javaSerializeTest() {
-    // after serialized: key + value = 20 byte
+    // after serialized: key + value = 20 byte, after compression, 78b
     String testKey = "testKey";
     String testValue = "testValue";
     List<ShuffleBlockInfo> result = MANAGER_WITH_JAVA_SER.addRecord(0, testKey, testValue);
@@ -132,14 +135,14 @@ public class WriteBufferManagerTest {
     result = MANAGER_WITH_JAVA_SER.addRecord(0, testKey, testValue);
     // single buffer is full
     assertEquals(1, result.size());
-    assertEquals(36, result.get(0).getData().length);
+    assertEquals(78, result.get(0).getData().length);
     assertEquals(0, MANAGER_WITH_JAVA_SER.getAllocatedBytes());
     assertEquals(0, MANAGER_WITH_JAVA_SER.getBuffers().size());
   }
 
   @Test
   public void clearTest() {
-    // after serialized: key + value = 31 byte
+    // after serialized: key + value = 31 byte, after compression, 73b
     String testKey = "testKey12345678901";
     String testValue = "testValue";
     MANAGER_WITH_KRYO_SER.addRecord(0, testKey, testValue);
@@ -149,6 +152,6 @@ public class WriteBufferManagerTest {
     assertEquals(2, result.size());
     assertEquals(0, MANAGER_WITH_KRYO_SER.getAllocatedBytes());
     assertEquals(0, MANAGER_WITH_KRYO_SER.getBuffers().size());
-    result.stream().forEach(e -> assertEquals(31, e.getData().length));
+    result.stream().forEach(e -> assertEquals(73, e.getData().length));
   }
 }

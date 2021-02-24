@@ -37,4 +37,7 @@ public class RssClientConfig {
   public static String RSS_CLIENT_READ_BUFFER_SIZE_DEFAULT_VALUE = "64m";
   public static String RSS_HEARTBEAT_INTERVAL = "spark.rss.heartbeat.interval";
   public static long RSS_HEARTBEAT_INTERVAL_DEFAULT_VALUE = 10 * 1000L;
+  public static String RSS_COMPRESSION_BLOCK_SIZE = "spark.rss.compression.block.size";
+  // the default is the same as set in spark's CompressionCodec
+  public static int RSS_COMPRESSION_BLOCK_SIZE_DEFAULT_VALUE = 32 * 1024;
 }
