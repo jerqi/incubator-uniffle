@@ -134,6 +134,12 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(60 * 1000L)
       .withDescription("Expired time (ms) for application which has no heartbeat with coordinator");
 
+  public static final ConfigOption<Integer> SERVER_MEMORY_REQUEST_RETRY_MAX = ConfigOptions
+      .key("rss.server.memory.request.retry.max")
+      .intType()
+      .defaultValue(10)
+      .withDescription("Max times to retry for memory request");
+
   public ShuffleServerConf() {
   }
 
@@ -241,6 +247,10 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT.key().equalsIgnoreCase(k)) {
         set(SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT, Long.valueOf(v));
+      }
+
+      if (SERVER_MEMORY_REQUEST_RETRY_MAX.key().equalsIgnoreCase(k)) {
+        set(SERVER_MEMORY_REQUEST_RETRY_MAX, Integer.valueOf(v));
       }
     });
 

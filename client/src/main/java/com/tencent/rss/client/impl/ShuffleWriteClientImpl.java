@@ -42,7 +42,6 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   private int retryMax;
   private long retryInterval;
   private CoordinatorClient coordinatorClient;
-  private Map<ShuffleServerInfo, ShuffleServerClient> shuffleServerClients;
   private CoordinatorClientFactory coordinatorClientFactory;
 
   public ShuffleWriteClientImpl(String clientType, int retryMax, long retryInterval) {
@@ -50,7 +49,6 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
     this.retryMax = retryMax;
     this.retryInterval = retryInterval;
     coordinatorClientFactory = new CoordinatorClientFactory(clientType);
-    shuffleServerClients = Maps.newHashMap();
   }
 
   @Override
@@ -111,7 +109,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
 
         if (rpcResponse.getStatusCode() == ResponseStatusCode.SUCCESS) {
           successBlockIds.addAll(serverToBlockIds.get(ssi));
-          LOG.info("Send: " + serverToBlockIds.get(ssi)
+          LOG.debug("Send: " + serverToBlockIds.get(ssi)
               + " to [" + ssi.getId() + "] successfully");
         } else {
           tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
@@ -137,6 +135,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
           + "] to ShuffleServer[" + ssi.getId() + "]");
       RssSendCommitRequest request = new RssSendCommitRequest(appId, shuffleId);
       RssSendCommitResponse response = getShuffleServerClient(ssi).sendCommit(request);
+
       String msg = "Can't commit shuffle data to " + ssi
           + " for [appId=" + request.getAppId() + ", shuffleId=" + shuffleId + "]";
       throwExceptionIfNecessary(response, msg);
@@ -148,6 +147,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
       ShuffleServerInfo shuffleServerInfo, String appId, int shuffleId, int start, int end) {
     RssRegisterShuffleRequest request = new RssRegisterShuffleRequest(appId, shuffleId, start, end);
     RssRegisterShuffleResponse response = getShuffleServerClient(shuffleServerInfo).registerShuffle(request);
+
     String msg = "Error happend when registerShuffle with appId[" + appId + "], shuffleId[" + shuffleId
         + "], start[" + start + "], end[" + end + "] to " + shuffleServerInfo;
     throwExceptionIfNecessary(response, msg);
@@ -235,11 +235,6 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   public void close() {
     if (coordinatorClient != null) {
       coordinatorClient.close();
-    }
-    if (shuffleServerClients != null) {
-      for (ShuffleServerClient ssc : shuffleServerClients.values()) {
-        ssc.close();
-      }
     }
   }
 

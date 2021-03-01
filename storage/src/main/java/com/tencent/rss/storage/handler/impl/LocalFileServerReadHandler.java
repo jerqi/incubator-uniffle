@@ -26,7 +26,6 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
   private Map<String, String> dataPathMap = Maps.newHashMap();
   private List<FileReadSegment> fileReadSegments = Lists.newArrayList();
   private int readBufferSize;
-  private AtomicLong readIndexTime = new AtomicLong(0);
   private AtomicLong readDataTime = new AtomicLong(0);
   private String appId;
   private int shuffleId;
@@ -132,16 +131,13 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
       try {
         LOG.info("Read index file for: " + entry.getValue());
         List<FileBasedShuffleSegment> allSegments = Lists.newArrayList();
-//        long start = System.currentTimeMillis();
         try (LocalFileReader reader = createFileReader(entry.getValue())) {
           List<FileBasedShuffleSegment> segments = reader.readIndex(indexReadLimit);
           while (!segments.isEmpty()) {
-//            LOG.debug("Get segment : " + segments);
             allSegments.addAll(segments);
             segments = reader.readIndex(indexReadLimit);
           }
         }
-//        readIndexTime.addAndGet((System.currentTimeMillis() - start));
         fileReadSegments.addAll(ShuffleStorageUtils.mergeSegments(path, allSegments, readBufferSize));
       } catch (Exception e) {
         LOG.warn("Can't read index segments for " + path, e);

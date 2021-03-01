@@ -28,4 +28,6 @@ public interface ShuffleServerClient {
   RssGetShuffleDataResponse getShuffleData(RssGetShuffleDataRequest request);
 
   void close();
+
+  String getClientInfo();
 }

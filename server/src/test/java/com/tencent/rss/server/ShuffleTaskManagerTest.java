@@ -112,13 +112,13 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     waitForFlush(shuffleFlushManager, appId, shuffleId, Range.closed(0, 1), 2, false);
 
     // won't flush for partition 0-1
-    ShufflePartitionedData partitionedData2 = createPartitionedData(1, 1, 35);
+    ShufflePartitionedData partitionedData2 = createPartitionedData(1, 1, 30);
     expectedBlocks1.addAll(partitionedData2.getBlockList());
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, partitionedData2);
     assertEquals(StatusCode.SUCCESS, sc);
 
     // won't flush for partition 2-3
-    ShufflePartitionedData partitionedData3 = createPartitionedData(2, 1, 35);
+    ShufflePartitionedData partitionedData3 = createPartitionedData(2, 1, 30);
     expectedBlocks2.addAll(partitionedData3.getBlockList());
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, partitionedData3);
     assertEquals(StatusCode.SUCCESS, sc);

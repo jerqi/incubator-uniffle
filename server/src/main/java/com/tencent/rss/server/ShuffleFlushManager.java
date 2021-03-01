@@ -99,11 +99,10 @@ public class ShuffleFlushManager {
       addEventId(event);
     } catch (Exception e) {
       // just log the error, don't throw the exception and stop the flush thread
-      String blocksString = blocks == null ? "null" : blocks.toString();
       LOG.error("Exception happened when process flush shuffle data for " + event, e);
     } finally {
       if (shuffleServer != null) {
-        shuffleServer.getShuffleBufferManager().updateSize(-event.getSize());
+        shuffleServer.getShuffleBufferManager().releaseMemory(event.getSize());
       }
     }
   }

@@ -287,23 +287,35 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "], partitionId["
         + partitionId + "]";
 
-    try {
-      long start = System.currentTimeMillis();
-      sdr = shuffleServer.getShuffleTaskManager().getShuffleData(appId, shuffleId, partitionId,
-          partitionsPerServer, partitionNum, readBufferSize, storageType, blockIds);
-      readDataTime.addAndGet(System.currentTimeMillis() - start);
-      LOG.debug("Rpc server[getShuffleData] cost " + (System.currentTimeMillis() - start)
-          + " ms for " + requestInfo);
-      reply = GetShuffleDataResponse.newBuilder()
-          .setStatus(valueOf(status))
-          .setRetMsg(msg)
-          .setData(ByteString.copyFrom(sdr.getData()))
-          .addAllBlockSegments(toBlockSegments(sdr.getBufferSegments()))
-          .build();
-    } catch (Exception e) {
+    if (shuffleServer.getShuffleBufferManager().requireMemoryWithRetry(readBufferSize)) {
+      try {
+        long start = System.currentTimeMillis();
+        sdr = shuffleServer.getShuffleTaskManager().getShuffleData(appId, shuffleId, partitionId,
+            partitionsPerServer, partitionNum, readBufferSize, storageType, blockIds);
+        readDataTime.addAndGet(System.currentTimeMillis() - start);
+        LOG.debug("Rpc server[getShuffleData] cost " + (System.currentTimeMillis() - start)
+            + " ms for " + requestInfo);
+        reply = GetShuffleDataResponse.newBuilder()
+            .setStatus(valueOf(status))
+            .setRetMsg(msg)
+            .setData(ByteString.copyFrom(sdr.getData()))
+            .addAllBlockSegments(toBlockSegments(sdr.getBufferSegments()))
+            .build();
+      } catch (Exception e) {
+        status = StatusCode.INTERNAL_ERROR;
+        msg = e.getMessage();
+        LOG.error("Error happened when get shuffle data for " + requestInfo, e);
+        reply = GetShuffleDataResponse.newBuilder()
+            .setStatus(valueOf(status))
+            .setRetMsg(msg)
+            .build();
+      } finally {
+        shuffleServer.getShuffleBufferManager().releaseMemory(readBufferSize);
+      }
+    } else {
       status = StatusCode.INTERNAL_ERROR;
-      msg = e.getMessage();
-      LOG.error("Error happened when get shuffle data for " + requestInfo, e);
+      msg = "Can't require memory to get shuffle data";
+      LOG.error(msg + " for " + requestInfo);
       reply = GetShuffleDataResponse.newBuilder()
           .setStatus(valueOf(status))
           .setRetMsg(msg)

@@ -86,7 +86,9 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
           .setShuffleId(stb.getKey())
           .addAllShuffleData(shuffleData)
           .build();
+      long start = System.currentTimeMillis();
       RssProtos.SendShuffleDataResponse response = blockingStub.sendShuffleData(request);
+      LOG.debug("Do sendShuffleData rpc cost:" + (System.currentTimeMillis() - start) + " ms");
 
       if (response.getStatus() == StatusCode.NO_BUFFER) {
         // there is no buffer in shuffle server, stop to sending data
@@ -275,6 +277,11 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         throw new RuntimeException(msg);
     }
     return response;
+  }
+
+  @Override
+  public String getClientInfo() {
+    return "ShuffleServerGrpcClient for host[" + host + "], port[" + port + "]";
   }
 
   private List<BufferSegment> toBufferSegments(List<ShuffleDataBlockSegment> blockSegments) {

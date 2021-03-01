@@ -6,7 +6,6 @@ import com.tencent.rss.client.response.RssGetShuffleDataResponse;
 import com.tencent.rss.common.ShuffleDataResult;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +16,6 @@ public class LocalFileClientReadHandler extends AbstractFileClientReadHandler {
   private int partitionNum;
   private int readBufferSize;
   private List<ShuffleServerClient> shuffleServerClients;
-  private AtomicLong readDataTime = new AtomicLong(0);
 
   public LocalFileClientReadHandler(
       String appId,
@@ -51,7 +49,7 @@ public class LocalFileClientReadHandler extends AbstractFileClientReadHandler {
         readSuccessful = true;
         break;
       } catch (Exception e) {
-        LOG.warn("Failed to read shuffle data.", e);
+        LOG.warn("Failed to read shuffle data with " + shuffleServerClient.getClientInfo(), e);
       }
     }
     if (!readSuccessful) {

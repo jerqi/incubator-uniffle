@@ -22,6 +22,7 @@ public class ShuffleBufferManager {
   private final ShuffleFlushManager shuffleFlushManager;
   private long capacity;
   private int bufferSize;
+  private int retryNum;
   private AtomicLong atomicSize;
   // appId -> shuffleId -> partitionId -> ShuffleBuffer to avoid too many appId
   private Map<String, Map<Integer, RangeMap<Integer, ShuffleBuffer>>> bufferPool;
@@ -32,6 +33,7 @@ public class ShuffleBufferManager {
     this.shuffleFlushManager = shuffleFlushManager;
     this.atomicSize = new AtomicLong(0L);
     this.bufferPool = new ConcurrentHashMap<>();
+    this.retryNum = conf.getInteger(ShuffleServerConf.SERVER_MEMORY_REQUEST_RETRY_MAX);
   }
 
   public StatusCode registerBuffer(String appId, int shuffleId, int startPartition, int endPartition) {
@@ -49,7 +51,7 @@ public class ShuffleBufferManager {
     return StatusCode.SUCCESS;
   }
 
-  public synchronized StatusCode cacheShuffleData(String appId, int shuffleId, ShufflePartitionedData spd) {
+  public StatusCode cacheShuffleData(String appId, int shuffleId, ShufflePartitionedData spd) {
     if (isFull()) {
       return StatusCode.NO_BUFFER;
     }
@@ -140,8 +142,42 @@ public class ShuffleBufferManager {
       }
     }
     // release memory
-    updateSize(-size);
+    releaseMemory(size);
     bufferPool.remove(appId);
+  }
+
+  public synchronized boolean requireMemory(long size) {
+    if (capacity - atomicSize.get() >= size) {
+      atomicSize.addAndGet(size);
+      return true;
+    }
+    return false;
+  }
+
+  public synchronized void releaseMemory(long size) {
+    if (atomicSize.get() >= size) {
+      atomicSize.addAndGet(-size);
+    } else {
+      LOG.warn("Current allocated memory[" + atomicSize.get()
+          + "] is less than released[" + size + "], set allocated memory to 0");
+      atomicSize.set(0L);
+    }
+  }
+
+  public boolean requireMemoryWithRetry(long size) {
+    boolean result = false;
+    for (int i = 0; i < retryNum; i++) {
+      result = requireMemory(size);
+      if (result) {
+        break;
+      }
+      try {
+        Thread.sleep(1000);
+      } catch (Exception e) {
+        LOG.warn("Error happened when require memory", e);
+      }
+    }
+    return result;
   }
 
   long updateSize(long delta) {

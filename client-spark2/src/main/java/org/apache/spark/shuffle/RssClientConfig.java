@@ -40,4 +40,8 @@ public class RssClientConfig {
   public static String RSS_COMPRESSION_BLOCK_SIZE = "spark.rss.compression.block.size";
   // the default is the same as set in spark's CompressionCodec
   public static int RSS_COMPRESSION_BLOCK_SIZE_DEFAULT_VALUE = 32 * 1024;
+  public static String RSS_CLIENT_SEND_THREAD_POOL_SIZE = "spark.rss.client.send.threadPool.size";
+  public static int RSS_CLIENT_SEND_THREAD_POOL_SIZE_DEFAULT_VALUE = 24;
+  public static String RSS_CLIENT_SEND_THREAD_POOL_KEEPALIVE = "spark.rss.client.send.threadPool.keepalive";
+  public static int RSS_CLIENT_SEND_THREAD_POOL_KEEPALIVE_DEFAULT_VALUE = 60;
 }

@@ -2,6 +2,7 @@ package org.apache.spark.shuffle;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.tencent.rss.client.api.ShuffleWriteClient;
 import com.tencent.rss.client.factory.ShuffleClientFactory;
@@ -13,6 +14,8 @@ import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkEnv;
@@ -40,17 +43,20 @@ public class RssShuffleManager implements ShuffleManager {
   private int serializerMaxBufferSize = 0;
   private String clientType;
   private ShuffleWriteClient shuffleWriteClient;
-  private Map<String, Set<Long>> taskToSuccessBlockIds = Maps.newHashMap();
-  private Map<String, Set<Long>> taskToFailedBlockIds = Maps.newHashMap();
-  private Map<String, WriteBufferManager> taskToBuffManager = Maps.newHashMap();
+  private Map<String, Set<Long>> taskToSuccessBlockIds = Maps.newConcurrentMap();
+  private Map<String, Set<Long>> taskToFailedBlockIds = Maps.newConcurrentMap();
+  private Map<String, WriteBufferManager> taskToBuffManager = Maps.newConcurrentMap();
   private boolean heartbeatStarted = false;
   private long heartbeatInterval = 0;
+  private ThreadPoolExecutor threadPoolExecutor;
   private EventLoop eventLoop = new EventLoop<AddBlockEvent>("ShuffleDataQueue") {
 
     @Override
     public void onReceive(AddBlockEvent event) {
-      List<ShuffleBlockInfo> shuffleDataInfoList = event.getShuffleDataInfoList();
-      String taskId = event.getTaskId();
+      threadPoolExecutor.execute(() -> sendShuffleData(event.getTaskId(), event.getShuffleDataInfoList()));
+    }
+
+    private void sendShuffleData(String taskId, List<ShuffleBlockInfo> shuffleDataInfoList) {
       try {
         SendShuffleDataResult result = shuffleWriteClient.sendShuffleData(appId, shuffleDataInfoList);
         putBlockId(taskToSuccessBlockIds, taskId, result.getSuccessBlockIds());
@@ -75,7 +81,7 @@ public class RssShuffleManager implements ShuffleManager {
         return;
       }
       if (taskToBlockIds.get(taskAttempId) == null) {
-        taskToBlockIds.put(taskAttempId, Sets.newHashSet());
+        taskToBlockIds.put(taskAttempId, Sets.newConcurrentHashSet());
       }
       taskToBlockIds.get(taskAttempId).addAll(blockIds);
     }
@@ -110,6 +116,12 @@ public class RssShuffleManager implements ShuffleManager {
       // for non-driver executor, start a thread for sending shuffle data to shuffle server
       LOG.info("RSS data send thread is starting");
       eventLoop.start();
+      int poolSize = sparkConf.getInt(RssClientConfig.RSS_CLIENT_SEND_THREAD_POOL_SIZE,
+          RssClientConfig.RSS_CLIENT_SEND_THREAD_POOL_SIZE_DEFAULT_VALUE);
+      int keepAliveTime = sparkConf.getInt(RssClientConfig.RSS_CLIENT_SEND_THREAD_POOL_KEEPALIVE,
+          RssClientConfig.RSS_CLIENT_SEND_THREAD_POOL_KEEPALIVE_DEFAULT_VALUE);
+      threadPoolExecutor = new ThreadPoolExecutor(poolSize, poolSize * 2, keepAliveTime, TimeUnit.SECONDS,
+          Queues.newLinkedBlockingQueue(Integer.MAX_VALUE));
     }
   }
 
