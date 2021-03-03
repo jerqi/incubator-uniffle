@@ -1,5 +1,6 @@
 package com.tencent.rss.test.grpc;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -138,15 +139,12 @@ public class ShuffleServerGrpcLocalTest extends IntegrationTestBase {
 
   protected void validateResult(ShuffleDataResult sdr, Set<Long> expectedBlockIds,
       Map<Long, byte[]> expectedData) {
-    byte[] buffer = sdr.getData();
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     int matched = 0;
     for (BufferSegment bs : bufferSegments) {
       if (expectedBlockIds.contains(bs.getBlockId())) {
-        byte[] data = new byte[bs.getLength()];
-        System.arraycopy(buffer, bs.getOffset(), data, 0, bs.getLength());
-        assertEquals(bs.getCrc(), ChecksumUtils.getCrc32(data));
-        assertTrue(Arrays.equals(data, expectedData.get(bs.getBlockId())));
+        assertEquals(bs.getCrc(), ChecksumUtils.getCrc32(bs.getData()));
+        assertArrayEquals(expectedData.get(bs.getBlockId()), bs.getData());
         assertTrue(expectedBlockIds.contains(bs.getBlockId()));
         matched++;
       }

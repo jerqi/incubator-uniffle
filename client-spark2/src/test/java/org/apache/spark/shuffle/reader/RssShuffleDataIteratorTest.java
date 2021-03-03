@@ -19,7 +19,6 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.SparkConf;
 import org.apache.spark.executor.ShuffleReadMetrics;
-import org.apache.spark.io.CompressionCodec$;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.shuffle.AbstractRssReaderTest;
@@ -47,7 +46,7 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
         StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
         10, 10000, basePath, expectedBlockIds, Lists.newArrayList());
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient,
-        new ShuffleReadMetrics(), CompressionCodec$.MODULE$.createCodec(new SparkConf()), 1024);
+        new ShuffleReadMetrics());
 
     validateResult(rssShuffleDataIterator, expectedData, 10);
 
@@ -82,12 +81,11 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
         StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
         10, 10000, basePath, expectedBlockIds, Lists.newArrayList());
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
-        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics(),
-        CompressionCodec$.MODULE$.createCodec(new SparkConf()), 1024);
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
 
     validateResult(rssShuffleDataIterator, expectedData, 20);
     assertEquals(20, rssShuffleDataIterator.getShuffleReadMetrics().recordsRead());
-    assertEquals(424, rssShuffleDataIterator.getShuffleReadMetrics().remoteBytesRead());
+    assertEquals(256, rssShuffleDataIterator.getShuffleReadMetrics().remoteBytesRead());
     assertTrue(rssShuffleDataIterator.getShuffleReadMetrics().fetchWaitTime() > 0);
   }
 
@@ -121,8 +119,7 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
         StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
         10, 10000, basePath, expectedBlockIds, Lists.newArrayList());
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
-        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics(),
-        CompressionCodec$.MODULE$.createCodec(new SparkConf()), 1024);
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
 
     validateResult(rssShuffleDataIterator, expectedData, 20);
   }
@@ -142,8 +139,7 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
         StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
         10, 10000, basePath, expectedBlockIds, Lists.newArrayList());
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
-        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics(),
-        CompressionCodec$.MODULE$.createCodec(new SparkConf()), 1024);
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     // data file is deleted after iterator initialization
     Path dataFile = new Path(basePath + "/appId/0/0-1/test1.data");
     fs.delete(dataFile, true);
@@ -180,8 +176,7 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
         StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
         10, 10000, basePath, expectedBlockIds, Lists.newArrayList());
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
-        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics(),
-        CompressionCodec$.MODULE$.createCodec(new SparkConf()), 1024);
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     // index file is deleted after iterator initialization, it should be ok, all index infos are read already
     Path indexFile = new Path(basePath + "/appId/0/0-1/test.index");
     fs.delete(indexFile, true);
@@ -242,8 +237,7 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
         StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
         10, 10000, basePath, expectedBlockIds, Lists.newArrayList());
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
-        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics(),
-        CompressionCodec$.MODULE$.createCodec(new SparkConf()), 1024);
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
 
     // crc32 is incorrect
     try (MockedStatic<ChecksumUtils> checksumUtilsMock = Mockito.mockStatic(ChecksumUtils.class)) {
@@ -268,8 +262,7 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
         StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
         10, 10000, basePath, expectedBlockIds, Lists.newArrayList());
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
-        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics(),
-        CompressionCodec$.MODULE$.createCodec(new SparkConf()), 1024);
+        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
     assertFalse(rssShuffleDataIterator.hasNext());
   }
 }

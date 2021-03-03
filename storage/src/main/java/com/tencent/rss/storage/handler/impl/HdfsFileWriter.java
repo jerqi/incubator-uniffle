@@ -64,7 +64,8 @@ public class HdfsFileWriter implements Closeable {
 
   public void writeIndex(FileBasedShuffleSegment segment) throws IOException {
     fsDataOutputStream.writeLong(segment.getOffset());
-    fsDataOutputStream.writeLong(segment.getLength());
+    fsDataOutputStream.writeInt(segment.getLength());
+    fsDataOutputStream.writeInt(segment.getUncompressLength());
     fsDataOutputStream.writeLong(segment.getCrc());
     fsDataOutputStream.writeLong(segment.getBlockId());
   }

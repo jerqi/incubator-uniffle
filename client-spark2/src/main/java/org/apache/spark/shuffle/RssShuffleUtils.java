@@ -5,6 +5,9 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+import net.jpountz.lz4.LZ4Compressor;
+import net.jpountz.lz4.LZ4Factory;
+import net.jpountz.lz4.LZ4FastDecompressor;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.spark.io.CompressionCodec;
 import org.slf4j.Logger;
@@ -14,7 +17,7 @@ public class RssShuffleUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(RssShuffleUtils.class);
 
-  public static byte[] compressData(CompressionCodec compressionCodec, byte[] data) {
+  public static byte[] compressDataOrigin(CompressionCodec compressionCodec, byte[] data) {
     ByteArrayOutputStream baos = new ByteArrayOutputStream(data.length);
     OutputStream os = compressionCodec.compressedOutputStream(baos);
     try {
@@ -33,7 +36,7 @@ public class RssShuffleUtils {
     return baos.toByteArray();
   }
 
-  public static byte[] decompressData(CompressionCodec compressionCodec, byte[] data, int compressionBlockSize) {
+  public static byte[] decompressDataOrigin(CompressionCodec compressionCodec, byte[] data, int compressionBlockSize) {
     if (data == null || data.length == 0) {
       LOG.warn("Empty data is found when do decompress");
       return null;
@@ -77,4 +80,15 @@ public class RssShuffleUtils {
     return uncompressData;
   }
 
+  public static byte[] compressData(byte[] data) {
+    LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
+    return compressor.compress(data);
+  }
+
+  public static byte[] decompressData(byte[] data, int uncompressLength) {
+    LZ4FastDecompressor fastDecompressor = LZ4Factory.fastestInstance().fastDecompressor();
+    byte[] uncompressData = new byte[uncompressLength];
+    fastDecompressor.decompress(data, 0, uncompressData, 0, uncompressLength);
+    return uncompressData;
+  }
 }

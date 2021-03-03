@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface ShuffleReader {
 
-  byte[] readData(FileBasedShuffleSegment segment);
+  byte[] readData(long offset, long length);
 
   List<FileBasedShuffleSegment> readIndex(int limit) throws IOException, IllegalStateException;
 }

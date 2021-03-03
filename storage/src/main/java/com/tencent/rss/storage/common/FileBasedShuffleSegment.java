@@ -5,13 +5,15 @@ import java.util.Objects;
 public class FileBasedShuffleSegment extends ShuffleSegment implements Comparable<FileBasedShuffleSegment> {
 
   private long offset;
-  private long length;
+  private int length;
+  private int uncompressLength;
   private long crc;
   private long blockId;
 
-  public FileBasedShuffleSegment(long blockId, long offset, long length, long crc) {
+  public FileBasedShuffleSegment(long blockId, long offset, int length, int uncompressLength, long crc) {
     this.offset = offset;
     this.length = length;
+    this.uncompressLength = uncompressLength;
     this.crc = crc;
     this.blockId = blockId;
   }
@@ -20,24 +22,16 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
     return offset;
   }
 
-  public void setOffset(long offset) {
-    this.offset = offset;
-  }
-
-  public long getLength() {
+  public int getLength() {
     return length;
   }
 
-  public void setLength(long length) {
+  public void setLength(int length) {
     this.length = length;
   }
 
   public long getCrc() {
     return crc;
-  }
-
-  public void setCrc(long crc) {
-    this.crc = crc;
   }
 
   public long getBlockId() {
@@ -46,6 +40,10 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
 
   public void setBlockId(long blockId) {
     this.blockId = blockId;
+  }
+
+  public int getUncompressLength() {
+    return uncompressLength;
   }
 
   @Override
@@ -60,7 +58,8 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
     return offset == that.offset
         && length == that.length
         && crc == that.crc
-        && blockId == that.blockId;
+        && blockId == that.blockId
+        && uncompressLength == that.uncompressLength;
   }
 
   @Override
@@ -75,21 +74,13 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
 
   @Override
   public int hashCode() {
-    return Objects.hash(offset, length, crc, blockId);
+    return Objects.hash(offset, length, uncompressLength, crc, blockId);
   }
 
   @Override
   public String toString() {
-    return "FileBasedShuffleSegment{"
-        + "offset="
-        + offset
-        + ", length="
-        + length
-        + ", crc="
-        + crc
-        + ", blockId='"
-        + blockId
-        + "'}";
+    return "FileBasedShuffleSegment{" + "offset[" + offset + "], length[" + length
+        + "], uncompressLength[" + uncompressLength + "], crc[" + crc + "], blockId[" + blockId + "]}";
   }
 
 }

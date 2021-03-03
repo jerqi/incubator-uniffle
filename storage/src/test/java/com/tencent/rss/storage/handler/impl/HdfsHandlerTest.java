@@ -29,7 +29,7 @@ public class HdfsHandlerTest extends HdfsTestBase {
   @Test
   public void initTest() throws IOException {
     String basePath = HDFS_URI + "test_base";
-    new HdfsShuffleWriteHandler("appId", 0, 0, 1, basePath, "test", conf);
+    new HdfsShuffleWriteHandler("appId", 0, 0, 0, basePath, "test", conf);
     Path path = new Path(basePath);
     assertTrue(fs.isDirectory(path));
   }
@@ -38,8 +38,9 @@ public class HdfsHandlerTest extends HdfsTestBase {
   public void writeTest() throws IOException, IllegalStateException {
     String basePath = HDFS_URI + "writeTest";
     HdfsShuffleWriteHandler writeHandler =
-        new HdfsShuffleWriteHandler("appId", 1, 0, 1, basePath, "test", conf);
+        new HdfsShuffleWriteHandler("appId", 1, 1, 1, basePath, "test", conf);
     List<ShufflePartitionedBlock> blocks = new LinkedList<>();
+    List<Long> expectedBlockId = new LinkedList<>();
     List<byte[]> expectedData = new LinkedList<>();
     List<FileBasedShuffleSegment> expectedIndex = new LinkedList<>();
 
@@ -48,8 +49,9 @@ public class HdfsHandlerTest extends HdfsTestBase {
       byte[] buf = new byte[i * 8];
       new Random().nextBytes(buf);
       expectedData.add(buf);
-      blocks.add(new ShufflePartitionedBlock(i * 8, i, i, buf));
-      expectedIndex.add(new FileBasedShuffleSegment(i, pos, i * 8, i));
+      blocks.add(new ShufflePartitionedBlock(i * 8, i * 8, i, i, buf));
+      expectedBlockId.add(Long.valueOf(i));
+      expectedIndex.add(new FileBasedShuffleSegment(i, pos, i * 8, i * 8, i));
       pos += i * 8;
     }
     writeHandler.write(blocks);
@@ -58,7 +60,7 @@ public class HdfsHandlerTest extends HdfsTestBase {
     fs.isFile(new Path(basePath, "test.data"));
     fs.isFile(new Path(basePath, "test.index"));
 
-    compareDataAndIndex("appId", 1, 1, basePath, expectedData);
+    compareDataAndIndex("appId", 1, 1, basePath, expectedData, expectedBlockId);
 
     // append the exist data and index files
     List<ShufflePartitionedBlock> blocksAppend = new LinkedList<>();
@@ -66,13 +68,14 @@ public class HdfsHandlerTest extends HdfsTestBase {
       byte[] buf = new byte[i * 8];
       new Random().nextBytes(buf);
       expectedData.add(buf);
-      blocksAppend.add(new ShufflePartitionedBlock(i * 8, i, i, buf));
-      expectedIndex.add(new FileBasedShuffleSegment(i, pos, i * 8, i));
+      expectedBlockId.add(Long.valueOf(i));
+      blocksAppend.add(new ShufflePartitionedBlock(i * 8, i * 8, i, i, buf));
+      expectedIndex.add(new FileBasedShuffleSegment(i, pos, i * 8, i * 8, i));
       pos += i * 8;
     }
     writeHandler.write(blocksAppend);
 
-    compareDataAndIndex("appId", 1, 1, basePath, expectedData);
+    compareDataAndIndex("appId", 1, 1, basePath, expectedData, expectedBlockId);
   }
 
   private void compareDataAndIndex(
@@ -80,13 +83,14 @@ public class HdfsHandlerTest extends HdfsTestBase {
       int shuffleId,
       int partitionId,
       String basePath,
-      List<byte[]> expectedData) throws IllegalStateException {
+      List<byte[]> expectedData,
+      List<Long> expectedBlockId) throws IllegalStateException {
     // read directly and compare
     HdfsClientReadHandler readHandler = new HdfsClientReadHandler(
-        appId, shuffleId, partitionId, 100, 2, 10,
-        10000, basePath, Sets.newHashSet(1L));
+        appId, shuffleId, partitionId, 100, 1, 10,
+        10000, basePath, Sets.newHashSet(expectedBlockId));
     try {
-      List<byte[]> actual = readData(readHandler, Sets.newHashSet(1L));
+      List<byte[]> actual = readData(readHandler, Sets.newHashSet(expectedBlockId));
       compareBytes(expectedData, actual);
     } finally {
       readHandler.close();
@@ -98,9 +102,7 @@ public class HdfsHandlerTest extends HdfsTestBase {
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     List<byte[]> result = Lists.newArrayList();
     for (BufferSegment bs : bufferSegments) {
-      byte[] data = new byte[bs.getLength()];
-      System.arraycopy(sdr.getData(), bs.getOffset(), data, 0, bs.getLength());
-      result.add(data);
+      result.add(bs.getData());
     }
     return result;
   }

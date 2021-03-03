@@ -244,7 +244,7 @@ public class ShuffleBufferManagerTest {
   private ShufflePartitionedData createData(int partitionId, int len) {
     byte[] buf = new byte[len];
     new Random().nextBytes(buf);
-    ShufflePartitionedBlock block = new ShufflePartitionedBlock(len, 1, 1, buf);
+    ShufflePartitionedBlock block = new ShufflePartitionedBlock(len, len, 1, 1, buf);
     ShufflePartitionedData data = new ShufflePartitionedData(partitionId, block);
     return data;
   }

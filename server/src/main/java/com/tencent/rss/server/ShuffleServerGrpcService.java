@@ -298,7 +298,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
         reply = GetShuffleDataResponse.newBuilder()
             .setStatus(valueOf(status))
             .setRetMsg(msg)
-            .setData(ByteString.copyFrom(sdr.getData()))
+            .addAllData(toByteStrings(sdr.getBufferSegments()))
             .addAllBlockSegments(toBlockSegments(sdr.getBufferSegments()))
             .build();
       } catch (Exception e) {
@@ -326,6 +326,14 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     responseObserver.onCompleted();
   }
 
+  private List<ByteString> toByteStrings(List<BufferSegment> bufferSegments) {
+    List<ByteString> byteStrings = Lists.newArrayList();
+    for (BufferSegment bufferSegment : bufferSegments) {
+      byteStrings.add(ByteString.copyFrom(bufferSegment.getData()));
+    }
+    return byteStrings;
+  }
+
   private List<ShuffleDataBlockSegment> toBlockSegments(List<BufferSegment> bufferSegments) {
     List<ShuffleDataBlockSegment> ret = Lists.newArrayList();
 
@@ -334,6 +342,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
           .setBlockId(segment.getBlockId())
           .setOffset(segment.getOffset())
           .setLength(segment.getLength())
+          .setUncompressLength(segment.getUncompressLength())
           .setCrc(segment.getCrc())
           .build());
     }
@@ -359,6 +368,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     for (ShuffleBlock block : blocks) {
       ret.add(new ShufflePartitionedBlock(
           block.getLength(),
+          block.getUncompressLength(),
           block.getCrc(),
           block.getBlockId(),
           block.getData().asReadOnlyByteBuffer()));

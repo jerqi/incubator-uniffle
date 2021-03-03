@@ -40,7 +40,8 @@ public class LocalFileWriter implements Closeable {
 
   public void writeIndex(FileBasedShuffleSegment segment) throws IOException {
     dataOutputStream.writeLong(segment.getOffset());
-    dataOutputStream.writeLong(segment.getLength());
+    dataOutputStream.writeInt(segment.getLength());
+    dataOutputStream.writeInt(segment.getUncompressLength());
     dataOutputStream.writeLong(segment.getCrc());
     dataOutputStream.writeLong(segment.getBlockId());
   }

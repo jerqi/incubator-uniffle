@@ -17,8 +17,9 @@ service ShuffleServer {
 message ShuffleDataBlockSegment {
   int64 blockId = 1;
   int64 offset = 2;
-  int64 length = 3;
-  int64 crc = 4;
+  int32 length = 3;
+  int32 uncompressLength = 4;
+  int64 crc = 5;
 }
 
 message GetShuffleDataRequest {
@@ -32,7 +33,7 @@ message GetShuffleDataRequest {
 }
 
 message GetShuffleDataResponse {
-  bytes data = 1;
+  repeated bytes data = 1;
   repeated ShuffleDataBlockSegment blockSegments = 2;
   StatusCode status = 3;
   string retMsg = 4;
@@ -97,8 +98,9 @@ message ShuffleData {
 message ShuffleBlock {
   int64 blockId = 1;
   int32 length = 2;
-  int64 crc = 3;
-  bytes data = 4;
+  int32 uncompressLength = 3;
+  int64 crc = 4;
+  bytes data = 5;
 }
 
 message ShuffleCommitRequest {

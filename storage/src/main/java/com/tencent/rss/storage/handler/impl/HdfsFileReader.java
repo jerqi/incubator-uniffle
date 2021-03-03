@@ -40,15 +40,14 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
     fsDataInputStream = fileSystem.open(path);
   }
 
-  public byte[] readData(FileBasedShuffleSegment segment) {
+  public byte[] readData(long offset, long length) {
     try {
-      fsDataInputStream.seek(segment.getOffset());
-      int length = (int) segment.getLength();
-      byte[] buf = new byte[length];
+      fsDataInputStream.seek(offset);
+      byte[] buf = new byte[(int) length];
       fsDataInputStream.readFully(buf);
       return buf;
     } catch (Exception e) {
-      LOG.warn("Can't read data for path:" + path + ", with " + segment);
+      LOG.warn("Can't read data for path:" + path + " with offset[" + offset + "], length[" + length + "]");
     }
     return null;
   }
@@ -68,18 +67,20 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
   }
 
   private FileBasedShuffleSegment readIndex() throws IOException, IllegalStateException {
-    ByteBuffer buf = ByteBuffer.allocate(8);
+    ByteBuffer longBuf = ByteBuffer.allocate(8);
+    ByteBuffer intBuf = ByteBuffer.allocate(4);
 
-    long offset = getLongFromStream(buf, true);
+    long offset = getLongFromStream(longBuf, true);
     if (offset == -1) { // EOF
       return null;
     }
 
-    long length = getLongFromStream(buf);
-    long crc = getLongFromStream(buf);
-    long blockId = getLongFromStream(buf);
+    int length = getIntegerFromStream(intBuf);
+    int uncompressLength = getIntegerFromStream(intBuf);
+    long crc = getLongFromStream(longBuf);
+    long blockId = getLongFromStream(longBuf);
 
-    return new FileBasedShuffleSegment(blockId, offset, length, crc);
+    return new FileBasedShuffleSegment(blockId, offset, length, uncompressLength, crc);
   }
 
   private long getLongFromStream(ByteBuffer buf) throws IOException, IllegalStateException {
@@ -103,6 +104,25 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
       buf.clear();
     } catch (BufferUnderflowException e) {
       String msg = "Invalid index file " + path + " " + len + " bytes left, can't be parsed as long.";
+      throw new IllegalStateException(msg);
+    }
+
+    return ret;
+  }
+
+  private int getIntegerFromStream(ByteBuffer buf) throws IOException, IllegalStateException {
+    int len = fsDataInputStream.read(buf);
+    if (len == -1) { // EOF
+      return -1;
+    }
+
+    int ret = 0;
+    try {
+      buf.flip();
+      ret = buf.getInt();
+      buf.clear();
+    } catch (BufferUnderflowException e) {
+      String msg = "Invalid index file " + path + " " + len + " bytes left, can't be parsed as int.";
       throw new IllegalStateException(msg);
     }
 

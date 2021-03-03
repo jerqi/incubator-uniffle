@@ -153,7 +153,8 @@ public class HdfsFileWriterTest extends HdfsTestBase {
 
   @Test
   public void writeSegmentTest() throws IOException {
-    FileBasedShuffleSegment segment = new FileBasedShuffleSegment(23, 128, 32, 0xdeadbeef);
+    FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
+        23, 128, 32, 32, 0xdeadbeef);
 
     Path path = new Path(HDFS_URI, "writeSegmentTest");
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
@@ -164,7 +165,8 @@ public class HdfsFileWriterTest extends HdfsTestBase {
     FileSystem fs = path.getFileSystem(conf);
     try (FSDataInputStream in = fs.open(path)) {
       assertEquals(128, in.readLong());
-      assertEquals(32, in.readLong());
+      assertEquals(32, in.readInt());
+      assertEquals(32, in.readInt());
       assertEquals(0xdeadbeef, in.readLong());
       assertEquals(23, in.readLong());
     }

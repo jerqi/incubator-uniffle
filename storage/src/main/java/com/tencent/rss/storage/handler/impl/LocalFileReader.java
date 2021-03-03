@@ -22,15 +22,14 @@ public class LocalFileReader implements ShuffleReader, Closeable {
     dataInputStream = new DataInputStream(new FileInputStream(path));
   }
 
-  public byte[] readData(FileBasedShuffleSegment segment) {
+  public byte[] readData(long offset, long length) {
     try {
-      dataInputStream.skip(segment.getOffset());
-      int length = (int) segment.getLength();
-      byte[] buf = new byte[length];
+      dataInputStream.skip(offset);
+      byte[] buf = new byte[(int) length];
       dataInputStream.readFully(buf);
       return buf;
     } catch (Exception e) {
-      LOG.warn("Can't read data for path:" + path + ", with " + segment);
+      LOG.warn("Can't read data for path:" + path + " with offset[" + offset + "], length[" + length + "]");
     }
     return null;
   }
@@ -55,10 +54,11 @@ public class LocalFileReader implements ShuffleReader, Closeable {
     }
 
     long offset = dataInputStream.readLong();
-    long length = dataInputStream.readLong();
+    int length = dataInputStream.readInt();
+    int uncompressLength = dataInputStream.readInt();
     long crc = dataInputStream.readLong();
     long blockId = dataInputStream.readLong();
-    return new FileBasedShuffleSegment(blockId, offset, length, crc);
+    return new FileBasedShuffleSegment(blockId, offset, length, uncompressLength, crc);
   }
 
   @Override

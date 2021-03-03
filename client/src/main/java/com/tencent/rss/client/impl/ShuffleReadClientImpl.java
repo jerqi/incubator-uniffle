@@ -3,6 +3,7 @@ package com.tencent.rss.client.impl;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.tencent.rss.client.api.ShuffleReadClient;
+import com.tencent.rss.client.response.CompressedShuffleBlock;
 import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShuffleServerInfo;
@@ -63,7 +64,7 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
   }
 
   @Override
-  public byte[] readShuffleBlockData() {
+  public CompressedShuffleBlock readShuffleBlockData() {
     // try read data
     while (!remainBlockIds.isEmpty()) {
       // if need request new buff
@@ -71,28 +72,27 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
         long start = System.currentTimeMillis();
         ShuffleDataResult sdr = clientReadHandler.readShuffleData(remainBlockIds);
         readDataTime.addAndGet(System.currentTimeMillis() - start);
-        readBuffer = sdr.getData();
-        if (readBuffer == null) {
-          // there is no data, return
-          return null;
-        }
         bufferSegmentQueue.addAll(sdr.getBufferSegments());
       }
+
       // get next buffer segment
       BufferSegment bs = null;
       do {
         // blocks in bufferSegmentQueue are from different partition, just read the necessary block
         bs = bufferSegmentQueue.poll();
       } while (bs != null && !remainBlockIds.contains(bs.getBlockId()));
-      byte[] data = null;
+
       if (bs != null) {
-        data = new byte[bs.getLength()];
         long expectedCrc = -1;
         long actualCrc = -1;
+
+        if (bs.getData() == null) {
+          return null;
+        }
+
         try {
-          System.arraycopy(readBuffer, bs.getOffset(), data, 0, bs.getLength());
           expectedCrc = bs.getCrc();
-          actualCrc = ChecksumUtils.getCrc32(data);
+          actualCrc = ChecksumUtils.getCrc32(bs.getData());
         } catch (Exception e) {
           LOG.warn("Can't read data for blockId[" + bs.getBlockId() + "]", e);
         }
@@ -102,11 +102,11 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
         }
         processedBlockIds.add(bs.getBlockId());
         remainBlockIds.remove(bs.getBlockId());
-        return data;
+        return new CompressedShuffleBlock(bs.getData(), bs.getUncompressLength());
       }
     }
     // all data are read
-    return null;
+    return new CompressedShuffleBlock(null, 0);
   }
 
   @Override

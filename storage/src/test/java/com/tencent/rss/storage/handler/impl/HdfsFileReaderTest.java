@@ -63,17 +63,17 @@ public class HdfsFileReaderTest extends HdfsTestBase {
 
     int offset = 128;
     int length = 32;
-    FileBasedShuffleSegment segment = new FileBasedShuffleSegment(23, offset, length, 0xdeadbeef);
+    FileBasedShuffleSegment segment = new FileBasedShuffleSegment(23, offset, length, length, 0xdeadbeef);
     try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
       reader.createStream();
-      byte[] actual = reader.readData(segment);
+      byte[] actual = reader.readData(segment.getOffset(), segment.getLength());
       for (int i = 0; i < length; ++i) {
         assertEquals(data[i + offset], actual[i]);
       }
 
       // EOF exception is expected
-      segment = new FileBasedShuffleSegment(23, offset * 2, length, 1);
-      assertNull(reader.readData(segment));
+      segment = new FileBasedShuffleSegment(23, offset * 2, length, length, 1);
+      assertNull(reader.readData(segment.getOffset(), segment.getLength()));
     }
   }
 
@@ -81,9 +81,9 @@ public class HdfsFileReaderTest extends HdfsTestBase {
   public void readIndexTest() throws IOException {
     Path path = new Path(HDFS_URI, "readIndexTest");
     FileBasedShuffleSegment[] segments = {
-        new FileBasedShuffleSegment(123, 0, 32, 1),
-        new FileBasedShuffleSegment(223, 32, 23, 2),
-        new FileBasedShuffleSegment(323, 64, 32, 3)
+        new FileBasedShuffleSegment(123, 0, 32, 32, 1),
+        new FileBasedShuffleSegment(223, 32, 23, 23, 2),
+        new FileBasedShuffleSegment(323, 64, 32, 32, 3)
     };
 
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
@@ -121,9 +121,9 @@ public class HdfsFileReaderTest extends HdfsTestBase {
   public void readIndexFailTest() throws IOException {
     Path path = new Path(HDFS_URI, "readIndexFailTest");
     FileBasedShuffleSegment[] segments = {
-        new FileBasedShuffleSegment(123, 0, 32, 1),
-        new FileBasedShuffleSegment(223, 32, 23, 2),
-        new FileBasedShuffleSegment(323, 64, 32, 3)
+        new FileBasedShuffleSegment(123, 0, 32, 32, 1),
+        new FileBasedShuffleSegment(223, 32, 23, 32, 2),
+        new FileBasedShuffleSegment(323, 64, 32, 32, 3)
     };
 
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {

@@ -8,24 +8,26 @@ public class ShufflePartitionedBlock {
   private int length;
   private long crc;
   private long blockId;
+  private int uncompressLength;
   private ByteBuffer data;
 
-  public ShufflePartitionedBlock(int length, long crc, long blockId, ByteBuffer data) {
-    this(length, crc, blockId);
+  public ShufflePartitionedBlock(int length, int uncompressLength, long crc, long blockId, ByteBuffer data) {
+    this(length, uncompressLength, crc, blockId);
     Objects.requireNonNull(data);
     this.data = data;
   }
 
-  public ShufflePartitionedBlock(int length, long crc, long blockId, byte[] data) {
-    this(length, crc, blockId);
+  public ShufflePartitionedBlock(int length, int uncompressLength, long crc, long blockId, byte[] data) {
+    this(length, uncompressLength, crc, blockId);
     Objects.requireNonNull(data);
     this.data = ByteBuffer.wrap(data);
   }
 
-  public ShufflePartitionedBlock(int length, long crc, long blockId) {
+  public ShufflePartitionedBlock(int length, int uncompressLength, long crc, long blockId) {
     this.length = length;
     this.crc = crc;
     this.blockId = blockId;
+    this.uncompressLength = uncompressLength;
   }
 
   public long size() {
@@ -79,9 +81,14 @@ public class ShufflePartitionedBlock {
     this.data = data;
   }
 
+  public int getUncompressLength() {
+    return uncompressLength;
+  }
+
   @Override
   public String toString() {
-    return "ShufflePartitionedBlock{blockId[" + blockId + "], length[" + length + "], crc[" + crc + "]}";
+    return "ShufflePartitionedBlock{blockId[" + blockId + "], length[" + length
+        + "], uncompressLength[" + uncompressLength + "], crc[" + crc + "]}";
   }
 
 }

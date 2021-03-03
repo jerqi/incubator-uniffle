@@ -10,7 +10,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.TaskContext;
-import org.apache.spark.io.CompressionCodec;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.shuffle.RssShuffleHandle;
 import org.apache.spark.shuffle.ShuffleReader;
@@ -45,11 +44,9 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   private int readBufferSize;
   private int partitionsPerServer;
   private int partitionNum;
-  private int compressionBlockSize;
   private String storageType;
   private Set<Long> expectedBlockIds;
   private List<ShuffleServerInfo> shuffleServerInfoList;
-  private CompressionCodec compressionCodec;
 
   public RssShuffleReader(
       int startPartition,
@@ -63,9 +60,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
       int readBufferSize,
       int partitionsPerServer,
       int partitionNum,
-      Set<Long> expectedBlockIds,
-      CompressionCodec compressionCodec,
-      int compressionBlockSize) {
+      Set<Long> expectedBlockIds) {
     this.appId = rssShuffleHandle.getAppId();
     this.startPartition = startPartition;
     this.endPartition = endPartition;
@@ -84,8 +79,6 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     this.expectedBlockIds = expectedBlockIds;
     this.shuffleServerInfoList =
         (List<ShuffleServerInfo>) (rssShuffleHandle.getPartitionToServers().get(startPartition));
-    this.compressionCodec = compressionCodec;
-    this.compressionBlockSize = compressionBlockSize;
   }
 
   @Override
@@ -99,7 +92,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
 
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator<K, C>(
         shuffleDependency.serializer(), shuffleReadClient,
-        context.taskMetrics().shuffleReadMetrics(), compressionCodec, compressionBlockSize);
+        context.taskMetrics().shuffleReadMetrics());
 
     Iterator<Product2<K, C>> resultIter = null;
     Iterator<Product2<K, C>> aggregatedIter = null;

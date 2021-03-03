@@ -26,11 +26,6 @@ public class GrpcServer implements ServerInterface {
         .build();
   }
 
-  public GrpcServer(Server server) {
-    this.server = server;
-    this.port = -1;
-  }
-
   public void start() throws IOException {
     server.start();
     LOG.info("Grpc server started, listening on {}.", port);

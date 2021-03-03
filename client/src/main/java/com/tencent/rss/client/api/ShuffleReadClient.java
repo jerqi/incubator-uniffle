@@ -1,8 +1,10 @@
 package com.tencent.rss.client.api;
 
+import com.tencent.rss.client.response.CompressedShuffleBlock;
+
 public interface ShuffleReadClient {
 
-  byte[] readShuffleBlockData();
+  CompressedShuffleBlock readShuffleBlockData();
 
   void checkProcessedBlockIds();
 

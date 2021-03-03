@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.spark.executor.ShuffleWriteMetrics;
-import org.apache.spark.io.CompressionCodec;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.serializer.Serializer;
@@ -38,7 +37,6 @@ public class WriteBufferManager extends MemoryConsumer {
   private int serializerBufferSize;
   private int serializerMaxBufferSize;
   private long copyTime;
-  private CompressionCodec compressionCodec;
 
   public WriteBufferManager(
       int shuffleId,
@@ -47,8 +45,7 @@ public class WriteBufferManager extends MemoryConsumer {
       Serializer serializer,
       Map<Integer, List<ShuffleServerInfo>> partitionToServers,
       TaskMemoryManager taskMemoryManager,
-      ShuffleWriteMetrics shuffleWriteMetrics,
-      CompressionCodec compressionCodec) {
+      ShuffleWriteMetrics shuffleWriteMetrics) {
     super(taskMemoryManager);
     this.bufferSize = bufferManagerOptions.getBufferSize();
     this.spillSize = bufferManagerOptions.getBufferSpillThreshold();
@@ -62,7 +59,6 @@ public class WriteBufferManager extends MemoryConsumer {
     this.shuffleWriteMetrics = shuffleWriteMetrics;
     this.serializerBufferSize = bufferManagerOptions.getSerializerBufferSize();
     this.serializerMaxBufferSize = bufferManagerOptions.getSerializerBufferMax();
-    this.compressionCodec = compressionCodec;
   }
 
   // add record to cache, return [partition, ShuffleBlock] if meet spill condition
@@ -78,7 +74,7 @@ public class WriteBufferManager extends MemoryConsumer {
         wb.clear();
         copyTime += wb.getCopyTime();
         buffers.remove(partitionId);
-        LOG.info("Single buffer is full for shuffleId[" + shuffleId
+        LOG.debug("Single buffer is full for shuffleId[" + shuffleId
             + "] partition[" + partitionId + "] with " + length + " bytes");
       }
     } else {
@@ -92,7 +88,7 @@ public class WriteBufferManager extends MemoryConsumer {
         result.add(createShuffleBlock(partitionId, wb.getData(), wb.getMemorySize()));
         wb.clear();
         copyTime += wb.getCopyTime();
-        LOG.info("Single buffer is full for shuffleId[" + shuffleId
+        LOG.debug("Single buffer is full for shuffleId[" + shuffleId
             + "] partition[" + partitionId + "] with " + length + " bytes");
       } else {
         buffers.put(partitionId, wb);
@@ -127,8 +123,8 @@ public class WriteBufferManager extends MemoryConsumer {
 
   // transform records to shuffleBlock
   private ShuffleBlockInfo createShuffleBlock(int partitionId, byte[] data, int freeMemory) {
-    long uncompressLength = data.length;
-    byte[] compressed = RssShuffleUtils.compressData(compressionCodec, data);
+    int uncompressLength = data.length;
+    byte[] compressed = RssShuffleUtils.compressData(data);
     long crc32 = ChecksumUtils.getCrc32(compressed);
     shuffleWriteMetrics.incBytesWritten(compressed.length);
     // just free memory from buffer manager, doesn't return to Executor now,

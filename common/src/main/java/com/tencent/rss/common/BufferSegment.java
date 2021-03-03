@@ -4,14 +4,18 @@ public class BufferSegment {
 
   private long blockId;
   private long offset;
-  private long length;
+  private int length;
+  private int uncompressLength;
   private long crc;
+  private byte[] data;
 
-  public BufferSegment(long blockId, long offset, long length, long crc) {
+  public BufferSegment(long blockId, long offset, int length, int uncompressLength, long crc, byte[] data) {
     this.blockId = blockId;
     this.offset = offset;
     this.length = length;
+    this.uncompressLength = uncompressLength;
     this.crc = crc;
+    this.data = data;
   }
 
   @Override
@@ -20,6 +24,7 @@ public class BufferSegment {
       return blockId == ((BufferSegment) obj).getBlockId()
           && offset == ((BufferSegment) obj).getOffset()
           && length == ((BufferSegment) obj).getLength()
+          && uncompressLength == ((BufferSegment) obj).getUncompressLength()
           && crc == ((BufferSegment) obj).getCrc();
     }
     return false;
@@ -33,10 +38,7 @@ public class BufferSegment {
   }
 
   public int getLength() {
-    if (length > Integer.MAX_VALUE) {
-      throw new RuntimeException("Unsupported length[" + length + "] for BufferSegment");
-    }
-    return (int) length;
+    return length;
   }
 
   public long getBlockId() {
@@ -45,5 +47,13 @@ public class BufferSegment {
 
   public long getCrc() {
     return crc;
+  }
+
+  public byte[] getData() {
+    return data;
+  }
+
+  public int getUncompressLength() {
+    return uncompressLength;
   }
 }

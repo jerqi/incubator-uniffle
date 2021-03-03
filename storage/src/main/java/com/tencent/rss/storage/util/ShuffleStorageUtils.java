@@ -47,14 +47,14 @@ public class ShuffleStorageUtils {
     return fileNamePrefix + Constants.SHUFFLE_INDEX_FILE_SUFFIX;
   }
 
-  public static List<FileReadSegment> mergeSegments(
+  /*public static List<FileReadSegment> mergeSegments(
       String path, List<FileBasedShuffleSegment> segments, int readBufferSize) {
     List<FileReadSegment> fileReadSegments = Lists.newArrayList();
     if (segments != null && !segments.isEmpty()) {
       if (segments.size() == 1) {
         Map<Long, BufferSegment> btb = Maps.newHashMap();
         btb.put(segments.get(0).getBlockId(), new BufferSegment(segments.get(0).getBlockId(), 0,
-            segments.get(0).getLength(), segments.get(0).getCrc()));
+            segments.get(0).getLength(), segments.get(0).getUncompressLength(), segments.get(0).getCrc()));
         fileReadSegments.add(new FileReadSegment(
             path, segments.get(0).getOffset(), segments.get(0).getLength(), btb));
       } else {
@@ -78,7 +78,8 @@ public class ShuffleStorageUtils {
           }
           lastestPosition = segment.getOffset() + segment.getLength();
           btb.put(segment.getBlockId(), new BufferSegment(segment.getBlockId(),
-              segment.getOffset() - start, segment.getLength(), segment.getCrc()));
+              segment.getOffset() - start, segment.getLength(),
+              segment.getUncompressLength(), segment.getCrc()));
           if (lastestPosition - start >= readBufferSize) {
             fileReadSegments.add(new FileReadSegment(
                 path, start, lastestPosition - start, btb));
@@ -92,7 +93,7 @@ public class ShuffleStorageUtils {
       }
     }
     return fileReadSegments;
-  }
+  }*/
 
   public static String getShuffleDataPath(String appId, int shuffleId, int start, int end) {
     return String.join(

@@ -11,10 +11,10 @@ public class ShuffleBlockInfo {
   private long crc;
   private byte[] data;
   private List<ShuffleServerInfo> shuffleServerInfos;
-  private long uncompressLength;
+  private int uncompressLength;
 
   public ShuffleBlockInfo(int shuffleId, int partitionId, long blockId, int length, long crc,
-      byte[] data, List<ShuffleServerInfo> shuffleServerInfos, long uncompressLength) {
+      byte[] data, List<ShuffleServerInfo> shuffleServerInfos, int uncompressLength) {
     this.partitionId = partitionId;
     this.blockId = blockId;
     this.length = length;
@@ -53,7 +53,7 @@ public class ShuffleBlockInfo {
     return shuffleServerInfos;
   }
 
-  public long getUncompressLength() {
+  public int getUncompressLength() {
     return uncompressLength;
   }
 

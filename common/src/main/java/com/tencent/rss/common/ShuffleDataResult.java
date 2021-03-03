@@ -1,22 +1,27 @@
 package com.tencent.rss.common;
 
+import com.google.common.collect.Lists;
+import com.tencent.rss.proto.RssProtos.ShuffleData;
 import java.util.List;
 
 public class ShuffleDataResult {
 
-  private byte[] data;
   private List<BufferSegment> bufferSegments;
 
-  public ShuffleDataResult(byte[] data, List<BufferSegment> bufferSegments) {
-    this.data = data;
-    this.bufferSegments = bufferSegments;
+  public ShuffleDataResult() {
+    this.bufferSegments = null;
   }
 
-  public byte[] getData() {
-    return data;
+  public ShuffleDataResult(List<BufferSegment> bufferSegments) {
+    this.bufferSegments = bufferSegments;
   }
 
   public List<BufferSegment> getBufferSegments() {
     return bufferSegments;
   }
+
+  public boolean isEmpty() {
+    return bufferSegments == null || bufferSegments.isEmpty();
+  }
+
 }
