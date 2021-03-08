@@ -13,6 +13,7 @@ import com.tencent.rss.client.impl.ShuffleReadClientImpl;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.handler.impl.HdfsShuffleWriteHandler;
 import com.tencent.rss.storage.util.StorageType;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Set;
 import org.apache.hadoop.fs.FileUtil;
@@ -241,7 +242,7 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
 
     // crc32 is incorrect
     try (MockedStatic<ChecksumUtils> checksumUtilsMock = Mockito.mockStatic(ChecksumUtils.class)) {
-      checksumUtilsMock.when(() -> ChecksumUtils.getCrc32(any())).thenReturn(-1L);
+      checksumUtilsMock.when(() -> ChecksumUtils.getCrc32((ByteBuffer) any())).thenReturn(-1L);
       try {
         while (rssShuffleDataIterator.hasNext()) {
           rssShuffleDataIterator.next();

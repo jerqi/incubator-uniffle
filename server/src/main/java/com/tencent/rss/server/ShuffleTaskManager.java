@@ -27,6 +27,7 @@ public class ShuffleTaskManager {
   private Map<String, Map<Integer, Map<Integer, List<Long>>>> partitionsToBlockIds;
   private ShuffleBufferManager shuffleBufferManager;
   private Map<String, Long> appIds = Maps.newConcurrentMap();
+  private Map<String, Map<Long, Integer>> commitCounts = Maps.newHashMap();
 
   public ShuffleTaskManager(
       ShuffleServerConf conf,
@@ -50,11 +51,12 @@ public class ShuffleTaskManager {
     return shuffleBufferManager.cacheShuffleData(appId, shuffleId, spd);
   }
 
-  public synchronized StatusCode commitShuffle(String appId, int shuffleId) throws Exception {
+  public StatusCode commitShuffle(String appId, int shuffleId) throws Exception {
     refreshAppId(appId);
     RangeMap<Integer, Set<Long>> partitionToEventIds = shuffleBufferManager.commitShuffleTask(appId, shuffleId);
     long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
     long start = System.currentTimeMillis();
+    int sleepCount = 0;
     while (true) {
       List<Range<Integer>> removedRanges = Lists.newArrayList();
       for (Map.Entry<Range<Integer>, Set<Long>> entry : partitionToEventIds.asMapOfRanges().entrySet()) {
@@ -79,6 +81,7 @@ public class ShuffleTaskManager {
         break;
       }
       Thread.sleep(1000);
+      sleepCount++;
       if (System.currentTimeMillis() - start > commitTimeout) {
         throw new RuntimeException("Shuffle data commit timeout for " + commitTimeout + " ms");
       }
@@ -100,6 +103,19 @@ public class ShuffleTaskManager {
       existPartitionToBlockIds.putIfAbsent(partitionId, Lists.newArrayList());
       existPartitionToBlockIds.get(partitionId).addAll(entry.getValue());
     }
+  }
+
+  public synchronized int updateAndGetCommitCount(String appId, long shuffleId) {
+    if (!commitCounts.containsKey(appId)) {
+      commitCounts.put(appId, Maps.newHashMap());
+    }
+    Map<Long, Integer> shuffleCommit = commitCounts.get(appId);
+    if (!shuffleCommit.containsKey(shuffleId)) {
+      shuffleCommit.put(shuffleId, 0);
+    }
+    int commitNum = shuffleCommit.get(shuffleId) + 1;
+    shuffleCommit.put(shuffleId, commitNum);
+    return commitNum;
   }
 
   public List<Long> getFinishedBlockIds(String appId, Integer shuffleId, Integer partitionId) {
@@ -134,6 +150,10 @@ public class ShuffleTaskManager {
     request.setStorageType(storageType);
     request.setRssBaseConf(conf);
     return ShuffleHandlerFactory.getInstance().getServerReadHandler(request).getShuffleData(expectedBlockIds);
+  }
+
+  public boolean finishShuffle(String appId, int shuffleId) {
+    return shuffleFlushManager.closeHandlers(appId, shuffleId);
   }
 
   public void checkResourceStatus(Set<String> aliveAppIds) {

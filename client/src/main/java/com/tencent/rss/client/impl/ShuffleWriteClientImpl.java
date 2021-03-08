@@ -9,6 +9,7 @@ import com.tencent.rss.client.api.ShuffleWriteClient;
 import com.tencent.rss.client.factory.CoordinatorClientFactory;
 import com.tencent.rss.client.factory.ShuffleServerClientFactory;
 import com.tencent.rss.client.request.RssAppHeartBeatRequest;
+import com.tencent.rss.client.request.RssFinishShuffleRequest;
 import com.tencent.rss.client.request.RssGetShuffleAssignmentsRequest;
 import com.tencent.rss.client.request.RssGetShuffleResultRequest;
 import com.tencent.rss.client.request.RssRegisterShuffleRequest;
@@ -18,6 +19,7 @@ import com.tencent.rss.client.request.RssSendShuffleDataRequest;
 import com.tencent.rss.client.response.ClientResponse;
 import com.tencent.rss.client.response.ResponseStatusCode;
 import com.tencent.rss.client.response.RssAppHeartBeatResponse;
+import com.tencent.rss.client.response.RssFinishShuffleResponse;
 import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
 import com.tencent.rss.client.response.RssGetShuffleResultResponse;
 import com.tencent.rss.client.response.RssRegisterShuffleResponse;
@@ -129,7 +131,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   }
 
   @Override
-  public void sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId) {
+  public void sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId, int numMaps) {
     shuffleServerInfoSet.parallelStream().forEach(ssi -> {
       LOG.info("SendCommit for appId[" + appId + "], shuffleId[" + shuffleId
           + "] to ShuffleServer[" + ssi.getId() + "]");
@@ -139,6 +141,14 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
       String msg = "Can't commit shuffle data to " + ssi
           + " for [appId=" + request.getAppId() + ", shuffleId=" + shuffleId + "]";
       throwExceptionIfNecessary(response, msg);
+
+      if (response.getCommitCount() >= numMaps) {
+        RssFinishShuffleResponse rfsResponse =
+            getShuffleServerClient(ssi).finishShuffle(new RssFinishShuffleRequest(appId, shuffleId));
+        msg = "Can't finish shuffle commit to " + ssi
+            + " for [appId=" + request.getAppId() + ", shuffleId=" + shuffleId + "]";
+        throwExceptionIfNecessary(rfsResponse, msg);
+      }
     });
   }
 

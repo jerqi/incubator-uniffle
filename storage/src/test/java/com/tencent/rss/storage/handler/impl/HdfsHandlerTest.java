@@ -1,6 +1,5 @@
 package com.tencent.rss.storage.handler.impl;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -12,6 +11,7 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -55,6 +55,7 @@ public class HdfsHandlerTest extends HdfsTestBase {
       pos += i * 8;
     }
     writeHandler.write(blocks);
+    writeHandler.close();
 
     // a data file and a index is created after writing
     fs.isFile(new Path(basePath, "test.data"));
@@ -73,7 +74,10 @@ public class HdfsHandlerTest extends HdfsTestBase {
       expectedIndex.add(new FileBasedShuffleSegment(i, pos, i * 8, i * 8, i));
       pos += i * 8;
     }
+    writeHandler =
+        new HdfsShuffleWriteHandler("appId", 1, 1, 1, basePath, "test", conf);
     writeHandler.write(blocksAppend);
+    writeHandler.close();
 
     compareDataAndIndex("appId", 1, 1, basePath, expectedData, expectedBlockId);
   }
@@ -90,28 +94,32 @@ public class HdfsHandlerTest extends HdfsTestBase {
         appId, shuffleId, partitionId, 100, 1, 10,
         10000, basePath, Sets.newHashSet(expectedBlockId));
     try {
-      List<byte[]> actual = readData(readHandler, Sets.newHashSet(expectedBlockId));
+      List<ByteBuffer> actual = readData(readHandler, Sets.newHashSet(expectedBlockId));
       compareBytes(expectedData, actual);
     } finally {
       readHandler.close();
     }
   }
 
-  private List<byte[]> readData(HdfsClientReadHandler handler, Set<Long> blockIds) throws IllegalStateException {
+  private List<ByteBuffer> readData(HdfsClientReadHandler handler, Set<Long> blockIds) throws IllegalStateException {
     ShuffleDataResult sdr = handler.readShuffleData(blockIds);
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
-    List<byte[]> result = Lists.newArrayList();
+    List<ByteBuffer> result = Lists.newArrayList();
     for (BufferSegment bs : bufferSegments) {
-      result.add(bs.getData());
+      result.add(bs.getByteBuffer());
     }
     return result;
   }
 
-  private void compareBytes(List<byte[]> expected, List<byte[]> actual) {
+  private void compareBytes(List<byte[]> expected, List<ByteBuffer> actual) {
     assertEquals(expected.size(), actual.size());
 
     for (int i = 0; i < expected.size(); i++) {
-      assertArrayEquals(expected.get(i), actual.get(i));
+      byte[] expectedI = expected.get(i);
+      ByteBuffer bb = actual.get(i);
+      for (int j = 0; j < expectedI.length; j++) {
+        assertEquals(expectedI[j], bb.get(j));
+      }
     }
   }
 

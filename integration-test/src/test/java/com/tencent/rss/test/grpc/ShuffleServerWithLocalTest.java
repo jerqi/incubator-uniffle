@@ -1,10 +1,8 @@
 package com.tencent.rss.test.grpc;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
@@ -16,28 +14,21 @@ import com.tencent.rss.client.request.RssSendShuffleDataRequest;
 import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleDataResult;
-import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.storage.util.StorageType;
-import com.tencent.rss.test.IntegrationTestBase;
 import java.io.File;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class ShuffleServerGrpcLocalTest extends IntegrationTestBase {
+public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
 
-  private static AtomicLong ATOMIC_LONG = new AtomicLong(0L);
-  //  private ShuffleServerClientFactory factory = ShuffleServerClientFactory.getInstance();
   private ShuffleServerGrpcClient shuffleServerClient;
 
   @BeforeClass
@@ -66,7 +57,7 @@ public class ShuffleServerGrpcLocalTest extends IntegrationTestBase {
   }
 
   @Test
-  public void writeReadTest() {
+  public void localWriteReadTest() {
     RssRegisterShuffleRequest rrsr = new RssRegisterShuffleRequest("appId", 0, 0, 1);
     shuffleServerClient.registerShuffle(rrsr);
     rrsr = new RssRegisterShuffleRequest("appId", 0, 2, 3);
@@ -120,31 +111,14 @@ public class ShuffleServerGrpcLocalTest extends IntegrationTestBase {
     validateResult(sdr, expectedBlockIds4, expectedData);
   }
 
-  private List<ShuffleBlockInfo> createShuffleBlockList(int shuffleId, int partitionId,
-      int blockNum, int length, Set<Long> blockIds, Map<Long, byte[]> dataMap) {
-    List<ShuffleServerInfo> shuffleServerInfoList =
-        Lists.newArrayList(new ShuffleServerInfo("id", "host", 0));
-    List<ShuffleBlockInfo> shuffleBlockInfoList = Lists.newArrayList();
-    for (int i = 0; i < blockNum; i++) {
-      byte[] buf = new byte[length];
-      new Random().nextBytes(buf);
-      long blockId = ATOMIC_LONG.getAndIncrement();
-      blockIds.add(blockId);
-      dataMap.put(blockId, buf);
-      shuffleBlockInfoList.add(new ShuffleBlockInfo(
-          shuffleId, partitionId, blockId, length, ChecksumUtils.getCrc32(buf), buf, shuffleServerInfoList, length));
-    }
-    return shuffleBlockInfoList;
-  }
-
   protected void validateResult(ShuffleDataResult sdr, Set<Long> expectedBlockIds,
       Map<Long, byte[]> expectedData) {
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     int matched = 0;
     for (BufferSegment bs : bufferSegments) {
       if (expectedBlockIds.contains(bs.getBlockId())) {
-        assertEquals(bs.getCrc(), ChecksumUtils.getCrc32(bs.getData()));
-        assertArrayEquals(expectedData.get(bs.getBlockId()), bs.getData());
+        assertEquals(bs.getCrc(), ChecksumUtils.getCrc32(bs.getByteBuffer()));
+        assertTrue(compareByte(expectedData.get(bs.getBlockId()), bs.getByteBuffer()));
         assertTrue(expectedBlockIds.contains(bs.getBlockId()));
         matched++;
       }

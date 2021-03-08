@@ -1,8 +1,8 @@
 package com.tencent.rss.storage.handler.impl;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.protobuf.ByteString;
 import com.tencent.rss.storage.HdfsTestBase;
@@ -27,8 +27,6 @@ public class HdfsFileWriterTest extends HdfsTestBase {
   public void createStreamFirstTest() throws IOException {
     Path path = new Path(HDFS_URI, "createStreamFirstTest");
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
-      assertFalse(fs.exists(path));
-      writer.createStream();
       assertTrue(fs.isFile(path));
       assertEquals(0, writer.nextOffset());
     }
@@ -43,7 +41,6 @@ public class HdfsFileWriterTest extends HdfsTestBase {
     // create a file and fill 32 bytes
     Path path = new Path(HDFS_URI, "createStreamAppendTest");
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
-      writer.createStream();
       assertEquals(0, writer.nextOffset());
       writer.writeData(byteString.asReadOnlyByteBuffer());
       assertEquals(32, writer.nextOffset());
@@ -52,17 +49,17 @@ public class HdfsFileWriterTest extends HdfsTestBase {
     // open existing file using append
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       assertTrue(fs.isFile(path));
-      writer.createStream();
       assertEquals(32, writer.nextOffset());
     }
 
     // disable the append support
     conf.setBoolean("dfs.support.append", false);
-    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
-      assertTrue(fs.isFile(path));
-      thrown.expect(IllegalStateException.class);
-      thrown.expectMessage(path + " exists but append mode is not support!");
-      writer.createStream();
+    assertTrue(fs.isFile(path));
+    try {
+      new HdfsFileWriter(path, conf);
+      fail("Exception should be thrown");
+    } catch (IllegalStateException ise) {
+      assertTrue(ise.getMessage().startsWith(path + " exists but append mode is not support!"));
     }
   }
 
@@ -72,16 +69,13 @@ public class HdfsFileWriterTest extends HdfsTestBase {
     Path path = new Path(HDFS_URI, "createStreamDirectory");
     fs.mkdirs(path);
 
-    // open existing file using append
-    try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
-      assertTrue(fs.isDirectory(path));
-      thrown.expect(IllegalStateException.class);
-      thrown.expectMessage(HDFS_URI + "createStreamDirectory is a directory!");
-      writer.createStream();
+    try {
+      new HdfsFileWriter(path, conf);
+      fail("Exception should be thrown");
+    } catch (IllegalStateException ise) {
+      assertTrue(ise.getMessage().startsWith(HDFS_URI + "createStreamDirectory is a directory!"));
     }
-
   }
-
 
   @Test
   public void createStreamTest() throws IOException {
@@ -92,13 +86,11 @@ public class HdfsFileWriterTest extends HdfsTestBase {
     Path path = new Path(HDFS_URI, "createStreamTest");
 
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
-      writer.createStream();
       assertEquals(0, writer.nextOffset());
       buf.flip();
       writer.writeData(buf);
       assertEquals(32, writer.nextOffset());
     }
-
   }
 
   @Test(expected = EOFException.class)
@@ -109,7 +101,6 @@ public class HdfsFileWriterTest extends HdfsTestBase {
 
     Path path = new Path(HDFS_URI, "writeBufferTest");
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
-      writer.createStream();
       assertEquals(0, writer.nextOffset());
       writer.writeData(byteString.asReadOnlyByteBuffer());
       assertEquals(32, writer.nextOffset());
@@ -136,7 +127,6 @@ public class HdfsFileWriterTest extends HdfsTestBase {
     Path path = new Path(HDFS_URI, "writeBufferArrayTest");
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       assertEquals(0, writer.nextOffset());
-      writer.createStream();
       writer.writeData(buf);
       assertEquals(20, writer.nextOffset());
     }
@@ -158,7 +148,6 @@ public class HdfsFileWriterTest extends HdfsTestBase {
 
     Path path = new Path(HDFS_URI, "writeSegmentTest");
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
-      writer.createStream();
       writer.writeIndex(segment);
     }
 

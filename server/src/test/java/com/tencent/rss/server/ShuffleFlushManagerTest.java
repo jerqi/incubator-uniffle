@@ -62,6 +62,8 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     manager.addToFlushQueue(event22);
     // wait for write data
     waitForFlush(manager, 3);
+    manager.closeHandlers("appId1", 1);
+    manager.closeHandlers("appId1", 2);
     validate("appId1", 1, 1, blocks1, 1, storageBasePath);
     assertEquals(1, manager.getEventIds("appId1", 1, Range.closed(1, 1)).size());
 
@@ -103,7 +105,7 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     flushThread2.join();
 
     waitForFlush(manager, 60);
-
+    manager.closeHandlers("appId4", 1);
     validate("appId4", 1, 1, expectedBlocks, 1, storageBasePath);
   }
 

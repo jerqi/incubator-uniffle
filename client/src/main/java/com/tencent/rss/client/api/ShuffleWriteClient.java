@@ -16,7 +16,7 @@ public interface ShuffleWriteClient {
 
   void registerShuffle(ShuffleServerInfo shuffleServerInfo, String appId, int shuffleId, int start, int end);
 
-  void sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId);
+  void sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId, int numMaps);
 
   void registerCoordinatorClient(String host, int port);
 

@@ -1,5 +1,6 @@
 package com.tencent.rss.storage;
 
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -8,8 +9,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
-
-import java.io.IOException;
 
 public class HdfsTestBase {
 
@@ -24,7 +23,7 @@ public class HdfsTestBase {
   public static void setUpHdfs() throws IOException {
     conf = new Configuration();
     conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR,
-      tmpDir.getRoot().getAbsolutePath());
+        tmpDir.getRoot().getAbsolutePath());
     cluster = (new MiniDFSCluster.Builder(conf)).build();
     HDFS_URI = "hdfs://localhost:" + cluster.getNameNodePort() + "/";
     fs = (new Path(HDFS_URI)).getFileSystem(conf);

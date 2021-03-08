@@ -4,6 +4,10 @@ import com.esotericsoftware.kryo.io.Input;
 import com.google.common.annotations.VisibleForTesting;
 import com.tencent.rss.client.api.ShuffleReadClient;
 import com.tencent.rss.client.response.CompressedShuffleBlock;
+import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.Unpooled;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import org.apache.spark.executor.ShuffleReadMetrics;
 import org.apache.spark.serializer.DeserializationStream;
 import org.apache.spark.serializer.Serializer;
@@ -29,7 +33,8 @@ public class RssShuffleDataIterator<K, C> extends AbstractIterator<Product2<K, C
   private long decompressTime = 0;
   private Input deserializationInput = null;
   private DeserializationStream deserializationStream = null;
-
+  private ByteBufInputStream byteBufInputStream = null;
+  private long unCompressionLength = 0;
 
   public RssShuffleDataIterator(
       Serializer serializer,
@@ -40,14 +45,21 @@ public class RssShuffleDataIterator<K, C> extends AbstractIterator<Product2<K, C
     this.shuffleReadMetrics = shuffleReadMetrics;
   }
 
-  public Iterator<Tuple2<Object, Object>> createKVIterator(byte[] data) {
+  public Iterator<Tuple2<Object, Object>> createKVIterator(ByteBuffer data) {
     clearDeserializationStream();
-    deserializationInput = new Input(data, 0, data.length);
-    deserializationStream = serializerInstance.deserializeStream(deserializationInput);
+    byteBufInputStream = new ByteBufInputStream(Unpooled.wrappedBuffer(data), true);
+    deserializationStream = serializerInstance.deserializeStream(byteBufInputStream);
     return deserializationStream.asKeyValueIterator();
   }
 
   private void clearDeserializationStream() {
+    if (byteBufInputStream != null) {
+      try {
+        byteBufInputStream.close();
+      } catch (IOException e) {
+        LOG.warn("Can't close ByteBufInputStream, memory may be leaked.");
+      }
+    }
     if (deserializationInput != null) {
       deserializationInput.close();
     }
@@ -56,6 +68,7 @@ public class RssShuffleDataIterator<K, C> extends AbstractIterator<Product2<K, C
     }
     deserializationInput = null;
     deserializationStream = null;
+    byteBufInputStream = null;
   }
 
   @Override
@@ -64,33 +77,35 @@ public class RssShuffleDataIterator<K, C> extends AbstractIterator<Product2<K, C
       // read next segment
       long startFetch = System.currentTimeMillis();
       CompressedShuffleBlock compressedBlock = shuffleReadClient.readShuffleBlockData();
-      byte[] compressedData = null;
+      ByteBuffer compressedData = null;
       if (compressedBlock != null) {
-        compressedData = compressedBlock.getCompressData();
+        compressedData = compressedBlock.getByteBuffer();
       }
       long fetchDuration = System.currentTimeMillis() - startFetch;
       shuffleReadMetrics.incFetchWaitTime(fetchDuration);
       if (compressedData != null) {
-        int compressedLength = compressedData.length;
+        shuffleReadMetrics.incRemoteBytesRead(compressedData.capacity());
         long startDecompress = System.currentTimeMillis();
-        byte[] uncompressedData = RssShuffleUtils.decompressData(
+        ByteBuffer uncompressedData = RssShuffleUtils.decompressData(
             compressedData, compressedBlock.getUncompressLength());
+        unCompressionLength += compressedBlock.getUncompressLength();
         long decompressDuration = System.currentTimeMillis() - startDecompress;
         decompressTime += decompressDuration;
         // create new iterator for shuffle data
         long startSerialization = System.currentTimeMillis();
         recordsIterator = createKVIterator(uncompressedData);
         long serializationDuration = System.currentTimeMillis() - startSerialization;
-        shuffleReadMetrics.incRemoteBytesRead(compressedLength);
         readTime += fetchDuration;
         serializeTime += serializationDuration;
       } else {
         // finish reading records, close related reader and check data consistent
+        clearDeserializationStream();
         shuffleReadClient.close();
         shuffleReadClient.checkProcessedBlockIds();
         shuffleReadClient.logStatics();
         LOG.info("Fetch " + shuffleReadMetrics.remoteBytesRead() + " bytes cost " + readTime + " ms and "
-            + serializeTime + " ms to serialize, " + decompressTime + " ms to decompress.");
+            + serializeTime + " ms to serialize, " + decompressTime + " ms to decompress and unCompressionLength["
+            + unCompressionLength + "]");
         return false;
       }
     }

@@ -1,20 +1,22 @@
 package com.tencent.rss.client.response;
 
+import java.nio.ByteBuffer;
+
 public class CompressedShuffleBlock {
 
-  private byte[] compressData;
+  private ByteBuffer byteBuffer;
   private int uncompressLength;
 
-  public CompressedShuffleBlock(byte[] compressData, int uncompressLength) {
-    this.compressData = compressData;
+  public CompressedShuffleBlock(ByteBuffer byteBuffer, int uncompressLength) {
+    this.byteBuffer = byteBuffer;
     this.uncompressLength = uncompressLength;
-  }
-
-  public byte[] getCompressData() {
-    return compressData;
   }
 
   public int getUncompressLength() {
     return uncompressLength;
+  }
+
+  public ByteBuffer getByteBuffer() {
+    return byteBuffer;
   }
 }

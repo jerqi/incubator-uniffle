@@ -1,7 +1,5 @@
 package com.tencent.rss.common;
 
-import com.google.common.collect.Lists;
-import com.tencent.rss.proto.RssProtos.ShuffleData;
 import java.util.List;
 
 public class ShuffleDataResult {

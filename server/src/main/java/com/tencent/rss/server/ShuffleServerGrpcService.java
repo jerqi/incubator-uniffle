@@ -10,6 +10,8 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.proto.RssProtos;
+import com.tencent.rss.proto.RssProtos.FinishShuffleRequest;
+import com.tencent.rss.proto.RssProtos.FinishShuffleResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleDataRequest;
 import com.tencent.rss.proto.RssProtos.GetShuffleDataResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleResultRequest;
@@ -195,17 +197,53 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
 
     StatusCode status = StatusCode.SUCCESS;
     String msg = "OK";
+    int commitCount = 0;
 
     try {
       status = shuffleServer.getShuffleTaskManager().commitShuffle(appId, shuffleId);
+      commitCount = shuffleServer.getShuffleTaskManager().updateAndGetCommitCount(appId, shuffleId);
     } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
-      msg = e.getMessage();
-      LOG.error("Error happened when commit for appId[" + appId + "], shuffleId[" + shuffleId + "]", e);
+      msg = "Error happened when commit for appId[" + appId + "], shuffleId[" + shuffleId + "]";
+      LOG.error(msg, e);
     }
 
-    reply = ShuffleCommitResponse.newBuilder().setStatus(valueOf(status)).setRetMsg(msg).build();
+    reply = ShuffleCommitResponse
+        .newBuilder()
+        .setCommitCount(commitCount)
+        .setStatus(valueOf(status))
+        .setRetMsg(msg)
+        .build();
     responseObserver.onNext(reply);
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void finishShuffle(FinishShuffleRequest req,
+      StreamObserver<FinishShuffleResponse> responseObserver) {
+    String appId = req.getAppId();
+    int shuffleId = req.getShuffleId();
+    StatusCode status = StatusCode.SUCCESS;
+    String msg = "OK";
+    String errorMsg = "Fail to finish shuffle for appId["
+        + appId + "], shuffleId[" + shuffleId + "], data may be lost";
+    try {
+      if (!shuffleServer.getShuffleTaskManager().finishShuffle(appId, shuffleId)) {
+        status = StatusCode.INTERNAL_ERROR;
+        msg = errorMsg;
+      }
+    } catch (Exception e) {
+      status = StatusCode.INTERNAL_ERROR;
+      msg = errorMsg;
+      LOG.error(errorMsg, e);
+    }
+
+    FinishShuffleResponse response =
+        FinishShuffleResponse
+            .newBuilder()
+            .setStatus(valueOf(status))
+            .setRetMsg(msg).build();
+    responseObserver.onNext(response);
     responseObserver.onCompleted();
   }
 
@@ -329,7 +367,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
   private List<ByteString> toByteStrings(List<BufferSegment> bufferSegments) {
     List<ByteString> byteStrings = Lists.newArrayList();
     for (BufferSegment bufferSegment : bufferSegments) {
-      byteStrings.add(ByteString.copyFrom(bufferSegment.getData()));
+      byteStrings.add(ByteString.copyFrom(bufferSegment.getByteBuffer()));
     }
     return byteStrings;
   }

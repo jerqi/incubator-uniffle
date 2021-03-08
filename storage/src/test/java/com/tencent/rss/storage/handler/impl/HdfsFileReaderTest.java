@@ -4,8 +4,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.protobuf.ByteString;
+import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import java.io.IOException;
@@ -13,7 +15,6 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Random;
 import org.apache.hadoop.fs.Path;
-import org.hamcrest.core.StringStartsWith;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -29,7 +30,6 @@ public class HdfsFileReaderTest extends HdfsTestBase {
     fs.create(path);
 
     try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
-      reader.createStream();
       assertTrue(fs.isFile(path));
       assertEquals(0L, reader.getOffset());
     }
@@ -42,10 +42,11 @@ public class HdfsFileReaderTest extends HdfsTestBase {
     Path path = new Path(HDFS_URI, "createStreamFirstTest");
 
     assertFalse(fs.isFile(path));
-    try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
-      thrown.expect(IllegalStateException.class);
-      thrown.expectMessage(StringStartsWith.startsWith(HDFS_URI + "createStreamFirstTest don't exist"));
-      reader.createStream();
+    try {
+      new HdfsFileReader(path, conf);
+      fail("Exception should be thrown");
+    } catch (IllegalStateException ise) {
+      ise.getMessage().startsWith(HDFS_URI + "createStreamFirstTest don't exist");
     }
   }
 
@@ -53,24 +54,24 @@ public class HdfsFileReaderTest extends HdfsTestBase {
   public void readDataTest() throws IOException {
     Path path = new Path(HDFS_URI, "readDataTest");
     byte[] data = new byte[160];
+    int offset = 128;
+    int length = 32;
     new Random().nextBytes(data);
+    long crc11 = ChecksumUtils.getCrc32(ByteBuffer.wrap(data, offset, length));
 
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       ByteString byteString = ByteString.copyFrom(data);
-      writer.createStream();
       writer.writeData(byteString.asReadOnlyByteBuffer());
     }
-
-    int offset = 128;
-    int length = 32;
     FileBasedShuffleSegment segment = new FileBasedShuffleSegment(23, offset, length, length, 0xdeadbeef);
     try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
-      reader.createStream();
-      byte[] actual = reader.readData(segment.getOffset(), segment.getLength());
-      for (int i = 0; i < length; ++i) {
-        assertEquals(data[i + offset], actual[i]);
-      }
+      ByteBuffer byteBuffer = reader.readData(segment.getOffset(), segment.getLength());
+      long crc22 = ChecksumUtils.getCrc32(byteBuffer);
 
+      for (int i = 0; i < length; ++i) {
+        assertEquals(data[i + offset], byteBuffer.get(i));
+      }
+      assertEquals(crc11, crc22);
       // EOF exception is expected
       segment = new FileBasedShuffleSegment(23, offset * 2, length, length, 1);
       assertNull(reader.readData(segment.getOffset(), segment.getLength()));
@@ -87,15 +88,12 @@ public class HdfsFileReaderTest extends HdfsTestBase {
     };
 
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
-      writer.createStream();
       for (int i = 0; i < segments.length; ++i) {
         writer.writeIndex(segments[i]);
       }
     }
 
     try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
-      reader.createStream();
-
       // test limit
       int limit = 2;
       List<FileBasedShuffleSegment> idx = reader.readIndex(limit);
@@ -127,7 +125,6 @@ public class HdfsFileReaderTest extends HdfsTestBase {
     };
 
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
-      writer.createStream();
       for (int i = 0; i < segments.length; ++i) {
         writer.writeIndex(segments[i]);
       }
@@ -140,15 +137,12 @@ public class HdfsFileReaderTest extends HdfsTestBase {
     }
 
     try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
-      reader.createStream();
-
       // test limit
       int limit = 10;
       thrown.expect(IllegalStateException.class);
       thrown.expectMessage("Invalid index file "
           + path + " " + 4 + " bytes left, can't be parsed as long.");
-      List<FileBasedShuffleSegment> idx = reader.readIndex(limit);
+      reader.readIndex(limit);
     }
   }
-
 }

@@ -9,40 +9,39 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HdfsFileWriter implements Closeable {
 
-  private static final Logger logger = LoggerFactory.getLogger(HdfsFileWriter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HdfsFileWriter.class);
 
   private Path path;
   private Configuration hadoopConf;
   private FSDataOutputStream fsDataOutputStream;
   private long nextOffset;
 
-  public HdfsFileWriter(Path path, Configuration hadoopConf) {
+  public HdfsFileWriter(Path path, Configuration hadoopConf) throws IOException, IllegalStateException {
     // init fsDataOutputStream
     this.path = path;
     this.hadoopConf = hadoopConf;
+    initStream();
   }
 
-  public void createStream() throws IOException, IllegalStateException {
+  private void initStream() throws IOException, IllegalStateException {
     FileSystem fileSystem = ShuffleStorageUtils.getFileSystemForPath(path, hadoopConf);
     if (fileSystem.isFile(path)) {
-      if (hadoopConf.getBoolean("dfs.support.append", true)
-          || fileSystem instanceof RawLocalFileSystem) {
+      if (hadoopConf.getBoolean("dfs.support.append", true)) {
         fsDataOutputStream = fileSystem.append(path);
         nextOffset = fsDataOutputStream.getPos();
       } else {
         String msg = path + " exists but append mode is not support!";
-        logger.error(msg);
+        LOG.error(msg);
         throw new IllegalStateException(msg);
       }
     } else if (fileSystem.isDirectory(path)) {
       String msg = path + " is a directory!";
-      logger.error(msg);
+      LOG.error(msg);
       throw new IllegalStateException(msg);
     } else {
       fsDataOutputStream = fileSystem.create(path);
@@ -74,9 +73,17 @@ public class HdfsFileWriter implements Closeable {
     return nextOffset;
   }
 
+  public void flush() throws IOException {
+    if (fsDataOutputStream != null) {
+      fsDataOutputStream.flush();
+    }
+  }
+
   @Override
   public synchronized void close() throws IOException {
-    fsDataOutputStream.close();
+    if (fsDataOutputStream != null) {
+      fsDataOutputStream.close();
+    }
   }
 
 //  private void flush() throws IOException {

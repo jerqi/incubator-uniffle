@@ -1,5 +1,6 @@
 package com.tencent.rss.common.util;
 
+import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
 
 public class ChecksumUtils {
@@ -15,6 +16,12 @@ public class ChecksumUtils {
       i += len;
     }
 
+    return crc32.getValue();
+  }
+
+  public static long getCrc32(ByteBuffer buf) {
+    CRC32 crc32 = new CRC32();
+    crc32.update(buf);
     return crc32.getValue();
   }
 }

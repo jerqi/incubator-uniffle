@@ -89,7 +89,7 @@ public class ShuffleServerConf extends RssBaseConf {
   public static final ConfigOption<Integer> SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE = ConfigOptions
       .key("rss.server.flush.threadPool.queue.size")
       .intType()
-      .defaultValue(1000)
+      .defaultValue(Integer.MAX_VALUE)
       .withDescription("size of waiting queue for thread pool");
 
   public static final ConfigOption<Long> SERVER_FLUSH_THREAD_ALIVE = ConfigOptions

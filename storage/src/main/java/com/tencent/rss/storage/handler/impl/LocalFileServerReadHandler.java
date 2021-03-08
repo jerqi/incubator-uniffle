@@ -12,6 +12,7 @@ import com.tencent.rss.storage.handler.api.ServerReadHandler;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.File;
 import java.io.FilenameFilter;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -176,7 +177,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
           try {
             long start = System.currentTimeMillis();
             try (LocalFileReader reader = createFileReader(dataPathMap.get(fileSegment.getPath()))) {
-              byte[] data = reader.readData(fileSegment.getOffset(), fileSegment.getLength());
+              ByteBuffer data = reader.readData(fileSegment.getOffset(), fileSegment.getLength());
               bufferSegments.add(new BufferSegment(
                   blockId,
                   fileSegment.getOffset(),

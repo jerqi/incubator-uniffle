@@ -3,6 +3,7 @@ package com.tencent.rss.client.impl.grpc;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import com.tencent.rss.client.api.ShuffleServerClient;
+import com.tencent.rss.client.request.RssFinishShuffleRequest;
 import com.tencent.rss.client.request.RssGetShuffleDataRequest;
 import com.tencent.rss.client.request.RssGetShuffleResultRequest;
 import com.tencent.rss.client.request.RssRegisterShuffleRequest;
@@ -10,6 +11,7 @@ import com.tencent.rss.client.request.RssReportShuffleResultRequest;
 import com.tencent.rss.client.request.RssSendCommitRequest;
 import com.tencent.rss.client.request.RssSendShuffleDataRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
+import com.tencent.rss.client.response.RssFinishShuffleResponse;
 import com.tencent.rss.client.response.RssGetShuffleDataResponse;
 import com.tencent.rss.client.response.RssGetShuffleResultResponse;
 import com.tencent.rss.client.response.RssRegisterShuffleResponse;
@@ -20,6 +22,8 @@ import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.proto.RssProtos;
+import com.tencent.rss.proto.RssProtos.FinishShuffleRequest;
+import com.tencent.rss.proto.RssProtos.FinishShuffleResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleDataRequest;
 import com.tencent.rss.proto.RssProtos.GetShuffleDataResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleResultRequest;
@@ -29,6 +33,7 @@ import com.tencent.rss.proto.RssProtos.ShuffleDataBlockSegment;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.proto.ShuffleServerGrpc;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerBlockingStub;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -173,6 +178,26 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
       throw new RuntimeException(msg);
     } else {
       response = new RssSendCommitResponse(ResponseStatusCode.SUCCESS);
+      response.setCommitCount(rpcResponse.getCommitCount());
+    }
+    return response;
+  }
+
+  @Override
+  public RssFinishShuffleResponse finishShuffle(RssFinishShuffleRequest request) {
+    FinishShuffleRequest rpcRequest = FinishShuffleRequest.newBuilder()
+        .setAppId(request.getAppId()).setShuffleId(request.getShuffleId()).build();
+    FinishShuffleResponse rpcResponse = blockingStub.finishShuffle(rpcRequest);
+
+    RssFinishShuffleResponse response;
+    if (rpcResponse.getStatus() != StatusCode.SUCCESS) {
+      String msg = "Can't finish shuffle process to " + host + ":" + port
+          + " for [appId=" + request.getAppId() + ", shuffleId=" + request.getShuffleId() + "], "
+          + "errorMsg:" + rpcResponse.getRetMsg();
+      LOG.error(msg);
+      throw new RuntimeException(msg);
+    } else {
+      response = new RssFinishShuffleResponse(ResponseStatusCode.SUCCESS);
     }
     return response;
   }
@@ -296,7 +321,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
           segment.getLength(),
           segment.getUncompressLength(),
           segment.getCrc(),
-          data.get(i).toByteArray()));
+          ByteBuffer.wrap(data.get(i).toByteArray())));
     }
     return ret;
   }

@@ -225,8 +225,7 @@ public class RssShuffleManager implements ShuffleManager {
       taskToBuffManager.put(taskId, bufferManager);
 
       return new RssShuffleWriter(appId, shuffleId, taskId, bufferManager,
-          writeMetrics, rssHandle.getDependency(),
-          this, sparkConf, shuffleWriteClient, rssHandle.getShuffleServersForResult());
+          writeMetrics, this, sparkConf, shuffleWriteClient, rssHandle);
     } else {
       throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());
     }

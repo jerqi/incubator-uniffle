@@ -23,12 +23,13 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
   private Configuration hadoopConf;
   private FSDataInputStream fsDataInputStream;
 
-  public HdfsFileReader(Path path, Configuration hadoopConf) {
+  public HdfsFileReader(Path path, Configuration hadoopConf) throws IOException, IllegalStateException {
     this.path = path;
     this.hadoopConf = hadoopConf;
+    createStream();
   }
 
-  public void createStream() throws IOException, IllegalStateException {
+  private void createStream() throws IOException, IllegalStateException {
     FileSystem fileSystem = ShuffleStorageUtils.getFileSystemForPath(path, hadoopConf);
 
     if (!fileSystem.isFile(path)) {
@@ -40,12 +41,16 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
     fsDataInputStream = fileSystem.open(path);
   }
 
-  public byte[] readData(long offset, long length) {
+  public ByteBuffer readData(long offset, int length) {
     try {
       fsDataInputStream.seek(offset);
-      byte[] buf = new byte[(int) length];
-      fsDataInputStream.readFully(buf);
-      return buf;
+      ByteBuffer bb = ByteBuffer.allocateDirect(length);
+      int len;
+      do {
+        len = fsDataInputStream.read(bb);
+      } while (bb.remaining() > 0 && len > 0);
+      bb.clear();
+      return bb;
     } catch (Exception e) {
       LOG.warn("Can't read data for path:" + path + " with offset[" + offset + "], length[" + length + "]");
     }

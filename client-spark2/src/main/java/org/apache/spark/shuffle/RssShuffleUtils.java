@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.List;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -88,6 +89,13 @@ public class RssShuffleUtils {
   public static byte[] decompressData(byte[] data, int uncompressLength) {
     LZ4FastDecompressor fastDecompressor = LZ4Factory.fastestInstance().fastDecompressor();
     byte[] uncompressData = new byte[uncompressLength];
+    fastDecompressor.decompress(data, 0, uncompressData, 0, uncompressLength);
+    return uncompressData;
+  }
+
+  public static ByteBuffer decompressData(ByteBuffer data, int uncompressLength) {
+    LZ4FastDecompressor fastDecompressor = LZ4Factory.fastestInstance().fastDecompressor();
+    ByteBuffer uncompressData = ByteBuffer.allocateDirect(uncompressLength);
     fastDecompressor.decompress(data, 0, uncompressData, 0, uncompressLength);
     return uncompressData;
   }

@@ -12,6 +12,17 @@ service ShuffleServer {
   rpc commitShuffleTask (ShuffleCommitRequest) returns (ShuffleCommitResponse);
   rpc reportShuffleResult (ReportShuffleResultRequest) returns (ReportShuffleResultResponse);
   rpc getShuffleResult (GetShuffleResultRequest) returns (GetShuffleResultResponse);
+  rpc finishShuffle (FinishShuffleRequest) returns (FinishShuffleResponse);
+}
+
+message FinishShuffleRequest {
+  string appId = 1;
+  int32 shuffleId = 2;
+}
+
+message FinishShuffleResponse {
+  StatusCode status = 1;
+  string retMsg = 2;
 }
 
 message ShuffleDataBlockSegment {
@@ -109,8 +120,9 @@ message ShuffleCommitRequest {
 }
 
 message ShuffleCommitResponse {
-  StatusCode status = 1;
-  string retMsg = 2;
+  int32 commitCount = 1;
+  StatusCode status = 2;
+  string retMsg = 3;
 }
 
 message ShuffleServerHeartBeatRequest {

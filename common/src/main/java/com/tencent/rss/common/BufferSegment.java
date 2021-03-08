@@ -1,5 +1,7 @@
 package com.tencent.rss.common;
 
+import java.nio.ByteBuffer;
+
 public class BufferSegment {
 
   private long blockId;
@@ -7,15 +9,15 @@ public class BufferSegment {
   private int length;
   private int uncompressLength;
   private long crc;
-  private byte[] data;
+  private ByteBuffer byteBuffer;
 
-  public BufferSegment(long blockId, long offset, int length, int uncompressLength, long crc, byte[] data) {
+  public BufferSegment(long blockId, long offset, int length, int uncompressLength, long crc, ByteBuffer byteBuffer) {
     this.blockId = blockId;
     this.offset = offset;
     this.length = length;
     this.uncompressLength = uncompressLength;
     this.crc = crc;
-    this.data = data;
+    this.byteBuffer = byteBuffer;
   }
 
   @Override
@@ -49,8 +51,8 @@ public class BufferSegment {
     return crc;
   }
 
-  public byte[] getData() {
-    return data;
+  public ByteBuffer getByteBuffer() {
+    return byteBuffer;
   }
 
   public int getUncompressLength() {

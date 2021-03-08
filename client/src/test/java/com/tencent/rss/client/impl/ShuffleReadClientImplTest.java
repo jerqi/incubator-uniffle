@@ -15,7 +15,7 @@ import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.handler.impl.HdfsShuffleWriteHandler;
 import com.tencent.rss.storage.util.StorageType;
-import java.util.Arrays;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
-import org.hamcrest.core.StringStartsWith;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -264,11 +263,11 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
         "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
     // crc32 is incorrect
     try (MockedStatic<ChecksumUtils> checksumUtilsMock = Mockito.mockStatic(ChecksumUtils.class)) {
-      checksumUtilsMock.when(() -> ChecksumUtils.getCrc32(any())).thenReturn(-1L);
+      checksumUtilsMock.when(() -> ChecksumUtils.getCrc32((ByteBuffer) any())).thenReturn(-1L);
       try {
-        byte[] data = readClient.readShuffleBlockData().getCompressData();
-        while (data != null) {
-          data = readClient.readShuffleBlockData().getCompressData();
+        ByteBuffer bb = readClient.readShuffleBlockData().getByteBuffer();
+        while (bb != null) {
+          bb = readClient.readShuffleBlockData().getByteBuffer();
         }
         fail(EXPECTED_EXCEPTION_MESSAGE);
       } catch (Exception e) {
@@ -282,7 +281,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
   public void readTest9() {
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
         "appId", 0, 1, 100, 2, 10, 1000, "basePath", Sets.newHashSet(), Lists.newArrayList());
-    assertNull(readClient.readShuffleBlockData().getCompressData());
+    assertNull(readClient.readShuffleBlockData().getByteBuffer());
   }
 
   @Test
@@ -320,23 +319,33 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
       expectedBlockIds.add(blockId);
     }
     writeHandler.write(blocks);
+    writeHandler.close();
   }
 
   protected void validateResult(ShuffleReadClient readClient,
       Map<Long, byte[]> expectedData) {
-    byte[] data = readClient.readShuffleBlockData().getCompressData();
+    ByteBuffer data = readClient.readShuffleBlockData().getByteBuffer();
     int blockNum = 0;
     while (data != null) {
       blockNum++;
       boolean match = false;
       for (byte[] expected : expectedData.values()) {
-        if (Arrays.equals(data, expected)) {
+        if (compareByte(expected, data)) {
           match = true;
         }
       }
       assertTrue(match);
-      data = readClient.readShuffleBlockData().getCompressData();
+      data = readClient.readShuffleBlockData().getByteBuffer();
     }
     assertEquals(expectedData.size(), blockNum);
+  }
+
+  private boolean compareByte(byte[] expected, ByteBuffer buffer) {
+    for (int i = 0; i < expected.length; i++) {
+      if (expected[i] != buffer.get(i)) {
+        return false;
+      }
+    }
+    return true;
   }
 }

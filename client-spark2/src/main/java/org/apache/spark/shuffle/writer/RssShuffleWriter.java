@@ -19,6 +19,7 @@ import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
 import org.apache.spark.shuffle.RssClientConfig;
+import org.apache.spark.shuffle.RssShuffleHandle;
 import org.apache.spark.shuffle.RssShuffleManager;
 import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.storage.BlockManagerId;
@@ -36,6 +37,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private static final String DUMMY_HOST = "dummy_host";
   private static final int DUMMY_PORT = 99999;
   private String appId;
+  private int numMaps;
   private int shuffleId;
   private String taskId;
   private ShuffleDependency<K, V, C> shuffleDependency;
@@ -58,20 +60,20 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       String taskId,
       WriteBufferManager bufferManager,
       ShuffleWriteMetrics shuffleWriteMetrics,
-      ShuffleDependency shuffleDependency,
       RssShuffleManager shuffleManager,
       SparkConf sparkConf,
       ShuffleWriteClient shuffleWriteClient,
-      Set<ShuffleServerInfo> shuffleServerInfoForResult) {
+      RssShuffleHandle rssHandle) {
     this.appId = appId;
     this.bufferManager = bufferManager;
     this.shuffleId = shuffleId;
     this.taskId = taskId;
-    this.shuffleDependency = shuffleDependency;
+    this.numMaps = rssHandle.getNumMaps();
+    this.shuffleDependency = rssHandle.getDependency();
     this.shuffleWriteMetrics = shuffleWriteMetrics;
     this.partitioner = shuffleDependency.partitioner();
     this.shuffleManager = shuffleManager;
-    this.shuffleServerInfoForResult = shuffleServerInfoForResult;
+    this.shuffleServerInfoForResult = rssHandle.getShuffleServersForResult();
     this.shouldPartition = partitioner.numPartitions() > 1;
     this.shuffleServerInfoSet = Sets.newConcurrentHashSet();
     this.sendCheckTimeout = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT,
@@ -95,6 +97,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @Override
   public void write(Iterator<Product2<K, V>> records) {
+    final long startWrite = System.nanoTime();
     List<ShuffleBlockInfo> shuffleBlockInfos = null;
     Set<Long> blockIds = Sets.newConcurrentHashSet();
     while (records.hasNext()) {
@@ -114,13 +117,12 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     processShuffleBlockInfos(shuffleBlockInfos, blockIds);
     checkBlockSendResult(blockIds);
 
-    final long startWrite = System.nanoTime();
     sendCommit();
     long writeDuration = System.nanoTime() - startWrite;
     shuffleWriteMetrics.incWriteTime(writeDuration);
     LOG.info("Finish write shuffle for appId[" + appId + "], shuffleId[" + shuffleId
         + "], taskId[" + taskId + "] with " + writeDuration / 1000000 + " ms, include: bufferCopy["
-        + bufferManager.getCopyTime() + "]");
+        + bufferManager.getCopyTime() + "], addRecord[" + bufferManager.getWriteTime() + "]");
   }
 
   /**
@@ -178,7 +180,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @VisibleForTesting
   protected void sendCommit() {
-    shuffleWriteClient.sendCommit(shuffleServerInfoSet, appId, shuffleId);
+    shuffleWriteClient.sendCommit(shuffleServerInfoSet, appId, shuffleId, numMaps);
   }
 
   @VisibleForTesting

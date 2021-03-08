@@ -11,6 +11,7 @@ import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
 import com.tencent.rss.storage.handler.api.ClientReadHandler;
 import com.tencent.rss.storage.request.CreateShuffleReadHandlerRequest;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
@@ -24,7 +25,6 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
 
   private int shuffleId;
   private int partitionId;
-  private byte[] readBuffer;
   private Set<Long> expectedBlockIds;
   private Set<Long> processedBlockIds = Sets.newHashSet();
   private Set<Long> remainBlockIds = Sets.newHashSet();
@@ -86,13 +86,15 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
         long expectedCrc = -1;
         long actualCrc = -1;
 
-        if (bs.getData() == null) {
+        if (bs.getByteBuffer() == null) {
           return null;
         }
 
+        ByteBuffer byteBuffer = bs.getByteBuffer();
         try {
           expectedCrc = bs.getCrc();
-          actualCrc = ChecksumUtils.getCrc32(bs.getData());
+          actualCrc = ChecksumUtils.getCrc32(byteBuffer);
+          byteBuffer.clear();
         } catch (Exception e) {
           LOG.warn("Can't read data for blockId[" + bs.getBlockId() + "]", e);
         }
@@ -102,7 +104,7 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
         }
         processedBlockIds.add(bs.getBlockId());
         remainBlockIds.remove(bs.getBlockId());
-        return new CompressedShuffleBlock(bs.getData(), bs.getUncompressLength());
+        return new CompressedShuffleBlock(bs.getByteBuffer(), bs.getUncompressLength());
       }
     }
     // all data are read

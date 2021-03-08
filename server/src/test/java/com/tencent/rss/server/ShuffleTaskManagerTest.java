@@ -2,7 +2,6 @@ package com.tencent.rss.server;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -90,7 +89,6 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     List<ShufflePartitionedBlock> expectedBlocks1 = Lists.newArrayList();
     List<ShufflePartitionedBlock> expectedBlocks2 = Lists.newArrayList();
 
-
     shuffleTaskManager.commitShuffle(appId, shuffleId);
 
     // won't flush for partition 1-1
@@ -101,7 +99,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
 
     shuffleTaskManager.commitShuffle(appId, shuffleId);
     assertEquals(1, shuffleFlushManager.getEventIds(appId, shuffleId, Range.closed(1, 1)).size());
-    assertNull(shuffleFlushManager.getEventIds(appId, shuffleId, Range.closed(2, 2)));
+    assertEquals(0, shuffleFlushManager.getEventIds(appId, shuffleId, Range.closed(2, 2)).size());
 
     // flush for partition 1-1
     ShufflePartitionedData partitionedData1 = createPartitionedData(1, 2, 35);
@@ -149,6 +147,8 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     shuffleTaskManager.commitShuffle(appId, shuffleId);
     assertEquals(4, shuffleFlushManager.getEventIds(appId, shuffleId, Range.closed(1, 1)).size());
     assertEquals(1, shuffleFlushManager.getEventIds(appId, shuffleId, Range.closed(2, 2)).size());
+    boolean isFinished = shuffleTaskManager.finishShuffle(appId, shuffleId);
+    assertTrue(isFinished);
 
     validate(appId, shuffleId, 1, expectedBlocks1, storageBasePath);
     validate(appId, shuffleId, 2, expectedBlocks2, storageBasePath);
@@ -221,7 +221,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
       // remove flushed eventId to test timeout in commit
       if (shuffleFlushManager.getEventIds(appId, shuffleId, range).size() == eventNum) {
         if (isClear) {
-          shuffleFlushManager.getEventIds(appId, shuffleId, range).clear();
+          shuffleFlushManager.getEventIds().get(appId).get(shuffleId).get(range.lowerEndpoint()).clear();
         }
         break;
       }

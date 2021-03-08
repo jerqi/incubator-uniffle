@@ -37,6 +37,7 @@ public class WriteBufferManager extends MemoryConsumer {
   private int serializerBufferSize;
   private int serializerMaxBufferSize;
   private long copyTime;
+  private long writeTime = 0;
 
   public WriteBufferManager(
       int shuffleId,
@@ -63,6 +64,7 @@ public class WriteBufferManager extends MemoryConsumer {
 
   // add record to cache, return [partition, ShuffleBlock] if meet spill condition
   public List<ShuffleBlockInfo> addRecord(int partitionId, Object key, Object value) {
+    final long s = System.currentTimeMillis();
     List<ShuffleBlockInfo> result = Lists.newArrayList();
     if (buffers.containsKey(partitionId)) {
       WriterBuffer wb = buffers.get(partitionId);
@@ -100,6 +102,7 @@ public class WriteBufferManager extends MemoryConsumer {
     if (allocatedBytes > spillSize) {
       result = clear();
     }
+    writeTime += System.currentTimeMillis() - s;
 
     return result;
   }
@@ -126,12 +129,13 @@ public class WriteBufferManager extends MemoryConsumer {
     int uncompressLength = data.length;
     byte[] compressed = RssShuffleUtils.compressData(data);
     long crc32 = ChecksumUtils.getCrc32(compressed);
+    long blockId = ClientUtils.getBlockId(executorId, ClientUtils.getAtomicInteger());
     shuffleWriteMetrics.incBytesWritten(compressed.length);
     // just free memory from buffer manager, doesn't return to Executor now,
     // it will happen after send block to shuffle server
     allocatedBytes -= freeMemory;
     return new ShuffleBlockInfo(shuffleId, partitionId,
-        ClientUtils.getBlockId(executorId, ClientUtils.getAtomicInteger()),
+        blockId,
         compressed.length, crc32, compressed, partitionToServers.get(partitionId), uncompressLength);
   }
 
@@ -192,5 +196,9 @@ public class WriteBufferManager extends MemoryConsumer {
 
   public long getCopyTime() {
     return copyTime;
+  }
+
+  public long getWriteTime() {
+    return writeTime;
   }
 }

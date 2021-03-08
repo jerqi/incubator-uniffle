@@ -133,7 +133,23 @@ public class ShuffleFlushManager {
     eventIdRangeMap.get(event.getStartPartition()).add(event.getEventId());
   }
 
-  public Set<Long> getEventIds(String appId, int shuffleId, Range<Integer> range) {
+  public boolean closeHandlers(String appId, int shuffleId) {
+    Map<Integer, RangeMap<Integer, ShuffleWriteHandler>> shuffleToHandlers = handlers.get(appId);
+    if (shuffleToHandlers != null) {
+      RangeMap<Integer, ShuffleWriteHandler> requiredHandlers = shuffleToHandlers.get(shuffleId);
+      if (requiredHandlers != null) {
+        for (ShuffleWriteHandler handler : requiredHandlers.asMapOfRanges().values()) {
+          if (!handler.close()) {
+            LOG.error("Error happened to close writer handler, data will be lost");
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  public synchronized Set<Long> getEventIds(String appId, int shuffleId, Range<Integer> range) {
     Map<Integer, RangeMap<Integer, Set<Long>>> shuffleIdToEventIds = eventIds.get(appId);
     if (shuffleIdToEventIds == null) {
       return Sets.newHashSet();
@@ -142,7 +158,13 @@ public class ShuffleFlushManager {
     if (eventIdRangeMap == null) {
       return Sets.newHashSet();
     }
-    return eventIdRangeMap.get(range.lowerEndpoint());
+
+    Set<Long> result = eventIdRangeMap.get(range.lowerEndpoint());
+    if (result == null) {
+      result = Sets.newHashSet();
+    }
+    // return the snapshot to avoid concurrentModification exception because eventIds will change
+    return Sets.newHashSet(result);
   }
 
   @VisibleForTesting

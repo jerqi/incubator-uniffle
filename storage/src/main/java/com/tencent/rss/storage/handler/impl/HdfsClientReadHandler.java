@@ -10,8 +10,8 @@ import com.tencent.rss.storage.api.ShuffleReader;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -160,7 +160,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
           FileReadSegment fileSegment = allSegments.get(blockId);
           try {
             long start = System.currentTimeMillis();
-            byte[] data = dataReaderMap.get(fileSegment.getPath()).readData(
+            ByteBuffer data = dataReaderMap.get(fileSegment.getPath()).readData(
                 fileSegment.getOffset(), fileSegment.getLength());
             LOG.info("Read File segment: " + fileSegment.getPath() + ", offset["
                 + fileSegment.getOffset() + "], length[" + fileSegment.getLength()
@@ -213,7 +213,6 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
       String folder, String fileName, Configuration hadoopConf) throws IOException, IllegalStateException {
     Path path = new Path(folder, fileName);
     HdfsFileReader reader = new HdfsFileReader(path, hadoopConf);
-    reader.createStream();
     return reader;
   }
 }
