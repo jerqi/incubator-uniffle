@@ -12,7 +12,13 @@ public class ShuffleServerConf extends RssBaseConf {
       .key("rss.server.buffer.capacity")
       .longType()
       .noDefaultValue()
-      .withDescription("Number of buffers in this server");
+      .withDescription("Max memory for shuffle server");
+
+  public static final ConfigOption<Long> BUFFER_SPILL_THRESHOLD = ConfigOptions
+      .key("rss.server.buffer.spill.threshold")
+      .longType()
+      .noDefaultValue()
+      .withDescription("Spill threshold for buffer manager, it must be less than rss.server.buffer.capacity");
 
   public static final ConfigOption<Integer> BUFFER_SIZE = ConfigOptions
       .key("rss.server.buffer.size")
@@ -55,30 +61,6 @@ public class ShuffleServerConf extends RssBaseConf {
       .intType()
       .defaultValue(10)
       .withDescription("rss heartbeat max failure times");
-
-  public static final ConfigOption<Long> GC_DELAY = ConfigOptions
-      .key("rss.server.gc.delay")
-      .longType()
-      .defaultValue(24 * 60 * 60L)
-      .withDescription("rss gc start delay (second)");
-
-  public static final ConfigOption<Long> GC_INTERVAL = ConfigOptions
-      .key("rss.server.gc.interval")
-      .longType()
-      .defaultValue(24 * 60 * 60L)
-      .withDescription("rss gc interval (second)");
-
-  public static final ConfigOption<Long> GC_THRESHOLD = ConfigOptions
-      .key("rss.server.gc.threshold")
-      .longType()
-      .defaultValue(24 * 60 * 60L)
-      .withDescription("rss gc threshold (second)");
-
-  public static final ConfigOption<Integer> GC_THREAD_NUM = ConfigOptions
-      .key("rss.server.gc.threadNum")
-      .intType()
-      .defaultValue(32)
-      .withDescription("rss gc thread num");
 
   public static final ConfigOption<Integer> SERVER_FLUSH_THREAD_POOL_SIZE = ConfigOptions
       .key("rss.server.flush.threadPool.size")
@@ -140,6 +122,12 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(10)
       .withDescription("Max times to retry for memory request");
 
+  public static final ConfigOption<Long> SERVER_PRE_ALLOCATION_EXPIRED = ConfigOptions
+      .key("rss.server.preAllocation.expired")
+      .longType()
+      .defaultValue(10 * 1000L)
+      .withDescription("Expired time (ms) for pre allocated buffer");
+
   public ShuffleServerConf() {
   }
 
@@ -173,6 +161,10 @@ public class ShuffleServerConf extends RssBaseConf {
         set(BUFFER_CAPACITY, Long.valueOf(v));
       }
 
+      if (BUFFER_SPILL_THRESHOLD.key().equalsIgnoreCase(k)) {
+        set(BUFFER_SPILL_THRESHOLD, Long.valueOf(v));
+      }
+
       if (BUFFER_SIZE.key().equalsIgnoreCase(k)) {
         set(BUFFER_SIZE, Integer.valueOf(v));
       }
@@ -195,22 +187,6 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (HEARTBEAT_TIMEOUT.key().equalsIgnoreCase(k)) {
         set(HEARTBEAT_TIMEOUT, Long.valueOf(v));
-      }
-
-      if (GC_DELAY.key().equalsIgnoreCase(k)) {
-        set(GC_DELAY, Long.valueOf(v));
-      }
-
-      if (GC_INTERVAL.key().equalsIgnoreCase(k)) {
-        set(GC_INTERVAL, Long.valueOf(v));
-      }
-
-      if (GC_THREAD_NUM.key().equalsIgnoreCase(k)) {
-        set(GC_THREAD_NUM, Integer.valueOf(v));
-      }
-
-      if (GC_THRESHOLD.key().equalsIgnoreCase(k)) {
-        set(GC_THRESHOLD, Long.valueOf(v));
       }
 
       if (SERVER_FLUSH_THREAD_POOL_SIZE.key().equalsIgnoreCase(k)) {
@@ -251,6 +227,10 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (SERVER_MEMORY_REQUEST_RETRY_MAX.key().equalsIgnoreCase(k)) {
         set(SERVER_MEMORY_REQUEST_RETRY_MAX, Integer.valueOf(v));
+      }
+
+      if (SERVER_PRE_ALLOCATION_EXPIRED.key().equalsIgnoreCase(k)) {
+        set(SERVER_PRE_ALLOCATION_EXPIRED, Long.valueOf(v));
       }
     });
 

@@ -103,6 +103,7 @@ public class ShuffleFlushManager {
     } finally {
       if (shuffleServer != null) {
         shuffleServer.getShuffleBufferManager().releaseMemory(event.getSize());
+        LOG.debug("Flush to file success and release " + event.getSize() + " bytes");
       }
     }
   }

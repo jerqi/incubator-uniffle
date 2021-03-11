@@ -21,8 +21,10 @@ public class ShuffleBufferManager {
 
   private final ShuffleFlushManager shuffleFlushManager;
   private long capacity;
+  private long spillThreshold;
   private int bufferSize;
   private int retryNum;
+  private AtomicLong preAllocatedSize;
   private AtomicLong atomicSize;
   // appId -> shuffleId -> partitionId -> ShuffleBuffer to avoid too many appId
   private Map<String, Map<Integer, RangeMap<Integer, ShuffleBuffer>>> bufferPool;
@@ -30,8 +32,10 @@ public class ShuffleBufferManager {
   public ShuffleBufferManager(ShuffleServerConf conf, ShuffleFlushManager shuffleFlushManager) {
     this.capacity = conf.getLong(ShuffleServerConf.BUFFER_CAPACITY);
     this.bufferSize = conf.getInteger(ShuffleServerConf.BUFFER_SIZE);
+    this.spillThreshold = conf.getLong(ShuffleServerConf.BUFFER_SPILL_THRESHOLD);
     this.shuffleFlushManager = shuffleFlushManager;
     this.atomicSize = new AtomicLong(0L);
+    this.preAllocatedSize = new AtomicLong(0L);
     this.bufferPool = new ConcurrentHashMap<>();
     this.retryNum = conf.getInteger(ShuffleServerConf.SERVER_MEMORY_REQUEST_RETRY_MAX);
   }
@@ -51,8 +55,8 @@ public class ShuffleBufferManager {
     return StatusCode.SUCCESS;
   }
 
-  public StatusCode cacheShuffleData(String appId, int shuffleId, ShufflePartitionedData spd) {
-    if (isFull()) {
+  public StatusCode cacheShuffleData(String appId, int shuffleId, boolean isPreAllocated, ShufflePartitionedData spd) {
+    if (!isPreAllocated && isFull()) {
       return StatusCode.NO_BUFFER;
     }
     Map<Integer, RangeMap<Integer, ShuffleBuffer>> shuffleIdToBuffers = bufferPool.get(appId);
@@ -70,12 +74,11 @@ public class ShuffleBufferManager {
     ShuffleBuffer buffer = entry.getValue();
     Range<Integer> range = entry.getKey();
     int size = buffer.append(spd);
-    // add size
-    updateSize(size);
-    if (isFull()) {
+    updateSize(size, isPreAllocated);
+    if (shouldFlush()) {
       flush();
     } else if (buffer.isFull()) {
-      flushBufferToFlushQueue(buffer, appId, shuffleId, range.lowerEndpoint(), range.upperEndpoint());
+      flushBuffer(buffer, appId, shuffleId, range.lowerEndpoint(), range.upperEndpoint());
     }
     return StatusCode.SUCCESS;
   }
@@ -86,7 +89,7 @@ public class ShuffleBufferManager {
     for (Map.Entry<Range<Integer>, ShuffleBuffer> entry : buffers.asMapOfRanges().entrySet()) {
       ShuffleBuffer buffer = entry.getValue();
       Range<Integer> range = entry.getKey();
-      flushBufferToFlushQueue(buffer, appId, shuffleId, range.lowerEndpoint(), range.upperEndpoint());
+      flushBuffer(buffer, appId, shuffleId, range.lowerEndpoint(), range.upperEndpoint());
       Set<Long> snapshot = buffer.getAndClearEventIds();
       // skip empty eventId
       if (!snapshot.isEmpty()) {
@@ -108,14 +111,14 @@ public class ShuffleBufferManager {
         for (Entry<Range<Integer>, ShuffleBuffer> rangeEntry :
             shuffleIdToBuffers.getValue().asMapOfRanges().entrySet()) {
           Range<Integer> range = rangeEntry.getKey();
-          flushBufferToFlushQueue(rangeEntry.getValue(), appId, shuffleId,
+          flushBuffer(rangeEntry.getValue(), appId, shuffleId,
               range.lowerEndpoint(), range.upperEndpoint());
         }
       }
     }
   }
 
-  private synchronized void flushBufferToFlushQueue(ShuffleBuffer buffer, String appId,
+  private synchronized void flushBuffer(ShuffleBuffer buffer, String appId,
       int shuffleId, int startPartition, int endPartition) {
     ShuffleDataFlushEvent event =
         buffer.toFlushEvent(appId, shuffleId, startPartition, endPartition);
@@ -146,11 +149,16 @@ public class ShuffleBufferManager {
     bufferPool.remove(appId);
   }
 
-  public synchronized boolean requireMemory(long size) {
+  public synchronized boolean requireMemory(long size, boolean isPreAllocated) {
     if (capacity - atomicSize.get() >= size) {
       atomicSize.addAndGet(size);
+      if (isPreAllocated) {
+        requirePreAllocatedSize(size);
+      }
       return true;
     }
+    LOG.warn("Require memory failed with " + size + " bytes, total[" + atomicSize.get()
+        + "], preAllocation[" + preAllocatedSize.get() + "]");
     return false;
   }
 
@@ -167,7 +175,7 @@ public class ShuffleBufferManager {
   public boolean requireMemoryWithRetry(long size) {
     boolean result = false;
     for (int i = 0; i < retryNum; i++) {
-      result = requireMemory(size);
+      result = requireMemory(size, false);
       if (result) {
         break;
       }
@@ -180,12 +188,30 @@ public class ShuffleBufferManager {
     return result;
   }
 
-  long updateSize(long delta) {
-    return atomicSize.addAndGet(delta);
+  void updateSize(long delta, boolean isPreAllocated) {
+    if (isPreAllocated) {
+      releasePreAllocatedSize(delta);
+    } else {
+      // add size if not allocated
+      atomicSize.addAndGet(delta);
+    }
+  }
+
+  void requirePreAllocatedSize(long delta) {
+    preAllocatedSize.addAndGet(delta);
+  }
+
+  void releasePreAllocatedSize(long delta) {
+    preAllocatedSize.addAndGet(-delta);
+  }
+
+  // All memory are allocated and more than half of them has actual data
+  boolean shouldFlush() {
+    return atomicSize.get() > spillThreshold && preAllocatedSize.get() < spillThreshold / 2;
   }
 
   boolean isFull() {
-    return atomicSize.get() > capacity;
+    return atomicSize.get() >= capacity;
   }
 
   @VisibleForTesting
@@ -198,12 +224,17 @@ public class ShuffleBufferManager {
   }
 
   @VisibleForTesting
-  long getSize() {
+  public long getSize() {
     return atomicSize.get();
   }
 
   @VisibleForTesting
   void resetSize() {
     atomicSize = new AtomicLong(0L);
+  }
+
+  @VisibleForTesting
+  public long getPreAllocatedSize() {
+    return preAllocatedSize.get();
   }
 }

@@ -28,9 +28,9 @@ public class RssClientConfig {
   public static String RSS_CLIENT_TYPE_DEFAULT_VALUE = "GRPC";
   public static String RSS_STORAGE_TYPE = "spark.rss.storage.type";
   public static String RSS_CLIENT_RETRY_MAX = "spark.rss.client.retry.max";
-  public static int RSS_CLIENT_RETRY_MAX_DEFAULT_VALUE = 3;
+  public static int RSS_CLIENT_RETRY_MAX_DEFAULT_VALUE = 30;
   public static String RSS_CLIENT_RETRY_INTERVAL = "spark.rss.client.retry.interval";
-  public static long RSS_CLIENT_RETRY_INTERVAL_DEFAULT_VALUE = 15000;
+  public static long RSS_CLIENT_RETRY_INTERVAL_DEFAULT_VALUE = 1000;
   public static String RSS_CLIENT_SEND_SIZE_LIMIT = "spark.rss.client.send.size.limit";
   public static String RSS_CLIENT_SEND_SIZE_LIMIT_DEFAULT_VALUE = "32m";
   public static String RSS_CLIENT_READ_BUFFER_SIZE = "spark.rss.client.read.buffer.size";

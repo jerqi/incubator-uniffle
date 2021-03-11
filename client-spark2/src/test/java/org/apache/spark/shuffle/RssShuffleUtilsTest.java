@@ -21,6 +21,7 @@ public class RssShuffleUtilsTest {
   private void singleTest(int size) {
     byte[] buf = new byte[size];
     new Random().nextBytes(buf);
+
     byte[] compressed = RssShuffleUtils.compressData(buf);
     byte[] uncompressed = RssShuffleUtils.decompressData(compressed, size);
     assertArrayEquals(buf, uncompressed);

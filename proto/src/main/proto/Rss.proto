@@ -13,6 +13,7 @@ service ShuffleServer {
   rpc reportShuffleResult (ReportShuffleResultRequest) returns (ReportShuffleResultResponse);
   rpc getShuffleResult (GetShuffleResultRequest) returns (GetShuffleResultResponse);
   rpc finishShuffle (FinishShuffleRequest) returns (FinishShuffleResponse);
+  rpc requireBuffer (RequireBufferRequest) returns (RequireBufferResponse);
 }
 
 message FinishShuffleRequest {
@@ -23,6 +24,16 @@ message FinishShuffleRequest {
 message FinishShuffleResponse {
   StatusCode status = 1;
   string retMsg = 2;
+}
+
+message RequireBufferRequest {
+  int32 requireSize = 1;
+}
+
+message RequireBufferResponse {
+  int64 requireBufferId = 1;
+  StatusCode status = 2;
+  string retMsg = 3;
 }
 
 message ShuffleDataBlockSegment {
@@ -93,7 +104,8 @@ message ShuffleRegisterResponse {
 message SendShuffleDataRequest {
   string appId = 1;
   int32 shuffleId = 2;
-  repeated ShuffleData shuffleData = 3;
+  int64 requireBufferId = 3;
+  repeated ShuffleData shuffleData = 4;
 }
 
 message SendShuffleDataResponse {

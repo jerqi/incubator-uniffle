@@ -79,8 +79,10 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
     Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleToBlocks = Maps.newHashMap();
     shuffleToBlocks.put(0, partitionToBlocks);
 
-    RssSendShuffleDataRequest rssdr = new RssSendShuffleDataRequest(appId, shuffleToBlocks);
+    RssSendShuffleDataRequest rssdr = new RssSendShuffleDataRequest(appId, 3, 1000, shuffleToBlocks);
     shuffleServerClient.sendShuffleData(rssdr);
+    assertEquals(200, shuffleServers.get(0).getShuffleBufferManager().getSize());
+    assertEquals(0, shuffleServers.get(0).getShuffleBufferManager().getPreAllocatedSize());
     RssSendCommitRequest rscr = new RssSendCommitRequest(appId, 0);
     shuffleServerClient.sendCommit(rscr);
     RssFinishShuffleRequest rfsr = new RssFinishShuffleRequest(appId, 0);
@@ -98,8 +100,9 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
     partitionToBlocks.put(2, blocks3);
     shuffleToBlocks.clear();
     shuffleToBlocks.put(0, partitionToBlocks);
-    rssdr = new RssSendShuffleDataRequest(appId, shuffleToBlocks);
+    rssdr = new RssSendShuffleDataRequest(appId, 3, 1000, shuffleToBlocks);
     shuffleServerClient.sendShuffleData(rssdr);
+    assertEquals(0, shuffleServers.get(0).getShuffleBufferManager().getPreAllocatedSize());
     rscr = new RssSendCommitRequest(appId, 0);
     shuffleServerClient.sendCommit(rscr);
     rfsr = new RssFinishShuffleRequest(appId, 0);
@@ -109,7 +112,7 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
     partitionToBlocks.put(3, blocks4);
     shuffleToBlocks.clear();
     shuffleToBlocks.put(0, partitionToBlocks);
-    rssdr = new RssSendShuffleDataRequest(appId, shuffleToBlocks);
+    rssdr = new RssSendShuffleDataRequest(appId, 3, 1000, shuffleToBlocks);
     shuffleServerClient.sendShuffleData(rssdr);
     rscr = new RssSendCommitRequest(appId, 0);
     shuffleServerClient.sendCommit(rscr);

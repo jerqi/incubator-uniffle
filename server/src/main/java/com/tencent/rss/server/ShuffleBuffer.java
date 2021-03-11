@@ -30,7 +30,6 @@ public class ShuffleBuffer {
         mSize += block.getLength();
         size += mSize;
       }
-      ShuffleServerMetrics.gaugeBufferDataSize.inc(size);
     }
 
     return mSize;

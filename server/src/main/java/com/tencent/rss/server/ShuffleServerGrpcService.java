@@ -19,6 +19,8 @@ import com.tencent.rss.proto.RssProtos.GetShuffleResultResponse;
 import com.tencent.rss.proto.RssProtos.PartitionToBlockIds;
 import com.tencent.rss.proto.RssProtos.ReportShuffleResultRequest;
 import com.tencent.rss.proto.RssProtos.ReportShuffleResultResponse;
+import com.tencent.rss.proto.RssProtos.RequireBufferRequest;
+import com.tencent.rss.proto.RssProtos.RequireBufferResponse;
 import com.tencent.rss.proto.RssProtos.SendShuffleDataRequest;
 import com.tencent.rss.proto.RssProtos.SendShuffleDataResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleBlock;
@@ -34,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,76 +103,47 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     SendShuffleDataResponse reply;
     String appId = req.getAppId();
     int shuffleId = req.getShuffleId();
+    long requireBufferId = req.getRequireBufferId();
+    int requireSize = shuffleServer
+        .getShuffleTaskManager().getRequireBufferSize(requireBufferId);
 
     StatusCode ret = StatusCode.SUCCESS;
     String responseMessage = "OK";
     if (req.getShuffleDataCount() > 0) {
-      try {
-        List<ShufflePartitionedData> shufflePartitionedData = toPartitionedData(req);
+      final long s = System.currentTimeMillis();
+      List<ShufflePartitionedData> shufflePartitionedData = toPartitionedData(req);
+      LOG.debug("Received data {} bytes", requireSize);
 
-        long recSize = shufflePartitionedData
-            .stream()
-            .flatMap(i -> i.getBlockList().stream())
-            .map(ShufflePartitionedBlock::getLength)
-            .map(i -> Long.valueOf(i)).reduce(0L, Long::sum);
-        LOG.debug("Received data {} mb", recSize);
+      ShuffleServerMetrics.counterTotalReceivedDataSize.inc(requireSize);
 
-        ShuffleServerMetrics.counterTotalReceivedDataSize.inc(recSize);
-
-        for (ShufflePartitionedData spd : shufflePartitionedData) {
-          String shuffleDataInfo = "appId[" + appId + "], shuffleId[" + shuffleId
-              + "], partitionId[" + spd.getPartitionId() + "]";
-
-          try {
-            long writeTimeout =
-                shuffleServer.getShuffleServerConf().get(ShuffleServerConf.SERVER_WRITE_TIMEOUT);
-            long start = System.currentTimeMillis();
-            do {
-              if (System.currentTimeMillis() - start > writeTimeout) {
-                String errorMsg = "There is no buffer for "
-                    + shuffleDataInfo + " after " + writeTimeout + "ms waiting, statusCode=" + ret;
-                LOG.error(errorMsg);
-                responseMessage = errorMsg;
-                break;
-              }
-              ret = shuffleServer
-                  .getShuffleTaskManager()
-                  .cacheShuffleData(appId, shuffleId, spd);
-              if (ret == StatusCode.NO_BUFFER) {
-                LOG.warn("Buffer is full for writing shuffle data, wait 1s");
-                Thread.sleep(1000);
-              }
-            } while (ret == StatusCode.NO_BUFFER);
-
-            if (ret != StatusCode.SUCCESS && ret != StatusCode.NO_BUFFER) {
-              String errorMsg = "Error happened when shuffleEngine.write for "
-                  + shuffleDataInfo + ", statusCode=" + ret;
-              LOG.error(errorMsg);
-              responseMessage = errorMsg;
-              break;
-            }
-          } catch (Exception e) {
+      for (ShufflePartitionedData spd : shufflePartitionedData) {
+        String shuffleDataInfo = "appId[" + appId + "], shuffleId[" + shuffleId
+            + "], partitionId[" + spd.getPartitionId() + "]";
+        try {
+          ret = shuffleServer
+              .getShuffleTaskManager()
+              .cacheShuffleData(appId, shuffleId, requireBufferId, spd);
+          if (ret != StatusCode.SUCCESS) {
             String errorMsg = "Error happened when shuffleEngine.write for "
-                + shuffleDataInfo + ": " + e.getMessage();
-            ret = StatusCode.INTERNAL_ERROR;
-            responseMessage = errorMsg;
+                + shuffleDataInfo + ", statusCode=" + ret;
             LOG.error(errorMsg);
+            responseMessage = errorMsg;
             break;
           }
+        } catch (Exception e) {
+          String errorMsg = "Error happened when shuffleEngine.write for "
+              + shuffleDataInfo + ": " + e.getMessage();
+          ret = StatusCode.INTERNAL_ERROR;
+          responseMessage = errorMsg;
+          LOG.error(errorMsg);
+          break;
         }
-        reply = SendShuffleDataResponse.newBuilder().setStatus(valueOf(ret)).setRetMsg(responseMessage).build();
-      } catch (Exception e) {
-        String msg = "Error happened when sendShuffleData ";
-        if (!StringUtils.isEmpty(e.getMessage())) {
-          msg += e.getMessage();
-        }
-        reply = SendShuffleDataResponse
-            .newBuilder()
-            .setStatus(valueOf(StatusCode.INTERNAL_ERROR))
-            .setRetMsg(msg)
-            .build();
-        LOG.error(msg, e);
       }
+      shuffleServer
+          .getShuffleTaskManager().removeRequireBufferId(requireBufferId);
+      reply = SendShuffleDataResponse.newBuilder().setStatus(valueOf(ret)).setRetMsg(responseMessage).build();
+      LOG.debug("Cache Shuffle Data cost " + (System.currentTimeMillis() - s)
+          + " ms with " + shufflePartitionedData + " blocks and " + requireSize + " bytes");
     } else {
       reply = SendShuffleDataResponse
           .newBuilder()
@@ -243,6 +215,25 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
             .newBuilder()
             .setStatus(valueOf(status))
             .setRetMsg(msg).build();
+    responseObserver.onNext(response);
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void requireBuffer(RequireBufferRequest request,
+      StreamObserver<RequireBufferResponse> responseObserver) {
+    ShuffleServerMetrics.counterTotalRequest.inc();
+    long requireBufferId = shuffleServer.getShuffleTaskManager().requireBuffer(request.getRequireSize());
+    StatusCode status = StatusCode.SUCCESS;
+    if (requireBufferId == -1) {
+      status = StatusCode.NO_BUFFER;
+    }
+    RequireBufferResponse response =
+        RequireBufferResponse
+            .newBuilder()
+            .setStatus(valueOf(status))
+            .setRequireBufferId(requireBufferId)
+            .build();
     responseObserver.onNext(response);
     responseObserver.onCompleted();
   }

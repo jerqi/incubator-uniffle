@@ -94,22 +94,13 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
         Map<Integer, List<ShuffleBlockInfo>>>> entry : serverToBlocks.entrySet()) {
       ShuffleServerInfo ssi = entry.getKey();
       try {
-        RssSendShuffleDataRequest rpcRequest = new RssSendShuffleDataRequest(appId, entry.getValue());
-        RssSendShuffleDataResponse rpcResponse = getShuffleServerClient(ssi).sendShuffleData(rpcRequest);
+        RssSendShuffleDataRequest request = new RssSendShuffleDataRequest(
+            appId, retryMax, retryInterval, entry.getValue());
+        long s = System.currentTimeMillis();
+        RssSendShuffleDataResponse response = getShuffleServerClient(ssi).sendShuffleData(request);
+        LOG.info("ShuffleWriteClientImpl sendShuffleData cost:" + (System.currentTimeMillis() - s));
 
-        // there is no buffer in shuffle server, try again
-        int retry = 0;
-        while (rpcResponse.getStatusCode() == ResponseStatusCode.NO_BUFFER) {
-          if (retry >= retryMax) {
-            throw new RuntimeException("ShuffleServer is full and can't send shuffle"
-                + " data successfully after retry " + retryMax + " times");
-          }
-          Thread.sleep(retryInterval);
-          rpcResponse = getShuffleServerClient(ssi).sendShuffleData(rpcRequest);
-          retry++;
-        }
-
-        if (rpcResponse.getStatusCode() == ResponseStatusCode.SUCCESS) {
+        if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {
           successBlockIds.addAll(serverToBlockIds.get(ssi));
           LOG.debug("Send: " + serverToBlockIds.get(ssi)
               + " to [" + ssi.getId() + "] successfully");

@@ -22,32 +22,27 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import org.junit.Before;
 import org.junit.Test;
 
 public class ShuffleTaskManagerTest extends HdfsTestBase {
 
   private static AtomicInteger ATOMIC_INT = new AtomicInteger(0);
-  private ShuffleTaskManager shuffleTaskManager;
-  private ShuffleServer shuffleServer;
 
-  @Before
-  public void setUp() throws Exception {
+  @Test
+  public void registerShuffleTest() throws Exception {
     String confFile = ClassLoader.getSystemResource("server.conf").getFile();
     ShuffleServerConf conf = new ShuffleServerConf(confFile);
     String storageBasePath = HDFS_URI + "rss/test";
-    conf.setString("rss.server.buffer.capacity", "64");
+    conf.setString("rss.server.buffer.capacity", "128");
+    conf.setString("rss.server.buffer.spill.threshold", "64");
     conf.setString("rss.server.buffer.size", "64");
     conf.setString("rss.storage.basePath", storageBasePath);
     conf.setString("rss.storage.type", "HDFS");
     conf.setString("rss.server.commit.timeout", "10000");
-    shuffleServer = new ShuffleServer(conf);
-    shuffleTaskManager = new ShuffleTaskManager(conf,
+    ShuffleServer shuffleServer = new ShuffleServer(conf);
+    ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf,
         shuffleServer.getShuffleFlushManager(), shuffleServer.getShuffleBufferManager());
-  }
 
-  @Test
-  public void registerShuffleTest() {
     String appId = "registerTest1";
     int shuffleId = 1;
 
@@ -75,11 +70,13 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     String storageBasePath = HDFS_URI + "rss/test";
     String appId = "testAppId";
     int shuffleId = 1;
-    conf.setString("rss.server.buffer.capacity", "64");
+    conf.setString("rss.server.buffer.capacity", "128");
+    conf.setString("rss.server.buffer.spill.threshold", "64");
     conf.setString("rss.server.buffer.size", "64");
     conf.setString("rss.storage.basePath", storageBasePath);
     conf.setString("rss.storage.type", "HDFS");
     conf.setString("rss.server.commit.timeout", "10000");
+    conf.setString("rss.server.preAllocation.expired", "3000");
     ShuffleServer shuffleServer = new ShuffleServer(conf);
     ShuffleBufferManager shuffleBufferManager = shuffleServer.getShuffleBufferManager();
     ShuffleFlushManager shuffleFlushManager = shuffleServer.getShuffleFlushManager();
@@ -88,13 +85,28 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     shuffleTaskManager.registerShuffle(appId, shuffleId, 2, 2);
     List<ShufflePartitionedBlock> expectedBlocks1 = Lists.newArrayList();
     List<ShufflePartitionedBlock> expectedBlocks2 = Lists.newArrayList();
+    Map<Long, PreAllocatedBufferInfo> bufferIds = shuffleTaskManager.getRequireBufferIds();
+
+    shuffleTaskManager.requireBuffer(10);
+    shuffleTaskManager.requireBuffer(10);
+    shuffleTaskManager.requireBuffer(10);
+    assertEquals(3, bufferIds.size());
+    // required buffer should be clear if doesn't receive data after timeout
+    Thread.sleep(6000);
+    assertEquals(0, bufferIds.size());
 
     shuffleTaskManager.commitShuffle(appId, shuffleId);
 
     // won't flush for partition 1-1
     ShufflePartitionedData partitionedData0 = createPartitionedData(1, 1, 35);
     expectedBlocks1.addAll(partitionedData0.getBlockList());
-    StatusCode sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, partitionedData0);
+    long requireId = shuffleTaskManager.requireBuffer(35);
+    assertEquals(1, bufferIds.size());
+    PreAllocatedBufferInfo pabi = bufferIds.get(requireId);
+    assertEquals(35, pabi.getRequireSize());
+    StatusCode sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, requireId, partitionedData0);
+    // the required id won't be removed in shuffleTaskManager, it is removed in Grpc service
+    assertEquals(1, bufferIds.size());
     assertEquals(StatusCode.SUCCESS, sc);
 
     shuffleTaskManager.commitShuffle(appId, shuffleId);
@@ -104,26 +116,30 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     // flush for partition 1-1
     ShufflePartitionedData partitionedData1 = createPartitionedData(1, 2, 35);
     expectedBlocks1.addAll(partitionedData1.getBlockList());
-    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, partitionedData1);
+    requireId = shuffleTaskManager.requireBuffer(70);
+    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, requireId, partitionedData1);
     assertEquals(StatusCode.SUCCESS, sc);
     waitForFlush(shuffleFlushManager, appId, shuffleId, Range.closed(1, 1), 2, false);
 
     // won't flush for partition 1-1
     ShufflePartitionedData partitionedData2 = createPartitionedData(1, 1, 30);
     expectedBlocks1.addAll(partitionedData2.getBlockList());
-    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, partitionedData2);
+    // receive un-preAllocation data
+    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, -1, partitionedData2);
     assertEquals(StatusCode.SUCCESS, sc);
 
     // won't flush for partition 2-2
     ShufflePartitionedData partitionedData3 = createPartitionedData(2, 1, 30);
     expectedBlocks2.addAll(partitionedData3.getBlockList());
-    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, partitionedData3);
+    requireId = shuffleTaskManager.requireBuffer(30);
+    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, requireId, partitionedData3);
     assertEquals(StatusCode.SUCCESS, sc);
 
     // flush for partition 2-2
     ShufflePartitionedData partitionedData4 = createPartitionedData(2, 1, 35);
     expectedBlocks2.addAll(partitionedData4.getBlockList());
-    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, partitionedData4);
+    requireId = shuffleTaskManager.requireBuffer(35);
+    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, requireId, partitionedData4);
     assertEquals(StatusCode.SUCCESS, sc);
 
     shuffleTaskManager.commitShuffle(appId, shuffleId);
@@ -136,7 +152,8 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     // flush for partition 1-1
     ShufflePartitionedData partitionedData5 = createPartitionedData(1, 2, 35);
     expectedBlocks1.addAll(partitionedData5.getBlockList());
-    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, partitionedData5);
+    requireId = shuffleTaskManager.requireBuffer(70);
+    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, requireId, partitionedData5);
     assertEquals(StatusCode.SUCCESS, sc);
 
     waitForFlush(shuffleFlushManager, appId, shuffleId, Range.closed(1, 1), 4, false);
@@ -155,7 +172,8 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
 
     // flush for partition 0-1
     ShufflePartitionedData partitionedData7 = createPartitionedData(1, 2, 35);
-    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, partitionedData7);
+    requireId = shuffleTaskManager.requireBuffer(70);
+    sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, requireId, partitionedData7);
     assertEquals(StatusCode.SUCCESS, sc);
 
     waitForFlush(shuffleFlushManager, appId, shuffleId, Range.closed(1, 1), 5, true);
@@ -177,7 +195,8 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     conf.setString("rss.server.coordinator.port", "9527");
     conf.setString("rss.jetty.http.port", "12345");
     conf.setString("rss.jetty.corePool.size", "64");
-    conf.setString("rss.server.buffer.capacity", "64");
+    conf.setString("rss.server.buffer.capacity", "128");
+    conf.setString("rss.server.buffer.spill.threshold", "64");
     conf.setString("rss.server.buffer.size", "64");
     conf.setString("rss.storage.basePath", storageBasePath);
     conf.setString("rss.storage.type", "HDFS");
@@ -197,7 +216,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     int retry = 0;
     while (retry < 10) {
       Thread.sleep(1000);
-      shuffleTaskManager.cacheShuffleData("clearTest1", shuffleId, partitionedData0);
+      shuffleTaskManager.cacheShuffleData("clearTest1", shuffleId, -1, partitionedData0);
       shuffleTaskManager.checkResourceStatus(Sets.newHashSet("clearTest1", "clearTest2"));
       retry++;
     }

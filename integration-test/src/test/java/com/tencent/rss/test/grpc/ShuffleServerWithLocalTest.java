@@ -85,7 +85,8 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
     Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleToBlocks = Maps.newHashMap();
     shuffleToBlocks.put(0, partitionToBlocks);
 
-    RssSendShuffleDataRequest rssdr = new RssSendShuffleDataRequest("appId", shuffleToBlocks);
+    RssSendShuffleDataRequest rssdr = new RssSendShuffleDataRequest(
+        "appId", 3, 1000, shuffleToBlocks);
     shuffleServerClient.sendShuffleData(rssdr);
     RssSendCommitRequest rscr = new RssSendCommitRequest("appId", 0);
     shuffleServerClient.sendCommit(rscr);

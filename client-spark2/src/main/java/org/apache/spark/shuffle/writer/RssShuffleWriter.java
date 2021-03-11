@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.apache.spark.Partitioner;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
@@ -97,7 +98,6 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @Override
   public void write(Iterator<Product2<K, V>> records) {
-    final long startWrite = System.nanoTime();
     List<ShuffleBlockInfo> shuffleBlockInfos = null;
     Set<Long> blockIds = Sets.newConcurrentHashSet();
     while (records.hasNext()) {
@@ -113,16 +113,22 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       processShuffleBlockInfos(shuffleBlockInfos, blockIds);
     }
 
+    final long start = System.currentTimeMillis();
     shuffleBlockInfos = bufferManager.clear();
     processShuffleBlockInfos(shuffleBlockInfos, blockIds);
+    long s = System.currentTimeMillis();
     checkBlockSendResult(blockIds);
-
+    final long checkDuration = System.currentTimeMillis() - s;
+    s = System.currentTimeMillis();
     sendCommit();
-    long writeDuration = System.nanoTime() - startWrite;
-    shuffleWriteMetrics.incWriteTime(writeDuration);
+    final long commitDuration = System.currentTimeMillis() - s;
+    long writeDurationMs = bufferManager.getWriteTime() + (System.currentTimeMillis() - start);
+    shuffleWriteMetrics.incWriteTime(TimeUnit.MILLISECONDS.toNanos(writeDurationMs));
     LOG.info("Finish write shuffle for appId[" + appId + "], shuffleId[" + shuffleId
-        + "], taskId[" + taskId + "] with " + writeDuration / 1000000 + " ms, include: bufferCopy["
-        + bufferManager.getCopyTime() + "], addRecord[" + bufferManager.getWriteTime() + "]");
+        + "], taskId[" + taskId + "] with write " + writeDurationMs + " ms, include: bufferCopy["
+        + bufferManager.getCopyTime() + "], serialize[" + bufferManager.getSerializeTime()
+        + "], compress[" + bufferManager.getCompressTime() + "], checkSendResult["
+        + checkDuration + "], commit[" + commitDuration + "]");
   }
 
   /**
@@ -142,7 +148,6 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         long blockId = sbi.getBlockId();
         // add blockId to set, check if it is send later
         blockIds.add(blockId);
-        LOG.debug("Block ready to queue " + sbi.toString());
         // update shuffle server info, they will be used in commit phase
         shuffleServerInfoSet.addAll(sbi.getShuffleServerInfos());
         // update [partition, blockIds], it will be set to MapStatus
@@ -166,6 +171,8 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       shuffleBlockInfosPerEvent.add(sbi);
       // split shuffle data according to the size
       if (totalSize > sendSizeLimit) {
+        LOG.info("Post event to queue with " + shuffleBlockInfosPerEvent.size()
+            + " blocks and " + totalSize + " bytes");
         shuffleManager.getEventLoop().post(
             new AddBlockEvent(taskId, shuffleBlockInfosPerEvent));
         shuffleBlockInfosPerEvent = Lists.newArrayList();
@@ -173,6 +180,8 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       }
     }
     if (!shuffleBlockInfosPerEvent.isEmpty()) {
+      LOG.info("Post event to queue with " + shuffleBlockInfosPerEvent.size()
+          + " blocks and " + totalSize + " bytes");
       shuffleManager.getEventLoop().post(
           new AddBlockEvent(taskId, shuffleBlockInfosPerEvent));
     }
@@ -212,7 +221,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       if (System.currentTimeMillis() - start > sendCheckTimeout) {
         String errorMsg =
             "Timeout: Task[" + taskId + "] failed because blockIds [" + Joiner.on(" ").join(blockIds)
-                + "] can't be sent to shuffle server in " + (sendCheckTimeout / 1000) + "s.";
+                + "] can't be sent to shuffle server in " + sendCheckTimeout + " ms.";
         LOG.error(errorMsg);
         throw new RuntimeException(errorMsg);
       }

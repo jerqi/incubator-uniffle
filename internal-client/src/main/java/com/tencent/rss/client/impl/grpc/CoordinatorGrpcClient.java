@@ -171,7 +171,7 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
         response.setRegisterInfoList(shuffleRegisterInfoList);
         response.setPartitionToServers(partitionToServers);
         response.setShuffleServersForResult(shuffleServersForResult);
-        LOG.info("Successfully get shuffle assignments from coordinator, "
+        LOG.debug("Successfully get shuffle assignments from coordinator, "
             + shuffleRegisterInfoList + ", " + partitionToServers);
         break;
       case TIMEOUT:

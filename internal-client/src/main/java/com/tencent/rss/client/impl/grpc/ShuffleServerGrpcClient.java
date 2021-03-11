@@ -29,7 +29,18 @@ import com.tencent.rss.proto.RssProtos.GetShuffleDataResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleResultRequest;
 import com.tencent.rss.proto.RssProtos.GetShuffleResultResponse;
 import com.tencent.rss.proto.RssProtos.PartitionToBlockIds;
+import com.tencent.rss.proto.RssProtos.ReportShuffleResultRequest;
+import com.tencent.rss.proto.RssProtos.ReportShuffleResultResponse;
+import com.tencent.rss.proto.RssProtos.RequireBufferRequest;
+import com.tencent.rss.proto.RssProtos.RequireBufferResponse;
+import com.tencent.rss.proto.RssProtos.SendShuffleDataRequest;
+import com.tencent.rss.proto.RssProtos.SendShuffleDataResponse;
+import com.tencent.rss.proto.RssProtos.ShuffleBlock;
+import com.tencent.rss.proto.RssProtos.ShuffleCommitRequest;
+import com.tencent.rss.proto.RssProtos.ShuffleCommitResponse;
+import com.tencent.rss.proto.RssProtos.ShuffleData;
 import com.tencent.rss.proto.RssProtos.ShuffleDataBlockSegment;
+import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.proto.ShuffleServerGrpc;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerBlockingStub;
@@ -42,6 +53,7 @@ import org.slf4j.LoggerFactory;
 public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServerClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleServerGrpcClient.class);
+  private static final long FAILED_REQUIRE_ID = -1;
   private ShuffleServerBlockingStub blockingStub;
 
   public ShuffleServerGrpcClient(String host, int port) {
@@ -64,80 +76,41 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
 
   }
 
-  public RssSendShuffleDataResponse doSendShuffleData(
-      String appId, Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleIdToBlocks) {
-    List<ShuffleBlockInfo> shuffleBlockInfos = Lists.newArrayList();
-    boolean isNoBuffer = false;
-    boolean isSuccessful = true;
-    // prepare rpc request based on shuffleId -> partitionId -> blocks
-    for (Map.Entry<Integer, Map<Integer, List<ShuffleBlockInfo>>> stb : shuffleIdToBlocks.entrySet()) {
-      List<RssProtos.ShuffleData> shuffleData = Lists.newArrayList();
-      for (Map.Entry<Integer, List<ShuffleBlockInfo>> ptb : stb.getValue().entrySet()) {
-        List<RssProtos.ShuffleBlock> shuffleBlocks = Lists.newArrayList();
-        for (ShuffleBlockInfo sbi : ptb.getValue()) {
-          shuffleBlockInfos.add(sbi);
-          shuffleBlocks.add(RssProtos.ShuffleBlock.newBuilder().setBlockId(sbi.getBlockId())
-              .setCrc(sbi.getCrc())
-              .setLength(sbi.getLength())
-              .setUncompressLength(sbi.getUncompressLength())
-              .setData(ByteString.copyFrom(sbi.getData()))
-              .build());
-        }
-        shuffleData.add(RssProtos.ShuffleData.newBuilder().setPartitionId(ptb.getKey())
-            .addAllBlock(shuffleBlocks)
-            .build());
-      }
-      RssProtos.SendShuffleDataRequest request = RssProtos.SendShuffleDataRequest.newBuilder()
-          .setAppId(appId)
-          .setShuffleId(stb.getKey())
-          .addAllShuffleData(shuffleData)
-          .build();
-      long start = System.currentTimeMillis();
-      RssProtos.SendShuffleDataResponse response = blockingStub.sendShuffleData(request);
-      LOG.debug("Do sendShuffleData rpc cost:" + (System.currentTimeMillis() - start) + " ms");
-
-      if (response.getStatus() == StatusCode.NO_BUFFER) {
-        // there is no buffer in shuffle server, stop to sending data
-        isNoBuffer = true;
-      }
-
-      if (response.getStatus() != StatusCode.SUCCESS) {
-        StringBuilder sb = new StringBuilder();
-        for (ShuffleBlockInfo sbi : shuffleBlockInfos) {
-          sb.append(sbi.toString()).append("\n");
-        }
-        String msg = "Can't send shuffle data to " + host + ":" + port
-            + " for " + sb.toString()
-            + "statusCode=" + response.getStatus()
-            + ", errorMsg:" + response.getRetMsg();
-        LOG.warn(msg);
-        isSuccessful = false;
-        break;
-      }
-    }
-
-    RssSendShuffleDataResponse response;
-    if (isSuccessful) {
-      response = new RssSendShuffleDataResponse(ResponseStatusCode.SUCCESS);
-    } else {
-      if (isNoBuffer) {
-        response = new RssSendShuffleDataResponse(ResponseStatusCode.NO_BUFFER);
-      } else {
-        response = new RssSendShuffleDataResponse(ResponseStatusCode.INTERNAL_ERROR);
-      }
-    }
-    return response;
-  }
-
-  public RssProtos.ShuffleCommitResponse doSendCommit(String appId, int shuffleId) {
-    RssProtos.ShuffleCommitRequest request = RssProtos.ShuffleCommitRequest.newBuilder()
+  public ShuffleCommitResponse doSendCommit(String appId, int shuffleId) {
+    ShuffleCommitRequest request = ShuffleCommitRequest.newBuilder()
         .setAppId(appId).setShuffleId(shuffleId).build();
     return blockingStub.commitShuffleTask(request);
   }
 
+  public long requirePreAllocation(int requireSize, int retryMax, long retryInterval) {
+    RequireBufferRequest rpcRequest = RequireBufferRequest.newBuilder().setRequireSize(requireSize).build();
+    RequireBufferResponse rpcResponse = blockingStub.requireBuffer(rpcRequest);
+    int retry = 0;
+    long result = FAILED_REQUIRE_ID;
+    while (rpcResponse.getStatus() == StatusCode.NO_BUFFER) {
+      LOG.info("Can't require " + requireSize + " bytes from " + host + ":" + port + ", sleep and try again");
+      if (retry >= retryMax) {
+        LOG.warn("ShuffleServer " + host + ":" + port + " is full and can't send shuffle"
+            + " data successfully after retry " + retryMax + " times");
+        return result;
+      }
+      try {
+        Thread.sleep(retryInterval);
+      } catch (Exception e) {
+        LOG.warn("Exception happened when require pre allocation", e);
+      }
+      rpcResponse = blockingStub.requireBuffer(rpcRequest);
+      retry++;
+    }
+    if (rpcResponse.getStatus() == StatusCode.SUCCESS) {
+      result = rpcResponse.getRequireBufferId();
+    }
+    return result;
+  }
+
   @Override
   public RssRegisterShuffleResponse registerShuffle(RssRegisterShuffleRequest request) {
-    RssProtos.ShuffleRegisterResponse rpcResponse = doRegisterShuffle(
+    ShuffleRegisterResponse rpcResponse = doRegisterShuffle(
         request.getAppId(),
         request.getShuffleId(),
         request.getStart(),
@@ -162,12 +135,79 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
 
   @Override
   public RssSendShuffleDataResponse sendShuffleData(RssSendShuffleDataRequest request) {
-    return doSendShuffleData(request.getAppId(), request.getShuffleIdToBlocks());
+    String appId = request.getAppId();
+    Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleIdToBlocks = request.getShuffleIdToBlocks();
+
+    List<ShuffleBlockInfo> shuffleBlockInfos = Lists.newArrayList();
+    boolean isSuccessful = true;
+
+    // prepare rpc request based on shuffleId -> partitionId -> blocks
+    for (Map.Entry<Integer, Map<Integer, List<ShuffleBlockInfo>>> stb : shuffleIdToBlocks.entrySet()) {
+      List<ShuffleData> shuffleData = Lists.newArrayList();
+      int size = 0;
+      int blockNum = 0;
+      for (Map.Entry<Integer, List<ShuffleBlockInfo>> ptb : stb.getValue().entrySet()) {
+        List<ShuffleBlock> shuffleBlocks = Lists.newArrayList();
+        for (ShuffleBlockInfo sbi : ptb.getValue()) {
+          shuffleBlockInfos.add(sbi);
+          shuffleBlocks.add(ShuffleBlock.newBuilder().setBlockId(sbi.getBlockId())
+              .setCrc(sbi.getCrc())
+              .setLength(sbi.getLength())
+              .setUncompressLength(sbi.getUncompressLength())
+              .setData(ByteString.copyFrom(sbi.getData()))
+              .build());
+          size += sbi.getLength();
+          blockNum++;
+        }
+        shuffleData.add(ShuffleData.newBuilder().setPartitionId(ptb.getKey())
+            .addAllBlock(shuffleBlocks)
+            .build());
+      }
+
+      long requireId = requirePreAllocation(size, request.getRetryMax(), request.getRetryInterval());
+      if (requireId != FAILED_REQUIRE_ID) {
+        SendShuffleDataRequest rpcRequest = SendShuffleDataRequest.newBuilder()
+            .setAppId(appId)
+            .setShuffleId(stb.getKey())
+            .setRequireBufferId(requireId)
+            .addAllShuffleData(shuffleData)
+            .build();
+        long start = System.currentTimeMillis();
+        SendShuffleDataResponse response = blockingStub.sendShuffleData(rpcRequest);
+        LOG.info("Do sendShuffleData rpc cost:" + (System.currentTimeMillis() - start)
+            + " ms for " + size + " bytes with " + blockNum + " blocks");
+
+        if (response.getStatus() != StatusCode.SUCCESS) {
+          StringBuilder sb = new StringBuilder();
+          for (ShuffleBlockInfo sbi : shuffleBlockInfos) {
+            sb.append(sbi.toString()).append("\n");
+          }
+          String msg = "Can't send shuffle data to " + host + ":" + port
+              + " for " + sb.toString()
+              + "statusCode=" + response.getStatus()
+              + ", errorMsg:" + response.getRetMsg();
+          LOG.warn(msg);
+          isSuccessful = false;
+          break;
+        }
+      } else {
+        isSuccessful = false;
+        break;
+      }
+    }
+
+    RssSendShuffleDataResponse response;
+    if (isSuccessful) {
+      response = new RssSendShuffleDataResponse(ResponseStatusCode.SUCCESS);
+    } else {
+      response = new RssSendShuffleDataResponse(ResponseStatusCode.INTERNAL_ERROR);
+    }
+    return response;
   }
 
   @Override
   public RssSendCommitResponse sendCommit(RssSendCommitRequest request) {
-    RssProtos.ShuffleCommitResponse rpcResponse = doSendCommit(request.getAppId(), request.getShuffleId());
+    ShuffleCommitResponse rpcResponse = doSendCommit(request.getAppId(), request.getShuffleId());
 
     RssSendCommitResponse response;
     if (rpcResponse.getStatus() != StatusCode.SUCCESS) {
@@ -215,12 +255,12 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
       }
     }
 
-    RssProtos.ReportShuffleResultRequest recRequest = RssProtos.ReportShuffleResultRequest.newBuilder()
+    ReportShuffleResultRequest recRequest = ReportShuffleResultRequest.newBuilder()
         .setAppId(request.getAppId())
         .setShuffleId(request.getShuffleId())
         .addAllPartitionToBlockIds(partitionToBlockIds)
         .build();
-    RssProtos.ReportShuffleResultResponse rpcResponse = blockingStub.reportShuffleResult(recRequest);
+    ReportShuffleResultResponse rpcResponse = blockingStub.reportShuffleResult(recRequest);
 
     StatusCode statusCode = rpcResponse.getStatus();
     RssReportShuffleResultResponse response;

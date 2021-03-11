@@ -31,7 +31,7 @@ public class ShufflePartitionedBlock {
   }
 
   public long size() {
-    return (long) length;
+    return length;
   }
 
   @Override

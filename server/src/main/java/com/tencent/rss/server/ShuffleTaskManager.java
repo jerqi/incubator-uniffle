@@ -13,6 +13,10 @@ import com.tencent.rss.storage.request.CreateShuffleReadHandlerRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,14 +24,18 @@ public class ShuffleTaskManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleTaskManager.class);
   private final ShuffleFlushManager shuffleFlushManager;
+  private AtomicLong requireBufferId = new AtomicLong(0);
   private ShuffleServerConf conf;
   private long appExpiredWithHB;
   private long appExpiredWithoutHB;
+  private long preAllocationExpired;
   // appId -> shuffleId -> partitionId -> blockIds to avoid too many appId
   private Map<String, Map<Integer, Map<Integer, List<Long>>>> partitionsToBlockIds;
   private ShuffleBufferManager shuffleBufferManager;
   private Map<String, Long> appIds = Maps.newConcurrentMap();
   private Map<String, Map<Long, Integer>> commitCounts = Maps.newHashMap();
+  private Map<Long, PreAllocatedBufferInfo> requireBufferIds = Maps.newConcurrentMap();
+  private ScheduledExecutorService scheduledExecutorService;
 
   public ShuffleTaskManager(
       ShuffleServerConf conf,
@@ -39,6 +47,12 @@ public class ShuffleTaskManager {
     this.shuffleBufferManager = shuffleBufferManager;
     this.appExpiredWithHB = conf.getLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITH_HEARTBEAT);
     this.appExpiredWithoutHB = conf.getLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT);
+    preAllocationExpired = conf.getLong(ShuffleServerConf.SERVER_PRE_ALLOCATION_EXPIRED);
+    // the thread for checking application status
+    scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+    scheduledExecutorService.scheduleAtFixedRate(
+        () -> preAllocatedBufferCheck(), preAllocationExpired / 2,
+        preAllocationExpired / 2, TimeUnit.MILLISECONDS);
   }
 
   public StatusCode registerShuffle(String appId, int shuffleId, int startPartition, int endPartition) {
@@ -46,9 +60,18 @@ public class ShuffleTaskManager {
     return shuffleBufferManager.registerBuffer(appId, shuffleId, startPartition, endPartition);
   }
 
-  public StatusCode cacheShuffleData(String appId, int shuffleId, ShufflePartitionedData spd) {
+  public StatusCode cacheShuffleData(String appId, int shuffleId, long requireBufferId, ShufflePartitionedData spd) {
     refreshAppId(appId);
-    return shuffleBufferManager.cacheShuffleData(appId, shuffleId, spd);
+    boolean isPreAllocated = requireBufferIds.containsKey(requireBufferId);
+    if (!isPreAllocated) {
+      LOG.warn("Can't find requireBufferId[" + requireBufferId + "] for appId[" + appId
+          + "], shuffleId[" + shuffleId + "], partitionId[" + spd.getPartitionId() + "]");
+    }
+    return shuffleBufferManager.cacheShuffleData(appId, shuffleId, isPreAllocated, spd);
+  }
+
+  public void removeRequireBufferId(long requireId) {
+    requireBufferIds.remove(requireId);
   }
 
   public StatusCode commitShuffle(String appId, int shuffleId) throws Exception {
@@ -56,7 +79,6 @@ public class ShuffleTaskManager {
     RangeMap<Integer, Set<Long>> partitionToEventIds = shuffleBufferManager.commitShuffleTask(appId, shuffleId);
     long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
     long start = System.currentTimeMillis();
-    int sleepCount = 0;
     while (true) {
       List<Range<Integer>> removedRanges = Lists.newArrayList();
       for (Map.Entry<Range<Integer>, Set<Long>> entry : partitionToEventIds.asMapOfRanges().entrySet()) {
@@ -81,7 +103,6 @@ public class ShuffleTaskManager {
         break;
       }
       Thread.sleep(1000);
-      sleepCount++;
       if (System.currentTimeMillis() - start > commitTimeout) {
         throw new RuntimeException("Shuffle data commit timeout for " + commitTimeout + " ms");
       }
@@ -116,6 +137,16 @@ public class ShuffleTaskManager {
     int commitNum = shuffleCommit.get(shuffleId) + 1;
     shuffleCommit.put(shuffleId, commitNum);
     return commitNum;
+  }
+
+  public long requireBuffer(int requireSize) {
+    long requireId = -1;
+    if (shuffleBufferManager.requireMemory(requireSize, true)) {
+      requireId = requireBufferId.incrementAndGet();
+      requireBufferIds.put(requireId,
+          new PreAllocatedBufferInfo(requireId, System.currentTimeMillis(), requireSize));
+    }
+    return requireId;
   }
 
   public List<Long> getFinishedBlockIds(String appId, Integer shuffleId, Integer partitionId) {
@@ -195,8 +226,37 @@ public class ShuffleTaskManager {
     appIds.put(appId, System.currentTimeMillis());
   }
 
+  // check pre allocated buffer, release the memory if it expired
+  private void preAllocatedBufferCheck() {
+    long current = System.currentTimeMillis();
+    List<Long> removeIds = Lists.newArrayList();
+    for (PreAllocatedBufferInfo info : requireBufferIds.values()) {
+      if (current - info.getTimestamp() > preAllocationExpired) {
+        removeIds.add(info.getRequireId());
+        shuffleBufferManager.releaseMemory(info.getRequireSize());
+      }
+    }
+    for (Long requireId : removeIds) {
+      requireBufferIds.remove(requireId);
+      LOG.info("Remove expired requireId " + requireId);
+    }
+  }
+
+  public int getRequireBufferSize(long requireId) {
+    PreAllocatedBufferInfo pabi = requireBufferIds.get(requireId);
+    if (pabi == null) {
+      return 0;
+    }
+    return pabi.getRequireSize();
+  }
+
   @VisibleForTesting
   public Map<String, Long> getAppIds() {
     return appIds;
+  }
+
+  @VisibleForTesting
+  Map<Long, PreAllocatedBufferInfo> getRequireBufferIds() {
+    return requireBufferIds;
   }
 }

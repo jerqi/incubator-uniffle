@@ -35,7 +35,8 @@ public class ShuffleBufferManagerTest {
   @Before
   public void setUp() {
     ShuffleServerConf conf = new ShuffleServerConf();
-    conf.setString("rss.server.buffer.capacity", "128");
+    conf.setString("rss.server.buffer.capacity", "150");
+    conf.setString("rss.server.buffer.spill.threshold", "128");
     conf.setString("rss.server.buffer.size", "32");
     mockShuffleFlushManager = mock(ShuffleFlushManager.class);
     shuffleBufferManager = new ShuffleBufferManager(conf, mockShuffleFlushManager);
@@ -69,17 +70,17 @@ public class ShuffleBufferManagerTest {
     String appId = "cacheShuffleDataTest";
     int shuffleId = 1;
 
-    StatusCode sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 16));
+    StatusCode sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 16));
     assertEquals(StatusCode.NO_REGISTER, sc);
     shuffleBufferManager.registerBuffer(appId, shuffleId + 1, 0, 1);
-    sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 16));
+    sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 16));
     assertEquals(StatusCode.NO_REGISTER, sc);
     shuffleBufferManager.registerBuffer(appId, shuffleId, 100, 101);
-    sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 16));
+    sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 16));
     assertEquals(StatusCode.NO_REGISTER, sc);
 
     shuffleBufferManager.registerBuffer(appId, shuffleId, 0, 1);
-    sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 16));
+    sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 16));
     assertEquals(StatusCode.SUCCESS, sc);
 
     Map<String, Map<Integer, RangeMap<Integer, ShuffleBuffer>>> bufferPool = shuffleBufferManager.getBufferPool();
@@ -87,26 +88,26 @@ public class ShuffleBufferManagerTest {
     assertEquals(16, buffer.getSize());
     assertEquals(16, shuffleBufferManager.getSize());
 
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 16));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 16));
     assertEquals(32, buffer.getSize());
     assertEquals(32, shuffleBufferManager.getSize());
 
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 1));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 1));
     assertEquals(0, buffer.getSize());
     assertEquals(33, shuffleBufferManager.getSize());
     verify(mockShuffleFlushManager, times(1)).addToFlushQueue(any());
 
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 95));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 95));
     assertEquals(0, buffer.getSize());
     assertEquals(128, shuffleBufferManager.getSize());
     verify(mockShuffleFlushManager, times(2)).addToFlushQueue(any());
 
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 1));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 22));
     assertEquals(0, buffer.getSize());
-    assertEquals(129, shuffleBufferManager.getSize());
+    assertEquals(150, shuffleBufferManager.getSize());
     verify(mockShuffleFlushManager, times(3)).addToFlushQueue(any());
 
-    sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 16));
+    sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 16));
     assertEquals(StatusCode.NO_BUFFER, sc);
 
     // size won't be reduce which should be processed by flushManager, reset buffer size to 0
@@ -116,14 +117,68 @@ public class ShuffleBufferManagerTest {
     shuffleBufferManager.registerBuffer("appId1", shuffleId, 0, 1);
     shuffleBufferManager.registerBuffer("appId2", shuffleId, 0, 1);
 
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 32));
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(2, 32));
-    shuffleBufferManager.cacheShuffleData(appId, 2, createData(0, 32));
-    shuffleBufferManager.cacheShuffleData("appId1", shuffleId, createData(0, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(2, 32));
+    shuffleBufferManager.cacheShuffleData(appId, 2, false, createData(0, 32));
+    shuffleBufferManager.cacheShuffleData("appId1", shuffleId, false, createData(0, 32));
     assertEquals(128, shuffleBufferManager.getSize());
-    shuffleBufferManager.cacheShuffleData("appId2", shuffleId, createData(0, 32));
+    shuffleBufferManager.cacheShuffleData("appId2", shuffleId, false, createData(0, 32));
     assertEquals(160, shuffleBufferManager.getSize());
     verify(mockShuffleFlushManager, times(8)).addToFlushQueue(any());
+  }
+
+  @Test
+  public void cacheShuffleDataWithPreAllocationTest() {
+    String appId = "cacheShuffleDataWithPreAllocationTest";
+    int shuffleId = 1;
+
+    shuffleBufferManager.registerBuffer(appId, shuffleId, 0, 1);
+    // pre allocate memory
+    shuffleBufferManager.requireMemory(16, true);
+    assertEquals(16, shuffleBufferManager.getSize());
+    assertEquals(16, shuffleBufferManager.getPreAllocatedSize());
+    // receive data with preAllocation
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, true, createData(0, 16));
+    assertEquals(16, shuffleBufferManager.getSize());
+    assertEquals(0, shuffleBufferManager.getPreAllocatedSize());
+    // release memory
+    shuffleBufferManager.releaseMemory(16);
+    assertEquals(0, shuffleBufferManager.getSize());
+    assertEquals(0, shuffleBufferManager.getPreAllocatedSize());
+    // receive data without preAllocation
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 17));
+    assertEquals(17, shuffleBufferManager.getSize());
+    assertEquals(0, shuffleBufferManager.getPreAllocatedSize());
+    // single buffer flush
+    verify(mockShuffleFlushManager, times(1)).addToFlushQueue(any());
+    // release memory
+    shuffleBufferManager.releaseMemory(17);
+    assertEquals(0, shuffleBufferManager.getSize());
+    assertEquals(0, shuffleBufferManager.getPreAllocatedSize());
+
+    // pre allocate all memory
+    shuffleBufferManager.requireMemory(150, true);
+    assertEquals(150, shuffleBufferManager.getSize());
+    assertEquals(150, shuffleBufferManager.getPreAllocatedSize());
+
+    // no buffer if data without pre allocation
+    StatusCode sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(1, 16));
+    assertEquals(StatusCode.NO_BUFFER, sc);
+
+    // pre allocation > threshold, but actual data size < threshold / 2, won't flush
+    sc = shuffleBufferManager.cacheShuffleData(appId, shuffleId, true, createData(1, 16));
+    assertEquals(StatusCode.SUCCESS, sc);
+    assertEquals(150, shuffleBufferManager.getSize());
+    assertEquals(134, shuffleBufferManager.getPreAllocatedSize());
+    // no flush happen
+    verify(mockShuffleFlushManager, times(1)).addToFlushQueue(any());
+
+    // actual data size > threshold / 2, flush
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, true, createData(0, 60));
+    assertEquals(StatusCode.SUCCESS, sc);
+    assertEquals(150, shuffleBufferManager.getSize());
+    assertEquals(74, shuffleBufferManager.getPreAllocatedSize());
+    verify(mockShuffleFlushManager, times(2)).addToFlushQueue(any());
   }
 
   @Test
@@ -137,21 +192,21 @@ public class ShuffleBufferManagerTest {
     RangeMap<Integer, Set<Long>> rangeMap = shuffleBufferManager.commitShuffleTask(appId, shuffleId);
     assertEquals(0, rangeMap.asMapOfRanges().size());
 
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 32));
     rangeMap = shuffleBufferManager.commitShuffleTask(appId, shuffleId);
     assertEquals(1, rangeMap.get(0).size());
 
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 32));
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(2, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(2, 32));
     rangeMap = shuffleBufferManager.commitShuffleTask(appId, shuffleId);
     assertEquals(1, rangeMap.get(0).size());
     assertEquals(1, rangeMap.get(2).size());
 
     // size won't be reduce which should be processed by flushManager, reset buffer size to 0
     shuffleBufferManager.resetSize();
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 32));
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(2, 32));
-    shuffleBufferManager.cacheShuffleData(appId, 2, createData(0, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(2, 32));
+    shuffleBufferManager.cacheShuffleData(appId, 2, false, createData(0, 32));
     rangeMap = shuffleBufferManager.commitShuffleTask(appId, shuffleId);
     Map<Range<Integer>, Set<Long>> map = rangeMap.asMapOfRanges();
     assertEquals(2, map.size());
@@ -166,7 +221,8 @@ public class ShuffleBufferManagerTest {
     File dataDir = new File(tmpDir, "data");
     conf.setString("rss.storage.type", StorageType.LOCALFILE.name());
     conf.setString("rss.storage.basePath", dataDir.getAbsolutePath());
-    conf.setString("rss.server.buffer.capacity", "128");
+    conf.setString("rss.server.buffer.capacity", "150");
+    conf.setString("rss.server.buffer.spill.threshold", "128");
     conf.setString("rss.server.buffer.size", "32");
 
     ShuffleServer mockShuffleServer = mock(ShuffleServer.class);
@@ -188,25 +244,25 @@ public class ShuffleBufferManagerTest {
     shuffleBufferManager.registerBuffer(appId, shuffleId, 4, 5);
     shuffleBufferManager.registerBuffer(appId, shuffleId, 6, 7);
     shuffleBufferManager.registerBuffer(appId, shuffleId, 8, 9);
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 16));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 16));
     assertEquals(16, shuffleBufferManager.getSize());
 
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 16));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 16));
     assertEquals(32, shuffleBufferManager.getSize());
 
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 1));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 1));
     waitForFlush(shuffleFlushManager, appId, shuffleId, Range.closed(0, 1), 1);
     assertEquals(0, shuffleBufferManager.getSize());
 
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 32));
     assertEquals(32, shuffleBufferManager.getSize());
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(2, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(2, 32));
     assertEquals(64, shuffleBufferManager.getSize());
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(4, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(4, 32));
     assertEquals(96, shuffleBufferManager.getSize());
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(6, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(6, 32));
     assertEquals(128, shuffleBufferManager.getSize());
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(8, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(8, 32));
     waitForFlush(shuffleFlushManager, appId, shuffleId, Range.closed(0, 1), 2);
     waitForFlush(shuffleFlushManager, appId, shuffleId, Range.closed(2, 3), 1);
     waitForFlush(shuffleFlushManager, appId, shuffleId, Range.closed(4, 5), 1);
@@ -215,9 +271,9 @@ public class ShuffleBufferManagerTest {
     assertEquals(0, shuffleBufferManager.getSize());
 
     shuffleBufferManager.registerBuffer("bufferSizeTest1", shuffleId, 0, 1);
-    shuffleBufferManager.cacheShuffleData(appId, shuffleId, createData(0, 32));
+    shuffleBufferManager.cacheShuffleData(appId, shuffleId, false, createData(0, 32));
     assertEquals(32, shuffleBufferManager.getSize());
-    shuffleBufferManager.cacheShuffleData("bufferSizeTest1", shuffleId, createData(0, 32));
+    shuffleBufferManager.cacheShuffleData("bufferSizeTest1", shuffleId, false, createData(0, 32));
     assertEquals(64, shuffleBufferManager.getSize());
     assertEquals(2, shuffleBufferManager.getBufferPool().keySet().size());
     shuffleBufferManager.removeBuffer(appId);

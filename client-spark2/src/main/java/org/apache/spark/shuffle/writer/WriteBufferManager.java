@@ -36,7 +36,9 @@ public class WriteBufferManager extends MemoryConsumer {
   private Map<Integer, List<ShuffleServerInfo>> partitionToServers;
   private int serializerBufferSize;
   private int serializerMaxBufferSize;
-  private long copyTime;
+  private long copyTime = 0;
+  private long serializeTime = 0;
+  private long compressTime = 0;
   private long writeTime = 0;
 
   public WriteBufferManager(
@@ -54,7 +56,6 @@ public class WriteBufferManager extends MemoryConsumer {
     this.instance = serializer.newInstance();
     this.buffers = Maps.newHashMap();
     this.allocatedBytes = 0;
-    this.copyTime = 0;
     this.shuffleId = shuffleId;
     this.partitionToServers = partitionToServers;
     this.shuffleWriteMetrics = shuffleWriteMetrics;
@@ -64,7 +65,7 @@ public class WriteBufferManager extends MemoryConsumer {
 
   // add record to cache, return [partition, ShuffleBlock] if meet spill condition
   public List<ShuffleBlockInfo> addRecord(int partitionId, Object key, Object value) {
-    final long s = System.currentTimeMillis();
+    final long start = System.currentTimeMillis();
     List<ShuffleBlockInfo> result = Lists.newArrayList();
     if (buffers.containsKey(partitionId)) {
       WriterBuffer wb = buffers.get(partitionId);
@@ -75,6 +76,7 @@ public class WriteBufferManager extends MemoryConsumer {
         result.add(createShuffleBlock(partitionId, wb.getData(), wb.getMemorySize()));
         wb.clear();
         copyTime += wb.getCopyTime();
+        serializeTime += wb.getSerializeTime();
         buffers.remove(partitionId);
         LOG.debug("Single buffer is full for shuffleId[" + shuffleId
             + "] partition[" + partitionId + "] with " + length + " bytes");
@@ -90,6 +92,7 @@ public class WriteBufferManager extends MemoryConsumer {
         result.add(createShuffleBlock(partitionId, wb.getData(), wb.getMemorySize()));
         wb.clear();
         copyTime += wb.getCopyTime();
+        serializeTime += wb.getSerializeTime();
         LOG.debug("Single buffer is full for shuffleId[" + shuffleId
             + "] partition[" + partitionId + "] with " + length + " bytes");
       } else {
@@ -102,7 +105,7 @@ public class WriteBufferManager extends MemoryConsumer {
     if (allocatedBytes > spillSize) {
       result = clear();
     }
-    writeTime += System.currentTimeMillis() - s;
+    writeTime += System.currentTimeMillis() - start;
 
     return result;
   }
@@ -110,15 +113,20 @@ public class WriteBufferManager extends MemoryConsumer {
   // transform all [partition, records] to [partition, ShuffleBlockInfo] and clear cache
   public List<ShuffleBlockInfo> clear() {
     List<ShuffleBlockInfo> result = Lists.newArrayList();
+    long allocatedMemory = allocatedBytes;
+    long dataSize = 0;
     for (Entry<Integer, WriterBuffer> entry : buffers.entrySet()) {
       WriterBuffer wb = entry.getValue();
+      dataSize += wb.getLength();
       if (wb.getLength() > 0) {
         result.add(createShuffleBlock(entry.getKey(), wb.getData(), wb.getMemorySize()));
       }
       wb.clear();
       copyTime += wb.getCopyTime();
+      serializeTime += wb.getSerializeTime();
     }
-    LOG.info("Flush total buffer for shuffleId[" + shuffleId + "] with allocated[" + allocatedBytes + "]");
+    LOG.info("Flush total buffer for shuffleId[" + shuffleId + "] with allocated["
+        + allocatedMemory + "], dataSize[" + dataSize + "]");
     buffers.clear();
     allocatedBytes = 0;
     return result;
@@ -126,17 +134,18 @@ public class WriteBufferManager extends MemoryConsumer {
 
   // transform records to shuffleBlock
   private ShuffleBlockInfo createShuffleBlock(int partitionId, byte[] data, int freeMemory) {
-    int uncompressLength = data.length;
-    byte[] compressed = RssShuffleUtils.compressData(data);
-    long crc32 = ChecksumUtils.getCrc32(compressed);
+    final int uncompressLength = data.length;
+    long start = System.currentTimeMillis();
+    final byte[] compressed = RssShuffleUtils.compressData(data);
+    final long crc32 = ChecksumUtils.getCrc32(compressed);
+    compressTime += System.currentTimeMillis() - start;
     long blockId = ClientUtils.getBlockId(executorId, ClientUtils.getAtomicInteger());
     shuffleWriteMetrics.incBytesWritten(compressed.length);
     // just free memory from buffer manager, doesn't return to Executor now,
     // it will happen after send block to shuffle server
     allocatedBytes -= freeMemory;
-    return new ShuffleBlockInfo(shuffleId, partitionId,
-        blockId,
-        compressed.length, crc32, compressed, partitionToServers.get(partitionId), uncompressLength);
+    return new ShuffleBlockInfo(shuffleId, partitionId, blockId, compressed.length, crc32,
+        compressed, partitionToServers.get(partitionId), uncompressLength);
   }
 
   private void requestMemory(long requiredMem) {
@@ -200,5 +209,13 @@ public class WriteBufferManager extends MemoryConsumer {
 
   public long getWriteTime() {
     return writeTime;
+  }
+
+  public long getSerializeTime() {
+    return serializeTime;
+  }
+
+  public long getCompressTime() {
+    return compressTime;
   }
 }

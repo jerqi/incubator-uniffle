@@ -150,11 +150,11 @@ public class RssShuffleManager implements ShuffleManager {
 
     registerShuffleServers(appId, shuffleId, shuffleRegisterInfoList);
 
-    LOG.info("RegisterShuffle with ShuffleId[" + shuffleId + "], size:" + partitionToServers.size());
-    LOG.info("Shuffle result assignment with ShuffleId[" + shuffleId + "], " + shuffleServerForResult);
+    LOG.debug("RegisterShuffle with ShuffleId[" + shuffleId + "], size:" + partitionToServers.size());
+    LOG.debug("Shuffle result assignment with ShuffleId[" + shuffleId + "], " + shuffleServerForResult);
     for (Map.Entry<Integer, List<ShuffleServerInfo>> entry : partitionToServers.entrySet()) {
       for (ShuffleServerInfo ssi : entry.getValue()) {
-        LOG.info("RegisterShuffle ShuffleId[" + shuffleId + "], partitionId[" + entry.getKey()
+        LOG.debug("RegisterShuffle ShuffleId[" + shuffleId + "], partitionId[" + entry.getKey()
             + "], shuffleServer[" + ssi.getId() + "]");
       }
     }
@@ -187,7 +187,7 @@ public class RssShuffleManager implements ShuffleManager {
     for (ShuffleRegisterInfo sri : shuffleRegisterInfoList) {
       shuffleWriteClient.registerShuffle(
           sri.getShuffleServerInfo(), appId, shuffleId, sri.getStart(), sri.getEnd());
-      LOG.info("Register with " + sri + " successfully");
+      LOG.debug("Register with " + sri + " successfully");
     }
   }
 
