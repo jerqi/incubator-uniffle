@@ -110,25 +110,30 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     StatusCode ret = StatusCode.SUCCESS;
     String responseMessage = "OK";
     if (req.getShuffleDataCount() > 0) {
-      final long s = System.currentTimeMillis();
-      List<ShufflePartitionedData> shufflePartitionedData = toPartitionedData(req);
-      LOG.debug("Received data {} bytes", requireSize);
-
       ShuffleServerMetrics.counterTotalReceivedDataSize.inc(requireSize);
-
+      boolean isPreAllocated = shuffleServer.getShuffleTaskManager().isPreAllocated(requireBufferId);
+      if (!isPreAllocated) {
+        LOG.warn("Can't find requireBufferId[" + requireBufferId + "] for appId[" + appId
+            + "], shuffleId[" + shuffleId + "]");
+      }
+      final long start = System.currentTimeMillis();
+      List<ShufflePartitionedData> shufflePartitionedData = toPartitionedData(req);
       for (ShufflePartitionedData spd : shufflePartitionedData) {
         String shuffleDataInfo = "appId[" + appId + "], shuffleId[" + shuffleId
             + "], partitionId[" + spd.getPartitionId() + "]";
         try {
           ret = shuffleServer
               .getShuffleTaskManager()
-              .cacheShuffleData(appId, shuffleId, requireBufferId, spd);
+              .cacheShuffleData(appId, shuffleId, isPreAllocated, spd);
           if (ret != StatusCode.SUCCESS) {
             String errorMsg = "Error happened when shuffleEngine.write for "
                 + shuffleDataInfo + ", statusCode=" + ret;
             LOG.error(errorMsg);
             responseMessage = errorMsg;
             break;
+          } else {
+            shuffleServer.getShuffleTaskManager().updateCachedBlockCount(
+                appId, shuffleId, spd.getBlockList().size());
           }
         } catch (Exception e) {
           String errorMsg = "Error happened when shuffleEngine.write for "
@@ -142,8 +147,11 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
       shuffleServer
           .getShuffleTaskManager().removeRequireBufferId(requireBufferId);
       reply = SendShuffleDataResponse.newBuilder().setStatus(valueOf(ret)).setRetMsg(responseMessage).build();
-      LOG.debug("Cache Shuffle Data cost " + (System.currentTimeMillis() - s)
-          + " ms with " + shufflePartitionedData + " blocks and " + requireSize + " bytes");
+      LOG.debug("Cache Shuffle Data for appId[" + appId + "], shuffleId[" + shuffleId
+          + "], cost " + (System.currentTimeMillis() - start)
+          + " ms with " + shufflePartitionedData.size() + " blocks and " + requireSize
+          + " bytes, the current block num is about "
+          + shuffleServer.getShuffleTaskManager().getCachedBlockCount(appId, shuffleId));
     } else {
       reply = SendShuffleDataResponse
           .newBuilder()
@@ -172,7 +180,6 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     int commitCount = 0;
 
     try {
-      status = shuffleServer.getShuffleTaskManager().commitShuffle(appId, shuffleId);
       commitCount = shuffleServer.getShuffleTaskManager().updateAndGetCommitCount(appId, shuffleId);
     } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
@@ -195,12 +202,14 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
       StreamObserver<FinishShuffleResponse> responseObserver) {
     String appId = req.getAppId();
     int shuffleId = req.getShuffleId();
-    StatusCode status = StatusCode.SUCCESS;
+    StatusCode status;
     String msg = "OK";
     String errorMsg = "Fail to finish shuffle for appId["
         + appId + "], shuffleId[" + shuffleId + "], data may be lost";
     try {
-      if (!shuffleServer.getShuffleTaskManager().finishShuffle(appId, shuffleId)) {
+      status = shuffleServer.getShuffleTaskManager().commitShuffle(appId, shuffleId);
+      if (status != StatusCode.SUCCESS
+          || !shuffleServer.getShuffleTaskManager().finishShuffle(appId, shuffleId)) {
         status = StatusCode.INTERNAL_ERROR;
         msg = errorMsg;
       }

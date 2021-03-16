@@ -1,7 +1,8 @@
 package org.apache.spark.shuffle.writer;
 
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.commons.lang3.ArrayUtils;
+import com.google.common.collect.Lists;
+import java.util.List;
 import org.apache.spark.serializer.SerializationStream;
 import org.apache.spark.serializer.SerializerInstance;
 import scala.reflect.ClassTag$;
@@ -12,16 +13,16 @@ public class WriterBuffer {
   public static final int INDEX_EXTRA_MEMORY = 1;
   private SerializationStream serializeStream;
   private Output output;
-  private byte[] buffer;
+  private List<byte[]> buffers = Lists.newArrayList();
   private int serializerBufferSize;
-  private int serializerMaxBufferSize;
+  private int memorySize;
+  private int dataLength = 0;
   private long copyTime = 0;
   private long serializeTime = 0;
 
   public WriterBuffer(SerializerInstance instance, int serializerBufferSize, int serializerMaxBufferSize) {
-    this.buffer = new byte[0];
     this.serializerBufferSize = serializerBufferSize;
-    this.serializerMaxBufferSize = serializerMaxBufferSize;
+    this.memorySize = serializerMaxBufferSize;
     output = new Output(serializerBufferSize, serializerMaxBufferSize);
     serializeStream = instance.serializeStream(output);
   }
@@ -38,40 +39,42 @@ public class WriterBuffer {
     int extraMemory = 0;
     if (output.position() > serializerBufferSize) {
       extraMemory = output.position();
-      long s = System.currentTimeMillis();
-      buffer = ArrayUtils.addAll(buffer, output.toBytes());
-      copyTime += System.currentTimeMillis() - s;
+      buffers.add(output.toBytes());
+      memorySize += extraMemory;
+      dataLength += extraMemory;
       output.clear();
     }
     return new int[]{recordSize, extraMemory};
   }
 
   public byte[] getData() {
-    if (buffer.length == 0) {
+    if (buffers.size() == 0) {
       return output.toBytes();
-    } else if (output.position() == 0) {
-      return buffer;
     }
+    byte[] data = new byte[getLength()];
+    int nextStart = 0;
     long s = System.currentTimeMillis();
-    byte[] result = ArrayUtils.addAll(buffer, output.toBytes());
+    for (byte[] buf : buffers) {
+      System.arraycopy(buf, 0, data, nextStart, buf.length);
+      nextStart += buf.length;
+    }
+    if (output.position() > 0) {
+      System.arraycopy(output.toBytes(), 0, data, nextStart, output.position());
+    }
     copyTime += System.currentTimeMillis() - s;
-    return result;
+    return data;
   }
 
   public int getLength() {
-    return buffer.length + output.position();
+    return dataLength + output.position();
   }
 
   public int getMemorySize() {
-    if (buffer.length == 0) {
-      return serializerMaxBufferSize;
-    } else {
-      return buffer.length + serializerMaxBufferSize;
-    }
+    return memorySize;
   }
 
   public void clear() {
-    buffer = null;
+    buffers.clear();
     serializeStream.close();
   }
 

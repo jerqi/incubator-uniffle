@@ -213,6 +213,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       if (blockIds.isEmpty()) {
         break;
       }
+      LOG.info("Wait " + blockIds.size() + " blocks sent to shuffle server");
       try {
         Thread.sleep(sendCheckInterval);
       } catch (Exception e) {

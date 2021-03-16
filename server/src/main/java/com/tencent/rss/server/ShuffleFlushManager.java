@@ -5,7 +5,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
-import com.google.common.collect.Sets;
 import com.google.common.collect.TreeRangeMap;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.config.RssBaseConf;
@@ -14,7 +13,6 @@ import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
 import com.tencent.rss.storage.request.CreateShuffleWriteHandlerRequest;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -34,10 +32,10 @@ public class ShuffleFlushManager {
   private final String shuffleServerId;
   private final String storageType;
   private final Configuration hadoopConf;
-  // appId -> shuffleId -> partitionId -> eventIds
-  private Map<String, Map<Integer, RangeMap<Integer, Set<Long>>>> eventIds = Maps.newConcurrentMap();
   // appId -> shuffleId -> partitionId -> handlers
   private Map<String, Map<Integer, RangeMap<Integer, ShuffleWriteHandler>>> handlers = Maps.newConcurrentMap();
+  // appId -> shuffleId -> committed shuffle block data count
+  private Map<String, Map<Long, Integer>> committedBlockCount = Maps.newHashMap();
   private boolean isRunning;
   private Runnable processEventThread;
 
@@ -46,7 +44,7 @@ public class ShuffleFlushManager {
     this.shuffleServer = shuffleServer;
     this.hadoopConf = new Configuration();
     hadoopConf.setInt("dfs.replication", shuffleServerConf.getInteger(ShuffleServerConf.DATA_STORAGE_REPLICA));
-    int poolSize = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_SIZE);
+    final int poolSize = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_SIZE);
     long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.SERVER_FLUSH_THREAD_ALIVE);
     storageType = shuffleServerConf.get(RssBaseConf.DATA_STORAGE_TYPE);
     int waitQueueSize = shuffleServerConf.getInteger(
@@ -61,7 +59,9 @@ public class ShuffleFlushManager {
       try {
         while (isRunning) {
           ShuffleDataFlushEvent event = flushQueue.take();
-          threadPoolExecutor.execute(() -> flushToFile(event));
+          threadPoolExecutor.execute(() -> {
+            flushToFile(event);
+          });
         }
       } catch (InterruptedException ie) {
         LOG.error("Exception happened when process event.", ie);
@@ -76,34 +76,25 @@ public class ShuffleFlushManager {
   }
 
   private void flushToFile(ShuffleDataFlushEvent event) {
-    long startTime = System.currentTimeMillis();
+    long start = System.currentTimeMillis();
     List<ShufflePartitionedBlock> blocks = event.getShuffleBlocks();
-
     try {
       if (blocks == null || blocks.isEmpty()) {
         LOG.info("There is no block to be flushed: " + event);
       } else {
         ShuffleWriteHandler handler = getHandler(event);
         handler.write(blocks);
-
-        long writeSize = event.getSize();
-        long writeTime = System.currentTimeMillis() - startTime;
-        ShuffleServerMetrics.counterTotalWriteDataSize.inc(writeSize);
-
-        if (writeTime != 0) {
-          double writeSpeed = ((double) writeSize) / ((double) writeTime) / 1000.0;
-          ShuffleServerMetrics.histogramWriteSpeed.observe(writeSpeed);
-        }
       }
-
-      addEventId(event);
+      updateCommittedBlockCount(event.getAppId(), event.getShuffleId(), event.getShuffleBlocks().size());
     } catch (Exception e) {
       // just log the error, don't throw the exception and stop the flush thread
       LOG.error("Exception happened when process flush shuffle data for " + event, e);
     } finally {
       if (shuffleServer != null) {
         shuffleServer.getShuffleBufferManager().releaseMemory(event.getSize());
-        LOG.debug("Flush to file success and release " + event.getSize() + " bytes");
+        shuffleServer.getShuffleBufferManager().releaseFlushMemory(event.getSize());
+        LOG.debug("Flush to file success in " + (System.currentTimeMillis() - start)
+            + " ms and release " + event.getSize() + " bytes");
       }
     }
   }
@@ -123,17 +114,6 @@ public class ShuffleFlushManager {
     return eventIdRangeMap.get(event.getStartPartition());
   }
 
-  private synchronized void addEventId(ShuffleDataFlushEvent event) {
-    eventIds.putIfAbsent(event.getAppId(), Maps.newConcurrentMap());
-    Map<Integer, RangeMap<Integer, Set<Long>>> shuffleIdToEventIds = eventIds.get(event.getAppId());
-    shuffleIdToEventIds.putIfAbsent(event.getShuffleId(), TreeRangeMap.create());
-    RangeMap<Integer, Set<Long>> eventIdRangeMap = shuffleIdToEventIds.get(event.getShuffleId());
-    if (eventIdRangeMap.get(event.getStartPartition()) == null) {
-      eventIdRangeMap.put(Range.closed(event.getStartPartition(), event.getEndPartition()), Sets.newHashSet());
-    }
-    eventIdRangeMap.get(event.getStartPartition()).add(event.getEventId());
-  }
-
   public boolean closeHandlers(String appId, int shuffleId) {
     Map<Integer, RangeMap<Integer, ShuffleWriteHandler>> shuffleToHandlers = handlers.get(appId);
     if (shuffleToHandlers != null) {
@@ -150,32 +130,31 @@ public class ShuffleFlushManager {
     return true;
   }
 
-  public synchronized Set<Long> getEventIds(String appId, int shuffleId, Range<Integer> range) {
-    Map<Integer, RangeMap<Integer, Set<Long>>> shuffleIdToEventIds = eventIds.get(appId);
-    if (shuffleIdToEventIds == null) {
-      return Sets.newHashSet();
+  private synchronized void updateCommittedBlockCount(String appId, long shuffleId, int blockNum) {
+    if (!committedBlockCount.containsKey(appId)) {
+      committedBlockCount.put(appId, Maps.newHashMap());
     }
-    RangeMap<Integer, Set<Long>> eventIdRangeMap = shuffleIdToEventIds.get(shuffleId);
-    if (eventIdRangeMap == null) {
-      return Sets.newHashSet();
+    Map<Long, Integer> committedBlocks = committedBlockCount.get(appId);
+    if (!committedBlocks.containsKey(shuffleId)) {
+      committedBlocks.put(shuffleId, 0);
     }
-
-    Set<Long> result = eventIdRangeMap.get(range.lowerEndpoint());
-    if (result == null) {
-      result = Sets.newHashSet();
-    }
-    // return the snapshot to avoid concurrentModification exception because eventIds will change
-    return Sets.newHashSet(result);
+    committedBlocks.put(shuffleId, committedBlocks.get(shuffleId) + blockNum);
   }
 
-  @VisibleForTesting
-  protected Map<String, Map<Integer, RangeMap<Integer, Set<Long>>>> getEventIds() {
-    return eventIds;
+  public int getCommittedBlockCount(String appId, long shuffleId) {
+    if (!committedBlockCount.containsKey(appId)) {
+      return 0;
+    }
+    Map<Long, Integer> committedBlocks = committedBlockCount.get(appId);
+    if (!committedBlocks.containsKey(shuffleId)) {
+      return 0;
+    }
+    return committedBlocks.get(shuffleId);
   }
 
   public void removeResources(String appId) {
-    eventIds.remove(appId);
     handlers.remove(appId);
+    committedBlockCount.remove(appId);
   }
 
   @VisibleForTesting

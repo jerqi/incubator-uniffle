@@ -74,7 +74,10 @@ public class RssShuffleManager implements ShuffleManager {
       }
     }
 
-    private void putBlockId(Map<String, Set<Long>> taskToBlockIds, String taskAttempId, List<Long> blockIds) {
+    private synchronized void putBlockId(
+        Map<String, Set<Long>> taskToBlockIds,
+        String taskAttempId,
+        Set<Long> blockIds) {
       if (blockIds == null) {
         return;
       }

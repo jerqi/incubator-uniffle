@@ -1,16 +1,13 @@
 package com.tencent.rss.server;
 
-import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 
 public class ShuffleBuffer {
 
   private final int capacity;
-  private Set<Long> eventIds = Sets.newConcurrentHashSet();
 
   private int size;
   private List<ShufflePartitionedBlock> blocks;
@@ -50,16 +47,9 @@ public class ShuffleBuffer {
         endPartition,
         size,
         spBlocks);
-    eventIds.add(event.getEventId());
     blocks.clear();
     size = 0;
     return event;
-  }
-
-  public synchronized Set<Long> getAndClearEventIds() {
-    Set<Long> snapshot = Sets.newHashSet(eventIds);
-    eventIds.clear();
-    return snapshot;
   }
 
   public List<ShufflePartitionedBlock> getBlocks() {

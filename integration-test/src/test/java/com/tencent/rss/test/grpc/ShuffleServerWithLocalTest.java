@@ -7,6 +7,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.tencent.rss.client.impl.grpc.ShuffleServerGrpcClient;
+import com.tencent.rss.client.request.RssFinishShuffleRequest;
 import com.tencent.rss.client.request.RssGetShuffleDataRequest;
 import com.tencent.rss.client.request.RssRegisterShuffleRequest;
 import com.tencent.rss.client.request.RssSendCommitRequest;
@@ -90,6 +91,8 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
     shuffleServerClient.sendShuffleData(rssdr);
     RssSendCommitRequest rscr = new RssSendCommitRequest("appId", 0);
     shuffleServerClient.sendCommit(rscr);
+    RssFinishShuffleRequest rfsr = new RssFinishShuffleRequest("appId", 0);
+    shuffleServerClient.finishShuffle(rfsr);
 
     RssGetShuffleDataRequest rgsdr = new RssGetShuffleDataRequest(
         "appId", 0, 0, 2, 10, 1000, expectedBlockIds1);

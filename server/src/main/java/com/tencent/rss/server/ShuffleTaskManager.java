@@ -3,8 +3,6 @@ package com.tencent.rss.server;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Range;
-import com.google.common.collect.RangeMap;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedData;
@@ -29,11 +27,15 @@ public class ShuffleTaskManager {
   private long appExpiredWithHB;
   private long appExpiredWithoutHB;
   private long preAllocationExpired;
+  private long commitCheckInterval;
   // appId -> shuffleId -> partitionId -> blockIds to avoid too many appId
   private Map<String, Map<Integer, Map<Integer, List<Long>>>> partitionsToBlockIds;
   private ShuffleBufferManager shuffleBufferManager;
   private Map<String, Long> appIds = Maps.newConcurrentMap();
+  // appId -> shuffleId -> commit count
   private Map<String, Map<Long, Integer>> commitCounts = Maps.newHashMap();
+  // appId -> shuffleId -> shuffle block count
+  private Map<String, Map<Long, Integer>> cachedBlockCount = Maps.newHashMap();
   private Map<Long, PreAllocatedBufferInfo> requireBufferIds = Maps.newConcurrentMap();
   private ScheduledExecutorService scheduledExecutorService;
 
@@ -47,7 +49,8 @@ public class ShuffleTaskManager {
     this.shuffleBufferManager = shuffleBufferManager;
     this.appExpiredWithHB = conf.getLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITH_HEARTBEAT);
     this.appExpiredWithoutHB = conf.getLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT);
-    preAllocationExpired = conf.getLong(ShuffleServerConf.SERVER_PRE_ALLOCATION_EXPIRED);
+    this.commitCheckInterval = conf.getLong(ShuffleServerConf.SERVER_COMMIT_CHECK_INTERVAL);
+    this.preAllocationExpired = conf.getLong(ShuffleServerConf.SERVER_PRE_ALLOCATION_EXPIRED);
     // the thread for checking application status
     scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     scheduledExecutorService.scheduleAtFixedRate(
@@ -60,14 +63,13 @@ public class ShuffleTaskManager {
     return shuffleBufferManager.registerBuffer(appId, shuffleId, startPartition, endPartition);
   }
 
-  public StatusCode cacheShuffleData(String appId, int shuffleId, long requireBufferId, ShufflePartitionedData spd) {
+  public StatusCode cacheShuffleData(String appId, int shuffleId, boolean isPreAllocated, ShufflePartitionedData spd) {
     refreshAppId(appId);
-    boolean isPreAllocated = requireBufferIds.containsKey(requireBufferId);
-    if (!isPreAllocated) {
-      LOG.warn("Can't find requireBufferId[" + requireBufferId + "] for appId[" + appId
-          + "], shuffleId[" + shuffleId + "], partitionId[" + spd.getPartitionId() + "]");
-    }
     return shuffleBufferManager.cacheShuffleData(appId, shuffleId, isPreAllocated, spd);
+  }
+
+  public boolean isPreAllocated(long requireBufferId) {
+    return requireBufferIds.containsKey(requireBufferId);
   }
 
   public void removeRequireBufferId(long requireId) {
@@ -75,38 +77,22 @@ public class ShuffleTaskManager {
   }
 
   public StatusCode commitShuffle(String appId, int shuffleId) throws Exception {
-    refreshAppId(appId);
-    RangeMap<Integer, Set<Long>> partitionToEventIds = shuffleBufferManager.commitShuffleTask(appId, shuffleId);
-    long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
     long start = System.currentTimeMillis();
+    refreshAppId(appId);
+    shuffleBufferManager.commitShuffleTask(appId, shuffleId);
+    long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
+    int expectedCommitted = getCachedBlockCount(appId, shuffleId);
     while (true) {
-      List<Range<Integer>> removedRanges = Lists.newArrayList();
-      for (Map.Entry<Range<Integer>, Set<Long>> entry : partitionToEventIds.asMapOfRanges().entrySet()) {
-        Range<Integer> range = entry.getKey();
-        Set<Long> committedIds = shuffleFlushManager.getEventIds(appId, shuffleId, range);
-        if (committedIds != null && !committedIds.isEmpty()) {
-          Set<Long> expectedEventIds = entry.getValue();
-          LOG.debug("Got expectedEventIds for appId[" + appId + "], shuffleId[" + shuffleId + "], partitionRange["
-              + range + "], " + expectedEventIds + ", current commit: " + committedIds);
-          expectedEventIds.removeAll(committedIds);
-          if (expectedEventIds.isEmpty()) {
-            removedRanges.add(range);
-          }
-        }
-      }
-      for (Range<Integer> range : removedRanges) {
-        partitionToEventIds.remove(range);
-        LOG.info("appId[" + appId + "], shuffleId[" + shuffleId + "], partitionRange["
-            + range + "] is committed for current request.");
-      }
-      if (partitionToEventIds.asMapOfRanges().isEmpty()) {
+      int committedBlockCount = shuffleFlushManager.getCommittedBlockCount(appId, shuffleId);
+      if (committedBlockCount >= expectedCommitted) {
         break;
       }
-      Thread.sleep(1000);
+      Thread.sleep(commitCheckInterval);
       if (System.currentTimeMillis() - start > commitTimeout) {
         throw new RuntimeException("Shuffle data commit timeout for " + commitTimeout + " ms");
       }
-      LOG.info("Checking commit result for appId[" + appId + "], shuffleId[" + shuffleId + "]");
+      LOG.info("Checking commit result for appId[" + appId + "], shuffleId[" + shuffleId
+          + "], expect committed[" + expectedCommitted + "], actual committed[" + committedBlockCount + "]");
     }
 
     return StatusCode.SUCCESS;
@@ -137,6 +123,28 @@ public class ShuffleTaskManager {
     int commitNum = shuffleCommit.get(shuffleId) + 1;
     shuffleCommit.put(shuffleId, commitNum);
     return commitNum;
+  }
+
+  public synchronized void updateCachedBlockCount(String appId, long shuffleId, int blockNum) {
+    if (!cachedBlockCount.containsKey(appId)) {
+      cachedBlockCount.put(appId, Maps.newHashMap());
+    }
+    Map<Long, Integer> cachedBlocks = cachedBlockCount.get(appId);
+    if (!cachedBlocks.containsKey(shuffleId)) {
+      cachedBlocks.put(shuffleId, 0);
+    }
+    cachedBlocks.put(shuffleId, cachedBlocks.get(shuffleId) + blockNum);
+  }
+
+  public int getCachedBlockCount(String appId, long shuffleId) {
+    if (!cachedBlockCount.containsKey(appId)) {
+      return 0;
+    }
+    Map<Long, Integer> cachedBlocks = cachedBlockCount.get(appId);
+    if (!cachedBlocks.containsKey(shuffleId)) {
+      return 0;
+    }
+    return cachedBlocks.get(shuffleId);
   }
 
   public long requireBuffer(int requireSize) {

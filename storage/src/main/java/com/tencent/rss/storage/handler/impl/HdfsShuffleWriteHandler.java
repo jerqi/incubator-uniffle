@@ -6,6 +6,8 @@ import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -22,6 +24,7 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
   private HdfsFileWriter dataWriter;
   private HdfsFileWriter indexWriter;
   private boolean isClosed = false;
+  private Lock writeLock = new ReentrantLock();
 
   public HdfsShuffleWriteHandler(
       String appId,
@@ -58,25 +61,30 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
   }
 
   @Override
-  public synchronized void write(
+  public void write(
       List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException {
-    if (isClosed) {
-      createWriters();
-    }
-    final long writeSize = shuffleBlocks.stream().mapToLong(ShufflePartitionedBlock::size).sum();
     final long start = System.currentTimeMillis();
-    for (ShufflePartitionedBlock block : shuffleBlocks) {
-      long blockId = block.getBlockId();
-      long crc = block.getCrc();
-      long startOffset = dataWriter.nextOffset();
-      dataWriter.writeData(block.getData());
+    final long writeSize = shuffleBlocks.stream().mapToLong(ShufflePartitionedBlock::size).sum();
+    writeLock.lock();
+    try {
+      if (isClosed) {
+        createWriters();
+      }
+      for (ShufflePartitionedBlock block : shuffleBlocks) {
+        long blockId = block.getBlockId();
+        long crc = block.getCrc();
+        long startOffset = dataWriter.nextOffset();
+        dataWriter.writeData(block.getData());
 
-      FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
-          blockId, startOffset, block.getLength(), block.getUncompressLength(), crc);
-      indexWriter.writeIndex(segment);
+        FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
+            blockId, startOffset, block.getLength(), block.getUncompressLength(), crc);
+        indexWriter.writeIndex(segment);
+      }
+      dataWriter.flush();
+      indexWriter.flush();
+    } finally {
+      writeLock.unlock();
     }
-    dataWriter.flush();
-    indexWriter.flush();
     LOG.debug(
         "Write handler write {} blocks {} bytes cost {} ms for {}",
         shuffleBlocks.size(),
@@ -86,27 +94,32 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
   }
 
   @Override
-  public synchronized boolean close() {
-    if (!isClosed) {
-      if (dataWriter != null) {
-        try {
-          dataWriter.close();
-        } catch (IOException ioe) {
-          LOG.error("Fail to close data file in " + basePath);
-          return false;
+  public boolean close() {
+    writeLock.lock();
+    try {
+      if (!isClosed) {
+        if (dataWriter != null) {
+          try {
+            dataWriter.close();
+          } catch (IOException ioe) {
+            LOG.error("Fail to close data file in " + basePath);
+            return false;
+          }
         }
-      }
-      if (indexWriter != null) {
-        try {
-          indexWriter.close();
-        } catch (IOException ioe) {
-          LOG.error("Fail to close index file in " + basePath);
-          return false;
+        if (indexWriter != null) {
+          try {
+            indexWriter.close();
+          } catch (IOException ioe) {
+            LOG.error("Fail to close index file in " + basePath);
+            return false;
+          }
         }
+        isClosed = true;
       }
-      isClosed = true;
+      return true;
+    } finally {
+      writeLock.unlock();
     }
-    return true;
   }
 
   private void createWriters() throws IOException, IllegalStateException {

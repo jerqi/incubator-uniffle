@@ -1,22 +1,22 @@
 package com.tencent.rss.client.response;
 
-import java.util.List;
+import java.util.Set;
 
 public class SendShuffleDataResult {
 
-  private List<Long> successBlockIds;
-  private List<Long> failedBlockIds;
+  private Set<Long> successBlockIds;
+  private Set<Long> failedBlockIds;
 
-  public SendShuffleDataResult(List<Long> successBlockIds, List<Long> failedBlockIds) {
+  public SendShuffleDataResult(Set<Long> successBlockIds, Set<Long> failedBlockIds) {
     this.successBlockIds = successBlockIds;
     this.failedBlockIds = failedBlockIds;
   }
 
-  public List<Long> getSuccessBlockIds() {
+  public Set<Long> getSuccessBlockIds() {
     return successBlockIds;
   }
 
-  public List<Long> getFailedBlockIds() {
+  public Set<Long> getFailedBlockIds() {
     return failedBlockIds;
   }
 }

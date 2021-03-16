@@ -128,6 +128,12 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(10 * 1000L)
       .withDescription("Expired time (ms) for pre allocated buffer");
 
+  public static final ConfigOption<Long> SERVER_COMMIT_CHECK_INTERVAL = ConfigOptions
+      .key("rss.server.commit.check.interval")
+      .longType()
+      .defaultValue(500L)
+      .withDescription("Interval for check commit status");
+
   public ShuffleServerConf() {
   }
 
@@ -231,6 +237,10 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (SERVER_PRE_ALLOCATION_EXPIRED.key().equalsIgnoreCase(k)) {
         set(SERVER_PRE_ALLOCATION_EXPIRED, Long.valueOf(v));
+      }
+
+      if (SERVER_COMMIT_CHECK_INTERVAL.key().equalsIgnoreCase(k)) {
+        set(SERVER_COMMIT_CHECK_INTERVAL, Long.valueOf(v));
       }
     });
 

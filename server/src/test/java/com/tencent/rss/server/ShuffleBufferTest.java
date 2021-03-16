@@ -5,11 +5,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import java.util.Random;
-import java.util.Set;
 import org.junit.Test;
 
 public class ShuffleBufferTest {
@@ -37,34 +35,14 @@ public class ShuffleBufferTest {
   @Test
   public void toFlushEventTest() {
     ShuffleBuffer shuffleBuffer = new ShuffleBuffer(100);
-    Set<Long> expectedEventIds = Sets.newHashSet();
     ShuffleDataFlushEvent event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
     assertNull(event);
     shuffleBuffer.append(createData(10));
     assertEquals(10, shuffleBuffer.getSize());
     event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
-    expectedEventIds.add(event.getEventId());
     assertEquals(10, event.getSize());
     assertEquals(0, shuffleBuffer.getSize());
     assertEquals(0, shuffleBuffer.getBlocks().size());
-
-    shuffleBuffer.append(createData(10));
-    event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
-    expectedEventIds.add(event.getEventId());
-    Set<Long> eventIds = shuffleBuffer.getAndClearEventIds();
-    assertTrue(expectedEventIds.containsAll(eventIds));
-    assertTrue(eventIds.containsAll(expectedEventIds));
-
-    expectedEventIds.clear();
-    shuffleBuffer.append(createData(10));
-    event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
-    expectedEventIds.add(event.getEventId());
-    shuffleBuffer.append(createData(10));
-    event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
-    expectedEventIds.add(event.getEventId());
-    eventIds = shuffleBuffer.getAndClearEventIds();
-    assertTrue(expectedEventIds.containsAll(eventIds));
-    assertTrue(eventIds.containsAll(expectedEventIds));
   }
 
   private ShufflePartitionedData createData(int len) {

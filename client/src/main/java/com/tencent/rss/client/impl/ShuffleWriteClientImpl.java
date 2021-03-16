@@ -3,6 +3,7 @@ package com.tencent.rss.client.impl;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.tencent.rss.client.api.CoordinatorClient;
 import com.tencent.rss.client.api.ShuffleServerClient;
 import com.tencent.rss.client.api.ShuffleWriteClient;
@@ -88,8 +89,8 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
       }
     }
 
-    List<Long> tempFailedBlockIds = Lists.newArrayList();
-    List<Long> successBlockIds = Lists.newArrayList();
+    Set<Long> tempFailedBlockIds = Sets.newConcurrentHashSet();
+    Set<Long> successBlockIds = Sets.newConcurrentHashSet();
     for (Map.Entry<ShuffleServerInfo, Map<Integer,
         Map<Integer, List<ShuffleBlockInfo>>>> entry : serverToBlocks.entrySet()) {
       ShuffleServerInfo ssi = entry.getKey();
