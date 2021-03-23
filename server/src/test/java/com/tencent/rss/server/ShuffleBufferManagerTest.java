@@ -145,7 +145,7 @@ public class ShuffleBufferManagerTest {
     assertEquals(16, shuffleBufferManager.getSize());
     assertEquals(0, shuffleBufferManager.getPreAllocatedSize());
     // release memory
-    shuffleBufferManager.releaseMemory(16);
+    shuffleBufferManager.releaseMemory(16, false);
     assertEquals(0, shuffleBufferManager.getSize());
     assertEquals(0, shuffleBufferManager.getPreAllocatedSize());
     // receive data without preAllocation
@@ -155,7 +155,7 @@ public class ShuffleBufferManagerTest {
     // single buffer flush
     verify(mockShuffleFlushManager, times(1)).addToFlushQueue(any());
     // release memory
-    shuffleBufferManager.releaseMemory(17);
+    shuffleBufferManager.releaseMemory(17, false);
     assertEquals(0, shuffleBufferManager.getSize());
     assertEquals(0, shuffleBufferManager.getPreAllocatedSize());
 

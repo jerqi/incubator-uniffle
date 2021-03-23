@@ -44,12 +44,12 @@ public class ShuffleFlushManager {
     this.shuffleServer = shuffleServer;
     this.hadoopConf = new Configuration();
     hadoopConf.setInt("dfs.replication", shuffleServerConf.getInteger(ShuffleServerConf.DATA_STORAGE_REPLICA));
-    final int poolSize = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_SIZE);
     long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.SERVER_FLUSH_THREAD_ALIVE);
     storageType = shuffleServerConf.get(RssBaseConf.DATA_STORAGE_TYPE);
     int waitQueueSize = shuffleServerConf.getInteger(
         ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE);
     BlockingQueue<Runnable> waitQueue = Queues.newLinkedBlockingQueue(waitQueueSize);
+    int poolSize = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_SIZE);
     threadPoolExecutor = new ThreadPoolExecutor(poolSize, poolSize, keepAliveTime, TimeUnit.SECONDS, waitQueue);
     storageBasePaths = shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH).split(",");
     isRunning = true;
@@ -91,8 +91,7 @@ public class ShuffleFlushManager {
       LOG.error("Exception happened when process flush shuffle data for " + event, e);
     } finally {
       if (shuffleServer != null) {
-        shuffleServer.getShuffleBufferManager().releaseMemory(event.getSize());
-        shuffleServer.getShuffleBufferManager().releaseFlushMemory(event.getSize());
+        shuffleServer.getShuffleBufferManager().releaseMemory(event.getSize(), true);
         LOG.debug("Flush to file success in " + (System.currentTimeMillis() - start)
             + " ms and release " + event.getSize() + " bytes");
       }
@@ -114,31 +113,13 @@ public class ShuffleFlushManager {
     return eventIdRangeMap.get(event.getStartPartition());
   }
 
-  public boolean closeHandlers(String appId, int shuffleId) {
-    Map<Integer, RangeMap<Integer, ShuffleWriteHandler>> shuffleToHandlers = handlers.get(appId);
-    if (shuffleToHandlers != null) {
-      RangeMap<Integer, ShuffleWriteHandler> requiredHandlers = shuffleToHandlers.get(shuffleId);
-      if (requiredHandlers != null) {
-        for (ShuffleWriteHandler handler : requiredHandlers.asMapOfRanges().values()) {
-          if (!handler.close()) {
-            LOG.error("Error happened to close writer handler, data will be lost");
-            return false;
-          }
-        }
-      }
-    }
-    return true;
-  }
-
-  private synchronized void updateCommittedBlockCount(String appId, long shuffleId, int blockNum) {
-    if (!committedBlockCount.containsKey(appId)) {
-      committedBlockCount.put(appId, Maps.newHashMap());
-    }
+  private void updateCommittedBlockCount(String appId, long shuffleId, int blockNum) {
+    committedBlockCount.putIfAbsent(appId, Maps.newConcurrentMap());
     Map<Long, Integer> committedBlocks = committedBlockCount.get(appId);
-    if (!committedBlocks.containsKey(shuffleId)) {
-      committedBlocks.put(shuffleId, 0);
+    committedBlocks.putIfAbsent(shuffleId, 0);
+    synchronized (committedBlocks) {
+      committedBlocks.put(shuffleId, committedBlocks.get(shuffleId) + blockNum);
     }
-    committedBlocks.put(shuffleId, committedBlocks.get(shuffleId) + blockNum);
   }
 
   public int getCommittedBlockCount(String appId, long shuffleId) {

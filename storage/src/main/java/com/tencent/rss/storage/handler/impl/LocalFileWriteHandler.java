@@ -98,11 +98,6 @@ public class LocalFileWriteHandler implements ShuffleWriteHandler {
         (System.currentTimeMillis() - accessTime));
   }
 
-  @Override
-  public boolean close() {
-    return true;
-  }
-
   private LocalFileWriter createWriter(String fileName) throws IOException, IllegalStateException {
     File file = new File(basePath, fileName);
     return new LocalFileWriter(file);

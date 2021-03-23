@@ -157,7 +157,6 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         }
         partitionToBlockIds.get(partitionId).add(blockId);
       });
-
       postBlockEvent(shuffleBlockInfoList);
     }
   }

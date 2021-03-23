@@ -21,9 +21,6 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
   private Configuration hadoopConf;
   private String basePath;
   private String fileNamePrefix;
-  private HdfsFileWriter dataWriter;
-  private HdfsFileWriter indexWriter;
-  private boolean isClosed = false;
   private Lock writeLock = new ReentrantLock();
 
   public HdfsShuffleWriteHandler(
@@ -57,7 +54,6 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
         }
       }
     }
-    createWriters();
   }
 
   @Override
@@ -65,70 +61,42 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
       List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException {
     final long start = System.currentTimeMillis();
     final long writeSize = shuffleBlocks.stream().mapToLong(ShufflePartitionedBlock::size).sum();
+    String dataFileName = ShuffleStorageUtils.generateDataFileName(fileNamePrefix);
+    String indexFileName = ShuffleStorageUtils.generateIndexFileName(fileNamePrefix);
     writeLock.lock();
     try {
-      if (isClosed) {
-        createWriters();
-      }
-      for (ShufflePartitionedBlock block : shuffleBlocks) {
-        long blockId = block.getBlockId();
-        long crc = block.getCrc();
-        long startOffset = dataWriter.nextOffset();
-        dataWriter.writeData(block.getData());
+      try (HdfsFileWriter dataWriter = createWriter(dataFileName);
+          HdfsFileWriter indexWriter = createWriter(indexFileName)) {
+        final long ss = System.currentTimeMillis();
+        for (ShufflePartitionedBlock block : shuffleBlocks) {
+          long blockId = block.getBlockId();
+          long crc = block.getCrc();
+          long startOffset = dataWriter.nextOffset();
+          dataWriter.writeData(block.getData());
 
-        FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
-            blockId, startOffset, block.getLength(), block.getUncompressLength(), crc);
-        indexWriter.writeIndex(segment);
+          FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
+              blockId, startOffset, block.getLength(), block.getUncompressLength(), crc);
+          indexWriter.writeIndex(segment);
+        }
+        LOG.debug(
+            "Write handler inside cost {} ms for {}",
+            (System.currentTimeMillis() - ss),
+            fileNamePrefix);
       }
-      dataWriter.flush();
-      indexWriter.flush();
     } finally {
       writeLock.unlock();
     }
     LOG.debug(
-        "Write handler write {} blocks {} bytes cost {} ms for {}",
+        "Write handler outside write {} blocks {} bytes cost {} ms for {}",
         shuffleBlocks.size(),
         writeSize,
         (System.currentTimeMillis() - start),
         fileNamePrefix);
   }
 
-  @Override
-  public boolean close() {
-    writeLock.lock();
-    try {
-      if (!isClosed) {
-        if (dataWriter != null) {
-          try {
-            dataWriter.close();
-          } catch (IOException ioe) {
-            LOG.error("Fail to close data file in " + basePath);
-            return false;
-          }
-        }
-        if (indexWriter != null) {
-          try {
-            indexWriter.close();
-          } catch (IOException ioe) {
-            LOG.error("Fail to close index file in " + basePath);
-            return false;
-          }
-        }
-        isClosed = true;
-      }
-      return true;
-    } finally {
-      writeLock.unlock();
-    }
-  }
-
-  private void createWriters() throws IOException, IllegalStateException {
-    String dataFileName = ShuffleStorageUtils.generateDataFileName(fileNamePrefix);
-    String indexFileName = ShuffleStorageUtils.generateIndexFileName(fileNamePrefix);
-    Path dataFilePath = new Path(basePath, dataFileName);
-    Path indexFilePath = new Path(basePath, indexFileName);
-    dataWriter = new HdfsFileWriter(dataFilePath, hadoopConf);
-    indexWriter = new HdfsFileWriter(indexFilePath, hadoopConf);
-    isClosed = false;
+  private HdfsFileWriter createWriter(String fileName) throws IOException, IllegalStateException {
+    Path path = new Path(basePath, fileName);
+    HdfsFileWriter writer = new HdfsFileWriter(path, hadoopConf);
+    return writer;
   }
 }

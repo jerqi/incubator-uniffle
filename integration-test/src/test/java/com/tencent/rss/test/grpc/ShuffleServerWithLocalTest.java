@@ -20,6 +20,7 @@ import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.storage.util.StorageType;
 import java.io.File;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -117,12 +118,15 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
 
   protected void validateResult(ShuffleDataResult sdr, Set<Long> expectedBlockIds,
       Map<Long, byte[]> expectedData) {
+    byte[] buffer = sdr.getData();
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     int matched = 0;
     for (BufferSegment bs : bufferSegments) {
       if (expectedBlockIds.contains(bs.getBlockId())) {
-        assertEquals(bs.getCrc(), ChecksumUtils.getCrc32(bs.getByteBuffer()));
-        assertTrue(compareByte(expectedData.get(bs.getBlockId()), bs.getByteBuffer()));
+        byte[] data = new byte[bs.getLength()];
+        System.arraycopy(buffer, bs.getOffset(), data, 0, bs.getLength());
+        assertEquals(bs.getCrc(), ChecksumUtils.getCrc32(data));
+        assertTrue(Arrays.equals(data, expectedData.get(bs.getBlockId())));
         assertTrue(expectedBlockIds.contains(bs.getBlockId()));
         matched++;
       }

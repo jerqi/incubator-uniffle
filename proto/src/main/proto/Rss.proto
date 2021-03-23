@@ -55,7 +55,7 @@ message GetShuffleDataRequest {
 }
 
 message GetShuffleDataResponse {
-  repeated bytes data = 1;
+  bytes data = 1;
   repeated ShuffleDataBlockSegment blockSegments = 2;
   StatusCode status = 3;
   string retMsg = 4;

@@ -104,7 +104,7 @@ public class RssShuffleDataIterator<K, C> extends AbstractIterator<Product2<K, C
         shuffleReadClient.checkProcessedBlockIds();
         shuffleReadClient.logStatics();
         LOG.info("Fetch " + shuffleReadMetrics.remoteBytesRead() + " bytes cost " + readTime + " ms and "
-            + serializeTime + " ms to serialize, " + decompressTime + " ms to decompress and unCompressionLength["
+            + serializeTime + " ms to serialize, " + decompressTime + " ms to decompress with unCompressionLength["
             + unCompressionLength + "]");
         return false;
       }

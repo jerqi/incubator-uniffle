@@ -319,7 +319,6 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
       expectedBlockIds.add(blockId);
     }
     writeHandler.write(blocks);
-    writeHandler.close();
   }
 
   protected void validateResult(ShuffleReadClient readClient,

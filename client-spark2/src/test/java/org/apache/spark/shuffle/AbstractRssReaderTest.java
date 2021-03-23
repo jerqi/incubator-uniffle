@@ -56,7 +56,6 @@ public abstract class AbstractRssReaderTest extends HdfsTestBase {
       serializeStream.close();
     }
     handler.write(blocks);
-    handler.close();
   }
 
   protected ShufflePartitionedBlock createShuffleBlock(byte[] data, long blockId) {

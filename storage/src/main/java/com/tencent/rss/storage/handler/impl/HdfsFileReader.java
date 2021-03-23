@@ -41,16 +41,12 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
     fsDataInputStream = fileSystem.open(path);
   }
 
-  public ByteBuffer readData(long offset, int length) {
+  public byte[] readData(long offset, int length) {
     try {
       fsDataInputStream.seek(offset);
-      ByteBuffer bb = ByteBuffer.allocateDirect(length);
-      int len;
-      do {
-        len = fsDataInputStream.read(bb);
-      } while (bb.remaining() > 0 && len > 0);
-      bb.clear();
-      return bb;
+      byte[] buf = new byte[length];
+      fsDataInputStream.readFully(buf);
+      return buf;
     } catch (Exception e) {
       LOG.warn("Can't read data for path:" + path + " with offset[" + offset + "], length[" + length + "]");
     }

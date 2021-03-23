@@ -97,6 +97,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
   @Override
   public void sendShuffleData(SendShuffleDataRequest req,
       StreamObserver<SendShuffleDataResponse> responseObserver) {
+    long s = System.currentTimeMillis();
     ShuffleServerMetrics.counterTotalRequest.inc();
     ShuffleServerMetrics.counterSendDataRequest.inc();
 
@@ -208,8 +209,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
         + appId + "], shuffleId[" + shuffleId + "], data may be lost";
     try {
       status = shuffleServer.getShuffleTaskManager().commitShuffle(appId, shuffleId);
-      if (status != StatusCode.SUCCESS
-          || !shuffleServer.getShuffleTaskManager().finishShuffle(appId, shuffleId)) {
+      if (status != StatusCode.SUCCESS) {
         status = StatusCode.INTERNAL_ERROR;
         msg = errorMsg;
       }
@@ -336,7 +336,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
         reply = GetShuffleDataResponse.newBuilder()
             .setStatus(valueOf(status))
             .setRetMsg(msg)
-            .addAllData(toByteStrings(sdr.getBufferSegments()))
+            .setData(ByteString.copyFrom(sdr.getData()))
             .addAllBlockSegments(toBlockSegments(sdr.getBufferSegments()))
             .build();
       } catch (Exception e) {
@@ -348,7 +348,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
             .setRetMsg(msg)
             .build();
       } finally {
-        shuffleServer.getShuffleBufferManager().releaseMemory(readBufferSize);
+        shuffleServer.getShuffleBufferManager().releaseMemory(readBufferSize, false);
       }
     } else {
       status = StatusCode.INTERNAL_ERROR;
@@ -362,14 +362,6 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
 
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
-  }
-
-  private List<ByteString> toByteStrings(List<BufferSegment> bufferSegments) {
-    List<ByteString> byteStrings = Lists.newArrayList();
-    for (BufferSegment bufferSegment : bufferSegments) {
-      byteStrings.add(ByteString.copyFrom(bufferSegment.getByteBuffer()));
-    }
-    return byteStrings;
   }
 
   private List<ShuffleDataBlockSegment> toBlockSegments(List<BufferSegment> bufferSegments) {

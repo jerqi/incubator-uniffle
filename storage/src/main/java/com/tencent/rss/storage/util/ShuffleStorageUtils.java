@@ -1,7 +1,6 @@
 package com.tencent.rss.storage.util;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
@@ -9,7 +8,6 @@ import com.tencent.rss.storage.handler.impl.FileReadSegment;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
@@ -47,53 +45,53 @@ public class ShuffleStorageUtils {
     return fileNamePrefix + Constants.SHUFFLE_INDEX_FILE_SUFFIX;
   }
 
-  /*public static List<FileReadSegment> mergeSegments(
+  public static List<FileReadSegment> mergeSegments(
       String path, List<FileBasedShuffleSegment> segments, int readBufferSize) {
     List<FileReadSegment> fileReadSegments = Lists.newArrayList();
     if (segments != null && !segments.isEmpty()) {
       if (segments.size() == 1) {
-        Map<Long, BufferSegment> btb = Maps.newHashMap();
-        btb.put(segments.get(0).getBlockId(), new BufferSegment(segments.get(0).getBlockId(), 0,
+        List<BufferSegment> bufferSegments = Lists.newArrayList();
+        bufferSegments.add(new BufferSegment(segments.get(0).getBlockId(), 0,
             segments.get(0).getLength(), segments.get(0).getUncompressLength(), segments.get(0).getCrc()));
         fileReadSegments.add(new FileReadSegment(
-            path, segments.get(0).getOffset(), segments.get(0).getLength(), btb));
+            path, segments.get(0).getOffset(), segments.get(0).getLength(), bufferSegments));
       } else {
         Collections.sort(segments);
         long start = -1;
         long lastestPosition = -1;
         long skipThreshold = readBufferSize / 2;
         long lastPosition = Long.MAX_VALUE;
-        Map<Long, BufferSegment> btb = Maps.newHashMap();
+        List<BufferSegment> bufferSegments = Lists.newArrayList();
         for (FileBasedShuffleSegment segment : segments) {
           // check if there has expected skip range, eg, [20, 100], [1000, 1001] and the skip range is [101, 999]
           if (start > -1 && segment.getOffset() - lastPosition > skipThreshold) {
             fileReadSegments.add(new FileReadSegment(
-                path, start, lastPosition - start, btb));
+                path, start, (int) (lastPosition - start), bufferSegments));
             start = -1;
           }
           // previous FileBasedShuffleSegment are merged, start new merge process
           if (start == -1) {
-            btb = Maps.newHashMap();
+            bufferSegments = Lists.newArrayList();
             start = segment.getOffset();
           }
           lastestPosition = segment.getOffset() + segment.getLength();
-          btb.put(segment.getBlockId(), new BufferSegment(segment.getBlockId(),
+          bufferSegments.add(new BufferSegment(segment.getBlockId(),
               segment.getOffset() - start, segment.getLength(),
               segment.getUncompressLength(), segment.getCrc()));
           if (lastestPosition - start >= readBufferSize) {
             fileReadSegments.add(new FileReadSegment(
-                path, start, lastestPosition - start, btb));
+                path, start, (int) (lastestPosition - start), bufferSegments));
             start = -1;
           }
           lastPosition = lastestPosition;
         }
         if (start > -1) {
-          fileReadSegments.add(new FileReadSegment(path, start, lastestPosition - start, btb));
+          fileReadSegments.add(new FileReadSegment(path, start, (int) (lastPosition - start), bufferSegments));
         }
       }
     }
     return fileReadSegments;
-  }*/
+  }
 
   public static String getShuffleDataPath(String appId, int shuffleId, int start, int end) {
     return String.join(

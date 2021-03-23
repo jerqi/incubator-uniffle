@@ -44,7 +44,6 @@ import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.proto.ShuffleServerGrpc;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerBlockingStub;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -178,13 +177,9 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
             + " ms for " + size + " bytes with " + blockNum + " blocks");
 
         if (response.getStatus() != StatusCode.SUCCESS) {
-          StringBuilder sb = new StringBuilder();
-          for (ShuffleBlockInfo sbi : shuffleBlockInfos) {
-            sb.append(sbi.toString()).append("\n");
-          }
-          String msg = "Can't send shuffle data to " + host + ":" + port
-              + " for " + sb.toString()
-              + "statusCode=" + response.getStatus()
+          String msg = "Can't send shuffle data with " + shuffleBlockInfos.size()
+              + " blocks to " + host + ":" + port
+              + ", statusCode=" + response.getStatus()
               + ", errorMsg:" + response.getRetMsg();
           LOG.warn(msg);
           isSuccessful = false;
@@ -331,7 +326,8 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
       case SUCCESS:
         response = new RssGetShuffleDataResponse(ResponseStatusCode.SUCCESS);
         ShuffleDataResult sdr = new ShuffleDataResult(
-            toBufferSegments(rpcResponse.getDataList(), rpcResponse.getBlockSegmentsList()));
+            rpcResponse.getData().toByteArray(),
+            toBufferSegments(rpcResponse.getBlockSegmentsList()));
         response.setShuffleDataResult(sdr);
         break;
       default:
@@ -349,19 +345,11 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
     return "ShuffleServerGrpcClient for host[" + host + "], port[" + port + "]";
   }
 
-  private List<BufferSegment> toBufferSegments(
-      List<ByteString> data,
-      List<ShuffleDataBlockSegment> blockSegments) {
+  private List<BufferSegment> toBufferSegments(List<ShuffleDataBlockSegment> blockSegments) {
     List<BufferSegment> ret = Lists.newArrayList();
-    for (int i = 0; i < blockSegments.size(); ++i) {
-      ShuffleDataBlockSegment segment = blockSegments.get(i);
-      ret.add(new BufferSegment(
-          segment.getBlockId(),
-          segment.getOffset(),
-          segment.getLength(),
-          segment.getUncompressLength(),
-          segment.getCrc(),
-          ByteBuffer.wrap(data.get(i).toByteArray())));
+    for (ShuffleDataBlockSegment segment : blockSegments) {
+      ret.add(new BufferSegment(segment.getBlockId(), segment.getOffset(),
+          segment.getLength(), segment.getUncompressLength(), segment.getCrc()));
     }
     return ret;
   }

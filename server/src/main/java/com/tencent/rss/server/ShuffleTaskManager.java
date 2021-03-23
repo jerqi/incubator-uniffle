@@ -191,10 +191,6 @@ public class ShuffleTaskManager {
     return ShuffleHandlerFactory.getInstance().getServerReadHandler(request).getShuffleData(expectedBlockIds);
   }
 
-  public boolean finishShuffle(String appId, int shuffleId) {
-    return shuffleFlushManager.closeHandlers(appId, shuffleId);
-  }
-
   public void checkResourceStatus(Set<String> aliveAppIds) {
     LOG.debug("Exist appIds:" + appIds);
     Set<String> removed = Sets.newHashSet(appIds.keySet());
@@ -241,7 +237,7 @@ public class ShuffleTaskManager {
     for (PreAllocatedBufferInfo info : requireBufferIds.values()) {
       if (current - info.getTimestamp() > preAllocationExpired) {
         removeIds.add(info.getRequireId());
-        shuffleBufferManager.releaseMemory(info.getRequireSize());
+        shuffleBufferManager.releaseMemory(info.getRequireSize(), false);
       }
     }
     for (Long requireId : removeIds) {

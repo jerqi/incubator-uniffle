@@ -55,7 +55,6 @@ public class HdfsHandlerTest extends HdfsTestBase {
       pos += i * 8;
     }
     writeHandler.write(blocks);
-    writeHandler.close();
 
     // a data file and a index is created after writing
     fs.isFile(new Path(basePath, "test.data"));
@@ -77,7 +76,6 @@ public class HdfsHandlerTest extends HdfsTestBase {
     writeHandler =
         new HdfsShuffleWriteHandler("appId", 1, 1, 1, basePath, "test", conf);
     writeHandler.write(blocksAppend);
-    writeHandler.close();
 
     compareDataAndIndex("appId", 1, 1, basePath, expectedData, expectedBlockId);
   }
@@ -106,7 +104,9 @@ public class HdfsHandlerTest extends HdfsTestBase {
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     List<ByteBuffer> result = Lists.newArrayList();
     for (BufferSegment bs : bufferSegments) {
-      result.add(bs.getByteBuffer());
+      byte[] data = new byte[bs.getLength()];
+      System.arraycopy(sdr.getData(), bs.getOffset(), data, 0, bs.getLength());
+      result.add(ByteBuffer.wrap(data));
     }
     return result;
   }

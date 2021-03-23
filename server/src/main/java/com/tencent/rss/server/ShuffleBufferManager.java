@@ -76,10 +76,15 @@ public class ShuffleBufferManager {
     Range<Integer> range = entry.getKey();
     int size = buffer.append(spd);
     updateSize(size, isPreAllocated);
-    if (shouldFlush()) {
-      flush();
-    } else if (buffer.isFull()) {
-      flushBuffer(buffer, appId, shuffleId, range.lowerEndpoint(), range.upperEndpoint());
+    synchronized (this) {
+      if (shouldFlush()) {
+        LOG.info("Buffer manager is full with size[" + atomicSize.get() + "], preAllocation["
+            + preAllocatedSize.get() + "], inFlush[" + inFlushSize.get() + "]");
+        flush();
+      } else if (buffer.isFull()) {
+        LOG.info("Single buff is full with " + buffer.getSize() + " bytes");
+        flushBuffer(buffer, appId, shuffleId, range.lowerEndpoint(), range.upperEndpoint());
+      }
     }
     return StatusCode.SUCCESS;
   }
@@ -110,7 +115,7 @@ public class ShuffleBufferManager {
     }
   }
 
-  private synchronized void flushBuffer(ShuffleBuffer buffer, String appId,
+  private void flushBuffer(ShuffleBuffer buffer, String appId,
       int shuffleId, int startPartition, int endPartition) {
     ShuffleDataFlushEvent event =
         buffer.toFlushEvent(appId, shuffleId, startPartition, endPartition);
@@ -138,7 +143,7 @@ public class ShuffleBufferManager {
       }
     }
     // release memory
-    releaseMemory(size);
+    releaseMemory(size, false);
     bufferPool.remove(appId);
   }
 
@@ -156,7 +161,7 @@ public class ShuffleBufferManager {
     return false;
   }
 
-  public synchronized void releaseMemory(long size) {
+  public void releaseMemory(long size, boolean isReleaseFlushMemory) {
     if (atomicSize.get() >= size) {
       atomicSize.addAndGet(-size);
     } else {
@@ -164,9 +169,12 @@ public class ShuffleBufferManager {
           + "] is less than released[" + size + "], set allocated memory to 0");
       atomicSize.set(0L);
     }
+    if (isReleaseFlushMemory) {
+      releaseFlushMemory(size);
+    }
   }
 
-  public synchronized void releaseFlushMemory(long size) {
+  private void releaseFlushMemory(long size) {
     if (inFlushSize.get() >= size) {
       inFlushSize.addAndGet(-size);
     } else {

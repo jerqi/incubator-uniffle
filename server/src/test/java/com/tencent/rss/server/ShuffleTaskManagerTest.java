@@ -160,8 +160,6 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     waitForFlush(shuffleFlushManager, appId, shuffleId, 2 + 1 + 3 + 2);
     shuffleTaskManager.commitShuffle(appId, shuffleId);
     shuffleTaskManager.commitShuffle(appId, shuffleId);
-    boolean isFinished = shuffleTaskManager.finishShuffle(appId, shuffleId);
-    assertTrue(isFinished);
 
     validate(appId, shuffleId, 1, expectedBlocks1, storageBasePath);
     validate(appId, shuffleId, 2, expectedBlocks2, storageBasePath);

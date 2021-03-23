@@ -6,7 +6,6 @@ import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -23,24 +22,12 @@ public class LocalFileReader implements ShuffleReader, Closeable {
     dataInputStream = new DataInputStream(new FileInputStream(path));
   }
 
-//  public byte[] readData(long offset, int length) {
-//    try {
-//      dataInputStream.skip(offset);
-//      byte[] buf = new byte[length];
-//      dataInputStream.readFully(buf);
-//      return buf;
-//    } catch (Exception e) {
-//      LOG.warn("Can't read data for path:" + path + " with offset[" + offset + "], length[" + length + "]");
-//    }
-//    return null;
-//  }
-
-  public ByteBuffer readData(long offset, int length) {
+  public byte[] readData(long offset, int length) {
     try {
       dataInputStream.skip(offset);
       byte[] buf = new byte[length];
       dataInputStream.readFully(buf);
-      return ByteBuffer.wrap(buf);
+      return buf;
     } catch (Exception e) {
       LOG.warn("Can't read data for path:" + path + " with offset[" + offset + "], length[" + length + "]");
     }

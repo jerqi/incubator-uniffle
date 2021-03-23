@@ -16,7 +16,7 @@ import com.tencent.rss.storage.handler.api.ServerReadHandler;
 import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.File;
-import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -93,14 +93,13 @@ public class LocalFileHandlerTest {
   protected void validateResult(ServerReadHandler readHandler, Set<Long> expectedBlockIds,
       Map<Long, byte[]> expectedData) {
     ShuffleDataResult sdr = readHandler.getShuffleData(expectedBlockIds);
+    byte[] buffer = sdr.getData();
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     for (BufferSegment bs : bufferSegments) {
-      assertEquals(bs.getCrc(), ChecksumUtils.getCrc32(bs.getByteBuffer()));
-      byte[] expected = expectedData.get(bs.getBlockId());
-      ByteBuffer bb = bs.getByteBuffer();
-      for (int i = 0; i < expected.length; i++) {
-        assertEquals(expected[i], bb.get(i));
-      }
+      byte[] data = new byte[bs.getLength()];
+      System.arraycopy(buffer, bs.getOffset(), data, 0, bs.getLength());
+      assertEquals(bs.getCrc(), ChecksumUtils.getCrc32(data));
+      assertTrue(Arrays.equals(data, expectedData.get(bs.getBlockId())));
     }
   }
 }

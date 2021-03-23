@@ -10,8 +10,6 @@ import com.tencent.rss.storage.api.ShuffleReader;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -31,7 +29,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
   private Map<String, HdfsFileReader> dataReaderMap = Maps.newHashMap();
   private Map<String, HdfsFileReader> indexReaderMap = Maps.newHashMap();
   private Set<Long> expectedBlockIds = Sets.newHashSet();
-  private Map<Long, FileReadSegment> allSegments = Maps.newHashMap();
+  private List<FileReadSegment> fileReadSegments = Lists.newArrayList();
   private int partitionsPerServer;
   private int partitionNum;
   private int readBufferSize;
@@ -124,15 +122,17 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
         ShuffleReader reader = entry.getValue();
         long start = System.currentTimeMillis();
         List<FileBasedShuffleSegment> segments = reader.readIndex(indexReadLimit);
+        List<FileBasedShuffleSegment> allSegments = Lists.newArrayList();
         while (!segments.isEmpty()) {
           LOG.debug("Get segment : " + segments);
+          allSegments.addAll(segments);
           for (FileBasedShuffleSegment segment : segments) {
             blockIds.add(segment.getBlockId());
-            allSegments.put(segment.getBlockId(), new FileReadSegment(segment, path));
           }
           segments = reader.readIndex(indexReadLimit);
         }
         readIndexTime.addAndGet((System.currentTimeMillis() - start));
+        fileReadSegments.addAll(ShuffleStorageUtils.mergeSegments(path, allSegments, readBufferSize));
       } catch (Exception e) {
         LOG.warn("Can't read index segments for " + path, e);
       }
@@ -147,45 +147,36 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
 
   @Override
   public ShuffleDataResult readShuffleData(Set<Long> blockIds) {
-    ShuffleDataResult shuffleDataResult = new ShuffleDataResult();
+    byte[] readBuffer = null;
     List<BufferSegment> bufferSegments = Lists.newArrayList();
-
-    List<Long> sortedBlockId = new ArrayList<>(blockIds);
-    sortedBlockId.sort((b1, b2) -> Long.compare(allSegments.get(b1).getOffset(), allSegments.get(b2).getOffset()));
-
-    if (!allSegments.isEmpty()) {
-      long curSize = 0L;
-      for (Long blockId : sortedBlockId) {
-        if (allSegments.containsKey(blockId)) {
-          FileReadSegment fileSegment = allSegments.get(blockId);
-          try {
-            long start = System.currentTimeMillis();
-            ByteBuffer data = dataReaderMap.get(fileSegment.getPath()).readData(
-                fileSegment.getOffset(), fileSegment.getLength());
-            LOG.info("Read File segment: " + fileSegment.getPath() + ", offset["
-                + fileSegment.getOffset() + "], length[" + fileSegment.getLength()
-                + "], cost:" + (System.currentTimeMillis() - start) + " ms, for " + blockId);
-            readDataTime.addAndGet(System.currentTimeMillis() - start);
-            bufferSegments.add(new BufferSegment(
-                blockId,
-                fileSegment.getOffset(),
-                fileSegment.getLength(),
-                fileSegment.getUncompressLength(),
-                fileSegment.getCrc(),
-                data));
-            curSize += fileSegment.getLength();
-            if (curSize >= readBufferSize) {
+    if (fileReadSegments != null) {
+      // missing some blocks, keep reading
+      if (blockIds.size() > 0) {
+        for (FileReadSegment fileSegment : fileReadSegments) {
+          Set<Long> leftIds = Sets.newHashSet(blockIds);
+          leftIds.retainAll(fileSegment.getBlockIds());
+          // if the fileSegment has missing blocks
+          if (leftIds.size() > 0) {
+            try {
+              long start = System.currentTimeMillis();
+              readBuffer = dataReaderMap.get(fileSegment.getPath())
+                  .readData(fileSegment.getOffset(), fileSegment.getLength());
+              long readCost = System.currentTimeMillis() - start;
+              LOG.info("Read File segment: " + fileSegment.getPath() + ", offset["
+                  + fileSegment.getOffset() + "], length[" + fileSegment.getLength()
+                  + "], cost:" + readCost + " ms, for " + leftIds.size() + " blocks");
+              readDataTime.addAndGet(readCost);
+              bufferSegments.addAll(fileSegment.getBufferSegments());
               break;
+            } catch (Exception e) {
+              LOG.warn("Can't read data for " + fileSegment.getPath() + ", offset["
+                  + fileSegment.getOffset() + "], length[" + fileSegment.getLength() + "]");
             }
-          } catch (Exception e) {
-            LOG.warn("Can't read data for " + fileSegment.getPath() + ", offset["
-                + fileSegment.getOffset() + "], length[" + fileSegment.getLength() + "]");
           }
         }
       }
-      shuffleDataResult = new ShuffleDataResult(bufferSegments);
     }
-    return shuffleDataResult;
+    return new ShuffleDataResult(readBuffer, bufferSegments);
   }
 
   @Override
@@ -207,6 +198,9 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
         LOG.warn(message, ioe);
       }
     }
+    LOG.info("HdfsClientReadHandler for appId[" + appId + "], shuffleId[" + shuffleId + "], partitionId["
+        + partitionId + "] cost " + readIndexTime.get() + " ms for read index and "
+        + readDataTime.get() + " ms for read data");
   }
 
   private HdfsFileReader createHdfsReader(

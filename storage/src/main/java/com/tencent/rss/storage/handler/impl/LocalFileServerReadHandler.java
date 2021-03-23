@@ -3,7 +3,6 @@ package com.tencent.rss.storage.handler.impl;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.common.util.Constants;
@@ -12,7 +11,6 @@ import com.tencent.rss.storage.handler.api.ServerReadHandler;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.File;
 import java.io.FilenameFilter;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -26,7 +24,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileServerReadHandler.class);
   private Map<String, String> indexPathMap = Maps.newHashMap();
   private Map<String, String> dataPathMap = Maps.newHashMap();
-  private Map<Long, FileReadSegment> allSegments = Maps.newHashMap();
+  private List<FileReadSegment> fileReadSegments = Lists.newArrayList();
   private int readBufferSize;
   private AtomicLong readDataTime = new AtomicLong(0);
   private String appId;
@@ -128,26 +126,28 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
    * Read all index files, and get all FileBasedShuffleSegment for every index file
    */
   private void readAllIndexSegments(int indexReadLimit, Set<Long> expectedBlockIds) {
-    Set<Long> blockIds = Sets.newHashSet();
     for (Entry<String, String> entry : indexPathMap.entrySet()) {
       String path = entry.getKey();
       try {
         LOG.info("Read index file for: " + entry.getValue());
+        List<FileBasedShuffleSegment> allSegments = Lists.newArrayList();
         try (LocalFileReader reader = createFileReader(entry.getValue())) {
           List<FileBasedShuffleSegment> segments = reader.readIndex(indexReadLimit);
           while (!segments.isEmpty()) {
-            for (FileBasedShuffleSegment segment : segments) {
-              blockIds.add(segment.getBlockId());
-              allSegments.put(segment.getBlockId(), new FileReadSegment(segment, path));
-            }
+            allSegments.addAll(segments);
             segments = reader.readIndex(indexReadLimit);
           }
         }
+        fileReadSegments.addAll(ShuffleStorageUtils.mergeSegments(path, allSegments, readBufferSize));
       } catch (Exception e) {
         LOG.warn("Can't read index segments for " + path, e);
       }
     }
 
+    Set<Long> blockIds = Sets.newHashSet();
+    for (FileReadSegment segment : fileReadSegments) {
+      blockIds.addAll(segment.getBlockIds());
+    }
     if (!blockIds.containsAll(expectedBlockIds)) {
       Set<Long> copy = Sets.newHashSet(expectedBlockIds);
       copy.removeAll(blockIds);
@@ -166,43 +166,39 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
 
   @Override
   public ShuffleDataResult getShuffleData(Set<Long> expectedBlockIds) {
-    ShuffleDataResult shuffleDataResult = new ShuffleDataResult();
-    List<BufferSegment> bufferSegments = Lists.newArrayList();
-    if (!allSegments.isEmpty()) {
-      long curSize = 0L;
-      for (Long blockId : expectedBlockIds) {
-        if (allSegments.containsKey(blockId)) {
-          FileReadSegment fileSegment = allSegments.get(blockId);
+    byte[] readBuffer = null;
+    FileReadSegment fileSegment = getFileReadSegment(expectedBlockIds);
+    if (fileSegment != null) {
+      try {
+        long start = System.currentTimeMillis();
+        try (LocalFileReader reader = createFileReader(dataPathMap.get(fileSegment.getPath()))) {
+          readBuffer = reader.readData(fileSegment.getOffset(), fileSegment.getLength());
+        }
+        LOG.info("Read File segment: " + fileSegment.getPath() + ", offset["
+            + fileSegment.getOffset() + "], length[" + fileSegment.getLength()
+            + "], cost:" + (System.currentTimeMillis() - start) + " ms, for appId[" + appId
+            + "], shuffleId[" + shuffleId + "], partitionId[" + partitionId + "]");
+        readDataTime.addAndGet(System.currentTimeMillis() - start);
+      } catch (Exception e) {
+        LOG.warn("Can't read data for " + fileSegment.getPath() + ", offset["
+            + fileSegment.getOffset() + "], length[" + fileSegment.getLength() + "]");
+      }
+    }
+    return new ShuffleDataResult(readBuffer, fileSegment.getBufferSegments());
+  }
 
-          try {
-            long start = System.currentTimeMillis();
-            try (LocalFileReader reader = createFileReader(dataPathMap.get(fileSegment.getPath()))) {
-              ByteBuffer data = reader.readData(fileSegment.getOffset(), fileSegment.getLength());
-              bufferSegments.add(new BufferSegment(
-                  blockId,
-                  fileSegment.getOffset(),
-                  fileSegment.getLength(),
-                  fileSegment.getUncompressLength(),
-                  fileSegment.getCrc(),
-                  data));
-              curSize += fileSegment.getLength();
-              if (curSize >= readBufferSize) {
-                break;
-              }
-            }
-            LOG.info("Read File segment: " + fileSegment.getPath() + ", offset["
-                + fileSegment.getOffset() + "], length[" + fileSegment.getLength()
-                + "], cost:" + (System.currentTimeMillis() - start) + " ms, for appId[" + appId
-                + "], shuffleId[" + shuffleId + "], partitionId[" + partitionId + "]");
-            readDataTime.addAndGet(System.currentTimeMillis() - start);
-          } catch (Exception e) {
-            LOG.warn("Can't read data for " + fileSegment.getPath() + ", offset["
-                + fileSegment.getOffset() + "], length[" + fileSegment.getLength() + "]");
-          }
+  private FileReadSegment getFileReadSegment(Set<Long> expectedBlockIds) {
+    FileReadSegment result = null;
+    if (fileReadSegments != null) {
+      for (FileReadSegment segment : fileReadSegments) {
+        Set<Long> blockIds = segment.getBlockIds();
+        blockIds.retainAll(expectedBlockIds);
+        if (!blockIds.isEmpty()) {
+          result = segment;
+          break;
         }
       }
-      shuffleDataResult = new ShuffleDataResult(bufferSegments);
     }
-    return shuffleDataResult;
+    return result;
   }
 }

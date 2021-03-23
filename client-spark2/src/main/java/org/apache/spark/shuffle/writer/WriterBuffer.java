@@ -39,7 +39,9 @@ public class WriterBuffer {
     int extraMemory = 0;
     if (output.position() > serializerBufferSize) {
       extraMemory = output.position();
+      long s = System.currentTimeMillis();
       buffers.add(output.toBytes());
+      copyTime += System.currentTimeMillis() - s;
       memorySize += extraMemory;
       dataLength += extraMemory;
       output.clear();

@@ -65,11 +65,11 @@ public class HdfsFileReaderTest extends HdfsTestBase {
     }
     FileBasedShuffleSegment segment = new FileBasedShuffleSegment(23, offset, length, length, 0xdeadbeef);
     try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
-      ByteBuffer byteBuffer = reader.readData(segment.getOffset(), segment.getLength());
-      long crc22 = ChecksumUtils.getCrc32(byteBuffer);
+      byte[] actual = reader.readData(segment.getOffset(), segment.getLength());
+      long crc22 = ChecksumUtils.getCrc32(actual);
 
       for (int i = 0; i < length; ++i) {
-        assertEquals(data[i + offset], byteBuffer.get(i));
+        assertEquals(data[i + offset], actual[i]);
       }
       assertEquals(crc11, crc22);
       // EOF exception is expected

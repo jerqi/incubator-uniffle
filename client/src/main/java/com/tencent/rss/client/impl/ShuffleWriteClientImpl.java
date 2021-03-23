@@ -54,6 +54,38 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
     coordinatorClientFactory = new CoordinatorClientFactory(clientType);
   }
 
+  private void sendShuffleDataAsync(
+      String appId,
+      Map<ShuffleServerInfo, Map<Integer, Map<Integer, List<ShuffleBlockInfo>>>> serverToBlocks,
+      Map<ShuffleServerInfo, List<Long>> serverToBlockIds,
+      Set<Long> successBlockIds,
+      Set<Long> tempFailedBlockIds) {
+    if (serverToBlocks != null) {
+      serverToBlocks.entrySet().parallelStream().forEach(entry -> {
+        ShuffleServerInfo ssi = entry.getKey();
+        try {
+          RssSendShuffleDataRequest request = new RssSendShuffleDataRequest(
+              appId, retryMax, retryInterval, entry.getValue());
+          long s = System.currentTimeMillis();
+          RssSendShuffleDataResponse response = getShuffleServerClient(ssi).sendShuffleData(request);
+          LOG.info("ShuffleWriteClientImpl sendShuffleData cost:" + (System.currentTimeMillis() - s));
+
+          if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {
+            successBlockIds.addAll(serverToBlockIds.get(ssi));
+            LOG.debug("Send: " + serverToBlockIds.get(ssi)
+                + " to [" + ssi.getId() + "] successfully");
+          } else {
+            tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
+            LOG.error("Send: " + serverToBlockIds.get(ssi) + " to [" + ssi.getId() + "] temp failed.");
+          }
+        } catch (Exception e) {
+          tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
+          LOG.error("Send: " + serverToBlockIds.get(ssi) + " to [" + ssi.getId() + "] temp failed.", e);
+        }
+      });
+    }
+  }
+
   @Override
   public SendShuffleDataResult sendShuffleData(String appId, List<ShuffleBlockInfo> shuffleBlockInfoList) {
 
@@ -91,29 +123,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
 
     Set<Long> tempFailedBlockIds = Sets.newConcurrentHashSet();
     Set<Long> successBlockIds = Sets.newConcurrentHashSet();
-    for (Map.Entry<ShuffleServerInfo, Map<Integer,
-        Map<Integer, List<ShuffleBlockInfo>>>> entry : serverToBlocks.entrySet()) {
-      ShuffleServerInfo ssi = entry.getKey();
-      try {
-        RssSendShuffleDataRequest request = new RssSendShuffleDataRequest(
-            appId, retryMax, retryInterval, entry.getValue());
-        long s = System.currentTimeMillis();
-        RssSendShuffleDataResponse response = getShuffleServerClient(ssi).sendShuffleData(request);
-        LOG.info("ShuffleWriteClientImpl sendShuffleData cost:" + (System.currentTimeMillis() - s));
-
-        if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {
-          successBlockIds.addAll(serverToBlockIds.get(ssi));
-          LOG.debug("Send: " + serverToBlockIds.get(ssi)
-              + " to [" + ssi.getId() + "] successfully");
-        } else {
-          tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
-          LOG.error("Send: " + serverToBlockIds.get(ssi) + " to [" + ssi.getId() + "] temp failed.");
-        }
-      } catch (Exception e) {
-        tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
-        LOG.error("Send: " + serverToBlockIds.get(ssi) + " to [" + ssi.getId() + "] temp failed.", e);
-      }
-    }
+    sendShuffleDataAsync(appId, serverToBlocks, serverToBlockIds, successBlockIds, tempFailedBlockIds);
     if (!successBlockIds.containsAll(tempFailedBlockIds)) {
       tempFailedBlockIds.removeAll(successBlockIds);
       LOG.error("Send: " + tempFailedBlockIds + " failed.");
