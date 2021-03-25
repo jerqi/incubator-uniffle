@@ -1,5 +1,6 @@
 package org.apache.spark.shuffle;
 
+import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +13,10 @@ public class RssShuffleHandle<K, V, C> extends ShuffleHandle {
   private int numMaps;
   private ShuffleDependency<K, V, C> dependency;
   private Map<Integer, List<ShuffleServerInfo>> partitionToServers;
+  // shuffle servers which store the information of partition -> blockIds
   private Set<ShuffleServerInfo> shuffleServersForResult;
+  // shuffle servers which is for store shuffle data
+  private Set<ShuffleServerInfo> shuffleServersForData;
 
   public RssShuffleHandle(int shuffleId, String appId, int numMaps,
       ShuffleDependency<K, V, C> dependency,
@@ -24,6 +28,10 @@ public class RssShuffleHandle<K, V, C> extends ShuffleHandle {
     this.dependency = dependency;
     this.partitionToServers = partitionToServers;
     this.shuffleServersForResult = shuffleServersForResult;
+    shuffleServersForData = Sets.newHashSet();
+    for (List<ShuffleServerInfo> ssis : partitionToServers.values()) {
+      shuffleServersForData.addAll(ssis);
+    }
   }
 
   public String getAppId() {
@@ -48,5 +56,9 @@ public class RssShuffleHandle<K, V, C> extends ShuffleHandle {
 
   public Set<ShuffleServerInfo> getShuffleServersForResult() {
     return shuffleServersForResult;
+  }
+
+  public Set<ShuffleServerInfo> getShuffleServersForData() {
+    return shuffleServersForData;
   }
 }

@@ -144,6 +144,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
           + " for [appId=" + request.getAppId() + ", shuffleId=" + shuffleId + "]";
       throwExceptionIfNecessary(response, msg);
 
+      LOG.info("Got committed maps[" + response.getCommitCount() + "], map number of stage is " + numMaps);
       if (response.getCommitCount() >= numMaps) {
         RssFinishShuffleResponse rfsResponse =
             getShuffleServerClient(ssi).finishShuffle(new RssFinishShuffleRequest(appId, shuffleId));

@@ -182,6 +182,8 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
 
     try {
       commitCount = shuffleServer.getShuffleTaskManager().updateAndGetCommitCount(appId, shuffleId);
+      LOG.info("Got commitShuffleTask request for appId[" + appId + "], shuffleId["
+          + shuffleId + "], currentCommitted[" + commitCount + "]");
     } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
       msg = "Error happened when commit for appId[" + appId + "], shuffleId[" + shuffleId + "]";
@@ -208,6 +210,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     String errorMsg = "Fail to finish shuffle for appId["
         + appId + "], shuffleId[" + shuffleId + "], data may be lost";
     try {
+      LOG.info("Got finishShuffle request for appId[" + appId + "], shuffleId[" + shuffleId + "]");
       status = shuffleServer.getShuffleTaskManager().commitShuffle(appId, shuffleId);
       if (status != StatusCode.SUCCESS) {
         status = StatusCode.INTERNAL_ERROR;
@@ -260,9 +263,10 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "]";
 
     if (partitionToBlockIds.isEmpty()) {
-      LOG.error("Report 0 block as shuffle result for " + requestInfo);
+      LOG.warn("Report 0 block as shuffle result for " + requestInfo);
     } else {
       try {
+        LOG.info("Report " + partitionToBlockIds.size() + " blocks as shuffle result for the task of " + requestInfo);
         shuffleServer.getShuffleTaskManager().addFinishedBlockIds(appId, shuffleId, partitionToBlockIds);
       } catch (Exception e) {
         status = StatusCode.INTERNAL_ERROR;

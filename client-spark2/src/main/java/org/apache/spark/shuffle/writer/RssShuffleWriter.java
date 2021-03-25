@@ -50,7 +50,8 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private long sendCheckTimeout;
   private long sendCheckInterval;
   private long sendSizeLimit;
-  private Set<ShuffleServerInfo> shuffleServerInfoSet;
+  // they will be used in commit phase
+  private Set<ShuffleServerInfo> shuffleServersForData;
   private Map<Integer, Set<Long>> partitionToBlockIds;
   private ShuffleWriteClient shuffleWriteClient;
   private Set<ShuffleServerInfo> shuffleServerInfoForResult;
@@ -76,7 +77,6 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.shuffleManager = shuffleManager;
     this.shuffleServerInfoForResult = rssHandle.getShuffleServersForResult();
     this.shouldPartition = partitioner.numPartitions() > 1;
-    this.shuffleServerInfoSet = Sets.newConcurrentHashSet();
     this.sendCheckTimeout = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT,
         RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT_DEFAULT_VALUE);
     this.sendCheckInterval = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL,
@@ -85,6 +85,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         RssClientConfig.RSS_CLIENT_SEND_SIZE_LIMIT_DEFAULT_VALUE);
     this.partitionToBlockIds = Maps.newConcurrentMap();
     this.shuffleWriteClient = shuffleWriteClient;
+    this.shuffleServersForData = rssHandle.getShuffleServersForData();
   }
 
   /**
@@ -148,9 +149,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         long blockId = sbi.getBlockId();
         // add blockId to set, check if it is send later
         blockIds.add(blockId);
-        // update shuffle server info, they will be used in commit phase
-        shuffleServerInfoSet.addAll(sbi.getShuffleServerInfos());
-        // update [partition, blockIds], it will be set to MapStatus
+        // update [partition, blockIds], it will be sent to shuffle server
         int partitionId = sbi.getPartitionId();
         if (partitionToBlockIds.get(partitionId) == null) {
           partitionToBlockIds.put(partitionId, Sets.newConcurrentHashSet());
@@ -188,7 +187,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @VisibleForTesting
   protected void sendCommit() {
-    shuffleWriteClient.sendCommit(shuffleServerInfoSet, appId, shuffleId, numMaps);
+    shuffleWriteClient.sendCommit(shuffleServersForData, appId, shuffleId, numMaps);
   }
 
   @VisibleForTesting
