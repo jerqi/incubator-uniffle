@@ -37,8 +37,6 @@ public class RssShuffleManager implements ShuffleManager {
   private SparkConf sparkConf;
   private String appId;
   private boolean isDriver;
-  private int serializerBufferSize = 0;
-  private int serializerMaxBufferSize = 0;
   private String clientType;
   private ShuffleWriteClient shuffleWriteClient;
   private Map<String, Set<Long>> taskToSuccessBlockIds = Maps.newConcurrentMap();
@@ -63,13 +61,9 @@ public class RssShuffleManager implements ShuffleManager {
         // data is already send, release the memory to executor
         long releaseSize = 0;
         for (ShuffleBlockInfo sbi : shuffleDataInfoList) {
-          if (sbi.getUncompressLength() > serializerBufferSize) {
-            releaseSize += sbi.getUncompressLength() + serializerMaxBufferSize;
-          } else {
-            releaseSize += serializerMaxBufferSize;
-          }
+          releaseSize += sbi.getFreeMemory();
         }
-        taskToBuffManager.get(taskId).freeMemory(releaseSize);
+        taskToBuffManager.get(taskId).freeAllocatedMemory(releaseSize);
         LOG.debug("Finish send data and release " + releaseSize + " bytes");
       }
     }
@@ -109,9 +103,6 @@ public class RssShuffleManager implements ShuffleManager {
         RssClientConfig.RSS_CLIENT_RETRY_INTERVAL_DEFAULT_VALUE);
     shuffleWriteClient =
         ShuffleClientFactory.getINSTANCE().createShuffleWriteClient(clientType, retryMax, retryInterval);
-    BufferManagerOptions bufferOptions = new BufferManagerOptions(sparkConf);
-    serializerBufferSize = bufferOptions.getSerializerBufferSize();
-    serializerMaxBufferSize = bufferOptions.getSerializerBufferMax();
     registerCoordinator();
     if (!sparkConf.getBoolean(RssClientConfig.RSS_TEST_FLAG, false)) {
       // for non-driver executor, start a thread for sending shuffle data to shuffle server

@@ -12,6 +12,7 @@ public class ShuffleBlockInfo {
   private byte[] data;
   private List<ShuffleServerInfo> shuffleServerInfos;
   private int uncompressLength;
+  private long freeMemory;
 
   public ShuffleBlockInfo(int shuffleId, int partitionId, long blockId, int length, long crc,
       byte[] data, List<ShuffleServerInfo> shuffleServerInfos, int uncompressLength) {
@@ -23,6 +24,12 @@ public class ShuffleBlockInfo {
     this.shuffleId = shuffleId;
     this.shuffleServerInfos = shuffleServerInfos;
     this.uncompressLength = uncompressLength;
+  }
+
+  public ShuffleBlockInfo(int shuffleId, int partitionId, long blockId, int length, long crc,
+      byte[] data, List<ShuffleServerInfo> shuffleServerInfos, int uncompressLength, int freeMemory) {
+    this(shuffleId, partitionId, blockId, length, crc, data, shuffleServerInfos, uncompressLength);
+    this.freeMemory = freeMemory;
   }
 
   public long getBlockId() {
@@ -55,6 +62,10 @@ public class ShuffleBlockInfo {
 
   public int getUncompressLength() {
     return uncompressLength;
+  }
+
+  public long getFreeMemory() {
+    return freeMemory;
   }
 
   @Override

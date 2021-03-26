@@ -126,10 +126,8 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     long writeDurationMs = bufferManager.getWriteTime() + (System.currentTimeMillis() - start);
     shuffleWriteMetrics.incWriteTime(TimeUnit.MILLISECONDS.toNanos(writeDurationMs));
     LOG.info("Finish write shuffle for appId[" + appId + "], shuffleId[" + shuffleId
-        + "], taskId[" + taskId + "] with write " + writeDurationMs + " ms, include: bufferCopy["
-        + bufferManager.getCopyTime() + "], serialize[" + bufferManager.getSerializeTime()
-        + "], compress[" + bufferManager.getCompressTime() + "], checkSendResult["
-        + checkDuration + "], commit[" + commitDuration + "]");
+        + "], taskId[" + taskId + "] with write " + writeDurationMs + " ms, include checkSendResult["
+        + checkDuration + "], commit[" + commitDuration + "], " + bufferManager.getManagerCostInfo());
   }
 
   /**

@@ -3,16 +3,19 @@ package org.apache.spark.shuffle;
 public class RssClientConfig {
 
   public static String RSS_PARTITIONS_PER_SERVER = "spark.rss.partitions.per.server";
-  public static int RSS_PARTITIONS_PER_SERVER_DEFAULT_VALUE = 5;
+  public static int RSS_PARTITIONS_PER_SERVER_DEFAULT_VALUE = 1;
   public static String RSS_WRITER_BUFFER_SIZE = "spark.rss.writer.buffer.size";
-  public static String RSS_WRITER_BUFFER_SIZE_DEFAULT_VALUE = "4m";
+  public static String RSS_WRITER_BUFFER_SIZE_DEFAULT_VALUE = "8m";
   public static String RSS_WRITER_SERIALIZER_BUFFER_SIZE = "spark.rss.writer.serializer.buffer.size";
   public static String RSS_WRITER_SERIALIZER_BUFFER_SIZE_DEFAULT_VALUE = "2m";
   public static String RSS_WRITER_SERIALIZER_BUFFER_MAX_SIZE = "spark.rss.writer.serializer.buffer.max.size";
   public static String RSS_WRITER_SERIALIZER_BUFFER_MAX_SIZE_DEFAULT_VALUE = "3m";
   public static String RSS_WRITER_BUFFER_SPILL_SIZE = "spark.rss.writer.buffer.spill.size";
-  // RSS_WRITER_BUFFER_SIZE_DEFAULT_VALUE * 32
-  public static String RSS_WRITER_BUFFER_SPILL_SIZE_DEFAULT_VALUE = "128m";
+  public static String RSS_WRITER_BUFFER_SPILL_SIZE_DEFAULT_VALUE = "256m";
+  public static String RSS_WRITER_PRE_ALLOCATED_BUFFER_SIZE = "spark.rss.writer.pre.allocated.buffer.size";
+  public static String RSS_WRITER_PRE_ALLOCATED_BUFFER_SIZE_DEFAULT_VALUE = "2m";
+  public static String RSS_WRITER_SAMPLE_GROW_RATE = "spark.rss.writer.sample.grow.rate";
+  public static double RSS_WRITER_SAMPLE_GROW_RATE_DEFAULT_VALUE = 1.1;
   public static String RSS_COORDINATOR_IP = "spark.rss.server.coordinator.ip";
   public static String RSS_COORDINATOR_PORT = "spark.rss.server.coordinator.port";
   public static int RSS_COORDINATOR_PORT_DEFAULT_VALUE = 17777;
@@ -37,9 +40,6 @@ public class RssClientConfig {
   public static String RSS_CLIENT_READ_BUFFER_SIZE_DEFAULT_VALUE = "64m";
   public static String RSS_HEARTBEAT_INTERVAL = "spark.rss.heartbeat.interval";
   public static long RSS_HEARTBEAT_INTERVAL_DEFAULT_VALUE = 10 * 1000L;
-  public static String RSS_COMPRESSION_BLOCK_SIZE = "spark.rss.compression.block.size";
-  // the default is the same as set in spark's CompressionCodec
-  public static int RSS_COMPRESSION_BLOCK_SIZE_DEFAULT_VALUE = 32 * 1024;
   public static String RSS_CLIENT_SEND_THREAD_POOL_SIZE = "spark.rss.client.send.threadPool.size";
   public static int RSS_CLIENT_SEND_THREAD_POOL_SIZE_DEFAULT_VALUE = 24;
   public static String RSS_CLIENT_SEND_THREAD_POOL_KEEPALIVE = "spark.rss.client.send.threadPool.keepalive";

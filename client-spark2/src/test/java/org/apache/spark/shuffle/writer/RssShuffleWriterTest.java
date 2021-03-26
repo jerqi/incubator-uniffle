@@ -223,38 +223,6 @@ public class RssShuffleWriterTest {
     assertEquals(2, partitionToBlockIds.get(2).size());
     partitionToBlockIds.clear();
 
-    // case2
-    shuffleBlockInfos.clear();
-    data = new MutableList();
-    data.appendElem(new Tuple2("testKey1", "testValue1"));
-    data.appendElem(new Tuple2("testKey4", "testValue4"));
-    data.appendElem(new Tuple2("testKey2", "testValue2"));
-    data.appendElem(new Tuple2("testKey3", "testValue3"));
-    data.appendElem(new Tuple2("testKey5", "testValue6"));
-    data.appendElem(new Tuple2("testKey6", "testValue5"));
-    rssShuffleWriterSpy.write(data.iterator());
-
-    assertEquals(3, shuffleBlockInfos.size());
-    for (ShuffleBlockInfo shuffleBlockInfo : shuffleBlockInfos) {
-      assertEquals(0, shuffleBlockInfo.getShuffleId());
-      assertEquals(39, shuffleBlockInfo.getLength());
-      assertEquals(44, shuffleBlockInfo.getUncompressLength());
-      if (shuffleBlockInfo.getPartitionId() == 0) {
-        assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi12);
-      } else if (shuffleBlockInfo.getPartitionId() == 1) {
-        assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi34);
-      } else if (shuffleBlockInfo.getPartitionId() == 2) {
-        assertEquals(shuffleBlockInfo.getShuffleServerInfos(), ssi56);
-      } else {
-        throw new Exception("Shouldn't be here");
-      }
-    }
-    partitionToBlockIds = rssShuffleWriterSpy.getPartitionToBlockIds();
-    assertEquals(1, partitionToBlockIds.get(0).size());
-    assertEquals(1, partitionToBlockIds.get(1).size());
-    assertEquals(1, partitionToBlockIds.get(2).size());
-    partitionToBlockIds.clear();
-
     sc.stop();
   }
 
