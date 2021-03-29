@@ -31,9 +31,9 @@ public class ShuffleBufferManager {
 
 
   public ShuffleBufferManager(ShuffleServerConf conf, ShuffleFlushManager shuffleFlushManager) {
-    this.capacity = conf.getLong(ShuffleServerConf.BUFFER_CAPACITY);
-    this.bufferSize = conf.getInteger(ShuffleServerConf.BUFFER_SIZE);
-    this.spillThreshold = conf.getLong(ShuffleServerConf.BUFFER_SPILL_THRESHOLD);
+    this.capacity = conf.getLong(ShuffleServerConf.SERVER_BUFFER_CAPACITY);
+    this.bufferSize = conf.getInteger(ShuffleServerConf.SERVER_PARTITION_BUFFER_SIZE);
+    this.spillThreshold = conf.getLong(ShuffleServerConf.SERVER_BUFFER_SPILL_THRESHOLD);
     this.shuffleFlushManager = shuffleFlushManager;
     this.bufferPool = new ConcurrentHashMap<>();
     this.retryNum = conf.getInteger(ShuffleServerConf.SERVER_MEMORY_REQUEST_RETRY_MAX);

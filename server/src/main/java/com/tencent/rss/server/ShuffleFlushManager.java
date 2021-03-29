@@ -46,13 +46,13 @@ public class ShuffleFlushManager {
     this.hadoopConf = new Configuration();
     retryMax = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_WRITE_RETRY_MAX);
     long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.SERVER_FLUSH_THREAD_ALIVE);
-    storageType = shuffleServerConf.get(RssBaseConf.DATA_STORAGE_TYPE);
+    storageType = shuffleServerConf.get(RssBaseConf.RSS_STORAGE_TYPE);
     int waitQueueSize = shuffleServerConf.getInteger(
         ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE);
     BlockingQueue<Runnable> waitQueue = Queues.newLinkedBlockingQueue(waitQueueSize);
     int poolSize = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_SIZE);
     threadPoolExecutor = new ThreadPoolExecutor(poolSize, poolSize, keepAliveTime, TimeUnit.SECONDS, waitQueue);
-    storageBasePaths = shuffleServerConf.getString(ShuffleServerConf.DATA_STORAGE_BASE_PATH).split(",");
+    storageBasePaths = shuffleServerConf.getString(ShuffleServerConf.RSS_STORAGE_BASE_PATH).split(",");
     isRunning = true;
 
     // the thread for flush data

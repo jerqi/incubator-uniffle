@@ -8,55 +8,43 @@ import java.util.Map;
 
 public class ShuffleServerConf extends RssBaseConf {
 
-  public static final ConfigOption<Long> BUFFER_CAPACITY = ConfigOptions
+  public static final ConfigOption<Long> SERVER_BUFFER_CAPACITY = ConfigOptions
       .key("rss.server.buffer.capacity")
       .longType()
       .noDefaultValue()
       .withDescription("Max memory for shuffle server");
 
-  public static final ConfigOption<Long> BUFFER_SPILL_THRESHOLD = ConfigOptions
+  public static final ConfigOption<Long> SERVER_BUFFER_SPILL_THRESHOLD = ConfigOptions
       .key("rss.server.buffer.spill.threshold")
       .longType()
       .noDefaultValue()
       .withDescription("Spill threshold for buffer manager, it must be less than rss.server.buffer.capacity");
 
-  public static final ConfigOption<Integer> BUFFER_SIZE = ConfigOptions
-      .key("rss.server.buffer.size")
+  public static final ConfigOption<Integer> SERVER_PARTITION_BUFFER_SIZE = ConfigOptions
+      .key("rss.server.partition.buffer.size")
       .intType()
       .noDefaultValue()
       .withDescription("Size of each buffer in this server");
 
-  public static final ConfigOption<String> COORDINATOR_IP = ConfigOptions
-      .key("rss.server.coordinator.ip")
-      .stringType()
-      .noDefaultValue()
-      .withDescription("Coordinator ip");
-
-  public static final ConfigOption<Integer> COORDINATOR_PORT = ConfigOptions
-      .key("rss.server.coordinator.port")
-      .intType()
-      .noDefaultValue()
-      .withDescription("Coordinator port");
-
-  public static final ConfigOption<Long> HEARTBEAT_DELAY = ConfigOptions
+  public static final ConfigOption<Long> SERVER_HEARTBEAT_DELAY = ConfigOptions
       .key("rss.server.heartbeat.delay")
       .longType()
       .defaultValue(10 * 1000L)
       .withDescription("rss heartbeat initial delay ms");
 
-  public static final ConfigOption<Long> HEARTBEAT_INTERVAL = ConfigOptions
+  public static final ConfigOption<Long> SERVER_HEARTBEAT_INTERVAL = ConfigOptions
       .key("rss.server.heartbeat.interval")
       .longType()
       .defaultValue(10 * 60 * 1000L)
       .withDescription("rss heartbeat interval ms");
 
-  public static final ConfigOption<Long> HEARTBEAT_TIMEOUT = ConfigOptions
+  public static final ConfigOption<Long> SERVER_HEARTBEAT_TIMEOUT = ConfigOptions
       .key("rss.server.heartbeat.timeout")
       .longType()
       .defaultValue(10 * 1000L)
       .withDescription("rss heartbeat interval ms");
 
-  public static final ConfigOption<Integer> HEARTBEAT_MAX_FAILURE = ConfigOptions
+  public static final ConfigOption<Integer> SERVER_HEARTBEAT_MAX_FAILURE = ConfigOptions
       .key("rss.server.heartbeat.max.failure")
       .intType()
       .defaultValue(10)
@@ -169,36 +157,28 @@ public class ShuffleServerConf extends RssBaseConf {
         set(RPC_SERVER_PORT, Integer.valueOf(v));
       }
 
-      if (BUFFER_CAPACITY.key().equalsIgnoreCase(k)) {
-        set(BUFFER_CAPACITY, Long.valueOf(v));
+      if (SERVER_BUFFER_CAPACITY.key().equalsIgnoreCase(k)) {
+        set(SERVER_BUFFER_CAPACITY, Long.valueOf(v));
       }
 
-      if (BUFFER_SPILL_THRESHOLD.key().equalsIgnoreCase(k)) {
-        set(BUFFER_SPILL_THRESHOLD, Long.valueOf(v));
+      if (SERVER_BUFFER_SPILL_THRESHOLD.key().equalsIgnoreCase(k)) {
+        set(SERVER_BUFFER_SPILL_THRESHOLD, Long.valueOf(v));
       }
 
-      if (BUFFER_SIZE.key().equalsIgnoreCase(k)) {
-        set(BUFFER_SIZE, Integer.valueOf(v));
+      if (SERVER_PARTITION_BUFFER_SIZE.key().equalsIgnoreCase(k)) {
+        set(SERVER_PARTITION_BUFFER_SIZE, Integer.valueOf(v));
       }
 
-      if (COORDINATOR_IP.key().equalsIgnoreCase(k)) {
-        set(COORDINATOR_IP, v);
+      if (SERVER_HEARTBEAT_DELAY.key().equalsIgnoreCase(k)) {
+        set(SERVER_HEARTBEAT_DELAY, Long.valueOf(v));
       }
 
-      if (COORDINATOR_PORT.key().equalsIgnoreCase(k)) {
-        set(COORDINATOR_PORT, Integer.valueOf(v));
+      if (SERVER_HEARTBEAT_INTERVAL.key().equalsIgnoreCase(k)) {
+        set(SERVER_HEARTBEAT_INTERVAL, Long.valueOf(v));
       }
 
-      if (HEARTBEAT_DELAY.key().equalsIgnoreCase(k)) {
-        set(HEARTBEAT_DELAY, Long.valueOf(v));
-      }
-
-      if (HEARTBEAT_INTERVAL.key().equalsIgnoreCase(k)) {
-        set(HEARTBEAT_INTERVAL, Long.valueOf(v));
-      }
-
-      if (HEARTBEAT_TIMEOUT.key().equalsIgnoreCase(k)) {
-        set(HEARTBEAT_TIMEOUT, Long.valueOf(v));
+      if (SERVER_HEARTBEAT_TIMEOUT.key().equalsIgnoreCase(k)) {
+        set(SERVER_HEARTBEAT_TIMEOUT, Long.valueOf(v));
       }
 
       if (SERVER_FLUSH_THREAD_POOL_SIZE.key().equalsIgnoreCase(k)) {

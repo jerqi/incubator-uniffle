@@ -35,12 +35,12 @@ public class RegisterHeartBeat {
 
   public RegisterHeartBeat(ShuffleServer shuffleServer) {
     ShuffleServerConf conf = shuffleServer.getShuffleServerConf();
-    this.ip = conf.getString(ShuffleServerConf.COORDINATOR_IP);
-    this.port = conf.getInteger(ShuffleServerConf.COORDINATOR_PORT);
-    this.heartBeatInitialDelay = conf.getLong(ShuffleServerConf.HEARTBEAT_DELAY);
-    this.heartBeatInterval = conf.getLong(ShuffleServerConf.HEARTBEAT_INTERVAL);
-    this.heartBeatTimeout = conf.getLong(ShuffleServerConf.HEARTBEAT_TIMEOUT);
-    this.maxHeartBeatRetry = conf.getInteger(ShuffleServerConf.HEARTBEAT_MAX_FAILURE);
+    this.ip = conf.getString(ShuffleServerConf.RSS_COORDINATOR_IP);
+    this.port = conf.getInteger(ShuffleServerConf.RSS_COORDINATOR_PORT);
+    this.heartBeatInitialDelay = conf.getLong(ShuffleServerConf.SERVER_HEARTBEAT_DELAY);
+    this.heartBeatInterval = conf.getLong(ShuffleServerConf.SERVER_HEARTBEAT_INTERVAL);
+    this.heartBeatTimeout = conf.getLong(ShuffleServerConf.SERVER_HEARTBEAT_TIMEOUT);
+    this.maxHeartBeatRetry = conf.getInteger(ShuffleServerConf.SERVER_HEARTBEAT_MAX_FAILURE);
     CoordinatorClientFactory factory =
         new CoordinatorClientFactory(conf.getString(ShuffleServerConf.RSS_CLIENT_TYPE));
     this.rpcClient = factory.createCoordinatorClient(ip, port);

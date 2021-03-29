@@ -34,7 +34,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     String storageBasePath = HDFS_URI + "rss/test";
     conf.setString("rss.server.buffer.capacity", "128");
     conf.setString("rss.server.buffer.spill.threshold", "64");
-    conf.setString("rss.server.buffer.size", "64");
+    conf.setString("rss.server.partition.buffer.size", "64");
     conf.setString("rss.storage.basePath", storageBasePath);
     conf.setString("rss.storage.type", "HDFS");
     conf.setString("rss.server.commit.timeout", "10000");
@@ -71,7 +71,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     int shuffleId = 1;
     conf.setString("rss.server.buffer.capacity", "128");
     conf.setString("rss.server.buffer.spill.threshold", "64");
-    conf.setString("rss.server.buffer.size", "64");
+    conf.setString("rss.server.partition.buffer.size", "64");
     conf.setString("rss.storage.basePath", storageBasePath);
     conf.setString("rss.storage.type", "HDFS");
     conf.setString("rss.server.commit.timeout", "10000");
@@ -188,13 +188,13 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     String storageBasePath = HDFS_URI + "rss/clearTest";
     int shuffleId = 1;
     conf.setString("rss.rpc.server.port", "1234");
-    conf.setString("rss.server.coordinator.ip", "localhost");
-    conf.setString("rss.server.coordinator.port", "9527");
+    conf.setString("rss.coordinator.ip", "localhost");
+    conf.setString("rss.coordinator.port", "9527");
     conf.setString("rss.jetty.http.port", "12345");
     conf.setString("rss.jetty.corePool.size", "64");
     conf.setString("rss.server.buffer.capacity", "128");
     conf.setString("rss.server.buffer.spill.threshold", "64");
-    conf.setString("rss.server.buffer.size", "64");
+    conf.setString("rss.server.partition.buffer.size", "64");
     conf.setString("rss.storage.basePath", storageBasePath);
     conf.setString("rss.storage.type", "HDFS");
     conf.setString("rss.server.commit.timeout", "10000");

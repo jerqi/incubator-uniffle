@@ -4,6 +4,18 @@ import java.util.Map;
 
 public class RssBaseConf extends RssConf {
 
+  public static final ConfigOption<String> RSS_COORDINATOR_IP = ConfigOptions
+      .key("rss.coordinator.ip")
+      .stringType()
+      .noDefaultValue()
+      .withDescription("Coordinator ip");
+
+  public static final ConfigOption<Integer> RSS_COORDINATOR_PORT = ConfigOptions
+      .key("rss.coordinator.port")
+      .intType()
+      .noDefaultValue()
+      .withDescription("Coordinator port");
+
   public static final ConfigOption<String> RPC_SERVER_TYPE = ConfigOptions
       .key("rss.rpc.server.type")
       .stringType()
@@ -117,19 +129,19 @@ public class RssBaseConf extends RssConf {
       .defaultValue("GRPC")
       .withDescription("client type for rss");
 
-  public static final ConfigOption<String> DATA_STORAGE_TYPE = ConfigOptions
+  public static final ConfigOption<String> RSS_STORAGE_TYPE = ConfigOptions
       .key("rss.storage.type")
       .stringType()
       .noDefaultValue()
       .withDescription("Data storage for remote shuffle service");
 
-  public static final ConfigOption<String> DATA_STORAGE_BASE_PATH = ConfigOptions
+  public static final ConfigOption<String> RSS_STORAGE_BASE_PATH = ConfigOptions
       .key("rss.storage.basePath")
       .stringType()
       .noDefaultValue()
       .withDescription("Common storage path for remote shuffle data");
 
-  public static final ConfigOption<Integer> DATA_STORAGE_REPLICA = ConfigOptions
+  public static final ConfigOption<Integer> RSS_STORAGE_REPLICA = ConfigOptions
       .key("rss.storage.replica")
       .intType()
       .defaultValue(1)
@@ -147,6 +159,14 @@ public class RssBaseConf extends RssConf {
     }
 
     properties.forEach((k, v) -> {
+      if (RSS_COORDINATOR_IP.key().equalsIgnoreCase(k)) {
+        set(RSS_COORDINATOR_IP, v);
+      }
+
+      if (RSS_COORDINATOR_PORT.key().equalsIgnoreCase(k)) {
+        set(RSS_COORDINATOR_PORT, Integer.valueOf(v));
+      }
+
       if (RPC_SERVER_TYPE.key().equalsIgnoreCase(k)) {
         set(RPC_SERVER_TYPE, v);
       }
@@ -219,16 +239,16 @@ public class RssBaseConf extends RssConf {
         set(RSS_CLIENT_TYPE, v);
       }
 
-      if (DATA_STORAGE_TYPE.key().equalsIgnoreCase(k)) {
-        set(DATA_STORAGE_TYPE, v.toUpperCase());
+      if (RSS_STORAGE_TYPE.key().equalsIgnoreCase(k)) {
+        set(RSS_STORAGE_TYPE, v.toUpperCase());
       }
 
-      if (DATA_STORAGE_BASE_PATH.key().equalsIgnoreCase(k)) {
-        set(DATA_STORAGE_BASE_PATH, v);
+      if (RSS_STORAGE_BASE_PATH.key().equalsIgnoreCase(k)) {
+        set(RSS_STORAGE_BASE_PATH, v);
       }
 
-      if (DATA_STORAGE_REPLICA.key().equalsIgnoreCase(k)) {
-        set(DATA_STORAGE_REPLICA, Integer.valueOf(k));
+      if (RSS_STORAGE_REPLICA.key().equalsIgnoreCase(k)) {
+        set(RSS_STORAGE_REPLICA, Integer.valueOf(k));
       }
 
       if (RSS_STORAGE_INDEX_READ_LIMIT.key().equalsIgnoreCase(k)) {

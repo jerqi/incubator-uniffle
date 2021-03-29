@@ -13,7 +13,7 @@ public class RssUtilsTest {
     final String filePath = Objects.requireNonNull(
         getClass().getClassLoader().getResource("rss-defaults.conf")).getFile();
     Map<String, String> properties = RssUtils.getPropertiesFromFile(filePath);
-    assertEquals("12121", properties.get("rss.server.coordinator.port"));
+    assertEquals("12121", properties.get("rss.coordinator.port"));
     assertEquals("155", properties.get("rss.server.heartbeat.interval"));
     assertEquals("true", properties.get("rss.x.y.z"));
     assertEquals("-XX:+PrintGCDetails-Dkey=value-Dnumbers=\"one two three\"",

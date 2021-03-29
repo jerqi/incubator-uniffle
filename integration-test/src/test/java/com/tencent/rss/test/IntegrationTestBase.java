@@ -56,9 +56,9 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     serverConf.setString("rss.storage.basePath", HDFS_URI + "rss/test");
     serverConf.setString("rss.server.buffer.capacity", "671088640");
     serverConf.setString("rss.server.buffer.spill.threshold", "335544320");
-    serverConf.setString("rss.server.buffer.size", "67108864");
-    serverConf.setString("rss.server.coordinator.ip", "127.0.0.1");
-    serverConf.setInteger("rss.server.coordinator.port", COORDINATOR_PORT);
+    serverConf.setString("rss.server.partition.buffer.size", "67108864");
+    serverConf.setString("rss.coordinator.ip", "127.0.0.1");
+    serverConf.setInteger("rss.coordinator.port", COORDINATOR_PORT);
     serverConf.setString("rss.server.heartbeat.delay", "1000");
     serverConf.setString("rss.server.heartbeat.interval", "1000");
     serverConf.setInteger("rss.jetty.http.port", 18080);

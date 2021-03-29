@@ -16,8 +16,8 @@ public class RssClientConfig {
   public static String RSS_WRITER_PRE_ALLOCATED_BUFFER_SIZE_DEFAULT_VALUE = "2m";
   public static String RSS_WRITER_SAMPLE_GROW_RATE = "spark.rss.writer.sample.grow.rate";
   public static double RSS_WRITER_SAMPLE_GROW_RATE_DEFAULT_VALUE = 1.1;
-  public static String RSS_COORDINATOR_IP = "spark.rss.server.coordinator.ip";
-  public static String RSS_COORDINATOR_PORT = "spark.rss.server.coordinator.port";
+  public static String RSS_COORDINATOR_IP = "spark.rss.coordinator.ip";
+  public static String RSS_COORDINATOR_PORT = "spark.rss.coordinator.port";
   public static int RSS_COORDINATOR_PORT_DEFAULT_VALUE = 17777;
   public static String RSS_WRITER_SEND_CHECK_TIMEOUT = "spark.rss.writer.send.check.timeout";
   public static long RSS_WRITER_SEND_CHECK_TIMEOUT_DEFAULT_VALUE = 10 * 60 * 1000; // 10 min

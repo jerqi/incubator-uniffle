@@ -61,7 +61,7 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     assertEquals(Sets.newHashSet("clearResourceTest1", "clearResourceTest2"),
         shuffleServers.get(0).getShuffleTaskManager().getAppIds().keySet());
     // Thread will keep refresh clearResourceTest1 in coordinator
-    new Thread(() -> {
+    Thread t = new Thread(() -> {
       int i = 0;
       while (i < 20) {
         coordinatorClient.sendAppHeartBeat(new RssAppHeartBeatRequest("clearResourceTest1"));
@@ -71,7 +71,8 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
         } catch (Exception e) {
         }
       }
-    }).start();
+    });
+    t.start();
 
     // after 3s, coordinator will remove expired appId,
     // but shuffle server won't because of rss.server.app.expired.withoutHeartbeat
@@ -90,6 +91,7 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     assertEquals(Sets.newHashSet("clearResourceTest1"),
         coordinators.get(0).getApplicationManager().getAppIds());
     assertEquals(0, shuffleServers.get(0).getShuffleTaskManager().getAppIds().size());
+    t.join(10000);
   }
 
   @Test

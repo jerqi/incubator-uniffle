@@ -320,7 +320,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     int partitionsPerServer = request.getPartitionsPerServer();
     int partitionNum = request.getPartitionNum();
     int readBufferSize = request.getReadBufferSize();
-    String storageType = shuffleServer.getShuffleServerConf().get(RssBaseConf.DATA_STORAGE_TYPE);
+    String storageType = shuffleServer.getShuffleServerConf().get(RssBaseConf.RSS_STORAGE_TYPE);
     Set<Long> blockIds = Sets.newHashSet(request.getBlockIdsList());
     StatusCode status = StatusCode.SUCCESS;
     String msg = "OK";

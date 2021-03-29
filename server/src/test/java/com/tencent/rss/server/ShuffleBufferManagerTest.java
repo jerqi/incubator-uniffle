@@ -34,7 +34,7 @@ public class ShuffleBufferManagerTest {
     ShuffleServerConf conf = new ShuffleServerConf();
     conf.setString("rss.server.buffer.capacity", "150");
     conf.setString("rss.server.buffer.spill.threshold", "128");
-    conf.setString("rss.server.buffer.size", "32");
+    conf.setString("rss.server.partition.buffer.size", "32");
     mockShuffleFlushManager = mock(ShuffleFlushManager.class);
     shuffleBufferManager = new ShuffleBufferManager(conf, mockShuffleFlushManager);
   }
@@ -193,7 +193,7 @@ public class ShuffleBufferManagerTest {
     conf.setString("rss.storage.basePath", dataDir.getAbsolutePath());
     conf.setString("rss.server.buffer.capacity", "150");
     conf.setString("rss.server.buffer.spill.threshold", "128");
-    conf.setString("rss.server.buffer.size", "32");
+    conf.setString("rss.server.partition.buffer.size", "32");
 
     ShuffleServer mockShuffleServer = mock(ShuffleServer.class);
     ShuffleFlushManager shuffleFlushManager = new ShuffleFlushManager(conf, "serverId", mockShuffleServer);

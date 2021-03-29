@@ -58,7 +58,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
       int partitionNum,
       RssBaseConf rssBaseConf,
       Set<Long> expectedBlockIds) {
-    String allLocalPath = rssBaseConf.get(RssBaseConf.DATA_STORAGE_BASE_PATH);
+    String allLocalPath = rssBaseConf.get(RssBaseConf.RSS_STORAGE_BASE_PATH);
     int indexReadLimit = rssBaseConf.get(RssBaseConf.RSS_STORAGE_INDEX_READ_LIMIT);
     String[] storageBasePaths = allLocalPath.split(",");
 
