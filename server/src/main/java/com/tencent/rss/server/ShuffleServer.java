@@ -79,6 +79,9 @@ public class ShuffleServer {
     if (jettyServer != null) {
       jettyServer.stop();
     }
+    if (registerHeartBeat != null) {
+      registerHeartBeat.shutdown();
+    }
     server.stop();
   }
 

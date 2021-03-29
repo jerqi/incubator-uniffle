@@ -317,7 +317,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     String appId = request.getAppId();
     int shuffleId = request.getShuffleId();
     int partitionId = request.getPartitionId();
-    int partitionsPerServer = request.getPartitionsPerServer();
+    int partitionNumPerRange = request.getPartitionNumPerRange();
     int partitionNum = request.getPartitionNum();
     int readBufferSize = request.getReadBufferSize();
     String storageType = shuffleServer.getShuffleServerConf().get(RssBaseConf.RSS_STORAGE_TYPE);
@@ -333,7 +333,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
       try {
         long start = System.currentTimeMillis();
         sdr = shuffleServer.getShuffleTaskManager().getShuffleData(appId, shuffleId, partitionId,
-            partitionsPerServer, partitionNum, readBufferSize, storageType, blockIds);
+            partitionNumPerRange, partitionNum, readBufferSize, storageType, blockIds);
         readDataTime.addAndGet(System.currentTimeMillis() - start);
         LOG.debug("Rpc server[getShuffleData] cost " + (System.currentTimeMillis() - start)
             + " ms for " + requestInfo);

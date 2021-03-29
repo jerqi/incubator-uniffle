@@ -175,12 +175,12 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
 
   @Override
   public ShuffleAssignmentsInfo getShuffleAssignments(
-      String appId, int shuffleId, int partitionNum, int partitionsPerServer) {
+      String appId, int shuffleId, int partitionNum, int partitionNumPerRange, int dataReplica) {
     RssGetShuffleAssignmentsRequest request = new RssGetShuffleAssignmentsRequest(
-        appId, shuffleId, partitionNum, partitionsPerServer);
+        appId, shuffleId, partitionNum, partitionNumPerRange, dataReplica);
     RssGetShuffleAssignmentsResponse response = coordinatorClient.getShuffleAssignments(request);
     String msg = "Error happend when getShuffleAssignments with appId[" + appId + "], shuffleId[" + shuffleId
-        + "], numMaps[" + partitionNum + "], partitionsPerServer[" + partitionsPerServer + "] to coordinator";
+        + "], numMaps[" + partitionNum + "], partitionNumPerRange[" + partitionNumPerRange + "] to coordinator";
     throwExceptionIfNecessary(response, msg);
     return new ShuffleAssignmentsInfo(response.getPartitionToServers(),
         response.getRegisterInfoList(), response.getShuffleServersForResult());

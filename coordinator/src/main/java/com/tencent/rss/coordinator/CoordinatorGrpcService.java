@@ -69,11 +69,11 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
       GetShuffleServerRequest request,
       StreamObserver<GetShuffleAssignmentsResponse> responseObserver) {
     final int partitionNum = request.getPartitionNum();
-    final int partitionPerServer = request.getPartitionPerServer();
-    final int replica = coordinatorServer.getCoordinatorConf().getShuffleServerReplica();
+    final int partitionNumPerRange = request.getPartitionNumPerRange();
+    final int replica = request.getDataReplica();
 
     final PartitionRangeAssignment pra =
-        coordinatorServer.getAssignmentStrategy().assign(partitionNum, partitionPerServer, replica);
+        coordinatorServer.getAssignmentStrategy().assign(partitionNum, partitionNumPerRange, replica);
     final List<ServerNode> serverNodes =
         coordinatorServer.getAssignmentStrategy().assignServersForResult(replica);
     final GetShuffleAssignmentsResponse response =

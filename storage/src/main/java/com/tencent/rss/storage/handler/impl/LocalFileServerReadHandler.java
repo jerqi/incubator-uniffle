@@ -35,7 +35,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
       String appId,
       int shuffleId,
       int partitionId,
-      int partitionsPerServer,
+      int partitionNumPerRange,
       int partitionNum,
       int readBufferSize,
       Set<Long> expectedBlockIds,
@@ -45,7 +45,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
     this.partitionId = partitionId;
     this.readBufferSize = readBufferSize;
     if (expectedBlockIds != null && !expectedBlockIds.isEmpty()) {
-      init(appId, shuffleId, partitionId, partitionsPerServer, partitionNum,
+      init(appId, shuffleId, partitionId, partitionNumPerRange, partitionNum,
           rssBaseConf, expectedBlockIds);
     }
   }
@@ -54,7 +54,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
       String appId,
       int shuffleId,
       int partitionId,
-      int partitionsPerServer,
+      int partitionNumPerRange,
       int partitionNum,
       RssBaseConf rssBaseConf,
       Set<Long> expectedBlockIds) {
@@ -65,7 +65,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
     long start = System.currentTimeMillis();
     if (storageBasePaths.length > 0) {
       for (String path : storageBasePaths) {
-        prepareFilePath(appId, shuffleId, partitionId, partitionsPerServer, partitionNum, path);
+        prepareFilePath(appId, shuffleId, partitionId, partitionNumPerRange, partitionNum, path);
       }
     } else {
       throw new RuntimeException("Can't get base path, please check rss.storage.localFile.basePaths.");
@@ -81,12 +81,12 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
       String appId,
       int shuffleId,
       int partitionId,
-      int partitionsPerServer,
+      int partitionNumPerRange,
       int partitionNum,
       String storageBasePath) {
     String fullShufflePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
         ShuffleStorageUtils.getShuffleDataPathWithRange(
-            appId, shuffleId, partitionId, partitionsPerServer, partitionNum));
+            appId, shuffleId, partitionId, partitionNumPerRange, partitionNum));
 
     File baseFolder = new File(fullShufflePath);
     try {

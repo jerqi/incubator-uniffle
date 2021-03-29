@@ -44,6 +44,9 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
     createCoordinatorServer(coordinatorConf);
     ShuffleServerConf shuffleServerConf = getShuffleServerConf();
     createShuffleServer(shuffleServerConf);
+    shuffleServerConf.setInteger("rss.rpc.server.port", SHUFFLE_SERVER_PORT + 1);
+    shuffleServerConf.setInteger("rss.jetty.http.port", 18081);
+    createShuffleServer(shuffleServerConf);
     startServers();
   }
 
@@ -99,8 +102,8 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
 
   @Test
   public void getShuffleAssignmentsTest() throws Exception {
-    waitForRegister(1);
-    RssGetShuffleAssignmentsRequest request = new RssGetShuffleAssignmentsRequest("appId", 1, 10, 4);
+    waitForRegister(2);
+    RssGetShuffleAssignmentsRequest request = new RssGetShuffleAssignmentsRequest("appId", 1, 10, 4, 1);
     RssGetShuffleAssignmentsResponse response = coordinatorClient.getShuffleAssignments(request);
     Set<Integer> expectedStart = Sets.newHashSet(0, 4, 8);
 
@@ -125,6 +128,34 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
     }
     assertTrue(expectedStart.isEmpty());
     assertEquals(1, response.getShuffleServersForResult().size());
+
+    request = new RssGetShuffleAssignmentsRequest("appId", 1, 10, 4, 2);
+    response = coordinatorClient.getShuffleAssignments(request);
+    assertEquals(6, response.getRegisterInfoList().size());
+    int range0To3 = 0;
+    int range4To7 = 0;
+    int range8To11 = 0;
+    for (ShuffleRegisterInfo sri : response.getRegisterInfoList()) {
+      switch (sri.getStart()) {
+        case 0:
+          assertEquals(3, sri.getEnd());
+          range0To3++;
+          break;
+        case 4:
+          assertEquals(7, sri.getEnd());
+          range4To7++;
+          break;
+        case 8:
+          assertEquals(11, sri.getEnd());
+          range8To11++;
+          break;
+        default:
+          fail("Shouldn't be here");
+      }
+    }
+    assertEquals(2, range0To3);
+    assertEquals(2, range4To7);
+    assertEquals(2, range8To11);
   }
 
   @Test

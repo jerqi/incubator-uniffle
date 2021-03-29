@@ -41,7 +41,7 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
       int shuffleId,
       int partitionId,
       int indexReadLimit,
-      int partitionsPerServer,
+      int partitionNumPerRange,
       int partitionNum,
       int readBufferSize,
       String storageBasePath,
@@ -57,7 +57,7 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
     request.setShuffleId(shuffleId);
     request.setPartitionId(partitionId);
     request.setIndexReadLimit(indexReadLimit);
-    request.setPartitionsPerServer(partitionsPerServer);
+    request.setPartitionNumPerRange(partitionNumPerRange);
     request.setPartitionNum(partitionNum);
     request.setReadBufferSize(readBufferSize);
     request.setStorageBasePath(storageBasePath);

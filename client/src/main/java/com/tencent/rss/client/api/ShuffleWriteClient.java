@@ -24,7 +24,7 @@ public interface ShuffleWriteClient {
       String appId, int shuffleId, Map<Integer, List<Long>> partitionToBlockIds);
 
   ShuffleAssignmentsInfo getShuffleAssignments(
-      String appId, int shuffleId, int partitionNum, int partitionsPerServer);
+      String appId, int shuffleId, int partitionNum, int partitionNumPerRange, int dataReplica);
 
   List<Long> getShuffleResult(String clientType, Set<ShuffleServerInfo> shuffleServerInfoSet,
       String appId, int shuffleId, int partitionId);

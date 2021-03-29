@@ -309,7 +309,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         .setAppId(request.getAppId())
         .setShuffleId(request.getShuffleId())
         .setPartitionId(request.getPartitionId())
-        .setPartitionsPerServer(request.getPartitionsPerServer())
+        .setPartitionNumPerRange(request.getPartitionNumPerRange())
         .setPartitionNum(request.getPartitionNum())
         .setReadBufferSize(request.getReadBufferSize())
         .addAllBlockIds(request.getBlockIds())

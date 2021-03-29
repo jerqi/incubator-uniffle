@@ -15,13 +15,13 @@ public class CreateShuffleReadClientRequest {
   private Configuration hadoopConf;
   private int indexReadLimit;
   private int readBufferSize;
-  private int partitionsPerServer;
+  private int partitionNumPerRange;
   private int partitionNum;
   private Set<Long> expectedBlockIds;
   private List<ShuffleServerInfo> shuffleServerInfoList;
 
   public CreateShuffleReadClientRequest(String appId, int shuffleId, int partitionId, String storageType,
-      String basePath, Configuration hadoopConf, int indexReadLimit, int readBufferSize, int partitionsPerServer,
+      String basePath, Configuration hadoopConf, int indexReadLimit, int readBufferSize, int partitionNumPerRange,
       int partitionNum, Set<Long> expectedBlockIds, List<ShuffleServerInfo> shuffleServerInfoList) {
     this.appId = appId;
     this.shuffleId = shuffleId;
@@ -31,7 +31,7 @@ public class CreateShuffleReadClientRequest {
     this.hadoopConf = hadoopConf;
     this.indexReadLimit = indexReadLimit;
     this.readBufferSize = readBufferSize;
-    this.partitionsPerServer = partitionsPerServer;
+    this.partitionNumPerRange = partitionNumPerRange;
     this.partitionNum = partitionNum;
     this.expectedBlockIds = expectedBlockIds;
     this.shuffleServerInfoList = shuffleServerInfoList;
@@ -49,8 +49,8 @@ public class CreateShuffleReadClientRequest {
     return partitionId;
   }
 
-  public int getPartitionsPerServer() {
-    return partitionsPerServer;
+  public int getPartitionNumPerRange() {
+    return partitionNumPerRange;
   }
 
   public int getPartitionNum() {

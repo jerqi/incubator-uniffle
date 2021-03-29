@@ -4,7 +4,7 @@ import java.util.List;
 
 public interface AssignmentStrategy {
 
-  PartitionRangeAssignment assign(int totalPartitionNum, int partitionNumPerServer, int replica);
+  PartitionRangeAssignment assign(int totalPartitionNum, int partitionNumPerRange, int replica);
 
   List<ServerNode> assignServersForResult(int replica);
 }

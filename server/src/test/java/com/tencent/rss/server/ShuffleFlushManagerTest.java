@@ -161,10 +161,10 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
   }
 
   private void validate(String appId, int shuffleId, int partitionId, List<ShufflePartitionedBlock> blocks,
-      int partitionsPerServer, String basePath) {
+      int partitionNumPerRange, String basePath) {
     Set<Long> blockIds = Sets.newHashSet(blocks.stream().map(spb -> spb.getBlockId()).collect(Collectors.toList()));
     HdfsClientReadHandler handler = new HdfsClientReadHandler(appId, shuffleId, partitionId,
-        100, partitionsPerServer, 10, blocks.size() * 32, basePath, blockIds);
+        100, partitionNumPerRange, 10, blocks.size() * 32, basePath, blockIds);
     ShuffleDataResult sdr = null;
     int matchNum = 0;
     Set<Long> remainIds = Sets.newHashSet(blockIds);

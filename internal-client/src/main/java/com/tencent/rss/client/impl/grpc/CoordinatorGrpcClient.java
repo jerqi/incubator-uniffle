@@ -97,13 +97,14 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
   }
 
   public RssProtos.GetShuffleAssignmentsResponse doGetShuffleAssignments(
-      String appId, int shuffleId, int numMaps, int partitionsPerServer) {
+      String appId, int shuffleId, int numMaps, int partitionNumPerRange, int dataReplica) {
 
     RssProtos.GetShuffleServerRequest getServerRequest = RssProtos.GetShuffleServerRequest.newBuilder()
         .setApplicationId(appId)
         .setShuffleId(shuffleId)
         .setPartitionNum(numMaps)
-        .setPartitionPerServer(partitionsPerServer)
+        .setPartitionNumPerRange(partitionNumPerRange)
+        .setDataReplica(dataReplica)
         .build();
 
     return blockingStub.getShuffleAssignments(getServerRequest);
@@ -157,7 +158,8 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
         request.getAppId(),
         request.getShuffleId(),
         request.getPartitionNum(),
-        request.getPartitionsPerServer());
+        request.getPartitionNumPerRange(),
+        request.getDataReplica());
 
     RssGetShuffleAssignmentsResponse response;
     StatusCode statusCode = rpcResponse.getStatus();

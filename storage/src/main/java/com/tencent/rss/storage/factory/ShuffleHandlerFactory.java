@@ -39,7 +39,7 @@ public class ShuffleHandlerFactory {
   public ClientReadHandler createShuffleReadHandler(CreateShuffleReadHandlerRequest request) {
     if (StorageType.HDFS.name().equals(request.getStorageType())) {
       return new HdfsClientReadHandler(request.getAppId(), request.getShuffleId(), request.getPartitionId(),
-          request.getIndexReadLimit(), request.getPartitionsPerServer(), request.getPartitionNum(),
+          request.getIndexReadLimit(), request.getPartitionNumPerRange(), request.getPartitionNum(),
           request.getReadBufferSize(), request.getStorageBasePath(), request.getExpectedBlockIds());
     } else if (StorageType.LOCALFILE.name().equals(request.getStorageType())) {
       List<ShuffleServerInfo> shuffleServerInfoList = request.getShuffleServerInfoList();
@@ -47,7 +47,7 @@ public class ShuffleHandlerFactory {
           ssi -> ShuffleServerClientFactory.getInstance().getShuffleServerClient(ClientType.GRPC.name(), ssi)).collect(
           Collectors.toList());
       return new LocalFileClientReadHandler(request.getAppId(), request.getShuffleId(), request.getPartitionId(),
-          request.getIndexReadLimit(), request.getPartitionsPerServer(), request.getPartitionNum(),
+          request.getIndexReadLimit(), request.getPartitionNumPerRange(), request.getPartitionNum(),
           request.getReadBufferSize(), shuffleServerClients);
     } else {
       throw new UnsupportedOperationException(
@@ -61,11 +61,11 @@ public class ShuffleHandlerFactory {
       localHandlers.putIfAbsent(appId, Maps.newConcurrentMap());
       Map<String, LocalFileServerReadHandler> handlerMap = localHandlers.get(appId);
       int[] range = ShuffleStorageUtils.getPartitionRange(
-          request.getPartitionId(), request.getPartitionsPerServer(), request.getPartitionNum());
+          request.getPartitionId(), request.getPartitionNumPerRange(), request.getPartitionNum());
       String key = "" + request.getShuffleId() + "_" + range[0] + "_" + range[1];
       if (handlerMap.get(key) == null) {
         handlerMap.put(key, new LocalFileServerReadHandler(request.getAppId(), request.getShuffleId(),
-            request.getPartitionId(), request.getPartitionsPerServer(), request.getPartitionNum(),
+            request.getPartitionId(), request.getPartitionNumPerRange(), request.getPartitionNum(),
             request.getReadBufferSize(), request.getExpectedBlockIds(), request.getRssBaseConf()));
       }
       return handlerMap.get(key);

@@ -48,7 +48,7 @@ message GetShuffleDataRequest {
   string appId = 1;
   int32 shuffleId = 2;
   int32 partitionId = 3;
-  int32 partitionsPerServer = 4;
+  int32 partitionNumPerRange = 4;
   int32 partitionNum = 5;
   int32 readBufferSize = 6;
   repeated int64 blockIds = 7;
@@ -220,7 +220,8 @@ message GetShuffleServerRequest {
   string applicationId = 4;
   int32 shuffleId = 5;
   int32 partitionNum = 6;
-  int32 partitionPerServer = 7;
+  int32 partitionNumPerRange = 7;
+  int32 dataReplica = 8;
 }
 
 message PartitionRangeAssignment {

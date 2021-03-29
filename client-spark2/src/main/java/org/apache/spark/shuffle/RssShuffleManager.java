@@ -133,11 +133,13 @@ public class RssShuffleManager implements ShuffleManager {
     setAppId();
     startHeartbeat();
 
-    int partitionsPerServer = sparkConf.getInt(RssClientConfig.RSS_PARTITIONS_PER_SERVER,
-        RssClientConfig.RSS_PARTITIONS_PER_SERVER_DEFAULT_VALUE);
+    int partitionNumPerRange = sparkConf.getInt(RssClientConfig.RSS_PARTITION_NUM_PER_RANGE,
+        RssClientConfig.RSS_PARTITION_NUM_PER_RANGE_DEFAULT_VALUE);
+    int dataReplica = sparkConf.getInt(RssClientConfig.RSS_DATA_REPLICA,
+        RssClientConfig.RSS_DATA_REPLICA_DEFAULT_VALUE);
     // get all register info according to coordinator's response
     ShuffleAssignmentsInfo response = shuffleWriteClient.getShuffleAssignments(
-        appId, shuffleId, dependency.partitioner().numPartitions(), partitionsPerServer);
+        appId, shuffleId, dependency.partitioner().numPartitions(), partitionNumPerRange, dataReplica);
     List<ShuffleRegisterInfo> shuffleRegisterInfoList = response.getRegisterInfoList();
     Map<Integer, List<ShuffleServerInfo>> partitionToServers = response.getPartitionToServers();
     Set<ShuffleServerInfo> shuffleServerForResult = response.getShuffleServersForResult();
@@ -239,8 +241,8 @@ public class RssShuffleManager implements ShuffleManager {
       int indexReadLimit = sparkConf.getInt(RssClientConfig.RSS_INDEX_READ_LIMIT,
           RssClientConfig.RSS_INDEX_READ_LIMIT_DEFAULT_VALUE);
       RssShuffleHandle rssShuffleHandle = (RssShuffleHandle) handle;
-      int partitionsPerServer = sparkConf.getInt(RssClientConfig.RSS_PARTITIONS_PER_SERVER,
-          RssClientConfig.RSS_PARTITIONS_PER_SERVER_DEFAULT_VALUE);
+      int partitionNumPerRange = sparkConf.getInt(RssClientConfig.RSS_PARTITION_NUM_PER_RANGE,
+          RssClientConfig.RSS_PARTITION_NUM_PER_RANGE_DEFAULT_VALUE);
       int partitionNum = rssShuffleHandle.getDependency().partitioner().numPartitions();
       long readBufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE,
           RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE_DEFAULT_VALUE);
@@ -255,7 +257,7 @@ public class RssShuffleManager implements ShuffleManager {
       return new RssShuffleReader<K, C>(startPartition, endPartition, context,
           rssShuffleHandle, shuffleDataBasePath, indexReadLimit,
           SparkHadoopUtil$.MODULE$.newConfiguration(SparkEnv.get().conf()),
-          storageType, (int) readBufferSize, partitionsPerServer, partitionNum,
+          storageType, (int) readBufferSize, partitionNumPerRange, partitionNum,
           Sets.newHashSet(expectedBlockIds));
     } else {
       throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());

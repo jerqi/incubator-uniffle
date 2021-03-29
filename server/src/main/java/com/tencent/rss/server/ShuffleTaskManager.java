@@ -175,14 +175,14 @@ public class ShuffleTaskManager {
   }
 
   public ShuffleDataResult getShuffleData(
-      String appId, Integer shuffleId, Integer partitionId, int partitionsPerServer,
+      String appId, Integer shuffleId, Integer partitionId, int partitionNumPerRange,
       int partitionNum, int readBufferSize, String storageType, Set<Long> expectedBlockIds) {
     refreshAppId(appId);
     CreateShuffleReadHandlerRequest request = new CreateShuffleReadHandlerRequest();
     request.setAppId(appId);
     request.setShuffleId(shuffleId);
     request.setPartitionId(partitionId);
-    request.setPartitionsPerServer(partitionsPerServer);
+    request.setPartitionNumPerRange(partitionNumPerRange);
     request.setPartitionNum(partitionNum);
     request.setReadBufferSize(readBufferSize);
     request.setExpectedBlockIds(expectedBlockIds);

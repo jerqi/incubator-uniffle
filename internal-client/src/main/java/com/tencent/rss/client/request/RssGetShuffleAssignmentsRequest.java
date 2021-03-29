@@ -5,13 +5,16 @@ public class RssGetShuffleAssignmentsRequest {
   private String appId;
   private int shuffleId;
   private int partitionNum;
-  private int partitionsPerServer;
+  private int partitionNumPerRange;
+  private int dataReplica;
 
-  public RssGetShuffleAssignmentsRequest(String appId, int shuffleId, int partitionNum, int partitionsPerServer) {
+  public RssGetShuffleAssignmentsRequest(
+      String appId, int shuffleId, int partitionNum, int partitionNumPerRange, int dataReplica) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.partitionNum = partitionNum;
-    this.partitionsPerServer = partitionsPerServer;
+    this.partitionNumPerRange = partitionNumPerRange;
+    this.dataReplica = dataReplica;
   }
 
   public String getAppId() {
@@ -26,7 +29,11 @@ public class RssGetShuffleAssignmentsRequest {
     return partitionNum;
   }
 
-  public int getPartitionsPerServer() {
-    return partitionsPerServer;
+  public int getPartitionNumPerRange() {
+    return partitionNumPerRange;
+  }
+
+  public int getDataReplica() {
+    return dataReplica;
   }
 }

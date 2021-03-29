@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 public class LocalFileClientReadHandler extends AbstractFileClientReadHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(HdfsClientReadHandler.class);
-  private int partitionsPerServer;
+  private int partitionNumPerRange;
   private int partitionNum;
   private int readBufferSize;
   private List<ShuffleServerClient> shuffleServerClients;
@@ -22,7 +22,7 @@ public class LocalFileClientReadHandler extends AbstractFileClientReadHandler {
       int shuffleId,
       int partitionId,
       int indexReadLimit,
-      int partitionsPerServer,
+      int partitionNumPerRange,
       int partitionNum,
       int readBufferSize,
       List<ShuffleServerClient> shuffleServerClients) {
@@ -30,7 +30,7 @@ public class LocalFileClientReadHandler extends AbstractFileClientReadHandler {
     this.shuffleId = shuffleId;
     this.partitionId = partitionId;
     this.indexReadLimit = indexReadLimit;
-    this.partitionsPerServer = partitionsPerServer;
+    this.partitionNumPerRange = partitionNumPerRange;
     this.partitionNum = partitionNum;
     this.readBufferSize = readBufferSize;
     this.shuffleServerClients = shuffleServerClients;
@@ -41,7 +41,7 @@ public class LocalFileClientReadHandler extends AbstractFileClientReadHandler {
     boolean readSuccessful = false;
     ShuffleDataResult result = null;
     RssGetShuffleDataRequest request = new RssGetShuffleDataRequest(
-        appId, shuffleId, partitionId, partitionsPerServer, partitionNum, readBufferSize, expectedBlockIds);
+        appId, shuffleId, partitionId, partitionNumPerRange, partitionNum, readBufferSize, expectedBlockIds);
     for (ShuffleServerClient shuffleServerClient : shuffleServerClients) {
       try {
         RssGetShuffleDataResponse response = shuffleServerClient.getShuffleData(request);

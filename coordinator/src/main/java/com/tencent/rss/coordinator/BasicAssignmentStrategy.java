@@ -21,8 +21,8 @@ public class BasicAssignmentStrategy implements AssignmentStrategy {
   }
 
   @Override
-  public PartitionRangeAssignment assign(int totalPartitionNum, int partitionNumPerServer, int replica) {
-    List<PartitionRange> ranges = generateRanges(totalPartitionNum, partitionNumPerServer);
+  public PartitionRangeAssignment assign(int totalPartitionNum, int partitionNumPerRange, int replica) {
+    List<PartitionRange> ranges = generateRanges(totalPartitionNum, partitionNumPerRange);
     int hint = ranges.size() * replica;
     List<ServerNode> servers = clusterManager.get(hint);
 
@@ -72,14 +72,14 @@ public class BasicAssignmentStrategy implements AssignmentStrategy {
   }
 
   @VisibleForTesting
-  List<PartitionRange> generateRanges(int totalPartitionNum, int partitionNumPerServer) {
+  List<PartitionRange> generateRanges(int totalPartitionNum, int partitionNumPerRange) {
     List<PartitionRange> ranges = new ArrayList<>();
-    if (totalPartitionNum <= 0 || partitionNumPerServer <= 0) {
+    if (totalPartitionNum <= 0 || partitionNumPerRange <= 0) {
       return ranges;
     }
 
-    for (int start = 0; start < totalPartitionNum; start += partitionNumPerServer) {
-      int end = start + partitionNumPerServer - 1;
+    for (int start = 0; start < totalPartitionNum; start += partitionNumPerRange) {
+      int end = start + partitionNumPerRange - 1;
       PartitionRange range = new PartitionRange(start, end);
       ranges.add(range);
     }

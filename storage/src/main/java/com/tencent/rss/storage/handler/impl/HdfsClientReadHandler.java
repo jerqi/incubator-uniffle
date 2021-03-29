@@ -30,7 +30,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
   private Map<String, HdfsFileReader> indexReaderMap = Maps.newHashMap();
   private Set<Long> expectedBlockIds = Sets.newHashSet();
   private List<FileReadSegment> fileReadSegments = Lists.newArrayList();
-  private int partitionsPerServer;
+  private int partitionNumPerRange;
   private int partitionNum;
   private int readBufferSize;
   private String storageBasePath;
@@ -42,7 +42,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
       int shuffleId,
       int partitionId,
       int indexReadLimit,
-      int partitionsPerServer,
+      int partitionNumPerRange,
       int partitionNum,
       int readBufferSize,
       String storageBasePath,
@@ -51,7 +51,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
     this.shuffleId = shuffleId;
     this.partitionId = partitionId;
     this.indexReadLimit = indexReadLimit;
-    this.partitionsPerServer = partitionsPerServer;
+    this.partitionNumPerRange = partitionNumPerRange;
     this.partitionNum = partitionNum;
     this.readBufferSize = readBufferSize;
     this.storageBasePath = storageBasePath;
@@ -64,7 +64,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
   private void init() {
     String fullShufflePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
         ShuffleStorageUtils.getShuffleDataPathWithRange(appId,
-            shuffleId, partitionId, partitionsPerServer, partitionNum));
+            shuffleId, partitionId, partitionNumPerRange, partitionNum));
 
     FileSystem fs;
     Path baseFolder = new Path(fullShufflePath);

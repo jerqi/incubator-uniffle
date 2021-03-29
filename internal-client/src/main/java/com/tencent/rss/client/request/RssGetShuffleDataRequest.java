@@ -7,18 +7,18 @@ public class RssGetShuffleDataRequest {
   private String appId;
   private int shuffleId;
   private int partitionId;
-  private int partitionsPerServer;
+  private int partitionNumPerRange;
   private int partitionNum;
   private int readBufferSize;
   private Set<Long> blockIds;
 
-  public RssGetShuffleDataRequest(String appId, int shuffleId, int partitionId, int partitionsPerServer,
+  public RssGetShuffleDataRequest(String appId, int shuffleId, int partitionId, int partitionNumPerRange,
       int partitionNum,
       int readBufferSize, Set<Long> blockIds) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.partitionId = partitionId;
-    this.partitionsPerServer = partitionsPerServer;
+    this.partitionNumPerRange = partitionNumPerRange;
     this.partitionNum = partitionNum;
     this.readBufferSize = readBufferSize;
     this.blockIds = blockIds;
@@ -36,8 +36,8 @@ public class RssGetShuffleDataRequest {
     return partitionId;
   }
 
-  public int getPartitionsPerServer() {
-    return partitionsPerServer;
+  public int getPartitionNumPerRange() {
+    return partitionNumPerRange;
   }
 
   public int getPartitionNum() {

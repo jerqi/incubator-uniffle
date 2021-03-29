@@ -31,6 +31,7 @@ public class RegisterHeartBeat {
   private boolean isRegistered;
   private int failedHeartBeatCount;
   private int maxHeartBeatRetry;
+  private ScheduledExecutorService service;
 
 
   public RegisterHeartBeat(ShuffleServer shuffleServer) {
@@ -64,7 +65,7 @@ public class RegisterHeartBeat {
   public void startHeartBeat() {
     LOGGER.info("Start heartbeat to coordinator {}:{} after {}ms and interval is {}ms",
         ip, port, heartBeatInitialDelay, heartBeatInterval);
-    ScheduledExecutorService service = Executors
+    service = Executors
         .newSingleThreadScheduledExecutor(new ThreadFactory() {
           @Override
           public Thread newThread(Runnable r) {
@@ -120,6 +121,10 @@ public class RegisterHeartBeat {
 
   private void checkResourceStatus(Set<String> appIds) {
     shuffleServer.getShuffleTaskManager().checkResourceStatus(appIds);
+  }
+
+  public void shutdown() {
+    service.shutdown();
   }
 
   @VisibleForTesting

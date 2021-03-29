@@ -107,28 +107,28 @@ public class ShuffleStorageUtils {
 
   public static String getShuffleDataPathWithRange(
       String appId, int shuffleId, int partitionId,
-      int partitionsPerServer, int partitionNum) {
-    int prNum = partitionNum % partitionsPerServer == 0
-        ? partitionNum / partitionsPerServer : partitionNum / partitionsPerServer + 1;
+      int partitionNumPerRange, int partitionNum) {
+    int prNum = partitionNum % partitionNumPerRange == 0
+        ? partitionNum / partitionNumPerRange : partitionNum / partitionNumPerRange + 1;
     for (int i = 0; i < prNum; i++) {
-      int start = i * partitionsPerServer;
-      int end = (i + 1) * partitionsPerServer - 1;
+      int start = i * partitionNumPerRange;
+      int end = (i + 1) * partitionNumPerRange - 1;
       if (partitionId >= start && partitionId <= end) {
         return getShuffleDataPath(appId, shuffleId, start, end);
       }
     }
     throw new RuntimeException("Can't generate ShuffleData Path for appId[" + appId + "], shuffleId["
-        + shuffleId + "], partitionId[" + partitionId + "], partitionsPerServer[" + partitionsPerServer
+        + shuffleId + "], partitionId[" + partitionId + "], partitionNumPerRange[" + partitionNumPerRange
         + "], partitionNum[" + partitionNum + "]");
   }
 
-  public static int[] getPartitionRange(int partitionId, int partitionsPerServer, int partitionNum) {
+  public static int[] getPartitionRange(int partitionId, int partitionNumPerRange, int partitionNum) {
     int[] range = null;
-    int prNum = partitionNum % partitionsPerServer == 0
-        ? partitionNum / partitionsPerServer : partitionNum / partitionsPerServer + 1;
+    int prNum = partitionNum % partitionNumPerRange == 0
+        ? partitionNum / partitionNumPerRange : partitionNum / partitionNumPerRange + 1;
     for (int i = 0; i < prNum; i++) {
-      int start = i * partitionsPerServer;
-      int end = (i + 1) * partitionsPerServer - 1;
+      int start = i * partitionNumPerRange;
+      int end = (i + 1) * partitionNumPerRange - 1;
       if (partitionId >= start && partitionId <= end) {
         range = new int[]{start, end};
         break;

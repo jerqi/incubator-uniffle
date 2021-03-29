@@ -12,7 +12,7 @@ public class CreateShuffleReadHandlerRequest {
   private int shuffleId;
   private int partitionId;
   private int indexReadLimit;
-  private int partitionsPerServer;
+  private int partitionNumPerRange;
   private int partitionNum;
   private int readBufferSize;
   private String storageBasePath;
@@ -71,12 +71,12 @@ public class CreateShuffleReadHandlerRequest {
     this.indexReadLimit = indexReadLimit;
   }
 
-  public int getPartitionsPerServer() {
-    return partitionsPerServer;
+  public int getPartitionNumPerRange() {
+    return partitionNumPerRange;
   }
 
-  public void setPartitionsPerServer(int partitionsPerServer) {
-    this.partitionsPerServer = partitionsPerServer;
+  public void setPartitionNumPerRange(int partitionNumPerRange) {
+    this.partitionNumPerRange = partitionNumPerRange;
   }
 
   public int getPartitionNum() {

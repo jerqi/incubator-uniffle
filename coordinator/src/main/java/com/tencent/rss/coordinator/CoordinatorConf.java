@@ -17,21 +17,19 @@ public class CoordinatorConf extends RssBaseConf {
       .longType()
       .defaultValue(5 * 60 * 1000L)
       .withDescription("rss coordinator aliveThreshold");
+
   static final ConfigOption<Integer> USABLE_THRESHOLD = ConfigOptions
       .key("rss.coordinator.usableThreshold")
       .intType()
       .defaultValue(10)
       .withDescription("rss coordinator usableThreshold");
-  static final ConfigOption<Integer> SHUFFLE_SERVER_REPLICA = ConfigOptions
-      .key("rss.coordinator.server.replica")
-      .intType()
-      .defaultValue(2)
-      .withDescription("Data replica configuration when writing into shuffle server");
+
   static final ConfigOption<String> ASSIGNMENT_STRATEGY = ConfigOptions
       .key("rss.coordinator.assignment.strategy")
       .stringType()
       .defaultValue("BASIC")
       .withDescription("Strategy for assigning shuffle server to write partitions");
+
   static final ConfigOption<Long> COORDINATOR_APP_EXPIRED = ConfigOptions
       .key("rss.coordinator.app.expired")
       .longType()
@@ -59,9 +57,6 @@ public class CoordinatorConf extends RssBaseConf {
     loadCommonConf(properties);
 
     properties.forEach((k, v) -> {
-      if (SHUFFLE_SERVER_REPLICA.key().equalsIgnoreCase(k)) {
-        set(SHUFFLE_SERVER_REPLICA, Integer.valueOf(v));
-      }
 
       if (ASSIGNMENT_STRATEGY.key().equalsIgnoreCase(k)) {
         set(ASSIGNMENT_STRATEGY, v.toUpperCase());
@@ -81,10 +76,6 @@ public class CoordinatorConf extends RssBaseConf {
     });
 
     return true;
-  }
-
-  public int getShuffleServerReplica() {
-    return this.getInteger(SHUFFLE_SERVER_REPLICA);
   }
 
   public String getShuffleServerAssignmentStrategy() {

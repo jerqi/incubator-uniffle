@@ -2,8 +2,8 @@ package org.apache.spark.shuffle;
 
 public class RssClientConfig {
 
-  public static String RSS_PARTITIONS_PER_SERVER = "spark.rss.partitions.per.server";
-  public static int RSS_PARTITIONS_PER_SERVER_DEFAULT_VALUE = 1;
+  public static String RSS_PARTITION_NUM_PER_RANGE = "spark.rss.partitionNum.per.range";
+  public static int RSS_PARTITION_NUM_PER_RANGE_DEFAULT_VALUE = 1;
   public static String RSS_WRITER_BUFFER_SIZE = "spark.rss.writer.buffer.size";
   public static String RSS_WRITER_BUFFER_SIZE_DEFAULT_VALUE = "8m";
   public static String RSS_WRITER_SERIALIZER_BUFFER_SIZE = "spark.rss.writer.serializer.buffer.size";
@@ -44,4 +44,6 @@ public class RssClientConfig {
   public static int RSS_CLIENT_SEND_THREAD_POOL_SIZE_DEFAULT_VALUE = 24;
   public static String RSS_CLIENT_SEND_THREAD_POOL_KEEPALIVE = "spark.rss.client.send.threadPool.keepalive";
   public static int RSS_CLIENT_SEND_THREAD_POOL_KEEPALIVE_DEFAULT_VALUE = 60;
+  public static String RSS_DATA_REPLICA = "spark.rss.data.replica";
+  public static int RSS_DATA_REPLICA_DEFAULT_VALUE = 1;
 }
