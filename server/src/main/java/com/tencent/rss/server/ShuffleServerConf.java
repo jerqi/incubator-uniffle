@@ -104,6 +104,12 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(30000L)
       .withDescription("Timeout when write shuffle data (ms)");
 
+  public static final ConfigOption<Integer> SERVER_WRITE_RETRY_MAX = ConfigOptions
+      .key("rss.server.write.retry.max")
+      .intType()
+      .defaultValue(10)
+      .withDescription("Retry times when write fail");
+
   public static final ConfigOption<Long> SERVER_APP_EXPIRED_WITH_HEARTBEAT = ConfigOptions
       .key("rss.server.app.expired.withHeartbeat")
       .longType()
@@ -233,6 +239,10 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (SERVER_MEMORY_REQUEST_RETRY_MAX.key().equalsIgnoreCase(k)) {
         set(SERVER_MEMORY_REQUEST_RETRY_MAX, Integer.valueOf(v));
+      }
+
+      if (SERVER_WRITE_RETRY_MAX.key().equalsIgnoreCase(k)) {
+        set(SERVER_WRITE_RETRY_MAX, Integer.valueOf(v));
       }
 
       if (SERVER_PRE_ALLOCATION_EXPIRED.key().equalsIgnoreCase(k)) {

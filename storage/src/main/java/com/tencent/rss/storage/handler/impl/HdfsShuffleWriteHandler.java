@@ -32,6 +32,8 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
       String fileNamePrefix,
       Configuration hadoopConf) throws IOException, IllegalStateException {
     this.hadoopConf = hadoopConf;
+    // only left 1 copy in hdfs, write more copy for more replication
+    this.hadoopConf.setInt("dfs.replication", 1);
     this.fileNamePrefix = fileNamePrefix;
     this.basePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
         ShuffleStorageUtils.getShuffleDataPath(appId, shuffleId, startPartition, endPartition));

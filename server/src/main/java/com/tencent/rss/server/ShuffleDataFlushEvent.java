@@ -64,7 +64,6 @@ public class ShuffleDataFlushEvent {
         + ", appId=" + appId
         + ", shuffleId=" + shuffleId
         + ", startPartition=" + startPartition
-        + ", endPartition=" + endPartition
-        + ", blocks=" + shuffleBlocks;
+        + ", endPartition=" + endPartition;
   }
 }
