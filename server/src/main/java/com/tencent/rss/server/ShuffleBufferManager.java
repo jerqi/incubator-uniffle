@@ -25,7 +25,7 @@ public class ShuffleBufferManager {
   private int retryNum;
   private AtomicLong preAllocatedSize = new AtomicLong(0L);
   private AtomicLong inFlushSize = new AtomicLong(0L);
-  private AtomicLong atomicSize = new AtomicLong(0L);
+  private AtomicLong usedMemory = new AtomicLong(0L);
   // appId -> shuffleId -> partitionId -> ShuffleBuffer to avoid too many appId
   private Map<String, Map<Integer, RangeMap<Integer, ShuffleBuffer>>> bufferPool;
 
@@ -78,7 +78,7 @@ public class ShuffleBufferManager {
     updateSize(size, isPreAllocated);
     synchronized (this) {
       if (shouldFlush()) {
-        LOG.info("Buffer manager is full with size[" + atomicSize.get() + "], preAllocation["
+        LOG.info("Buffer manager is full with usedMemory[" + usedMemory.get() + "], preAllocation["
             + preAllocatedSize.get() + "], inFlush[" + inFlushSize.get() + "]");
         flush();
       } else if (buffer.isFull()) {
@@ -148,26 +148,26 @@ public class ShuffleBufferManager {
   }
 
   public synchronized boolean requireMemory(long size, boolean isPreAllocated) {
-    if (capacity - atomicSize.get() >= size) {
-      atomicSize.addAndGet(size);
+    if (capacity - usedMemory.get() >= size) {
+      usedMemory.addAndGet(size);
       if (isPreAllocated) {
         requirePreAllocatedSize(size);
       }
       return true;
     }
-    LOG.warn("Require memory failed with " + size + " bytes, total[" + atomicSize.get()
+    LOG.warn("Require memory failed with " + size + " bytes, usedMemory[" + usedMemory.get()
         + "] include preAllocation[" + preAllocatedSize.get()
         + "], inFlushSize[" + inFlushSize.get() + "]");
     return false;
   }
 
   public void releaseMemory(long size, boolean isReleaseFlushMemory) {
-    if (atomicSize.get() >= size) {
-      atomicSize.addAndGet(-size);
+    if (usedMemory.get() >= size) {
+      usedMemory.addAndGet(-size);
     } else {
-      LOG.warn("Current allocated memory[" + atomicSize.get()
+      LOG.warn("Current allocated memory[" + usedMemory.get()
           + "] is less than released[" + size + "], set allocated memory to 0");
-      atomicSize.set(0L);
+      usedMemory.set(0L);
     }
     if (isReleaseFlushMemory) {
       releaseFlushMemory(size);
@@ -205,7 +205,7 @@ public class ShuffleBufferManager {
       releasePreAllocatedSize(delta);
     } else {
       // add size if not allocated
-      atomicSize.addAndGet(delta);
+      usedMemory.addAndGet(delta);
     }
   }
 
@@ -219,11 +219,11 @@ public class ShuffleBufferManager {
 
   // if data size in buffer > spillThreshold, do the flush
   boolean shouldFlush() {
-    return atomicSize.get() - preAllocatedSize.get() - inFlushSize.get() > spillThreshold;
+    return usedMemory.get() - preAllocatedSize.get() - inFlushSize.get() > spillThreshold;
   }
 
   boolean isFull() {
-    return atomicSize.get() >= capacity;
+    return usedMemory.get() >= capacity;
   }
 
   @VisibleForTesting
@@ -231,28 +231,25 @@ public class ShuffleBufferManager {
     return bufferPool;
   }
 
-  int getBufferUsedPercent() {
-    return (int) (atomicSize.longValue() / (capacity / 100));
+  public long getUsedMemory() {
+    return usedMemory.get();
   }
 
-  @VisibleForTesting
-  public long getSize() {
-    return atomicSize.get();
-  }
-
-  @VisibleForTesting
   public long getInFlushSize() {
     return inFlushSize.get();
   }
 
+  public long getCapacity() {
+    return capacity;
+  }
+
   @VisibleForTesting
   void resetSize() {
-    atomicSize = new AtomicLong(0L);
+    usedMemory = new AtomicLong(0L);
     preAllocatedSize = new AtomicLong(0L);
     inFlushSize = new AtomicLong(0L);
   }
 
-  @VisibleForTesting
   public long getPreAllocatedSize() {
     return preAllocatedSize.get();
   }

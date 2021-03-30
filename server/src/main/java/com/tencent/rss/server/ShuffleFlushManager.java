@@ -159,6 +159,10 @@ public class ShuffleFlushManager {
     committedBlockCount.remove(appId);
   }
 
+  public int getEventNumInFlush() {
+    return flushQueue.size();
+  }
+
   @VisibleForTesting
   protected Map<String, Map<Integer, RangeMap<Integer, ShuffleWriteHandler>>> getHandlers() {
     return handlers;

@@ -21,6 +21,7 @@ import com.tencent.rss.proto.RssProtos.GetShuffleAssignmentsResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleServerListResponse;
 import com.tencent.rss.proto.RssProtos.PartitionRangeAssignment;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
+import com.tencent.rss.server.ShuffleServer;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.test.IntegrationTestBase;
 import java.util.Arrays;
@@ -41,6 +42,7 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
   public static void setupServers() throws Exception {
     CoordinatorConf coordinatorConf = getCoordinatorConf();
     coordinatorConf.setLong("rss.coordinator.app.expired", 2000);
+    coordinatorConf.setLong("rss.coordinator.server.heartbeat.timeout", 3000);
     createCoordinatorServer(coordinatorConf);
     ShuffleServerConf shuffleServerConf = getShuffleServerConf();
     createShuffleServer(shuffleServerConf);
@@ -177,6 +179,22 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
     // appHeartbeatTest2 was removed because of expired
     assertEquals(Sets.newHashSet("appHeartbeatTest1"),
         coordinators.get(0).getApplicationManager().getAppIds());
+  }
+
+  @Test
+  public void shuffleServerHeartbeatTest() throws Exception {
+    waitForRegister(2);
+    shuffleServers.get(0).stopServer();
+    Thread.sleep(5000);
+    assertEquals(1, coordinators.get(0).getClusterManager().getNodesNum());
+    ShuffleServerConf shuffleServerConf = shuffleServers.get(0).getShuffleServerConf();
+    shuffleServerConf.setInteger("rss.rpc.server.port", SHUFFLE_SERVER_PORT + 2);
+    shuffleServerConf.setInteger("rss.jetty.http.port", 18082);
+    ShuffleServer ss = new ShuffleServer(shuffleServerConf);
+    ss.start();
+    shuffleServers.set(0, ss);
+    Thread.sleep(3000);
+    assertEquals(2, coordinators.get(0).getClusterManager().getNodesNum());
   }
 
   private void waitForRegister(int expcetedServers) throws Exception {

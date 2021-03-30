@@ -82,7 +82,10 @@ public class RegisterHeartBeat {
             shuffleServer.getId(),
             shuffleServer.getIp(),
             shuffleServer.getPort(),
-            shuffleServer.calcScore());
+            shuffleServer.getUsedMemory(),
+            shuffleServer.getPreAllocatedMemory(),
+            shuffleServer.getAvailableMemory(),
+            shuffleServer.getEventNumInFlush());
       }
     };
 
@@ -90,10 +93,12 @@ public class RegisterHeartBeat {
   }
 
   @VisibleForTesting
-  boolean sendHeartBeat(String id, String ip, int port, int score) {
+  boolean sendHeartBeat(String id, String ip, int port, long usedMemory,
+      long preAllocatedMemory, long availableMemory, int eventNumInFlush) {
     LOGGER.debug("Start to send heartbeat " + System.currentTimeMillis());
     boolean sendSuccessfully = false;
-    RssSendHeartBeatRequest request = new RssSendHeartBeatRequest(id, ip, port, score, heartBeatTimeout);
+    RssSendHeartBeatRequest request = new RssSendHeartBeatRequest(
+        id, ip, port, usedMemory, preAllocatedMemory, availableMemory, eventNumInFlush, heartBeatTimeout);
     RssSendHeartBeatResponse response = rpcClient.sendHeartBeat(request);
     ResponseStatusCode status = response.getStatusCode();
 

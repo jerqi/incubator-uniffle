@@ -1,86 +1,79 @@
 package com.tencent.rss.coordinator;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
+import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SimpleClusterManager implements ClusterManager {
 
-  private final Map<String, ServerNode> serverMap;
-  private final long aliveThreshold;
-  private final int usableThreshold;
+  private static final Logger LOG = LoggerFactory.getLogger(SimpleClusterManager.class);
 
-  public SimpleClusterManager(long aliveThreshold, int availableThreshold) {
-    serverMap = new ConcurrentHashMap<>();
-    this.aliveThreshold = aliveThreshold;
-    this.usableThreshold = availableThreshold;
+  private final Map<String, ServerNode> servers = Maps.newHashMap();
+  private long heartbeatTimeout;
+  private ScheduledExecutorService scheduledExecutorService;
+
+  public SimpleClusterManager(long heartbeatTimeout) {
+    this.heartbeatTimeout = heartbeatTimeout;
+    // the thread for checking if shuffle server report heartbeat in time
+    scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+    scheduledExecutorService.scheduleAtFixedRate(
+        () -> nodesCheck(), heartbeatTimeout / 3,
+        heartbeatTimeout / 3, TimeUnit.MILLISECONDS);
   }
 
+  private void nodesCheck() {
+    long timestamp = System.currentTimeMillis();
+    Set<String> deleteIds = Sets.newHashSet();
+    for (ServerNode sn : servers.values()) {
+      if (timestamp - sn.getTimestamp() > heartbeatTimeout) {
+        LOG.warn("Heartbeat timeout detect, " + sn + " will be removed from node list.");
+        deleteIds.add(sn.getId());
+      }
+    }
+    for (String serverId : deleteIds) {
+      servers.remove(serverId);
+    }
+  }
+
+  @Override
   public void add(ServerNode node) {
-    String id = node.getId();
-    serverMap.put(id, node);
+    servers.put(node.getId(), node);
   }
 
-  public void update(ServerNode node) {
-    add(node);
+  @Override
+  public List<ServerNode> getServerList(int hint) {
+    List<ServerNode> orderServers = Lists.newArrayList(servers.values());
+    Collections.sort(orderServers);
+    return orderServers.subList(0, Math.min(hint, orderServers.size()));
   }
 
-  public void remove(ServerNode node) {
-    String id = node.getId();
-    serverMap.remove(id);
-  }
-
-  public List<ServerNode> get(int hint) {
-    List<ServerNode> servers = new ArrayList<>(serverMap.values());
-    long currentTimestamp = System.currentTimeMillis();
-    List<ServerNode> availableServers =
-        servers.stream().filter(s -> isAvailable(s, currentTimestamp)).collect(Collectors.toList());
-    availableServers.sort(Comparator.comparingInt(ServerNode::getScore).reversed());
-    return availableServers.subList(0, Math.min(hint, availableServers.size()));
-  }
-
+  @Override
   public int getNodesNum() {
-    return serverMap.size();
+    return servers.size();
   }
 
+  @Override
   public List<ServerNode> list() {
-    return new LinkedList<>(serverMap.values());
-  }
-
-  private boolean isAlive(ServerNode node, long curTimestamp) {
-    return curTimestamp - node.getTimestamp() < aliveThreshold;
-  }
-
-  private boolean isUsable(ServerNode node) {
-    return node.getScore() >= usableThreshold;
-  }
-
-  private boolean isAvailable(ServerNode node, long curTimestamp) {
-    return isAlive(node, curTimestamp) && isUsable(node);
-  }
-
-  @VisibleForTesting
-  void addNodes(List<ServerNode> nodes) {
-    for (ServerNode node : nodes) {
-      add(node);
-    }
-  }
-
-  @VisibleForTesting
-  void removeNodes(List<ServerNode> nodes) {
-    for (ServerNode node : nodes) {
-      remove(node);
-    }
+    return Lists.newArrayList(servers.values());
   }
 
   @VisibleForTesting
   void clear() {
-    serverMap.clear();
+    servers.clear();
   }
 
+  @Override
+  public void shutdown() {
+    scheduledExecutorService.shutdown();
+  }
 }

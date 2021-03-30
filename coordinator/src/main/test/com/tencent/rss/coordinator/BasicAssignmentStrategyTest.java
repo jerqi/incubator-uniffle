@@ -1,10 +1,8 @@
 package com.tencent.rss.coordinator;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedMap;
 import org.junit.After;
@@ -18,8 +16,7 @@ public class BasicAssignmentStrategyTest {
 
   @Before
   public void setUp() {
-    clusterManager = new SimpleClusterManager(1000L, 0);
-
+    clusterManager = new SimpleClusterManager(1000L);
     strategy = new BasicAssignmentStrategy(clusterManager);
   }
 
@@ -46,11 +43,9 @@ public class BasicAssignmentStrategyTest {
 
   @Test
   public void testAssign() {
-    List<ServerNode> nodes = new LinkedList<>();
-    for (int i = 0; i < 100; ++i) {
-      nodes.add(new ServerNode(String.valueOf(i), "", 0, 100 - i));
+    for (int i = 0; i < 20; ++i) {
+      clusterManager.add(new ServerNode(String.valueOf(i), "", 0, 0, 0, 20 - i, 0));
     }
-    clusterManager.addNodes(nodes);
 
     PartitionRangeAssignment pra = strategy.assign(100, 10, 2);
     SortedMap<PartitionRange, List<ServerNode>> assignments = pra.getAssignments();
@@ -68,24 +63,5 @@ public class BasicAssignmentStrategyTest {
       assertEquals(String.valueOf(i++), cur.get(0).getId());
       assertEquals(String.valueOf(i++), cur.get(1).getId());
     }
-
-    clusterManager.clear();
-    for (i = 0; i < 100; ++i) {
-      nodes.add(new ServerNode(String.valueOf(i), "", 0, -1));
-    }
-    clusterManager.addNodes(nodes);
-
-    pra = strategy.assign(100, 10, 2);
-    assertTrue(pra.isEmpty());
-
-    clusterManager.clear();
-    for (i = 0; i < 100; ++i) {
-      nodes.add(new ServerNode(String.valueOf(i), "", 0, 100));
-    }
-    clusterManager.addNodes(nodes);
-    pra = strategy.assign(100, 10, 200);
-    assertTrue(pra.isEmpty());
-
   }
-
 }

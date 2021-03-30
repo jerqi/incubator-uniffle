@@ -11,7 +11,7 @@ public class AssignmentStrategyFactory {
   }
 
   public AssignmentStrategy getAssignmentStrategy() {
-    String strategy = conf.getString(CoordinatorConf.ASSIGNMENT_STRATEGY);
+    String strategy = conf.getString(CoordinatorConf.COORDINATOR_ASSIGNMENT_STRATEGY);
     if (strategy.equals(StrategyName.BASIC.name())) {
       return new BasicAssignmentStrategy(clusterManager);
     } else {

@@ -48,7 +48,8 @@ public class RegisterHeartBeatTest {
   }
 
   private boolean sendHeartBeat(RegisterHeartBeat rh) {
-    return rh.sendHeartBeat("", "", 0, 0);
+    return rh.sendHeartBeat(
+        "", "", 0, 0, 0, 0, 0);
   }
 
   @Test

@@ -5,15 +5,21 @@ public class RssSendHeartBeatRequest {
   private String shuffleServerId;
   private String shuffleServerIp;
   private int shuffleServerPort;
-  private int percent;
+  private long usedMemory;
+  private long preAllocatedMemory;
+  private long availableMemory;
+  private int eventNumInFlush;
   private long timeout;
 
-  public RssSendHeartBeatRequest(String shuffleServerId, String shuffleServerIp, int shuffleServerPort,
-      int percent, long timeout) {
+  public RssSendHeartBeatRequest(String shuffleServerId, String shuffleServerIp, int shuffleServerPort, long usedMemory,
+      long preAllocatedMemory, long availableMemory, int eventNumInFlush, long timeout) {
     this.shuffleServerId = shuffleServerId;
     this.shuffleServerIp = shuffleServerIp;
     this.shuffleServerPort = shuffleServerPort;
-    this.percent = percent;
+    this.usedMemory = usedMemory;
+    this.preAllocatedMemory = preAllocatedMemory;
+    this.availableMemory = availableMemory;
+    this.eventNumInFlush = eventNumInFlush;
     this.timeout = timeout;
   }
 
@@ -29,11 +35,23 @@ public class RssSendHeartBeatRequest {
     return shuffleServerPort;
   }
 
-  public int getPercent() {
-    return percent;
-  }
-
   public long getTimeout() {
     return timeout;
+  }
+
+  public long getUsedMemory() {
+    return usedMemory;
+  }
+
+  public long getPreAllocatedMemory() {
+    return preAllocatedMemory;
+  }
+
+  public long getAvailableMemory() {
+    return availableMemory;
+  }
+
+  public int getEventNumInFlush() {
+    return eventNumInFlush;
   }
 }

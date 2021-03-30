@@ -78,6 +78,9 @@ public class CoordinatorServer {
     if (jettyServer != null) {
       jettyServer.stop();
     }
+    if (clusterManager != null) {
+      clusterManager.shutdown();
+    }
     server.stop();
   }
 

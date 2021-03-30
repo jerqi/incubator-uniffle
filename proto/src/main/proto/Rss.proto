@@ -139,7 +139,10 @@ message ShuffleCommitResponse {
 
 message ShuffleServerHeartBeatRequest {
   ShuffleServerId serverId = 1;
-  int32 score = 2;
+  int64 usedMemory = 2;
+  int64 preAllocatedMemory = 3;
+  int64 availableMemory = 4;
+  int32 eventNumInFlush = 5;
 }
 
 message ShuffleServerHeartBeatResponse {

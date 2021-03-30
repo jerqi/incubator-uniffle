@@ -24,7 +24,7 @@ public class BasicAssignmentStrategy implements AssignmentStrategy {
   public PartitionRangeAssignment assign(int totalPartitionNum, int partitionNumPerRange, int replica) {
     List<PartitionRange> ranges = generateRanges(totalPartitionNum, partitionNumPerRange);
     int hint = ranges.size() * replica;
-    List<ServerNode> servers = clusterManager.get(hint);
+    List<ServerNode> servers = clusterManager.getServerList(hint);
 
     if (servers.isEmpty() || servers.size() < replica) {
       return new PartitionRangeAssignment(null);
@@ -50,7 +50,7 @@ public class BasicAssignmentStrategy implements AssignmentStrategy {
 
   @Override
   public List<ServerNode> assignServersForResult(int replica) {
-    List<ServerNode> servers = clusterManager.get(replica);
+    List<ServerNode> servers = clusterManager.getServerList(replica);
     if (servers == null) {
       LOG.warn("Can't get shuffle servers for shuffle result, expected["
           + replica + "], got[0]");

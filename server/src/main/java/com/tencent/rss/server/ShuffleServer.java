@@ -165,9 +165,20 @@ public class ShuffleServer {
     return shuffleFlushManager;
   }
 
-  // TODO: add score calculation strategy
-  public int calcScore() {
-    return 100 - shuffleBufferManager.getBufferUsedPercent();
+  public long getUsedMemory() {
+    return shuffleBufferManager.getUsedMemory();
+  }
+
+  public long getPreAllocatedMemory() {
+    return shuffleBufferManager.getPreAllocatedSize();
+  }
+
+  public long getAvailableMemory() {
+    return shuffleBufferManager.getCapacity() - shuffleBufferManager.getPreAllocatedSize();
+  }
+
+  public int getEventNumInFlush() {
+    return shuffleFlushManager.getEventNumInFlush();
   }
 
   public ShuffleBufferManager getShuffleBufferManager() {

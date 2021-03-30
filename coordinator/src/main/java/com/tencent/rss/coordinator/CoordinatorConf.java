@@ -12,19 +12,13 @@ import java.util.Map;
  */
 public class CoordinatorConf extends RssBaseConf {
 
-  static final ConfigOption<Long> ALIVE_THRESHOLD = ConfigOptions
-      .key("rss.coordinator.aliveThreshold")
+  static final ConfigOption<Long> COORDINATOR_HEARTBEAT_TIMEOUT = ConfigOptions
+      .key("rss.coordinator.server.heartbeat.timeout")
       .longType()
-      .defaultValue(5 * 60 * 1000L)
-      .withDescription("rss coordinator aliveThreshold");
+      .defaultValue(30 * 1000L)
+      .withDescription("timeout if can't get heartbeat from shuffle server");
 
-  static final ConfigOption<Integer> USABLE_THRESHOLD = ConfigOptions
-      .key("rss.coordinator.usableThreshold")
-      .intType()
-      .defaultValue(10)
-      .withDescription("rss coordinator usableThreshold");
-
-  static final ConfigOption<String> ASSIGNMENT_STRATEGY = ConfigOptions
+  static final ConfigOption<String> COORDINATOR_ASSIGNMENT_STRATEGY = ConfigOptions
       .key("rss.coordinator.assignment.strategy")
       .stringType()
       .defaultValue("BASIC")
@@ -58,16 +52,12 @@ public class CoordinatorConf extends RssBaseConf {
 
     properties.forEach((k, v) -> {
 
-      if (ASSIGNMENT_STRATEGY.key().equalsIgnoreCase(k)) {
-        set(ASSIGNMENT_STRATEGY, v.toUpperCase());
+      if (COORDINATOR_ASSIGNMENT_STRATEGY.key().equalsIgnoreCase(k)) {
+        set(COORDINATOR_ASSIGNMENT_STRATEGY, v.toUpperCase());
       }
 
-      if (ALIVE_THRESHOLD.key().equalsIgnoreCase(k)) {
-        set(ALIVE_THRESHOLD, Long.valueOf(v));
-      }
-
-      if (USABLE_THRESHOLD.key().equalsIgnoreCase(k)) {
-        set(USABLE_THRESHOLD, Integer.valueOf(v));
+      if (COORDINATOR_HEARTBEAT_TIMEOUT.key().equalsIgnoreCase(k)) {
+        set(COORDINATOR_HEARTBEAT_TIMEOUT, Long.valueOf(v));
       }
 
       if (COORDINATOR_APP_EXPIRED.key().equalsIgnoreCase(k)) {
@@ -76,9 +66,5 @@ public class CoordinatorConf extends RssBaseConf {
     });
 
     return true;
-  }
-
-  public String getShuffleServerAssignmentStrategy() {
-    return this.getString(ASSIGNMENT_STRATEGY);
   }
 }
