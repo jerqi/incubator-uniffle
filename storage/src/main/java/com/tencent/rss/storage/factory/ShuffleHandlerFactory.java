@@ -7,12 +7,16 @@ import com.tencent.rss.client.util.ClientType;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.storage.handler.api.ClientReadHandler;
 import com.tencent.rss.storage.handler.api.ServerReadHandler;
+import com.tencent.rss.storage.handler.api.ShuffleDeleteHandler;
 import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
 import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
+import com.tencent.rss.storage.handler.impl.HdfsShuffleDeleteHandler;
 import com.tencent.rss.storage.handler.impl.HdfsShuffleWriteHandler;
 import com.tencent.rss.storage.handler.impl.LocalFileClientReadHandler;
+import com.tencent.rss.storage.handler.impl.LocalFileDeleteHandler;
 import com.tencent.rss.storage.handler.impl.LocalFileServerReadHandler;
 import com.tencent.rss.storage.handler.impl.LocalFileWriteHandler;
+import com.tencent.rss.storage.request.CreateShuffleDeleteHandlerRequest;
 import com.tencent.rss.storage.request.CreateShuffleReadHandlerRequest;
 import com.tencent.rss.storage.request.CreateShuffleWriteHandlerRequest;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
@@ -84,7 +88,19 @@ public class ShuffleHandlerFactory {
       return new LocalFileWriteHandler(request.getAppId(), request.getShuffleId(), request.getStartPartition(),
           request.getEndPartition(), request.getStorageBasePaths(), request.getFileNamePrefix());
     } else {
-      throw new UnsupportedOperationException("Doesn't support storage type:" + request.getStorageType());
+      throw new UnsupportedOperationException("Doesn't support storage type for shuffle write handler:"
+          + request.getStorageType());
+    }
+  }
+
+  public ShuffleDeleteHandler createShuffleDeleteHandler(CreateShuffleDeleteHandlerRequest request) {
+    if (StorageType.HDFS.name().equals(request.getStorageType())) {
+      return new HdfsShuffleDeleteHandler(request.getConf());
+    } else if (StorageType.LOCALFILE.name().equals(request.getStorageType())) {
+      return new LocalFileDeleteHandler();
+    } else {
+      throw new UnsupportedOperationException("Doesn't support storage type for shuffle delete handler:"
+          + request.getStorageType());
     }
   }
 }

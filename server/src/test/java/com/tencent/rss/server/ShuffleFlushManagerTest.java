@@ -1,6 +1,7 @@
 package com.tencent.rss.server;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
@@ -11,12 +12,15 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
+import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.junit.Before;
@@ -119,7 +123,15 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     assertEquals(5, manager.getCommittedBlockCount("appId1", 1));
     assertEquals(5, manager.getCommittedBlockCount("appId2", 1));
     assertEquals(2, manager.getHandlers().size());
+    FileStatus[] fileStatus = fs.listStatus(new Path(storageBasePath + "/appId1/"));
+    assertTrue(fileStatus.length > 0);
     manager.removeResources("appId1");
+    try {
+      fs.listStatus(new Path(storageBasePath + "/appId1/"));
+      fail("Exception should be thrown");
+    } catch (FileNotFoundException fnfe) {
+      // expected exception
+    }
     assertEquals(0, manager.getCommittedBlockCount("appId1", 1));
     assertEquals(5, manager.getCommittedBlockCount("appId2", 1));
     assertEquals(1, manager.getHandlers().size());

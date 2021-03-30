@@ -9,7 +9,9 @@ import com.google.common.collect.TreeRangeMap;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
+import com.tencent.rss.storage.handler.api.ShuffleDeleteHandler;
 import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
+import com.tencent.rss.storage.request.CreateShuffleDeleteHandlerRequest;
 import com.tencent.rss.storage.request.CreateShuffleWriteHandlerRequest;
 import java.util.List;
 import java.util.Map;
@@ -157,6 +159,10 @@ public class ShuffleFlushManager {
   public void removeResources(String appId) {
     handlers.remove(appId);
     committedBlockCount.remove(appId);
+    // delete shuffle data for application
+    ShuffleDeleteHandler deleteHandler = ShuffleHandlerFactory.getInstance()
+        .createShuffleDeleteHandler(new CreateShuffleDeleteHandlerRequest(storageType, hadoopConf));
+    deleteHandler.delete(storageBasePaths, appId);
   }
 
   public int getEventNumInFlush() {
