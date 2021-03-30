@@ -141,12 +141,6 @@ public class RssBaseConf extends RssConf {
       .noDefaultValue()
       .withDescription("Common storage path for remote shuffle data");
 
-  public static final ConfigOption<Integer> RSS_STORAGE_REPLICA = ConfigOptions
-      .key("rss.storage.replica")
-      .intType()
-      .defaultValue(1)
-      .withDescription("Size of each buffer in this server");
-
   public static final ConfigOption<Integer> RSS_STORAGE_INDEX_READ_LIMIT = ConfigOptions
       .key("rss.storage.index.read.limit")
       .intType()
@@ -245,10 +239,6 @@ public class RssBaseConf extends RssConf {
 
       if (RSS_STORAGE_BASE_PATH.key().equalsIgnoreCase(k)) {
         set(RSS_STORAGE_BASE_PATH, v);
-      }
-
-      if (RSS_STORAGE_REPLICA.key().equalsIgnoreCase(k)) {
-        set(RSS_STORAGE_REPLICA, Integer.valueOf(k));
       }
 
       if (RSS_STORAGE_INDEX_READ_LIMIT.key().equalsIgnoreCase(k)) {

@@ -35,7 +35,7 @@ public class ShuffleServerConf extends RssBaseConf {
   public static final ConfigOption<Long> SERVER_HEARTBEAT_INTERVAL = ConfigOptions
       .key("rss.server.heartbeat.interval")
       .longType()
-      .defaultValue(10 * 60 * 1000L)
+      .defaultValue(10 * 1000L)
       .withDescription("rss heartbeat interval ms");
 
   public static final ConfigOption<Long> SERVER_HEARTBEAT_TIMEOUT = ConfigOptions
@@ -68,29 +68,11 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(120L)
       .withDescription("thread idle time in pool (s)");
 
-  public static final ConfigOption<Long> SERVER_FLUSH_GC_CHECK_INTERVAL = ConfigOptions
-      .key("rss.server.flush.gc.check.interval")
-      .longType()
-      .defaultValue(600L)
-      .withDescription("thread gc check interval");
-
-  public static final ConfigOption<Long> SERVER_FLUSH_HANDLER_EXPIRED = ConfigOptions
-      .key("rss.server.flush.handler.expired")
-      .longType()
-      .defaultValue(3600L)
-      .withDescription("thread gc check interval");
-
   public static final ConfigOption<Long> SERVER_COMMIT_TIMEOUT = ConfigOptions
       .key("rss.server.commit.timeout")
       .longType()
-      .defaultValue(30000L)
+      .defaultValue(120000L)
       .withDescription("Timeout when commit shuffle data (ms)");
-
-  public static final ConfigOption<Long> SERVER_WRITE_TIMEOUT = ConfigOptions
-      .key("rss.server.write.timeout")
-      .longType()
-      .defaultValue(30000L)
-      .withDescription("Timeout when write shuffle data (ms)");
 
   public static final ConfigOption<Integer> SERVER_WRITE_RETRY_MAX = ConfigOptions
       .key("rss.server.write.retry.max")
@@ -193,20 +175,8 @@ public class ShuffleServerConf extends RssBaseConf {
         set(SERVER_FLUSH_THREAD_ALIVE, Long.valueOf(v));
       }
 
-      if (SERVER_FLUSH_GC_CHECK_INTERVAL.key().equalsIgnoreCase(k)) {
-        set(SERVER_FLUSH_GC_CHECK_INTERVAL, Long.valueOf(v));
-      }
-
-      if (SERVER_FLUSH_HANDLER_EXPIRED.key().equalsIgnoreCase(k)) {
-        set(SERVER_FLUSH_HANDLER_EXPIRED, Long.valueOf(v));
-      }
-
       if (SERVER_COMMIT_TIMEOUT.key().equalsIgnoreCase(k)) {
         set(SERVER_COMMIT_TIMEOUT, Long.valueOf(v));
-      }
-
-      if (SERVER_WRITE_TIMEOUT.key().equalsIgnoreCase(k)) {
-        set(SERVER_WRITE_TIMEOUT, Long.valueOf(v));
       }
 
       if (SERVER_APP_EXPIRED_WITH_HEARTBEAT.key().equalsIgnoreCase(k)) {

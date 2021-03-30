@@ -75,7 +75,6 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
   @Test
   public void complexWriteTest() throws Exception {
     shuffleServerConf.setString("rss.server.flush.handler.expired", "3");
-    shuffleServerConf.setString("rss.server.flush.gc.check.interval", "1");
     List<ShufflePartitionedBlock> expectedBlocks = Lists.newArrayList();
     List<ShuffleDataFlushEvent> flushEvents1 = Lists.newArrayList();
     List<ShuffleDataFlushEvent> flushEvents2 = Lists.newArrayList();

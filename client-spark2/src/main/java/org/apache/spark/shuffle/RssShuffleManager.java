@@ -190,8 +190,7 @@ public class RssShuffleManager implements ShuffleManager {
   @VisibleForTesting
   protected void registerCoordinator() {
     String host = sparkConf.get(RssClientConfig.RSS_COORDINATOR_IP);
-    int port = sparkConf.getInt(RssClientConfig.RSS_COORDINATOR_PORT,
-        RssClientConfig.RSS_COORDINATOR_PORT_DEFAULT_VALUE);
+    int port = Integer.parseInt(sparkConf.get(RssClientConfig.RSS_COORDINATOR_PORT));
     LOG.info("Registering coordinator client [" + host + ":" + port + "]");
     shuffleWriteClient.registerCoordinatorClient(host, port);
   }
