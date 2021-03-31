@@ -23,6 +23,7 @@ public abstract class SparkSQLTest extends SparkIntegrationTestBase {
   @Test
   public void resultCompareTest() throws Exception {
     run();
+    checkShuffleData();
   }
 
   @Override
@@ -50,6 +51,8 @@ public abstract class SparkSQLTest extends SparkIntegrationTestBase {
   }
 
   public abstract void updateRssStorage(SparkConf sparkConf);
+
+  public abstract void checkShuffleData() throws Exception;
 
   protected String generateCsvFile() throws Exception {
     int rows = 1000;

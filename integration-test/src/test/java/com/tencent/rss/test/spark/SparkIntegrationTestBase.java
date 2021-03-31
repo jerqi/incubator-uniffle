@@ -68,6 +68,7 @@ abstract public class SparkIntegrationTestBase extends IntegrationTestBase {
     sparkConf.set("spark.rss.writer.send.check.interval", "1000");
     sparkConf.set("spark.rss.index.read.limit", "100");
     sparkConf.set("spark.rss.client.read.buffer.size", "1m");
+    sparkConf.set("spark.rss.heartbeat.interval", "2000");
   }
 
   private void verifyTestResult(Map expected, Map actual) {

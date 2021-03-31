@@ -7,11 +7,9 @@ import com.tencent.rss.client.impl.grpc.CoordinatorGrpcClient;
 import com.tencent.rss.client.request.RssSendHeartBeatRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
 import com.tencent.rss.client.response.RssSendHeartBeatResponse;
-import com.tencent.rss.proto.RssProtos.StatusCode;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +26,6 @@ public class RegisterHeartBeat {
   private long heartBeatTimeout;
   private CoordinatorClient rpcClient;
 
-  private boolean isRegistered;
   private int failedHeartBeatCount;
   private int maxHeartBeatRetry;
   private ScheduledExecutorService service;
@@ -46,7 +43,6 @@ public class RegisterHeartBeat {
         new CoordinatorClientFactory(conf.getString(ShuffleServerConf.RSS_CLIENT_TYPE));
     this.rpcClient = factory.createCoordinatorClient(ip, port);
     this.shuffleServer = shuffleServer;
-    this.isRegistered = false;
   }
 
   public RegisterHeartBeat(ShuffleServer shuffleServer, CoordinatorGrpcClient client) {
@@ -54,48 +50,26 @@ public class RegisterHeartBeat {
     this.rpcClient = client;
   }
 
-  public boolean register(String id, String ip, int port) {
-    StatusCode status = StatusCode.SUCCESS;
-    // TODO: extract info from response
-
-    isRegistered = status == StatusCode.SUCCESS;
-    return isRegistered;
-  }
-
   public void startHeartBeat() {
     LOGGER.info("Start heartbeat to coordinator {}:{} after {}ms and interval is {}ms",
         ip, port, heartBeatInitialDelay, heartBeatInterval);
-    service = Executors
-        .newSingleThreadScheduledExecutor(new ThreadFactory() {
-          @Override
-          public Thread newThread(Runnable r) {
-            Thread t = Executors.defaultThreadFactory().newThread(r);
-            t.setDaemon(true);
-            return t;
-          }
-        });
+    Runnable runnable = () -> sendHeartBeat(
+        shuffleServer.getId(),
+        shuffleServer.getIp(),
+        shuffleServer.getPort(),
+        shuffleServer.getUsedMemory(),
+        shuffleServer.getPreAllocatedMemory(),
+        shuffleServer.getAvailableMemory(),
+        shuffleServer.getEventNumInFlush());
 
-    Runnable runnable = new Runnable() {
-      @Override
-      public void run() {
-        sendHeartBeat(
-            shuffleServer.getId(),
-            shuffleServer.getIp(),
-            shuffleServer.getPort(),
-            shuffleServer.getUsedMemory(),
-            shuffleServer.getPreAllocatedMemory(),
-            shuffleServer.getAvailableMemory(),
-            shuffleServer.getEventNumInFlush());
-      }
-    };
-
+    service = Executors.newSingleThreadScheduledExecutor();
     service.scheduleAtFixedRate(runnable, heartBeatInitialDelay, heartBeatInterval, TimeUnit.MILLISECONDS);
   }
 
   @VisibleForTesting
   boolean sendHeartBeat(String id, String ip, int port, long usedMemory,
       long preAllocatedMemory, long availableMemory, int eventNumInFlush) {
-    LOGGER.debug("Start to send heartbeat " + System.currentTimeMillis());
+    LOGGER.debug("Start to send heartbeat to coordinator");
     boolean sendSuccessfully = false;
     RssSendHeartBeatRequest request = new RssSendHeartBeatRequest(
         id, ip, port, usedMemory, preAllocatedMemory, availableMemory, eventNumInFlush, heartBeatTimeout);
@@ -103,12 +77,11 @@ public class RegisterHeartBeat {
     ResponseStatusCode status = response.getStatusCode();
 
     if (status != ResponseStatusCode.SUCCESS) {
-      LOGGER.error("Can't send heartbeat to Coordinator");
+      LOGGER.error("Can't send heartbeat to coordinator");
       failedHeartBeatCount++;
     } else {
-      LOGGER.debug("Success to send heartbeat");
+      LOGGER.debug("Get heartbeat response with appIds " + response.getAppIds());
       failedHeartBeatCount = 0;
-      isRegistered = true;
       sendSuccessfully = true;
       checkResourceStatus(response.getAppIds());
     }
@@ -117,8 +90,6 @@ public class RegisterHeartBeat {
       LOGGER.error(
           "Failed heartbeat count {} exceed {}",
           failedHeartBeatCount, maxHeartBeatRetry);
-      isRegistered = false;
-      // TODO: add HA
     }
 
     return sendSuccessfully;
@@ -135,11 +106,6 @@ public class RegisterHeartBeat {
   @VisibleForTesting
   int getFailedHeartBeatCount() {
     return this.failedHeartBeatCount;
-  }
-
-  @VisibleForTesting
-  boolean getIsRegistered() {
-    return this.isRegistered;
   }
 
   @VisibleForTesting

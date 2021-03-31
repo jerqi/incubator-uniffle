@@ -43,10 +43,6 @@ public class RegisterHeartBeatTest {
     rh = new RegisterHeartBeat(new ShuffleServer(confFile), client);
   }
 
-  private boolean register(RegisterHeartBeat rh) {
-    return rh.register("", "", 0);
-  }
-
   private boolean sendHeartBeat(RegisterHeartBeat rh) {
     return rh.sendHeartBeat(
         "", "", 0, 0, 0, 0, 0);
@@ -103,18 +99,13 @@ public class RegisterHeartBeatTest {
         };
     serviceRegistry.addService(serviceImpl);
 
-    register(rh);
-    assertTrue(rh.getIsRegistered());
     rh.setMaxHeartBeatRetry(3);
 
     sendHeartBeat(rh);
     sendHeartBeat(rh);
     assertEquals(rh.getFailedHeartBeatCount(), 2);
-    assertTrue(rh.getIsRegistered());
 
     sendHeartBeat(rh);
-    assertFalse(rh.getIsRegistered());
     assertEquals(rh.getFailedHeartBeatCount(), 3);
   }
-
 }

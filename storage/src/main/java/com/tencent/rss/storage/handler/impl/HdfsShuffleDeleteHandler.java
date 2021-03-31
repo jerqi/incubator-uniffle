@@ -21,6 +21,7 @@ public class HdfsShuffleDeleteHandler implements ShuffleDeleteHandler {
   @Override
   public void delete(String[] storageBasePaths, String appId) {
     Path path = new Path(ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePaths[0], appId));
+    LOG.info("Delete shuffle data for appId[" + appId + "] with " + path);
     try {
       FileSystem fileSystem = ShuffleStorageUtils.getFileSystemForPath(path, hadoopConf);
       fileSystem.delete(path, true);

@@ -167,7 +167,7 @@ public class RssShuffleManager implements ShuffleManager {
             Thread.sleep(heartbeatInterval);
           }
         } catch (Exception e) {
-          LOG.warn("Error happened when keep heartbeat from application to coordinator");
+          LOG.warn("Error happened when keep heartbeat from application to coordinator", e);
         }
       }).start();
       heartbeatStarted = true;

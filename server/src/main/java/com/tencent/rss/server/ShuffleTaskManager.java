@@ -192,17 +192,17 @@ public class ShuffleTaskManager {
   }
 
   public void checkResourceStatus(Set<String> aliveAppIds) {
-    LOG.debug("Exist appIds:" + appIds);
+    LOG.debug("Exist appIds:" + appIds + ", aliveAppIds:" + aliveAppIds);
     Set<String> removed = Sets.newHashSet(appIds.keySet());
     removed.removeAll(aliveAppIds);
     // remove applications not in coordinator's list and timeout according to rss.server.app.expired.withoutHeartbeat
     for (String appId : removed) {
       if (System.currentTimeMillis() - appIds.get(appId) > appExpiredWithoutHB) {
+        LOG.info("Remove resources of appId[" + appId + "] according "
+            + "to rss.server.app.expired.withoutHeartbeat");
         removeResources(appId);
       }
     }
-    LOG.debug("Remove resources for expired applications according "
-        + "to rss.server.app.expired.withoutHeartbeat:" + removed);
 
     // remove expired applications in coordinator's list but timeout according to rss.server.app.expired.withHeartbeat
     removed = Sets.newHashSet();
@@ -212,9 +212,9 @@ public class ShuffleTaskManager {
       }
     }
 
-    LOG.debug("Remove resources for expired applications according "
-        + "to rss.server.app.expired.withHeartbeat:" + removed);
     for (String appId : removed) {
+      LOG.info("Remove resources of appId[" + appId + "] according "
+          + "to rss.server.app.expired.withHeartbeat");
       removeResources(appId);
     }
   }
