@@ -78,16 +78,6 @@
                   <include>com.fasterxml.jackson.core:jackson-core</include>
                   <include>com.fasterxml.jackson.core:jackson-annotations</include>
                 </includes>
-                <!--
-                <excludes>
-                  <exclude>io.prometheus:*</exclude>
-                  <exclude>info.picocli:*</exclude>
-                  <exclude>org.apache.hadoop:*</exclude>
-                  <exclude>com.tencent.spark:spark-core*</exclude>
-                  <exclude>com.squareup.*:*</exclude>
-                  <exclude>com.google.errorprone:*</exclude>
-                </excludes>
-                -->
               </artifactSet>
               <finalName>${project.artifactId}-${project.version}</finalName>
               <transformers>

@@ -77,15 +77,6 @@ public class RegisterHeartBeatTest {
   public void heartBeatFailTest() {
     CoordinatorServerImplBase serviceImpl =
         new CoordinatorServerImplBase() {
-//        @Override
-//        public void registerShuffleServer(ServerRegisterRequest req,
-//                                          StreamObserver<ServerRegisterResponse> streamObserver) {
-//          ServerRegisterResponse resp =
-//            ServerRegisterResponse.newBuilder().setStatus(StatusCode.SUCCESS).build();
-//          streamObserver.onNext(resp);
-//          streamObserver.onCompleted();
-//        }
-
           @Override
           public void heartbeat(ShuffleServerHeartBeatRequest req,
               StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {

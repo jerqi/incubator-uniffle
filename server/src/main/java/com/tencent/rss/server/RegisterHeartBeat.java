@@ -69,7 +69,6 @@ public class RegisterHeartBeat {
   @VisibleForTesting
   boolean sendHeartBeat(String id, String ip, int port, long usedMemory,
       long preAllocatedMemory, long availableMemory, int eventNumInFlush) {
-    LOGGER.debug("Start to send heartbeat to coordinator");
     boolean sendSuccessfully = false;
     RssSendHeartBeatRequest request = new RssSendHeartBeatRequest(
         id, ip, port, usedMemory, preAllocatedMemory, availableMemory, eventNumInFlush, heartBeatTimeout);

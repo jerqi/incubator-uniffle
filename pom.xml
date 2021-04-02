@@ -23,44 +23,29 @@
     <fasterxml.jackson.version>2.9.8</fasterxml.jackson.version>
     <grpc.version>1.33.0</grpc.version>
     <guava.version>29.0-jre</guava.version>
-    <hadoop.deps.scope>compile</hadoop.deps.scope>
-    <hadoop.scope>compile</hadoop.scope>
+    <hadoop.scope>provided</hadoop.scope>
     <hadoop.version>2.8.5</hadoop.version>
     <httpclient.version>4.5.3</httpclient.version>
     <httpcore.version>4.4.4</httpcore.version>
-    <jackson.version>2.9.9</jackson.version>
     <java.version>1.8</java.version>
-    <javax.servlet-api.version>3.1.0</javax.servlet-api.version>
     <jetty.version>9.3.24.v20180605</jetty.version>
-    <json4s.version>3.2.11</json4s.version>
-    <junit.version>5.1.0</junit.version>
-    <kryo.version>2.22</kryo.version>
-    <libthrift.version>0.9.3</libthrift.version>
     <log4j.version>1.2.17</log4j.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <metrics.version>3.1.0</metrics.version>
     <mockito.inline.version>3.5.15</mockito.inline.version>
-    <netty.spark-2.11.version>4.0.37.Final</netty.spark-2.11.version>
-    <netty.version>${netty.spark-2.11.version}</netty.version>
     <picocli.version>4.5.2</picocli.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <prometheus.simpleclient.version>0.9.0</prometheus.simpleclient.version>
     <protobuf.version>3.12.0</protobuf.version>
     <protoc.version>3.12.0</protoc.version>
-    <py4j.version>0.10.7</py4j.version>
     <rss.shade.packageName>com.tencent.rss</rss.shade.packageName>
-    <scala-2.11.version>2.11.12</scala-2.11.version>
     <scala.binary.version>2.11</scala.binary.version>
-    <scala.version>${scala-2.11.version}</scala.version>
-    <scalatest.version>2.2.4</scalatest.version>
-    <scalatra.version>2.3.0</scalatra.version>
     <skipDeploy>false</skipDeploy>
     <slf4j.version>1.7.25</slf4j.version>
     <spark2.version>2.4.6</spark2.version>
     <system-rules.version>1.19.0</system-rules.version>
     <test.redirectToFile>true</test.redirectToFile>
-    <tomcat.version>6.0.53</tomcat.version>
   </properties>
 
   <repositories>
@@ -245,6 +230,29 @@
         <version>${project.version}</version>
       </dependency>
       <dependency>
+        <groupId>commons-logging</groupId>
+        <artifactId>commons-logging</artifactId>
+        <version>1.2</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-codec</groupId>
+        <artifactId>commons-codec</artifactId>
+        <version>1.9</version>
+      </dependency>
+      <dependency>
+        <groupId>org.codehaus.jackson</groupId>
+        <artifactId>jackson-jaxrs</artifactId>
+        <version>1.9.13</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.codehaus.jackson</groupId>
+        <artifactId>jackson-xc</artifactId>
+        <version>1.9.13</version>
+        <scope>provided</scope>
+      </dependency>
+
+      <dependency>
         <groupId>com.tencent.rss</groupId>
         <artifactId>shuffle-storage</artifactId>
         <version>${project.version}</version>
@@ -253,9 +261,15 @@
 
       <dependency>
         <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>${hadoop.version}</version>
+        <scope>${hadoop.scope}</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-client</artifactId>
         <version>${hadoop.version}</version>
-        <scope>${hadoop.deps.scope}</scope>
+        <scope>${hadoop.scope}</scope>
         <exclusions>
           <exclusion>
             <groupId>org.fusesource.leveldbjni</groupId>
@@ -369,12 +383,6 @@
         <version>${fasterxml.jackson.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.tomcat</groupId>
-        <artifactId>annotations-api</artifactId>
-        <version>${tomcat.version}</version>
-        <scope>provided</scope> <!-- not needed at runtime -->
-      </dependency>
-      <dependency>
         <groupId>com.google.errorprone</groupId>
         <artifactId>error_prone_annotations</artifactId>
         <version>${error_prone_annotations.version}
@@ -427,7 +435,7 @@
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-minicluster</artifactId>
         <version>${hadoop.version}</version>
-        <scope>test</scope>
+        <scope>provided</scope>
         <exclusions>
           <exclusion>
             <groupId>io.netty</groupId>
@@ -706,14 +714,25 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
         <version>2.10</version>
-        <configuration>
-          <outputDirectory>${project.build.directory}/jars</outputDirectory>
-          <useSubDirectoryPerType>false</useSubDirectoryPerType>
-          <includeScope>runtime</includeScope>
-          <silent>true</silent>
-          <overWriteReleases>true</overWriteReleases>
-          <overWriteSnapshots>true</overWriteSnapshots>
-        </configuration>
+        <executions>
+          <execution>
+            <id>copy-dependencies</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <configuration>
+              <useSubDirectoryPerType>false</useSubDirectoryPerType>
+              <includeScope>runtime</includeScope>
+              <silent>true</silent>
+              <overWriteReleases>true</overWriteReleases>
+              <overWriteSnapshots>true</overWriteSnapshots>
+              <outputDirectory>
+                ${project.build.directory}/jars
+              </outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
 
       <plugin>
@@ -825,7 +844,6 @@
         </plugins>
       </build>
     </profile>
-
   </profiles>
 
 </project>
