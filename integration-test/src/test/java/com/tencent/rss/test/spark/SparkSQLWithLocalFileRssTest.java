@@ -8,6 +8,7 @@ import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.storage.util.StorageType;
 import java.io.File;
 import org.apache.spark.SparkConf;
+import org.apache.spark.shuffle.RssClientConfig;
 import org.junit.BeforeClass;
 
 public class SparkSQLWithLocalFileRssTest extends SparkSQLTest {
@@ -35,7 +36,7 @@ public class SparkSQLWithLocalFileRssTest extends SparkSQLTest {
 
   @Override
   public void updateRssStorage(SparkConf sparkConf) {
-    sparkConf.set("spark.rss.storage.type", "LOCALFILE");
+    sparkConf.set(RssClientConfig.RSS_STORAGE_TYPE, "LOCALFILE");
   }
 
   @Override

@@ -29,6 +29,7 @@ import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.serializer.Serializer;
+import org.apache.spark.shuffle.RssClientConfig;
 import org.apache.spark.shuffle.RssShuffleHandle;
 import org.apache.spark.shuffle.RssShuffleManager;
 import org.apache.spark.util.EventLoop;
@@ -50,11 +51,11 @@ public class RssShuffleWriterTest {
     SparkConf conf = new SparkConf();
     conf.setAppName("testApp")
         .setMaster("local[2]")
-        .set("spark.rss.test", "true")
-        .set("spark.rss.writer.send.check.timeout", "10000")
-        .set("spark.rss.writer.send.check.interval", "1000")
-        .set("spark.rss.coordinator.ip", "127.0.0.1")
-        .set("spark.rss.coordinator.port", "12345");
+        .set(RssClientConfig.RSS_TEST_FLAG, "true")
+        .set(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT, "10000")
+        .set(RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL, "1000")
+        .set(RssClientConfig.RSS_COORDINATOR_IP, "127.0.0.1")
+        .set(RssClientConfig.RSS_COORDINATOR_PORT, "12345");
     // init SparkContext
     SparkContext sc = SparkContext.getOrCreate(conf);
     RssShuffleManager manager = new RssShuffleManager(conf, false);
@@ -112,15 +113,15 @@ public class RssShuffleWriterTest {
   public void writeTest() throws Exception {
     SparkConf conf = new SparkConf();
     conf.setAppName("testApp").setMaster("local[2]")
-        .set("spark.rss.test", "true")
-        .set("spark.rss.writer.buffer.size", "32")
-        .set("spark.rss.writer.serializer.buffer.size", "32")
-        .set("spark.rss.writer.serializer.buffer.max.size", "64")
-        .set("spark.rss.writer.buffer.spill.size", "128")
-        .set("spark.rss.writer.send.check.timeout", "10000")
-        .set("spark.rss.writer.send.check.interval", "1000")
-        .set("spark.rss.coordinator.ip", "127.0.0.1")
-        .set("spark.rss.coordinator.port", "12345");
+        .set(RssClientConfig.RSS_TEST_FLAG, "true")
+        .set(RssClientConfig.RSS_WRITER_BUFFER_SIZE, "32")
+        .set(RssClientConfig.RSS_WRITER_SERIALIZER_BUFFER_SIZE, "32")
+        .set(RssClientConfig.RSS_WRITER_BUFFER_SEGMENT_SIZE, "64")
+        .set(RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE, "128")
+        .set(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT, "10000")
+        .set(RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL, "1000")
+        .set(RssClientConfig.RSS_COORDINATOR_IP, "127.0.0.1")
+        .set(RssClientConfig.RSS_COORDINATOR_PORT, "12345");
     // init SparkContext
     SparkContext sc = SparkContext.getOrCreate(conf);
     RssShuffleManager manager = new RssShuffleManager(conf, false);
@@ -258,7 +259,7 @@ public class RssShuffleWriterTest {
         Sets.newHashSet(new ShuffleServerInfo("id100", "0.0.0.100", 100)));
     ShuffleWriteClient mockWriteClient = mock(ShuffleWriteClient.class);
     SparkConf conf = new SparkConf();
-    conf.set("spark.rss.client.send.size.limit", "32");
+    conf.set(RssClientConfig.RSS_CLIENT_SEND_SIZE_LIMIT, "32");
     RssShuffleWriter writer = new RssShuffleWriter("appId", 0, "taskId",
         mockBufferManager, mockMetrics, mockShuffleManager, conf, mockWriteClient, mockHandle);
     List<ShuffleBlockInfo> shuffleBlockInfoList = createShuffleBlockList(1, 31);

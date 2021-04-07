@@ -5,6 +5,7 @@ import static org.junit.Assert.assertEquals;
 import com.tencent.rss.test.IntegrationTestBase;
 import java.util.Map;
 import org.apache.spark.SparkConf;
+import org.apache.spark.shuffle.RssClientConfig;
 import org.apache.spark.sql.SparkSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,17 +59,17 @@ abstract public class SparkIntegrationTestBase extends IntegrationTestBase {
     sparkConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.RssShuffleManager");
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
     sparkConf.set("spark.rss.partitions.per.range", "2");
-    sparkConf.set("spark.rss.writer.buffer.size", "4m");
-    sparkConf.set("spark.rss.writer.buffer.spill.size", "32m");
-    sparkConf.set("spark.rss.writer.serializer.buffer.size", "128k");
-    sparkConf.set("spark.rss.writer.serializer.buffer.max.size", "256k");
-    sparkConf.set("spark.rss.coordinator.ip", LOCALHOST);
-    sparkConf.set("spark.rss.coordinator.port", "" + COORDINATOR_PORT);
-    sparkConf.set("spark.rss.writer.send.check.timeout", "30000");
-    sparkConf.set("spark.rss.writer.send.check.interval", "1000");
-    sparkConf.set("spark.rss.index.read.limit", "100");
-    sparkConf.set("spark.rss.client.read.buffer.size", "1m");
-    sparkConf.set("spark.rss.heartbeat.interval", "2000");
+    sparkConf.set(RssClientConfig.RSS_WRITER_BUFFER_SIZE, "4m");
+    sparkConf.set(RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE, "32m");
+    sparkConf.set(RssClientConfig.RSS_WRITER_SERIALIZER_BUFFER_SIZE, "128k");
+    sparkConf.set(RssClientConfig.RSS_WRITER_BUFFER_SEGMENT_SIZE, "256k");
+    sparkConf.set(RssClientConfig.RSS_COORDINATOR_IP, LOCALHOST);
+    sparkConf.set(RssClientConfig.RSS_COORDINATOR_PORT, "" + COORDINATOR_PORT);
+    sparkConf.set(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT, "30000");
+    sparkConf.set(RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL, "1000");
+    sparkConf.set(RssClientConfig.RSS_INDEX_READ_LIMIT, "100");
+    sparkConf.set(RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE, "1m");
+    sparkConf.set(RssClientConfig.RSS_HEARTBEAT_INTERVAL, "2000");
   }
 
   private void verifyTestResult(Map expected, Map actual) {

@@ -6,6 +6,7 @@ import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.storage.util.StorageType;
 import java.io.File;
 import org.apache.spark.SparkConf;
+import org.apache.spark.shuffle.RssClientConfig;
 import org.junit.BeforeClass;
 
 public class RepartitionWithLocalFileRssTest extends RepartitionTest {
@@ -27,6 +28,6 @@ public class RepartitionWithLocalFileRssTest extends RepartitionTest {
 
   @Override
   public void updateRssStorage(SparkConf sparkConf) {
-    sparkConf.set("spark.rss.storage.type", StorageType.LOCALFILE.name());
+    sparkConf.set(RssClientConfig.RSS_STORAGE_TYPE, StorageType.LOCALFILE.name());
   }
 }

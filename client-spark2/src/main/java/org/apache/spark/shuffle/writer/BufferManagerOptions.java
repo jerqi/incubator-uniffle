@@ -11,24 +11,21 @@ public class BufferManagerOptions {
 
   private long bufferSize;
   private long serializerBufferSize;
-  private long serializerBufferMax;
+  private long bufferSegmentSize;
   private long bufferSpillThreshold;
   private long preAllocatedBufferSize;
-  private double sampleGrowRate;
 
   public BufferManagerOptions(SparkConf sparkConf) {
     bufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_BUFFER_SIZE,
         RssClientConfig.RSS_WRITER_BUFFER_SIZE_DEFAULT_VALUE);
     serializerBufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_SERIALIZER_BUFFER_SIZE,
         RssClientConfig.RSS_WRITER_SERIALIZER_BUFFER_SIZE_DEFAULT_VALUE);
-    serializerBufferMax = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_SERIALIZER_BUFFER_MAX_SIZE,
-        RssClientConfig.RSS_WRITER_SERIALIZER_BUFFER_MAX_SIZE_DEFAULT_VALUE);
+    bufferSegmentSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_BUFFER_SEGMENT_SIZE,
+        RssClientConfig.RSS_WRITER_BUFFER_SEGMENT_SIZE_DEFAULT_VALUE);
     bufferSpillThreshold = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE,
         RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE_DEFAULT_VALUE);
     preAllocatedBufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_PRE_ALLOCATED_BUFFER_SIZE,
         RssClientConfig.RSS_WRITER_PRE_ALLOCATED_BUFFER_SIZE_DEFAULT_VALUE);
-    sampleGrowRate = sparkConf.getDouble(RssClientConfig.RSS_WRITER_SAMPLE_GROW_RATE,
-        RssClientConfig.RSS_WRITER_SAMPLE_GROW_RATE_DEFAULT_VALUE);
     LOG.info(RssClientConfig.RSS_WRITER_BUFFER_SIZE + "=" + bufferSize);
     LOG.info(RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE + "=" + bufferSpillThreshold);
     LOG.info(RssClientConfig.RSS_WRITER_PRE_ALLOCATED_BUFFER_SIZE + "=" + preAllocatedBufferSize);
@@ -44,9 +41,9 @@ public class BufferManagerOptions {
       throw new RuntimeException("Unexpected value of " + RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE
           + "=" + bufferSpillThreshold);
     }
-    if (sampleGrowRate < 1.0) {
-      throw new RuntimeException("Unexpected value of " + RssClientConfig.RSS_WRITER_SAMPLE_GROW_RATE
-          + "=" + sampleGrowRate);
+    if (bufferSegmentSize > bufferSize) {
+      LOG.warn(RssClientConfig.RSS_WRITER_BUFFER_SEGMENT_SIZE + "[" + bufferSegmentSize + "] should be less than "
+          + RssClientConfig.RSS_WRITER_BUFFER_SIZE + "[" + bufferSize + "]");
     }
   }
 
@@ -59,8 +56,8 @@ public class BufferManagerOptions {
     return parseToInt(serializerBufferSize);
   }
 
-  public int getSerializerBufferMax() {
-    return parseToInt(serializerBufferMax);
+  public int getBufferSegmentSize() {
+    return parseToInt(bufferSegmentSize);
   }
 
   private int parseToInt(long value) {
@@ -76,9 +73,5 @@ public class BufferManagerOptions {
 
   public long getBufferSpillThreshold() {
     return bufferSpillThreshold;
-  }
-
-  public double getSampleGrowRate() {
-    return sampleGrowRate;
   }
 }
