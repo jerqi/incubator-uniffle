@@ -1,6 +1,5 @@
 package com.tencent.rss.test.spark;
 
-import com.tencent.rss.test.IntegrationTestBase;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
@@ -20,7 +19,7 @@ import scala.Tuple2;
 
 public abstract class RepartitionTest extends SparkIntegrationTestBase {
 
-  private static final Logger LOG = LoggerFactory.getLogger(IntegrationTestBase.class);
+  private static final Logger LOG = LoggerFactory.getLogger(RepartitionTest.class);
 
   @Test
   public void resultCompareTest() throws Exception {

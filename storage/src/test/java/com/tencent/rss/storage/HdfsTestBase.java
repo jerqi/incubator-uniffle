@@ -1,6 +1,7 @@
 package com.tencent.rss.storage;
 
 import java.io.IOException;
+import java.io.Serializable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -10,7 +11,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
-public class HdfsTestBase {
+public class HdfsTestBase implements Serializable {
 
   @ClassRule
   public static final TemporaryFolder tmpDir = new TemporaryFolder();

@@ -2,34 +2,54 @@ package org.apache.spark.shuffle.writer;
 
 import com.google.common.collect.Lists;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class WriterBuffer {
 
+  private static final Logger LOG = LoggerFactory.getLogger(WriterBuffer.class);
   private long copyTime = 0;
   private byte[] buffer;
   private int bufferSize;
   private int nextOffset = 0;
   private List<WrappedBuffer> buffers = Lists.newArrayList();
   private int dataLength = 0;
+  private int memoryUsed = 0;
 
   public WriterBuffer(int bufferSize) {
     this.bufferSize = bufferSize;
-    this.buffer = new byte[bufferSize];
   }
 
   public void addRecord(byte[] recordBuffer, int length) {
     if (askForMemory(length)) {
-      buffers.add(new WrappedBuffer(buffer, nextOffset));
-      buffer = new byte[bufferSize];
-      nextOffset = 0;
+      // buffer has data already, add buffer to list
+      if (nextOffset > 0) {
+        buffers.add(new WrappedBuffer(buffer, nextOffset));
+        nextOffset = 0;
+      }
+      if (length > bufferSize) {
+        buffer = new byte[length];
+        memoryUsed += length;
+      } else {
+        buffer = new byte[bufferSize];
+        memoryUsed += bufferSize;
+      }
     }
-    System.arraycopy(recordBuffer, 0, buffer, nextOffset, length);
+
+    try {
+      System.arraycopy(recordBuffer, 0, buffer, nextOffset, length);
+    } catch (Exception e) {
+      LOG.error("Unexpect exception for System.arraycopy, length[" + length + "], nextOffset["
+          + nextOffset + "], bufferSize[" + bufferSize + "]");
+      throw e;
+    }
+
     nextOffset += length;
     dataLength += length;
   }
 
   public boolean askForMemory(long length) {
-    return nextOffset + length > bufferSize;
+    return buffer == null || nextOffset + length > bufferSize;
   }
 
   public byte[] getData() {
@@ -55,8 +75,7 @@ public class WriterBuffer {
   }
 
   public int getMemoryUsed() {
-    // list of buffers + current buffer
-    return (buffers.size() + 1) * bufferSize;
+    return memoryUsed;
   }
 
   private static final class WrappedBuffer {

@@ -93,7 +93,11 @@ public class WriteBufferManager extends MemoryConsumer {
     if (buffers.containsKey(partitionId)) {
       WriterBuffer wb = buffers.get(partitionId);
       if (wb.askForMemory(serializedDataLength)) {
-        requestMemory(bufferSegmentSize);
+        if (serializedDataLength > bufferSegmentSize) {
+          requestMemory(serializedDataLength);
+        } else {
+          requestMemory(bufferSegmentSize);
+        }
       }
       wb.addRecord(serializedData, serializedDataLength);
       if (wb.getMemoryUsed() > bufferSize) {

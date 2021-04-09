@@ -73,6 +73,7 @@ public class ShuffleServer {
         LOG.info("*** server shut down");
       }
     });
+    LOG.info("Shuffle server start successfully!");
   }
 
   public void stopServer() throws Exception {

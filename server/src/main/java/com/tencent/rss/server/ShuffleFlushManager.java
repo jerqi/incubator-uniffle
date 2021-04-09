@@ -37,7 +37,7 @@ public class ShuffleFlushManager {
   // appId -> shuffleId -> partitionId -> handlers
   private Map<String, Map<Integer, RangeMap<Integer, ShuffleWriteHandler>>> handlers = Maps.newConcurrentMap();
   // appId -> shuffleId -> committed shuffle block data count
-  private Map<String, Map<Long, Integer>> committedBlockCount = Maps.newHashMap();
+  private Map<String, Map<Long, Integer>> committedBlockCount = Maps.newConcurrentMap();
   private boolean isRunning;
   private Runnable processEventThread;
   private int retryMax;

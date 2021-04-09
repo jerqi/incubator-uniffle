@@ -106,8 +106,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
         // We don't know the value type, but also don't care -- the dependency *should*
         // have made sure its compatible w/ this aggregator, which will convert the value
         // type to the combined type C
-        aggregatedIter = shuffleDependency.aggregator().get().combineCombinersByKey(
-            rssShuffleDataIterator, context);
+        aggregatedIter = shuffleDependency.aggregator().get().combineValuesByKey(rssShuffleDataIterator, context);
       }
     } else {
       aggregatedIter = rssShuffleDataIterator;

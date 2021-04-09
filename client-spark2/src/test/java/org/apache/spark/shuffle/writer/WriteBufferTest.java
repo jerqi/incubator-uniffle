@@ -11,25 +11,20 @@ import scala.reflect.ClassTag$;
 
 public class WriteBufferTest {
 
+  private SparkConf conf = new SparkConf(false);
+  private Serializer kryoSerializer = new KryoSerializer(conf);
+  private WrappedByteArrayOutputStream arrayOutputStream = new WrappedByteArrayOutputStream(32);
+  private SerializationStream serializeStream = kryoSerializer.newInstance().serializeStream(arrayOutputStream);
+  private byte[] serializedData;
+  private int serializedDataLength;
+
   @Test
   public void test() {
-    SparkConf conf = new SparkConf(false);
-    Serializer kryoSerializer = new KryoSerializer(conf);
-    WrappedByteArrayOutputStream arrayOutputStream = new WrappedByteArrayOutputStream(32);
-    SerializationStream serializeStream = kryoSerializer.newInstance().serializeStream(arrayOutputStream);
     WriterBuffer wb = new WriterBuffer(32);
-    assertEquals(32, wb.getMemoryUsed());
+    assertEquals(0, wb.getMemoryUsed());
     assertEquals(0, wb.getDataLength());
-    String key = "key";
-    String value = "value";
 
-    arrayOutputStream.reset();
-    serializeStream.writeKey(key, ClassTag$.MODULE$.apply(key.getClass()));
-    serializeStream.writeValue(value, ClassTag$.MODULE$.apply(value.getClass()));
-    serializeStream.flush();
-    byte[] serializedData = arrayOutputStream.getBuf();
-    int serializedDataLength = arrayOutputStream.size();
-
+    serializeData("key", "value");
     // size of serialized kv is 12
     wb.addRecord(serializedData, serializedDataLength);
     assertEquals(32, wb.getMemoryUsed());
@@ -47,5 +42,34 @@ public class WriteBufferTest {
     // case: data size > output buffer size, when getData(), 2 buffer + output with 12b = 60b
     assertEquals(60, wb.getData().length);
     assertEquals(96, wb.getMemoryUsed());
+
+    wb = new WriterBuffer(32);
+
+    serializeData("key1111111111111111111111111111", "value222222222222222222222222222");
+    wb.addRecord(serializedData, serializedDataLength);
+    assertEquals(67, wb.getMemoryUsed());
+    assertEquals(67, wb.getDataLength());
+
+    serializeData("key", "value");
+    wb.addRecord(serializedData, serializedDataLength);
+    // 67 + 32
+    assertEquals(99, wb.getMemoryUsed());
+    // 67 + 12
+    assertEquals(79, wb.getDataLength());
+    assertEquals(79, wb.getData().length);
+
+    wb.addRecord(serializedData, serializedDataLength);
+    assertEquals(99, wb.getMemoryUsed());
+    assertEquals(91, wb.getDataLength());
+    assertEquals(91, wb.getData().length);
+  }
+
+  private void serializeData(Object key, Object value) {
+    arrayOutputStream.reset();
+    serializeStream.writeKey(key, ClassTag$.MODULE$.apply(key.getClass()));
+    serializeStream.writeValue(value, ClassTag$.MODULE$.apply(value.getClass()));
+    serializeStream.flush();
+    serializedData = arrayOutputStream.getBuf();
+    serializedDataLength = arrayOutputStream.size();
   }
 }

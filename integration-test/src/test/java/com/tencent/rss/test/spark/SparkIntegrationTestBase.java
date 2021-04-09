@@ -16,7 +16,9 @@ abstract public class SparkIntegrationTestBase extends IntegrationTestBase {
 
   abstract Map runTest(SparkSession spark, String fileName) throws Exception;
 
-  abstract String generateTestFile() throws Exception;
+  public String generateTestFile() throws Exception {
+    return null;
+  }
 
   public void updateSparkConfCustomer(SparkConf sparkConf) {
   }
