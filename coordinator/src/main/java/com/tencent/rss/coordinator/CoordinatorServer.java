@@ -1,8 +1,11 @@
 package com.tencent.rss.coordinator;
 
 import com.tencent.rss.common.Arguments;
+import com.tencent.rss.common.metrics.JvmMetrics;
 import com.tencent.rss.common.rpc.ServerInterface;
+import com.tencent.rss.common.web.CommonMetricsServlet;
 import com.tencent.rss.common.web.JettyServer;
+import io.prometheus.client.CollectorRegistry;
 import java.io.FileNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,20 +26,8 @@ public class CoordinatorServer {
   private ApplicationManager applicationManager;
 
   public CoordinatorServer(CoordinatorConf coordinatorConf) throws FileNotFoundException {
-    this.applicationManager = new ApplicationManager(coordinatorConf);
     this.coordinatorConf = coordinatorConf;
-
-    ClusterManagerFactory clusterManagerFactory =
-        new ClusterManagerFactory(coordinatorConf);
-    this.clusterManager = clusterManagerFactory.getClusterManager();
-
-    AssignmentStrategyFactory assignmentStrategyFactory =
-        new AssignmentStrategyFactory(coordinatorConf, clusterManager);
-    this.assignmentStrategy = assignmentStrategyFactory.getAssignmentStrategy();
-
-    CoordinatorRpcServerFactory coordinatorRpcServerFactory = new CoordinatorRpcServerFactory(this);
-    server = coordinatorRpcServerFactory.getServer();
-    jettyServer = new JettyServer(coordinatorConf);
+    initialization();
 
   }
 
@@ -52,6 +43,7 @@ public class CoordinatorServer {
 
     // Start the coordinator service
     final CoordinatorServer coordinatorServer = new CoordinatorServer(coordinatorConf);
+
     coordinatorServer.start();
     coordinatorServer.blockUntilShutdown();
   }
@@ -82,6 +74,48 @@ public class CoordinatorServer {
       clusterManager.shutdown();
     }
     server.stop();
+  }
+
+  private void initialization() throws FileNotFoundException {
+    this.applicationManager = new ApplicationManager(coordinatorConf);
+
+    ClusterManagerFactory clusterManagerFactory = new ClusterManagerFactory(coordinatorConf);
+    this.clusterManager = clusterManagerFactory.getClusterManager();
+
+    AssignmentStrategyFactory assignmentStrategyFactory =
+        new AssignmentStrategyFactory(coordinatorConf, clusterManager);
+    this.assignmentStrategy = assignmentStrategyFactory.getAssignmentStrategy();
+
+    CoordinatorRpcServerFactory coordinatorRpcServerFactory = new CoordinatorRpcServerFactory(this);
+    server = coordinatorRpcServerFactory.getServer();
+    jettyServer = new JettyServer(coordinatorConf);
+
+    registerMetrics();
+    addServlet(jettyServer);
+  }
+
+  private void registerMetrics() {
+    LOG.info("Register metrics");
+    CollectorRegistry coordinatorCollectorRegistry = new CollectorRegistry(true);
+    CollectorRegistry jvmCollectorRegistry = new CollectorRegistry(true);
+    CoordinatorMetrics.register(coordinatorCollectorRegistry);
+    JvmMetrics.register(jvmCollectorRegistry);
+  }
+
+  private void addServlet(JettyServer jettyServer) {
+    LOG.info("Add metrics servlet");
+    jettyServer.addServlet(
+        new CommonMetricsServlet(CoordinatorMetrics.getCollectorRegistry()),
+        "/metrics/server");
+    jettyServer.addServlet(
+        new CommonMetricsServlet(JvmMetrics.getCollectorRegistry()),
+        "/metrics/jvm");
+    jettyServer.addServlet(
+        new CommonMetricsServlet(CoordinatorMetrics.getCollectorRegistry(), true),
+        "/prometheus/metrics/server");
+    jettyServer.addServlet(
+        new CommonMetricsServlet(JvmMetrics.getCollectorRegistry(), true),
+        "/prometheus/metrics/jvm");
   }
 
   public ClusterManager getClusterManager() {

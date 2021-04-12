@@ -90,15 +90,16 @@ public class ShuffleServer {
     ip = InetAddress.getLocalHost().getHostAddress();
     port = shuffleServerConf.getInteger(ShuffleServerConf.RPC_SERVER_PORT);
     id = ip + "-" + port;
+
     registerHeartBeat = new RegisterHeartBeat(this);
     shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id, this);
     shuffleBufferManager = new ShuffleBufferManager(shuffleServerConf, shuffleFlushManager);
-
     shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, shuffleFlushManager, shuffleBufferManager);
 
     RemoteServerFactory shuffleServerFactory = new RemoteServerFactory(this);
     server = shuffleServerFactory.getServer();
     jettyServer = new JettyServer(shuffleServerConf);
+
     registerMetrics();
     addServlet(jettyServer);
   }

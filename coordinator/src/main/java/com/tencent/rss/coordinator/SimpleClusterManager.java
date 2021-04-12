@@ -43,6 +43,8 @@ public class SimpleClusterManager implements ClusterManager {
     for (String serverId : deleteIds) {
       servers.remove(serverId);
     }
+
+    CoordinatorMetrics.gaugeTotalServerNum.set(servers.size());
   }
 
   @Override
