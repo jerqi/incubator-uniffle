@@ -107,7 +107,7 @@ public class ShuffleServerConf extends RssBaseConf {
   public static final ConfigOption<Long> SERVER_COMMIT_CHECK_INTERVAL = ConfigOptions
       .key("rss.server.commit.check.interval")
       .longType()
-      .defaultValue(500L)
+      .defaultValue(1000L)
       .withDescription("Interval for check commit status");
 
   public ShuffleServerConf() {

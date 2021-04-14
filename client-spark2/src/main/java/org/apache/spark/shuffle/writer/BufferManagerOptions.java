@@ -14,6 +14,8 @@ public class BufferManagerOptions {
   private long bufferSegmentSize;
   private long bufferSpillThreshold;
   private long preAllocatedBufferSize;
+  private long requireMemoryInterval;
+  private int requireMemoryRetryMax;
 
   public BufferManagerOptions(SparkConf sparkConf) {
     bufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_BUFFER_SIZE,
@@ -26,6 +28,10 @@ public class BufferManagerOptions {
         RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE_DEFAULT_VALUE);
     preAllocatedBufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_WRITER_PRE_ALLOCATED_BUFFER_SIZE,
         RssClientConfig.RSS_WRITER_PRE_ALLOCATED_BUFFER_SIZE_DEFAULT_VALUE);
+    requireMemoryInterval = sparkConf.getLong(RssClientConfig.RSS_WRITER_REQUIRE_MEMORY_INTERVAL,
+        RssClientConfig.RSS_WRITER_REQUIRE_MEMORY_INTERVAL_DEFAULT_VALUE);
+    requireMemoryRetryMax = sparkConf.getInt(RssClientConfig.RSS_WRITER_REQUIRE_MEMORY_RETRY_MAX,
+        RssClientConfig.RSS_WRITER_REQUIRE_MEMORY_RETRY_MAX_DEFAULT_VALUE);
     LOG.info(RssClientConfig.RSS_WRITER_BUFFER_SIZE + "=" + bufferSize);
     LOG.info(RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE + "=" + bufferSpillThreshold);
     LOG.info(RssClientConfig.RSS_WRITER_PRE_ALLOCATED_BUFFER_SIZE + "=" + preAllocatedBufferSize);
@@ -73,5 +79,13 @@ public class BufferManagerOptions {
 
   public long getBufferSpillThreshold() {
     return bufferSpillThreshold;
+  }
+
+  public long getRequireMemoryInterval() {
+    return requireMemoryInterval;
+  }
+
+  public int getRequireMemoryRetryMax() {
+    return requireMemoryRetryMax;
   }
 }

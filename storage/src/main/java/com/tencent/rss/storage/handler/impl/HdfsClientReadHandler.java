@@ -76,13 +76,14 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
     }
 
     FileStatus[] indexFiles;
-    String failedGetIndexFileMsg = "No index file found in  " + baseFolder;
+    String failedGetIndexFileMsg = "Can't list index file in  " + baseFolder;
 
     try {
       // get all index files
       indexFiles = fs.listStatus(baseFolder,
           file -> file.getName().endsWith(Constants.SHUFFLE_INDEX_FILE_SUFFIX));
     } catch (Exception e) {
+      LOG.error(failedGetIndexFileMsg, e);
       throw new RuntimeException(failedGetIndexFileMsg);
     }
 
@@ -141,7 +142,8 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
     if (!blockIds.containsAll(expectedBlockIds)) {
       Set<Long> copy = Sets.newHashSet(expectedBlockIds);
       copy.removeAll(blockIds);
-      throw new RuntimeException("Can't find blockIds " + copy + ", expected[" + expectedBlockIds + "]");
+      throw new RuntimeException("Missing " + copy.size() + " blockIds, expected "
+          + expectedBlockIds.size() + " blockIds");
     }
   }
 
@@ -170,7 +172,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
               break;
             } catch (Exception e) {
               LOG.warn("Can't read data for " + fileSegment.getPath() + ", offset["
-                  + fileSegment.getOffset() + "], length[" + fileSegment.getLength() + "]");
+                  + fileSegment.getOffset() + "], length[" + fileSegment.getLength() + "]", e);
             }
           }
         }

@@ -76,11 +76,12 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
                 + " to [" + ssi.getId() + "] successfully");
           } else {
             tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
-            LOG.error("Send: " + serverToBlockIds.get(ssi) + " to [" + ssi.getId() + "] temp failed.");
+            LOG.error("Send: " + serverToBlockIds.get(ssi).size() + " blocks to [" + ssi.getId()
+                + "] temp failed with statusCode[" + response.getStatusCode() + "], ");
           }
         } catch (Exception e) {
           tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
-          LOG.error("Send: " + serverToBlockIds.get(ssi) + " to [" + ssi.getId() + "] temp failed.", e);
+          LOG.error("Send: " + serverToBlockIds.get(ssi).size() + " blocks to [" + ssi.getId() + "] temp failed.", e);
         }
       });
     }

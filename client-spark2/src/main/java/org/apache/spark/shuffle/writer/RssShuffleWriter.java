@@ -1,7 +1,6 @@
 package org.apache.spark.shuffle.writer;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -197,9 +196,8 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       // if failed when send data to shuffle server, mark task as failed
       if (failedBlockIds.size() > 0) {
         String errorMsg =
-            "Send failed: Task[" + taskId + "] failed because blockIds ["
-                + Joiner.on(" ").join(failedBlockIds)
-                + "] can't be sent to shuffle server.";
+            "Send failed: Task[" + taskId + "] failed because " + failedBlockIds.size()
+                + " blocks can't be sent to shuffle server.";
         LOG.error(errorMsg);
         throw new RuntimeException(errorMsg);
       }
@@ -217,8 +215,8 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       }
       if (System.currentTimeMillis() - start > sendCheckTimeout) {
         String errorMsg =
-            "Timeout: Task[" + taskId + "] failed because blockIds [" + Joiner.on(" ").join(blockIds)
-                + "] can't be sent to shuffle server in " + sendCheckTimeout + " ms.";
+            "Timeout: Task[" + taskId + "] failed because " + blockIds.size()
+                + " blocks can't be sent to shuffle server in " + sendCheckTimeout + " ms.";
         LOG.error(errorMsg);
         throw new RuntimeException(errorMsg);
       }

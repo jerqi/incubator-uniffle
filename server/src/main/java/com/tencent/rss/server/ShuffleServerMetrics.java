@@ -15,6 +15,7 @@ public class ShuffleServerMetrics {
 
   private static final String TOTAL_RECEIVED_DATA = "total_received_data";
   private static final String TOTAL_WRITE_DATA = "total_write_data";
+  private static final String TOTAL_WRITE_BLOCK = "total_write_block";
 
   private static final String REGISTERED_SHUFFLE = "registered_shuffle";
   private static final String REGISTERED_SHUFFLE_ENGINE = "registered_shuffle_engine";
@@ -28,6 +29,7 @@ public class ShuffleServerMetrics {
   static Counter counterCommitRequest;
   static Counter counterTotalReceivedDataSize;
   static Counter counterTotalWriteDataSize;
+  static Counter counterTotalWriteBlockSize;
 
   static Gauge gaugeRegisteredShuffle;
   static Gauge gaugeRegisteredShuffleEngine;
@@ -61,6 +63,7 @@ public class ShuffleServerMetrics {
     counterCommitRequest = metricsManager.addCounter(COMMIT_REQUEST);
     counterTotalReceivedDataSize = metricsManager.addCounter(TOTAL_RECEIVED_DATA);
     counterTotalWriteDataSize = metricsManager.addCounter(TOTAL_WRITE_DATA);
+    counterTotalWriteBlockSize = metricsManager.addCounter(TOTAL_WRITE_BLOCK);
 
     gaugeRegisteredShuffle = metricsManager.addGauge(REGISTERED_SHUFFLE);
     gaugeRegisteredShuffleEngine = metricsManager.addGauge(REGISTERED_SHUFFLE_ENGINE);

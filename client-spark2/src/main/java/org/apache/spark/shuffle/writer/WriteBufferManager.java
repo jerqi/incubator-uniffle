@@ -52,6 +52,8 @@ public class WriteBufferManager extends MemoryConsumer {
   private SerializationStream serializeStream;
   private WrappedByteArrayOutputStream arrayOutputStream;
   private long uncompressedDataLen = 0;
+  private long requireMemoryInterval;
+  private int requireMemoryRetryMax;
 
   public WriteBufferManager(
       int shuffleId,
@@ -73,6 +75,8 @@ public class WriteBufferManager extends MemoryConsumer {
     this.serializerBufferSize = bufferManagerOptions.getSerializerBufferSize();
     this.bufferSegmentSize = bufferManagerOptions.getBufferSegmentSize();
     this.askExecutorMemory = bufferManagerOptions.getPreAllocatedBufferSize();
+    this.requireMemoryInterval = bufferManagerOptions.getRequireMemoryInterval();
+    this.requireMemoryRetryMax = bufferManagerOptions.getRequireMemoryRetryMax();
     this.arrayOutputStream = new WrappedByteArrayOutputStream(serializerBufferSize);
     this.serializeStream = instance.serializeStream(arrayOutputStream);
   }
@@ -172,19 +176,18 @@ public class WriteBufferManager extends MemoryConsumer {
     long gotMem = acquireMemory(askExecutorMemory);
     allocatedBytes.addAndGet(gotMem);
     int retry = 0;
-    int maxRetry = 10;
     while (allocatedBytes.get() - usedBytes.get() < leastMem) {
       LOG.info("Can't get memory for now, sleep and try[" + retry
           + "] again, request[" + askExecutorMemory + "], got[" + gotMem + "] less than " + leastMem);
       try {
-        Thread.sleep(1000);
+        Thread.sleep(requireMemoryInterval);
       } catch (InterruptedException ie) {
         LOG.warn("Exception happened when waiting for memory.", ie);
       }
       gotMem = acquireMemory(askExecutorMemory);
       allocatedBytes.addAndGet(gotMem);
       retry++;
-      if (retry > maxRetry) {
+      if (retry > requireMemoryRetryMax) {
         String message = "Can't get memory to cache shuffle data, request[" + askExecutorMemory
             + "], got[" + gotMem + "]," + " WriteBufferManager allocated[" + allocatedBytes + "] task used[" + used
             + "], consider to optimize 'spark.executor.memory'," + " 'spark.rss.writer.buffer.spill.size'.";

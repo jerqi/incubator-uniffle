@@ -121,8 +121,9 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
   public void checkProcessedBlockIds() {
     Set<Long> missingBlockIds = Sets.difference(expectedBlockIds, processedBlockIds);
     if (expectedBlockIds.size() != processedBlockIds.size() || !missingBlockIds.isEmpty()) {
-      throw new RuntimeException("Blocks read inconsistent: expected " + expectedBlockIds.toString()
-          + ", actual " + processedBlockIds.toString());
+      throw new RuntimeException("Blocks read inconsistent: expected " + expectedBlockIds.size()
+          + " blocks, actual " + processedBlockIds.size()
+          + " blocks, missing " + missingBlockIds.size() + " blocks");
     }
   }
 

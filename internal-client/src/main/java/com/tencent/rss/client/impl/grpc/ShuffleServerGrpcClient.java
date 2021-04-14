@@ -87,7 +87,8 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
     int retry = 0;
     long result = FAILED_REQUIRE_ID;
     while (rpcResponse.getStatus() == StatusCode.NO_BUFFER) {
-      LOG.info("Can't require " + requireSize + " bytes from " + host + ":" + port + ", sleep and try again");
+      LOG.info("Can't require " + requireSize + " bytes from " + host + ":" + port + ", sleep and try["
+          + retry + "] again");
       if (retry >= retryMax) {
         LOG.warn("ShuffleServer " + host + ":" + port + " is full and can't send shuffle"
             + " data successfully after retry " + retryMax + " times");

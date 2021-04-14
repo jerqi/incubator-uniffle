@@ -135,6 +135,12 @@ public class RssBaseConf extends RssConf {
       .noDefaultValue()
       .withDescription("Data storage for remote shuffle service");
 
+  public static final ConfigOption<Integer> RSS_STORAGE_DATA_REPLICA = ConfigOptions
+      .key("rss.storage.data.replica")
+      .intType()
+      .defaultValue(1)
+      .withDescription("Data replica in storage");
+
   public static final ConfigOption<String> RSS_STORAGE_BASE_PATH = ConfigOptions
       .key("rss.storage.basePath")
       .stringType()
@@ -146,6 +152,12 @@ public class RssBaseConf extends RssConf {
       .intType()
       .defaultValue(1000)
       .withDescription("Read index entity number");
+
+  public static final ConfigOption<Integer> RPC_EXECUTOR_SIZE = ConfigOptions
+      .key("rss.rpc.executor.size")
+      .intType()
+      .defaultValue(1000)
+      .withDescription("Thread number for grpc to process request");
 
   public boolean loadCommonConf(Map<String, String> properties) {
     if (properties == null) {
@@ -243,6 +255,14 @@ public class RssBaseConf extends RssConf {
 
       if (RSS_STORAGE_INDEX_READ_LIMIT.key().equalsIgnoreCase(k)) {
         set(RSS_STORAGE_INDEX_READ_LIMIT, Integer.valueOf(k));
+      }
+
+      if (RPC_EXECUTOR_SIZE.key().equalsIgnoreCase(k)) {
+        set(RPC_EXECUTOR_SIZE, Integer.valueOf(v));
+      }
+
+      if (RSS_STORAGE_DATA_REPLICA.key().equalsIgnoreCase(k)) {
+        set(RSS_STORAGE_DATA_REPLICA, Integer.valueOf(v));
       }
     });
 

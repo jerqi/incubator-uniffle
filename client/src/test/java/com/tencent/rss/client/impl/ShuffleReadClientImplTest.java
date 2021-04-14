@@ -62,7 +62,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
           "appId", 0, 1, 100, 1, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
-      assertTrue(e.getMessage().startsWith("Can't find blockIds"));
+      assertTrue(e.getMessage().startsWith("Missing"));
     } finally {
       readClient.close();
     }
@@ -108,13 +108,13 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
 
     // duplicate file created, it should be used in product environment
     String shuffleFolder = basePath + "/appId/0/0-1";
-    FileUtil.copy(fs, new Path(shuffleFolder + "/test3_1.data"), fs,
+    FileUtil.copy(fs, new Path(shuffleFolder + "/test3_1_0.data"), fs,
         new Path(basePath + "/test3_1.cp.data"), false, conf);
-    FileUtil.copy(fs, new Path(shuffleFolder + "/test3_1.index"), fs,
+    FileUtil.copy(fs, new Path(shuffleFolder + "/test3_1_0.index"), fs,
         new Path(basePath + "/test3_1.cp.index"), false, conf);
-    FileUtil.copy(fs, new Path(shuffleFolder + "/test3_2.data"), fs,
+    FileUtil.copy(fs, new Path(shuffleFolder + "/test3_2_0.data"), fs,
         new Path(basePath + "/test3_2.cp.data"), false, conf);
-    FileUtil.copy(fs, new Path(shuffleFolder + "/test3_2.index"), fs,
+    FileUtil.copy(fs, new Path(shuffleFolder + "/test3_2_0.index"), fs,
         new Path(basePath + "/test3_2.cp.index"), false, conf);
 
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
@@ -138,9 +138,9 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
 
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
         "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
-    Path dataFile = new Path(basePath + "/appId/0/0-1/test1.data");
+    Path dataFile = new Path(basePath + "/appId/0/0-1/test1_0.data");
     // data file is deleted after readClient checkExpectedBlockIds
-    fs.delete(new Path(basePath + "/appId/0/0-1/test1.data"), true);
+    fs.delete(new Path(basePath + "/appId/0/0-1/test1_0.data"), true);
     // sleep to wait delete operation
     Thread.sleep(10000);
 
@@ -199,7 +199,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
     Set<Long> expectedBlockIds = Sets.newHashSet();
     writeTestData(writeHandler, 2, 30, expectedData,
         expectedBlockIds);
-    Path indexFile = new Path(basePath + "/appId/0/0-1/test.index");
+    Path indexFile = new Path(basePath + "/appId/0/0-1/test_0.index");
     // index file is deleted before iterator initialization
     fs.delete(indexFile, true);
     // sleep to wait delete operation
@@ -215,7 +215,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
           "appId", 0, 1, 100, 2, 10, 1000, basePath, expectedBlockIds, Lists.newArrayList());
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
-      assertTrue(e.getMessage().startsWith("No index file found"));
+      assertTrue(e.getMessage().startsWith("Can't list index"));
     }
   }
 
@@ -300,7 +300,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
           "appId", 0, 0, 100, 2, 10, 100, basePath, wrongIds, Lists.newArrayList());
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
-      assertTrue(e.getMessage().startsWith("Can't find blockIds"));
+      assertTrue(e.getMessage().startsWith("Missing"));
     }
   }
 

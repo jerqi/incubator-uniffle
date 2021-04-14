@@ -81,6 +81,7 @@ public class ShuffleHandlerFactory {
 
   public ShuffleWriteHandler createShuffleWriteHandler(CreateShuffleWriteHandlerRequest request) throws Exception {
     if (StorageType.HDFS.name().equals(request.getStorageType())) {
+      request.getConf().setInt("dfs.replication", request.getStorageDataReplica());
       return new HdfsShuffleWriteHandler(request.getAppId(), request.getShuffleId(),
           request.getStartPartition(), request.getEndPartition(), request.getStorageBasePaths()[0],
           request.getFileNamePrefix(), request.getConf());

@@ -29,7 +29,7 @@ public class LocalFileReader implements ShuffleReader, Closeable {
       dataInputStream.readFully(buf);
       return buf;
     } catch (Exception e) {
-      LOG.warn("Can't read data for path:" + path + " with offset[" + offset + "], length[" + length + "]");
+      LOG.warn("Can't read data for path:" + path + " with offset[" + offset + "], length[" + length + "]", e);
     }
     return null;
   }

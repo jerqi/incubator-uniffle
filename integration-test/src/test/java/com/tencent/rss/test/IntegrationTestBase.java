@@ -61,6 +61,7 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     serverConf.setString("rss.server.heartbeat.interval", "1000");
     serverConf.setInteger("rss.jetty.http.port", 18080);
     serverConf.setInteger("rss.jetty.corePool.size", 64);
+    serverConf.setInteger("rss.rpc.executor.size", 10);
     return serverConf;
   }
 

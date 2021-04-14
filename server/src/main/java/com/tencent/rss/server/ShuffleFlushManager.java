@@ -33,6 +33,7 @@ public class ShuffleFlushManager {
   private final String[] storageBasePaths;
   private final String shuffleServerId;
   private final String storageType;
+  private final int storageDataReplica;
   private final Configuration hadoopConf;
   // appId -> shuffleId -> partitionId -> handlers
   private Map<String, Map<Integer, RangeMap<Integer, ShuffleWriteHandler>>> handlers = Maps.newConcurrentMap();
@@ -49,6 +50,7 @@ public class ShuffleFlushManager {
     retryMax = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_WRITE_RETRY_MAX);
     long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.SERVER_FLUSH_THREAD_ALIVE);
     storageType = shuffleServerConf.get(RssBaseConf.RSS_STORAGE_TYPE);
+    storageDataReplica = shuffleServerConf.get(RssBaseConf.RSS_STORAGE_DATA_REPLICA);
     int waitQueueSize = shuffleServerConf.getInteger(
         ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE);
     BlockingQueue<Runnable> waitQueue = Queues.newLinkedBlockingQueue(waitQueueSize);
@@ -97,6 +99,8 @@ public class ShuffleFlushManager {
             handler.write(blocks);
             updateCommittedBlockCount(event.getAppId(), event.getShuffleId(), event.getShuffleBlocks().size());
             writeSuccess = true;
+            ShuffleServerMetrics.counterTotalWriteDataSize.inc(event.getSize());
+            ShuffleServerMetrics.counterTotalWriteBlockSize.inc(event.getShuffleBlocks().size());
           } catch (Exception e) {
             LOG.warn("Exception happened when write data for " + event + ", try again", e);
             Thread.sleep(1000);
@@ -131,7 +135,7 @@ public class ShuffleFlushManager {
           ShuffleHandlerFactory.getInstance().createShuffleWriteHandler(
               new CreateShuffleWriteHandlerRequest(
                   storageType, event.getAppId(), event.getShuffleId(), event.getStartPartition(),
-                  event.getEndPartition(), storageBasePaths, shuffleServerId, hadoopConf)));
+                  event.getEndPartition(), storageBasePaths, shuffleServerId, hadoopConf, storageDataReplica)));
     }
     return eventIdRangeMap.get(event.getStartPartition());
   }

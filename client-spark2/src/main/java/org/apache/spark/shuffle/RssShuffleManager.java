@@ -164,6 +164,7 @@ public class RssShuffleManager implements ShuffleManager {
         try {
           while (true) {
             shuffleWriteClient.sendAppHeartbeat(appId);
+            LOG.info("Successfully send heartbeat to coordinator");
             Thread.sleep(heartbeatInterval);
           }
         } catch (Exception e) {

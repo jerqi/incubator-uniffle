@@ -97,7 +97,6 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
   @Override
   public void sendShuffleData(SendShuffleDataRequest req,
       StreamObserver<SendShuffleDataResponse> responseObserver) {
-    long s = System.currentTimeMillis();
     ShuffleServerMetrics.counterTotalRequest.inc();
     ShuffleServerMetrics.counterSendDataRequest.inc();
 
@@ -163,7 +162,6 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
 
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
-
   }
 
   @Override
@@ -203,6 +201,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
   @Override
   public void finishShuffle(FinishShuffleRequest req,
       StreamObserver<FinishShuffleResponse> responseObserver) {
+    ShuffleServerMetrics.counterTotalRequest.inc();
     String appId = req.getAppId();
     int shuffleId = req.getShuffleId();
     StatusCode status;

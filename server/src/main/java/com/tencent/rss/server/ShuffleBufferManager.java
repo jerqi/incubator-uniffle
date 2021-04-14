@@ -155,7 +155,7 @@ public class ShuffleBufferManager {
       }
       return true;
     }
-    LOG.warn("Require memory failed with " + size + " bytes, usedMemory[" + usedMemory.get()
+    LOG.debug("Require memory failed with " + size + " bytes, usedMemory[" + usedMemory.get()
         + "] include preAllocation[" + preAllocatedSize.get()
         + "], inFlushSize[" + inFlushSize.get() + "]");
     return false;

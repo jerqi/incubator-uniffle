@@ -5,6 +5,7 @@ import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -22,6 +23,7 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
   private String basePath;
   private String fileNamePrefix;
   private Lock writeLock = new ReentrantLock();
+  private int failTimes = 0;
 
   public HdfsShuffleWriteHandler(
       String appId,
@@ -32,8 +34,6 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
       String fileNamePrefix,
       Configuration hadoopConf) throws IOException, IllegalStateException {
     this.hadoopConf = hadoopConf;
-    // only left 1 copy in hdfs, write more copy for more replication
-    this.hadoopConf.setInt("dfs.replication", 1);
     this.fileNamePrefix = fileNamePrefix;
     this.basePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
         ShuffleStorageUtils.getShuffleDataPath(appId, shuffleId, startPartition, endPartition));
@@ -63,18 +63,25 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
       List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException {
     final long start = System.currentTimeMillis();
     final long writeSize = shuffleBlocks.stream().mapToLong(ShufflePartitionedBlock::size).sum();
-    String dataFileName = ShuffleStorageUtils.generateDataFileName(fileNamePrefix);
-    String indexFileName = ShuffleStorageUtils.generateIndexFileName(fileNamePrefix);
+    HdfsFileWriter dataWriter = null;
+    HdfsFileWriter indexWriter = null;
     writeLock.lock();
     try {
-      try (HdfsFileWriter dataWriter = createWriter(dataFileName);
-          HdfsFileWriter indexWriter = createWriter(indexFileName)) {
+      try {
         final long ss = System.currentTimeMillis();
+        // Write to HDFS will be failed with lease problem, and can't write the same file again
+        // change the prefix of file name if write failed before
+        String dataFileName = ShuffleStorageUtils.generateDataFileName(fileNamePrefix + "_" + failTimes);
+        String indexFileName = ShuffleStorageUtils.generateIndexFileName(fileNamePrefix + "_" + failTimes);
+        dataWriter = createWriter(dataFileName);
+        indexWriter = createWriter(indexFileName);
         for (ShufflePartitionedBlock block : shuffleBlocks) {
           long blockId = block.getBlockId();
           long crc = block.getCrc();
           long startOffset = dataWriter.nextOffset();
-          dataWriter.writeData(block.getData());
+          ByteBuffer bb = block.getData();
+          bb.rewind();
+          dataWriter.writeData(bb);
 
           FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
               blockId, startOffset, block.getLength(), block.getUncompressLength(), crc);
@@ -84,6 +91,17 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
             "Write handler inside cost {} ms for {}",
             (System.currentTimeMillis() - ss),
             fileNamePrefix);
+      } catch (Exception e) {
+        LOG.warn("Write failed with " + shuffleBlocks.size() + " blocks for " + fileNamePrefix + "_" + failTimes, e);
+        failTimes++;
+        throw new RuntimeException(e);
+      } finally {
+        if (dataWriter != null) {
+          dataWriter.close();
+        }
+        if (indexWriter != null) {
+          indexWriter.close();
+        }
       }
     } finally {
       writeLock.unlock();
