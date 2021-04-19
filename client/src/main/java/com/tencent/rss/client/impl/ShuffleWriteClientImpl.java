@@ -127,7 +127,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
     sendShuffleDataAsync(appId, serverToBlocks, serverToBlockIds, successBlockIds, tempFailedBlockIds);
     if (!successBlockIds.containsAll(tempFailedBlockIds)) {
       tempFailedBlockIds.removeAll(successBlockIds);
-      LOG.error("Send: " + tempFailedBlockIds + " failed.");
+      LOG.error("Send: " + tempFailedBlockIds.size() + " blocks failed.");
     }
 
     return new SendShuffleDataResult(successBlockIds, tempFailedBlockIds);

@@ -18,6 +18,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
+import org.apache.spark.SparkContext;
+import org.apache.spark.SparkContext$;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.deploy.SparkHadoopUtil$;
@@ -30,6 +32,7 @@ import org.apache.spark.shuffle.writer.WriteBufferManager;
 import org.apache.spark.util.EventLoop;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 
 public class RssShuffleManager implements ShuffleManager {
 
@@ -117,11 +120,6 @@ public class RssShuffleManager implements ShuffleManager {
     }
   }
 
-  @VisibleForTesting
-  protected void setAppId() {
-    appId = SparkEnv.get().conf().getAppId();
-  }
-
   // This method is called in Spark driver side,
   // and Spark driver will make some decision according to coordinator,
   // e.g. determining what RSS servers to use.
@@ -130,7 +128,13 @@ public class RssShuffleManager implements ShuffleManager {
   @Override
   public <K, V, C> ShuffleHandle registerShuffle(int shuffleId, int numMaps, ShuffleDependency<K, V, C> dependency) {
     // SparkContext is created after RssShuffleManager, can't get appId in RssShuffleManager's construct
-    setAppId();
+    String attemptId = "";
+    SparkContext sc = SparkContext$.MODULE$.getActive().get();
+    Option<String> optionAttemptId = sc.applicationAttemptId();
+    if (optionAttemptId.isDefined()) {
+      attemptId = "_" + optionAttemptId.get();
+    }
+    appId = SparkEnv.get().conf().getAppId() + attemptId;
     startHeartbeat();
 
     int partitionNumPerRange = sparkConf.getInt(RssClientConfig.RSS_PARTITION_NUM_PER_RANGE,
@@ -202,9 +206,8 @@ public class RssShuffleManager implements ShuffleManager {
   public <K, V> ShuffleWriter<K, V> getWriter(ShuffleHandle handle, int mapId,
       TaskContext context) {
     if (handle instanceof RssShuffleHandle) {
-      // SparkContext is created after RssShuffleManager, can't get appId in RssShuffleManager's construct
-      setAppId();
       RssShuffleHandle rssHandle = (RssShuffleHandle) handle;
+      appId = rssHandle.getAppId();
       int executorId = Integer.MAX_VALUE;
       if (!isDriver) {
         executorId = Integer.parseInt(SparkEnv.get().executorId());
@@ -220,7 +223,7 @@ public class RssShuffleManager implements ShuffleManager {
           writeMetrics);
       taskToBuffManager.put(taskId, bufferManager);
 
-      return new RssShuffleWriter(appId, shuffleId, taskId, bufferManager,
+      return new RssShuffleWriter(rssHandle.getAppId(), shuffleId, taskId, bufferManager,
           writeMetrics, this, sparkConf, shuffleWriteClient, rssHandle);
     } else {
       throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());
@@ -233,8 +236,6 @@ public class RssShuffleManager implements ShuffleManager {
   public <K, C> ShuffleReader<K, C> getReader(ShuffleHandle handle,
       int startPartition, int endPartition, TaskContext context) {
     if (handle instanceof RssShuffleHandle) {
-      // SparkContext is created after RssShuffleManager, can't get appId in RssShuffleManager's construct
-      setAppId();
       // spark.rss.base.path is not necessary for every storage type, eg, hdfs need but localfile doesn't
       String shuffleDataBasePath = sparkConf.get(RssClientConfig.RSS_BASE_PATH, "");
       String storageType = sparkConf.get(RssClientConfig.RSS_STORAGE_TYPE);
@@ -252,7 +253,7 @@ public class RssShuffleManager implements ShuffleManager {
       }
       List<Long> expectedBlockIds = shuffleWriteClient.getShuffleResult(
           clientType, rssShuffleHandle.getShuffleServersForResult(),
-          appId, rssShuffleHandle.getShuffleId(), startPartition);
+          rssShuffleHandle.getAppId(), rssShuffleHandle.getShuffleId(), startPartition);
 
       return new RssShuffleReader<K, C>(startPartition, endPartition, context,
           rssShuffleHandle, shuffleDataBasePath, indexReadLimit,
