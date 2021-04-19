@@ -69,6 +69,7 @@ abstract public class SparkIntegrationTestBase extends IntegrationTestBase {
     sparkConf.set(RssClientConfig.RSS_COORDINATOR_PORT, "" + COORDINATOR_PORT);
     sparkConf.set(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT, "30000");
     sparkConf.set(RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL, "1000");
+    sparkConf.set(RssClientConfig.RSS_CLIENT_RETRY_INTERVAL_MAX, "1000");
     sparkConf.set(RssClientConfig.RSS_INDEX_READ_LIMIT, "100");
     sparkConf.set(RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE, "1m");
     sparkConf.set(RssClientConfig.RSS_HEARTBEAT_INTERVAL, "2000");

@@ -43,14 +43,14 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
 
   private String clientType;
   private int retryMax;
-  private long retryInterval;
+  private long retryIntervalMax;
   private CoordinatorClient coordinatorClient;
   private CoordinatorClientFactory coordinatorClientFactory;
 
-  public ShuffleWriteClientImpl(String clientType, int retryMax, long retryInterval) {
+  public ShuffleWriteClientImpl(String clientType, int retryMax, long retryIntervalMax) {
     this.clientType = clientType;
     this.retryMax = retryMax;
-    this.retryInterval = retryInterval;
+    this.retryIntervalMax = retryIntervalMax;
     coordinatorClientFactory = new CoordinatorClientFactory(clientType);
   }
 
@@ -65,7 +65,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
         ShuffleServerInfo ssi = entry.getKey();
         try {
           RssSendShuffleDataRequest request = new RssSendShuffleDataRequest(
-              appId, retryMax, retryInterval, entry.getValue());
+              appId, retryMax, retryIntervalMax, entry.getValue());
           long s = System.currentTimeMillis();
           RssSendShuffleDataResponse response = getShuffleServerClient(ssi).sendShuffleData(request);
           LOG.info("ShuffleWriteClientImpl sendShuffleData cost:" + (System.currentTimeMillis() - s));

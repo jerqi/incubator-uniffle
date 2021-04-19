@@ -8,17 +8,18 @@ import com.tencent.rss.client.request.CreateShuffleReadClientRequest;
 
 public class ShuffleClientFactory {
 
-  private static ShuffleClientFactory INSTANCE = new ShuffleClientFactory();
+  private static final ShuffleClientFactory INSTANCE = new ShuffleClientFactory();
 
   private ShuffleClientFactory() {
   }
 
-  public static ShuffleClientFactory getINSTANCE() {
+  public static ShuffleClientFactory getInstance() {
     return INSTANCE;
   }
 
-  public ShuffleWriteClient createShuffleWriteClient(String clientType, int retryMax, long retryInterval) {
-    return new ShuffleWriteClientImpl(clientType, retryMax, retryInterval);
+  public ShuffleWriteClient createShuffleWriteClient(
+      String clientType, int retryMax, long retryIntervalMax) {
+    return new ShuffleWriteClientImpl(clientType, retryMax, retryIntervalMax);
   }
 
   public ShuffleReadClient createShuffleReadClient(CreateShuffleReadClientRequest request) {

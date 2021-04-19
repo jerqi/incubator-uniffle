@@ -102,10 +102,11 @@ public class RssShuffleManager implements ShuffleManager {
         RssClientConfig.RSS_HEARTBEAT_INTERVAL_DEFAULT_VALUE);
     int retryMax = sparkConf.getInt(RssClientConfig.RSS_CLIENT_RETRY_MAX,
         RssClientConfig.RSS_CLIENT_RETRY_MAX_DEFAULT_VALUE);
-    long retryInterval = sparkConf.getLong(RssClientConfig.RSS_CLIENT_RETRY_INTERVAL,
-        RssClientConfig.RSS_CLIENT_RETRY_INTERVAL_DEFAULT_VALUE);
-    shuffleWriteClient =
-        ShuffleClientFactory.getINSTANCE().createShuffleWriteClient(clientType, retryMax, retryInterval);
+    long retryIntervalMax = sparkConf.getLong(RssClientConfig.RSS_CLIENT_RETRY_INTERVAL_MAX,
+        RssClientConfig.RSS_CLIENT_RETRY_INTERVAL_MAX_DEFAULT_VALUE);
+    shuffleWriteClient = ShuffleClientFactory
+        .getInstance()
+        .createShuffleWriteClient(clientType, retryMax, retryIntervalMax);
     registerCoordinator();
     if (!sparkConf.getBoolean(RssClientConfig.RSS_TEST_FLAG, false)) {
       // for non-driver executor, start a thread for sending shuffle data to shuffle server

@@ -46,6 +46,7 @@ import com.tencent.rss.proto.ShuffleServerGrpc;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerBlockingStub;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,11 +82,13 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
     return blockingStub.commitShuffleTask(request);
   }
 
-  public long requirePreAllocation(int requireSize, int retryMax, long retryInterval) {
+  public long requirePreAllocation(int requireSize, int retryMax, long retryIntervalMax) {
     RequireBufferRequest rpcRequest = RequireBufferRequest.newBuilder().setRequireSize(requireSize).build();
     RequireBufferResponse rpcResponse = blockingStub.requireBuffer(rpcRequest);
     int retry = 0;
     long result = FAILED_REQUIRE_ID;
+    Random random = new Random();
+    final int backOffBase = 2000;
     while (rpcResponse.getStatus() == StatusCode.NO_BUFFER) {
       LOG.info("Can't require " + requireSize + " bytes from " + host + ":" + port + ", sleep and try["
           + retry + "] again");
@@ -95,7 +98,9 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         return result;
       }
       try {
-        Thread.sleep(retryInterval);
+        long backoffTime =
+            Math.min(retryIntervalMax, backOffBase * (1 << retry) + random.nextInt(backOffBase));
+        Thread.sleep(backoffTime);
       } catch (Exception e) {
         LOG.warn("Exception happened when require pre allocation", e);
       }
@@ -164,7 +169,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
             .build());
       }
 
-      long requireId = requirePreAllocation(size, request.getRetryMax(), request.getRetryInterval());
+      long requireId = requirePreAllocation(size, request.getRetryMax(), request.getRetryIntervalMax());
       if (requireId != FAILED_REQUIRE_ID) {
         SendShuffleDataRequest rpcRequest = SendShuffleDataRequest.newBuilder()
             .setAppId(appId)
