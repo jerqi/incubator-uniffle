@@ -124,6 +124,7 @@ public class ShuffleBufferManager {
         buffer.toFlushEvent(appId, shuffleId, startPartition, endPartition);
     if (event != null) {
       inFlushSize.addAndGet(event.getSize());
+      ShuffleServerMetrics.gaugeInFlushBufferSize.set(inFlushSize.get());
       shuffleFlushManager.addToFlushQueue(event);
     }
   }
@@ -153,6 +154,7 @@ public class ShuffleBufferManager {
   public synchronized boolean requireMemory(long size, boolean isPreAllocated) {
     if (capacity - usedMemory.get() >= size) {
       usedMemory.addAndGet(size);
+      ShuffleServerMetrics.gaugeUsedBufferSize.set(usedMemory.get());
       if (isPreAllocated) {
         requirePreAllocatedSize(size);
       }
@@ -172,6 +174,9 @@ public class ShuffleBufferManager {
           + "] is less than released[" + size + "], set allocated memory to 0");
       usedMemory.set(0L);
     }
+
+    ShuffleServerMetrics.gaugeUsedBufferSize.set(usedMemory.get());
+
     if (isReleaseFlushMemory) {
       releaseFlushMemory(size);
     }
@@ -185,6 +190,7 @@ public class ShuffleBufferManager {
           + "] is less than released[" + size + "], set allocated memory to 0");
       inFlushSize.set(0L);
     }
+    ShuffleServerMetrics.gaugeInFlushBufferSize.set(inFlushSize.get());
   }
 
   public boolean requireReadMemoryWithRetry(long size) {
@@ -222,15 +228,18 @@ public class ShuffleBufferManager {
     } else {
       // add size if not allocated
       usedMemory.addAndGet(delta);
+      ShuffleServerMetrics.gaugeUsedBufferSize.set(usedMemory.get());
     }
   }
 
   void requirePreAllocatedSize(long delta) {
     preAllocatedSize.addAndGet(delta);
+    ShuffleServerMetrics.gaugeAllocatedBufferSize.set(preAllocatedSize.get());
   }
 
   void releasePreAllocatedSize(long delta) {
     preAllocatedSize.addAndGet(-delta);
+    ShuffleServerMetrics.gaugeAllocatedBufferSize.set(preAllocatedSize.get());
   }
 
   // if data size in buffer > spillThreshold, do the flush
@@ -269,4 +278,5 @@ public class ShuffleBufferManager {
   public long getPreAllocatedSize() {
     return preAllocatedSize.get();
   }
+
 }

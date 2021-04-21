@@ -20,6 +20,9 @@ public class ShuffleServerMetrics {
   private static final String REGISTERED_SHUFFLE = "registered_shuffle";
   private static final String REGISTERED_SHUFFLE_ENGINE = "registered_shuffle_engine";
   private static final String BUFFERED_DATA_SIZE = "buffered_data_size";
+  private static final String ALLOCATED_BUFFER_SIZE = "allocated_buffer_size";
+  private static final String IN_FLUSH_BUFFER_SIZE = "in_flush_buffer_size";
+  private static final String USED_BUFFER_SIZE = "used_buffer_size";
 
   private static final String WRITE_SPEED = "write_speed";
 
@@ -34,6 +37,9 @@ public class ShuffleServerMetrics {
   static Gauge gaugeRegisteredShuffle;
   static Gauge gaugeRegisteredShuffleEngine;
   static Gauge gaugeBufferDataSize;
+  static Gauge gaugeAllocatedBufferSize;
+  static Gauge gaugeInFlushBufferSize;
+  static Gauge gaugeUsedBufferSize;
 
   static Histogram histogramWriteSpeed;
 
@@ -68,6 +74,9 @@ public class ShuffleServerMetrics {
     gaugeRegisteredShuffle = metricsManager.addGauge(REGISTERED_SHUFFLE);
     gaugeRegisteredShuffleEngine = metricsManager.addGauge(REGISTERED_SHUFFLE_ENGINE);
     gaugeBufferDataSize = metricsManager.addGauge(BUFFERED_DATA_SIZE);
+    gaugeAllocatedBufferSize = metricsManager.addGauge(ALLOCATED_BUFFER_SIZE);
+    gaugeInFlushBufferSize = metricsManager.addGauge(IN_FLUSH_BUFFER_SIZE);
+    gaugeUsedBufferSize = metricsManager.addGauge(USED_BUFFER_SIZE);
 
     final double mb = 1024 * 1024;
     final double[] buckets = {1.0 * mb, 10.0 * mb, 20.0 * mb, 30.0 * mb, 50.0 * mb, 80 * mb, 100.0 * mb};

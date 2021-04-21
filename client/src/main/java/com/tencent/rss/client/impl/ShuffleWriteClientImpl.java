@@ -136,10 +136,12 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   @Override
   public void sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId, int numMaps) {
     shuffleServerInfoSet.parallelStream().forEach(ssi -> {
-      LOG.info("SendCommit for appId[" + appId + "], shuffleId[" + shuffleId
-          + "] to ShuffleServer[" + ssi.getId() + "]");
+
       RssSendCommitRequest request = new RssSendCommitRequest(appId, shuffleId);
+      long startTime = System.currentTimeMillis();
       RssSendCommitResponse response = getShuffleServerClient(ssi).sendCommit(request);
+      LOG.info("SendCommit for appId[" + appId + "], shuffleId[" + shuffleId
+          + "] to ShuffleServer[" + ssi.getId() + "], cost " + (System.currentTimeMillis() - startTime) + " ms");
 
       String msg = "Can't commit shuffle data to " + ssi
           + " for [appId=" + request.getAppId() + ", shuffleId=" + shuffleId + "]";

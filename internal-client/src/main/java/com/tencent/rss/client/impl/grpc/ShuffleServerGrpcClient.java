@@ -99,7 +99,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
       }
       try {
         long backoffTime =
-            Math.min(retryIntervalMax, backOffBase * (1 << retry) + random.nextInt(backOffBase));
+            Math.min(retryIntervalMax, backOffBase * (1 << Math.min(retry, 16)) + random.nextInt(backOffBase));
         Thread.sleep(backoffTime);
       } catch (Exception e) {
         LOG.warn("Exception happened when require pre allocation", e);
