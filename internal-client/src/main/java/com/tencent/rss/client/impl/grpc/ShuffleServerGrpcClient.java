@@ -322,7 +322,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         .build();
     long start = System.currentTimeMillis();
     GetShuffleDataResponse rpcResponse = blockingStub.getShuffleData(rpcRequest);
-    LOG.debug("RPC client[getShuffleData] for appId[" + request.getAppId() + "], shuffleId["
+    LOG.info("GetShuffleData for appId[" + request.getAppId() + "], shuffleId["
         + request.getShuffleId() + "], partitionId[" + request.getPartitionId() + "] cost "
         + (System.currentTimeMillis() - start) + " ms");
     StatusCode statusCode = rpcResponse.getStatus();

@@ -63,6 +63,7 @@ abstract public class SparkIntegrationTestBase extends IntegrationTestBase {
     sparkConf.set("spark.rss.partitions.per.range", "2");
     sparkConf.set(RssClientConfig.RSS_WRITER_BUFFER_SIZE, "4m");
     sparkConf.set(RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE, "32m");
+    sparkConf.set(RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE, "2m");
     sparkConf.set(RssClientConfig.RSS_WRITER_SERIALIZER_BUFFER_SIZE, "128k");
     sparkConf.set(RssClientConfig.RSS_WRITER_BUFFER_SEGMENT_SIZE, "256k");
     sparkConf.set(RssClientConfig.RSS_COORDINATOR_IP, LOCALHOST);

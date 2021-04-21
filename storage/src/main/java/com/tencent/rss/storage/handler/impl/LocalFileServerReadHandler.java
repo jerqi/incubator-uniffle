@@ -151,7 +151,8 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
     if (!blockIds.containsAll(expectedBlockIds)) {
       Set<Long> copy = Sets.newHashSet(expectedBlockIds);
       copy.removeAll(blockIds);
-      throw new RuntimeException("Can't find blockIds " + copy + ", expected[" + expectedBlockIds + "]");
+      throw new RuntimeException("Can't find " + copy.size()
+          + " blocks, expected " + expectedBlockIds.size() + " blocks.");
     }
   }
 

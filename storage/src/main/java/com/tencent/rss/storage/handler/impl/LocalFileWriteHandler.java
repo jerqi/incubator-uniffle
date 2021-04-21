@@ -71,28 +71,23 @@ public class LocalFileWriteHandler implements ShuffleWriteHandler {
 
       long startTime = System.currentTimeMillis();
       for (ShufflePartitionedBlock block : shuffleBlocks) {
-        LOG.debug("Write data " + block);
         long blockId = block.getBlockId();
         long crc = block.getCrc();
         long startOffset = dataWriter.nextOffset();
         dataWriter.writeData(block.getData());
 
-//        long endOffset = dataWriter.nextOffset();
-//        long len = endOffset - startOffset;
-
         FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
             blockId, startOffset, block.getLength(), block.getUncompressLength(), crc);
-        LOG.debug("Write index " + segment);
         indexWriter.writeIndex(segment);
       }
       LOG.debug(
-          "Write handler write {} blocks {} mb for {} ms without file open close",
+          "Write handler write {} blocks {} for {} ms without file open close",
           shuffleBlocks.size(),
           writeSize,
           (System.currentTimeMillis() - startTime));
     }
     LOG.debug(
-        "Write handler write {} blocks {} mb for {} ms with file open close",
+        "Write handler write {} blocks {} for {} ms with file open close",
         shuffleBlocks.size(),
         writeSize,
         (System.currentTimeMillis() - accessTime));

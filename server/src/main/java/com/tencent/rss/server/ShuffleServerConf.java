@@ -26,6 +26,12 @@ public class ShuffleServerConf extends RssBaseConf {
       .noDefaultValue()
       .withDescription("Size of each buffer in this server");
 
+  public static final ConfigOption<Long> SERVER_READ_BUFFER_CAPACITY = ConfigOptions
+      .key("rss.server.read.buffer.capacity")
+      .longType()
+      .defaultValue(10000L)
+      .withDescription("Size of buffer for reading data");
+
   public static final ConfigOption<Long> SERVER_HEARTBEAT_DELAY = ConfigOptions
       .key("rss.server.heartbeat.delay")
       .longType()
@@ -95,7 +101,7 @@ public class ShuffleServerConf extends RssBaseConf {
   public static final ConfigOption<Integer> SERVER_MEMORY_REQUEST_RETRY_MAX = ConfigOptions
       .key("rss.server.memory.request.retry.max")
       .intType()
-      .defaultValue(10)
+      .defaultValue(100)
       .withDescription("Max times to retry for memory request");
 
   public static final ConfigOption<Long> SERVER_PRE_ALLOCATION_EXPIRED = ConfigOptions
@@ -201,6 +207,10 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (SERVER_COMMIT_CHECK_INTERVAL.key().equalsIgnoreCase(k)) {
         set(SERVER_COMMIT_CHECK_INTERVAL, Long.valueOf(v));
+      }
+
+      if (SERVER_READ_BUFFER_CAPACITY.key().equalsIgnoreCase(k)) {
+        set(SERVER_READ_BUFFER_CAPACITY, Long.valueOf(v));
       }
     });
 

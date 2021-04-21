@@ -323,19 +323,18 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     Set<Long> blockIds = Sets.newHashSet(request.getBlockIdsList());
     StatusCode status = StatusCode.SUCCESS;
     String msg = "OK";
-    GetShuffleDataResponse reply;
+    GetShuffleDataResponse reply = null;
     ShuffleDataResult sdr;
     String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "], partitionId["
         + partitionId + "]";
 
-    if (shuffleServer.getShuffleBufferManager().requireMemoryWithRetry(readBufferSize)) {
+    if (shuffleServer.getShuffleBufferManager().requireReadMemoryWithRetry(readBufferSize)) {
       try {
         long start = System.currentTimeMillis();
         sdr = shuffleServer.getShuffleTaskManager().getShuffleData(appId, shuffleId, partitionId,
             partitionNumPerRange, partitionNum, readBufferSize, storageType, blockIds);
         readDataTime.addAndGet(System.currentTimeMillis() - start);
-        LOG.debug("Rpc server[getShuffleData] cost " + (System.currentTimeMillis() - start)
-            + " ms for " + requestInfo);
+        LOG.info("GetShuffleData cost " + (System.currentTimeMillis() - start) + " ms for " + requestInfo);
         reply = GetShuffleDataResponse.newBuilder()
             .setStatus(valueOf(status))
             .setRetMsg(msg)
@@ -351,7 +350,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
             .setRetMsg(msg)
             .build();
       } finally {
-        shuffleServer.getShuffleBufferManager().releaseMemory(readBufferSize, false);
+        shuffleServer.getShuffleBufferManager().releaseReadMemory(readBufferSize);
       }
     } else {
       status = StatusCode.INTERNAL_ERROR;
@@ -362,7 +361,6 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
           .setRetMsg(msg)
           .build();
     }
-
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
   }

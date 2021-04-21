@@ -22,10 +22,12 @@ public class ShuffleBufferManager {
   private long capacity;
   private long spillThreshold;
   private int bufferSize;
+  private long readCapacity;
   private int retryNum;
   private AtomicLong preAllocatedSize = new AtomicLong(0L);
   private AtomicLong inFlushSize = new AtomicLong(0L);
   private AtomicLong usedMemory = new AtomicLong(0L);
+  private AtomicLong readDataMemory = new AtomicLong(0L);
   // appId -> shuffleId -> partitionId -> ShuffleBuffer to avoid too many appId
   private Map<String, Map<Integer, RangeMap<Integer, ShuffleBuffer>>> bufferPool;
 
@@ -34,6 +36,7 @@ public class ShuffleBufferManager {
     this.capacity = conf.getLong(ShuffleServerConf.SERVER_BUFFER_CAPACITY);
     this.bufferSize = conf.getInteger(ShuffleServerConf.SERVER_PARTITION_BUFFER_SIZE);
     this.spillThreshold = conf.getLong(ShuffleServerConf.SERVER_BUFFER_SPILL_THRESHOLD);
+    this.readCapacity = conf.getLong(ShuffleServerConf.SERVER_READ_BUFFER_CAPACITY);
     this.shuffleFlushManager = shuffleFlushManager;
     this.bufferPool = new ConcurrentHashMap<>();
     this.retryNum = conf.getInteger(ShuffleServerConf.SERVER_MEMORY_REQUEST_RETRY_MAX);
@@ -184,20 +187,33 @@ public class ShuffleBufferManager {
     }
   }
 
-  public boolean requireMemoryWithRetry(long size) {
-    boolean result = false;
+  public boolean requireReadMemoryWithRetry(long size) {
     for (int i = 0; i < retryNum; i++) {
-      result = requireMemory(size, false);
-      if (result) {
-        break;
+      synchronized (this) {
+        if (readDataMemory.get() + size < readCapacity) {
+          readDataMemory.addAndGet(size);
+          return true;
+        }
       }
+      LOG.info("Can't require[" + size + "] for read data, current[" + readDataMemory.get()
+          + "], capacity[" + readCapacity + "], re-try " + i + " times");
       try {
         Thread.sleep(1000);
       } catch (Exception e) {
         LOG.warn("Error happened when require memory", e);
       }
     }
-    return result;
+    return false;
+  }
+
+  public void releaseReadMemory(long size) {
+    if (readDataMemory.get() >= size) {
+      readDataMemory.addAndGet(-size);
+    } else {
+      LOG.warn("Current read memory[" + readDataMemory.get()
+          + "] is less than released[" + size + "], set read memory to 0");
+      readDataMemory.set(0L);
+    }
   }
 
   void updateSize(long delta, boolean isPreAllocated) {
