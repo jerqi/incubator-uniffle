@@ -34,13 +34,19 @@ if [ -z "$HADOOP_CONF_DIR" ]; then
   exit 1
 fi
 
+if [ -z "$XMX_SIZE" ]; then
+  echo "No jvm xmx size"
+  exit 1
+fi
+
 echo "Using Hadoop from $HADOOP_HOME"
 
 CLASSPATH=$CLASSPATH:$HADOOP_CONF_DIR:$HADOOP_DEPENDENCY
 JAVA_LIB_PATH="-Djava.library.path=$HADOOP_HOME/lib/native"
 
 JVM_ARGS=" -server \
-          -Xmx50g \
+          -Xmx${XMX_SIZE} \
+          -Xms${XMX_SIZE} \
           -XX:+UseG1GC \
           -XX:MaxGCPauseMillis=200 \
           -XX:ParallelGCThreads=20 \
