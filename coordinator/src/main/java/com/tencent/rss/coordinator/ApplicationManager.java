@@ -34,18 +34,18 @@ public class ApplicationManager {
   }
 
   private void statusCheck() {
-    LOG.debug("Start to check application status");
+    LOG.info("Start to check application status for " + appIds);
     long current = System.currentTimeMillis();
     Set<String> expiredAppIds = Sets.newHashSet();
     for (Map.Entry<String, Long> entry : appIds.entrySet()) {
       long lastReport = entry.getValue();
       if (current - lastReport > expired) {
-        LOG.info("Find expired application:" + entry.getKey());
+
         expiredAppIds.add(entry.getKey());
       }
     }
-
     for (String appId : expiredAppIds) {
+      LOG.info("Remove expired application:" + appId);
       appIds.remove(appId);
     }
   }

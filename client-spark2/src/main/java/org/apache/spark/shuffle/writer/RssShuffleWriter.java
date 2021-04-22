@@ -7,6 +7,7 @@ import com.google.common.collect.Sets;
 import com.tencent.rss.client.api.ShuffleWriteClient;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -237,7 +238,16 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
           ptb.put(entry.getKey(), Lists.newArrayList(entry.getValue()));
         }
         shuffleWriteClient.reportShuffleResult(shuffleServerInfoForResult, appId, shuffleId, ptb);
-        return Option.apply(MapStatus$.MODULE$.apply(blockManagerId, partitionLengths, partitionLengths));
+        MapStatus mapStatus = null;
+        try {
+          // try call api with spark 2.4+
+          mapStatus = MapStatus$.MODULE$.apply(blockManagerId, partitionLengths, partitionLengths);
+        } catch (NoSuchMethodError error) {
+          // spark version < 2.4
+          Method applyMethod = MapStatus$.class.getDeclaredMethod("apply", BlockManagerId.class, long[].class);
+          mapStatus = (MapStatus) applyMethod.invoke(MapStatus$.MODULE$, blockManagerId, partitionLengths);
+        }
+        return Option.apply(mapStatus);
       } catch (Exception e) {
         LOG.error("Error when stop task.", e);
         throw new RuntimeException(e);

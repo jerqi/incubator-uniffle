@@ -11,6 +11,7 @@ import com.tencent.rss.common.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,7 +23,7 @@ import org.apache.spark.SparkContext;
 import org.apache.spark.SparkContext$;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
-import org.apache.spark.deploy.SparkHadoopUtil$;
+import org.apache.spark.deploy.SparkHadoopUtil;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.shuffle.reader.RssShuffleReader;
 import org.apache.spark.shuffle.writer.AddBlockEvent;
@@ -130,7 +131,19 @@ public class RssShuffleManager implements ShuffleManager {
   public <K, V, C> ShuffleHandle registerShuffle(int shuffleId, int numMaps, ShuffleDependency<K, V, C> dependency) {
     // SparkContext is created after RssShuffleManager, can't get appId in RssShuffleManager's construct
     String attemptId = "";
-    SparkContext sc = SparkContext$.MODULE$.getActive().get();
+    SparkContext sc = null;
+    try {
+      // try call method with spark 2.4+
+      sc = SparkContext$.MODULE$.getActive().get();
+    } catch (NoSuchMethodError e) {
+      try {
+        // spark version < 2.4
+        Method getActiveContextMethod = SparkContext$.class.getDeclaredMethod("getActiveContext");
+        sc = (SparkContext) getActiveContextMethod.invoke(SparkContext$.MODULE$);
+      } catch (Exception ex) {
+        throw new RuntimeException(ex);
+      }
+    }
     Option<String> optionAttemptId = sc.applicationAttemptId();
     if (optionAttemptId.isDefined()) {
       attemptId = "_" + optionAttemptId.get();
@@ -256,9 +269,11 @@ public class RssShuffleManager implements ShuffleManager {
           clientType, rssShuffleHandle.getShuffleServersForResult(),
           rssShuffleHandle.getAppId(), rssShuffleHandle.getShuffleId(), startPartition);
 
+      SparkHadoopUtil util = new SparkHadoopUtil();
+
       return new RssShuffleReader<K, C>(startPartition, endPartition, context,
           rssShuffleHandle, shuffleDataBasePath, indexReadLimit,
-          SparkHadoopUtil$.MODULE$.newConfiguration(SparkEnv.get().conf()),
+          util.newConfiguration(SparkEnv.get().conf()),
           storageType, (int) readBufferSize, partitionNumPerRange, partitionNum,
           Sets.newHashSet(expectedBlockIds));
     } else {

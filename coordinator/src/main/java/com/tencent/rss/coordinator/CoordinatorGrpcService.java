@@ -72,6 +72,10 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
     final int partitionNumPerRange = request.getPartitionNumPerRange();
     final int replica = request.getDataReplica();
 
+    LOG.info("Request of getShuffleAssignments for appId[" + request.getApplicationId()
+        + "], shuffleId[" + request.getShuffleId() + "], partitionNum[" + partitionNum
+        + "], partitionNumPerRange[" + partitionNumPerRange + "], replica[" + replica + "]");
+
     final PartitionRangeAssignment pra =
         coordinatorServer.getAssignmentStrategy().assign(partitionNum, partitionNumPerRange, replica);
     final List<ServerNode> serverNodes =
@@ -95,7 +99,7 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
         .setRetMsg("")
         .setStatus(StatusCode.SUCCESS)
         .build();
-    LOG.debug("Got heartbeat from " + serverNode);
+    LOG.info("Got heartbeat from " + serverNode);
     responseObserver.onNext(response);
     responseObserver.onCompleted();
   }
@@ -136,7 +140,7 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
       StreamObserver<AppHeartBeatResponse> responseObserver) {
     String appId = request.getAppId();
     coordinatorServer.getApplicationManager().refreshAppId(appId);
-    LOG.info("Got heartbeat for application: " + appId);
+    LOG.info("Got heartbeat from application: " + appId);
     AppHeartBeatResponse response = AppHeartBeatResponse
         .newBuilder()
         .setRetMsg("")

@@ -42,6 +42,10 @@
       <artifactId>hadoop-minicluster</artifactId>
     </dependency>
     <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-all</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.tencent.rss</groupId>
       <artifactId>shuffle-storage</artifactId>
       <type>test-jar</type>
@@ -71,6 +75,7 @@
                   <include>io.grpc:*</include>
                   <include>com.google.android:annotations</include>
                   <include>io.perfmark:perfmark-api</include>
+                  <include>io.netty:netty-all</include>
                   <include>com.google.api.grpc:proto-google-common-protos</include>
                   <include>org.codehaus.mojo:animal-sniffer-annotations</include>
                   <include>com.google.guava:*</include>
@@ -123,6 +128,10 @@
                 <relocation>
                   <pattern>com.fasterxml.jackson.annotation</pattern>
                   <shadedPattern>${rss.shade.packageName}.jackson.annotation</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.netty</pattern>
+                  <shadedPattern>${rss.shade.packageName}.io.netty</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
