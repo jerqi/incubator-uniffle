@@ -52,7 +52,9 @@ JVM_ARGS=" -server \
           -XX:ParallelGCThreads=20 \
           -XX:ConcGCThreads=5 \
           -XX:InitiatingHeapOccupancyPercent=45 \
-          -XX:G1HeapRegionSize=32m "
+          -XX:G1HeapRegionSize=32m \
+          -XX:+PrintGC \
+          -Xloggc:./logs/gc.log"
 
 if [ -f ./conf/log4j.properties ]; then
   ARGS="$ARGS -Dlog4j.configuration=file:./conf/log4j.properties"
