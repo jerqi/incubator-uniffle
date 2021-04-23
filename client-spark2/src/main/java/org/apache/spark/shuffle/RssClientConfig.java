@@ -47,4 +47,10 @@ public class RssClientConfig {
   public static int RSS_CLIENT_SEND_THREAD_POOL_KEEPALIVE_DEFAULT_VALUE = 60;
   public static String RSS_DATA_REPLICA = "spark.rss.data.replica";
   public static int RSS_DATA_REPLICA_DEFAULT_VALUE = 1;
+  public static String RSS_OZONE_DFS_NAMENODE_ODFS_ENABLE = "spark.rss.ozone.dfs.namenode.odfs.enable";
+  public static boolean RSS_OZONE_DFS_NAMENODE_ODFS_ENABLE_DEFAULT_VALUE = false;
+  public static String RSS_OZONE_FS_HDFS_IMPL = "spark.rss.ozone.fs.hdfs.impl";
+  public static String RSS_OZONE_FS_HDFS_IMPL_DEFAULT_VALUE = "org.apache.hadoop.odfs.HdfsOdfsFilesystem";
+  public static String RSS_OZONE_FS_ABSTRACT_FILE_SYSTEM_HDFS_IMPL = "spark.rss.ozone.fs.AbstractFileSystem.hdfs.impl";
+  public static String RSS_OZONE_FS_ABSTRACT_FILE_SYSTEM_HDFS_IMPL_DEFAULT_VALUE = "org.apache.hadoop.odfs.HdfsOdfs";
 }

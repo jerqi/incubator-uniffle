@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Level;
@@ -174,8 +175,17 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
   private void validate(String appId, int shuffleId, int partitionId, List<ShufflePartitionedBlock> blocks,
       int partitionNumPerRange, String basePath) {
     Set<Long> blockIds = Sets.newHashSet(blocks.stream().map(spb -> spb.getBlockId()).collect(Collectors.toList()));
-    HdfsClientReadHandler handler = new HdfsClientReadHandler(appId, shuffleId, partitionId,
-        100, partitionNumPerRange, 10, blocks.size() * 32, basePath, blockIds);
+    HdfsClientReadHandler handler = new HdfsClientReadHandler(
+        appId,
+        shuffleId,
+        partitionId,
+        100,
+        partitionNumPerRange,
+        10,
+        blocks.size() * 32,
+        basePath,
+        blockIds,
+        new Configuration());
     ShuffleDataResult sdr = null;
     int matchNum = 0;
     Set<Long> remainIds = Sets.newHashSet(blockIds);

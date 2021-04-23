@@ -42,9 +42,17 @@ public class ShuffleHandlerFactory {
 
   public ClientReadHandler createShuffleReadHandler(CreateShuffleReadHandlerRequest request) {
     if (StorageType.HDFS.name().equals(request.getStorageType())) {
-      return new HdfsClientReadHandler(request.getAppId(), request.getShuffleId(), request.getPartitionId(),
-          request.getIndexReadLimit(), request.getPartitionNumPerRange(), request.getPartitionNum(),
-          request.getReadBufferSize(), request.getStorageBasePath(), request.getExpectedBlockIds());
+      return new HdfsClientReadHandler(
+          request.getAppId(),
+          request.getShuffleId(),
+          request.getPartitionId(),
+          request.getIndexReadLimit(),
+          request.getPartitionNumPerRange(),
+          request.getPartitionNum(),
+          request.getReadBufferSize(),
+          request.getStorageBasePath(),
+          request.getExpectedBlockIds(),
+          request.getHadoopConf());
     } else if (StorageType.LOCALFILE.name().equals(request.getStorageType())) {
       List<ShuffleServerInfo> shuffleServerInfoList = request.getShuffleServerInfoList();
       List<ShuffleServerClient> shuffleServerClients = shuffleServerInfoList.stream().map(

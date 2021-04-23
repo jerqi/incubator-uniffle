@@ -36,6 +36,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
   private String storageBasePath;
   private AtomicLong readIndexTime = new AtomicLong(0);
   private AtomicLong readDataTime = new AtomicLong(0);
+  private Configuration hadoopConf;
 
   public HdfsClientReadHandler(
       String appId,
@@ -46,7 +47,8 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
       int partitionNum,
       int readBufferSize,
       String storageBasePath,
-      Set<Long> expectedBlockIds) {
+      Set<Long> expectedBlockIds,
+      Configuration hadoopConf) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.partitionId = partitionId;
@@ -56,6 +58,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
     this.readBufferSize = readBufferSize;
     this.storageBasePath = storageBasePath;
     this.expectedBlockIds = expectedBlockIds;
+    this.hadoopConf = hadoopConf;
     if (expectedBlockIds != null && !expectedBlockIds.isEmpty()) {
       init();
     }
@@ -68,7 +71,6 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
 
     FileSystem fs;
     Path baseFolder = new Path(fullShufflePath);
-    Configuration hadoopConf = new Configuration();
     try {
       fs = ShuffleStorageUtils.getFileSystemForPath(baseFolder, hadoopConf);
     } catch (IOException ioe) {

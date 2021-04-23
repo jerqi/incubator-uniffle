@@ -4,6 +4,7 @@ import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.common.config.RssBaseConf;
 import java.util.List;
 import java.util.Set;
+import org.apache.hadoop.conf.Configuration;
 
 public class CreateShuffleReadHandlerRequest {
 
@@ -19,6 +20,7 @@ public class CreateShuffleReadHandlerRequest {
   private Set<Long> expectedBlockIds;
   private RssBaseConf rssBaseConf;
   private List<ShuffleServerInfo> shuffleServerInfoList;
+  private Configuration hadoopConf;
 
   public CreateShuffleReadHandlerRequest() {
   }
@@ -117,5 +119,13 @@ public class CreateShuffleReadHandlerRequest {
 
   public void setShuffleServerInfoList(List<ShuffleServerInfo> shuffleServerInfoList) {
     this.shuffleServerInfoList = shuffleServerInfoList;
+  }
+
+  public Configuration getHadoopConf() {
+    return hadoopConf;
+  }
+
+  public void setHadoopConf(Configuration hadoopConf) {
+    this.hadoopConf = hadoopConf;
   }
 }

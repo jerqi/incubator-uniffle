@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +47,8 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
       int readBufferSize,
       String storageBasePath,
       Set<Long> expectedBlockIds,
-      List<ShuffleServerInfo> shuffleServerInfoList) {
+      List<ShuffleServerInfo> shuffleServerInfoList,
+      Configuration hadoopConf) {
     this.shuffleId = shuffleId;
     this.partitionId = partitionId;
     this.expectedBlockIds = expectedBlockIds;
@@ -63,7 +65,34 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
     request.setStorageBasePath(storageBasePath);
     request.setExpectedBlockIds(expectedBlockIds);
     request.setShuffleServerInfoList(shuffleServerInfoList);
+    request.setHadoopConf(hadoopConf);
     clientReadHandler = ShuffleHandlerFactory.getInstance().createShuffleReadHandler(request);
+  }
+
+  public ShuffleReadClientImpl(
+      String storageType,
+      String appId,
+      int shuffleId,
+      int partitionId,
+      int indexReadLimit,
+      int partitionNumPerRange,
+      int partitionNum,
+      int readBufferSize,
+      String storageBasePath,
+      Set<Long> expectedBlockIds,
+      List<ShuffleServerInfo> shuffleServerInfoList) {
+    this(storageType,
+        appId,
+        shuffleId,
+        partitionId,
+        indexReadLimit,
+        partitionNumPerRange,
+        partitionNum,
+        readBufferSize,
+        storageBasePath,
+        expectedBlockIds,
+        shuffleServerInfoList,
+        new Configuration());
   }
 
   @Override

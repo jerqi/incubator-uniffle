@@ -10,6 +10,10 @@ import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.spark.SparkConf;
+import org.apache.spark.SparkEnv;
+import org.apache.spark.deploy.SparkHadoopUtil;
 import org.apache.spark.io.CompressionCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,5 +102,28 @@ public class RssShuffleUtils {
     ByteBuffer uncompressData = ByteBuffer.allocateDirect(uncompressLength);
     fastDecompressor.decompress(data, 0, uncompressData, 0, uncompressLength);
     return uncompressData;
+  }
+
+  public static Configuration newHadoopConfiguration(SparkConf sparkConf) {
+    SparkHadoopUtil util = new SparkHadoopUtil();
+    Configuration conf = util.newConfiguration(sparkConf);
+
+    boolean useOdfs = sparkConf.getBoolean(RssClientConfig.RSS_OZONE_DFS_NAMENODE_ODFS_ENABLE,
+        RssClientConfig.RSS_OZONE_DFS_NAMENODE_ODFS_ENABLE_DEFAULT_VALUE);
+    if (useOdfs) {
+      final int OZONE_PREFIX_LEN = "spark.rss.ozone.".length();
+      conf.setBoolean(RssClientConfig.RSS_OZONE_DFS_NAMENODE_ODFS_ENABLE.substring(OZONE_PREFIX_LEN), useOdfs);
+      conf.set(
+          RssClientConfig.RSS_OZONE_FS_HDFS_IMPL.substring(OZONE_PREFIX_LEN),
+          sparkConf.get(RssClientConfig.RSS_OZONE_FS_HDFS_IMPL, RssClientConfig.RSS_OZONE_FS_HDFS_IMPL_DEFAULT_VALUE));
+      conf.set(
+          RssClientConfig.RSS_OZONE_FS_ABSTRACT_FILE_SYSTEM_HDFS_IMPL.substring(OZONE_PREFIX_LEN),
+          sparkConf.get(
+              RssClientConfig.RSS_OZONE_FS_ABSTRACT_FILE_SYSTEM_HDFS_IMPL,
+              RssClientConfig.RSS_OZONE_FS_ABSTRACT_FILE_SYSTEM_HDFS_IMPL_DEFAULT_VALUE));
+    }
+
+    return conf;
+
   }
 }

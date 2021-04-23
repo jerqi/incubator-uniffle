@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
@@ -269,11 +270,9 @@ public class RssShuffleManager implements ShuffleManager {
           clientType, rssShuffleHandle.getShuffleServersForResult(),
           rssShuffleHandle.getAppId(), rssShuffleHandle.getShuffleId(), startPartition);
 
-      SparkHadoopUtil util = new SparkHadoopUtil();
-
       return new RssShuffleReader<K, C>(startPartition, endPartition, context,
           rssShuffleHandle, shuffleDataBasePath, indexReadLimit,
-          util.newConfiguration(SparkEnv.get().conf()),
+          RssShuffleUtils.newHadoopConfiguration(sparkConf),
           storageType, (int) readBufferSize, partitionNumPerRange, partitionNum,
           Sets.newHashSet(expectedBlockIds));
     } else {

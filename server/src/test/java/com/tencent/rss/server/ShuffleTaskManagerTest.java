@@ -21,6 +21,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
 
 public class ShuffleTaskManagerTest extends HdfsTestBase {
@@ -266,7 +267,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
       String basePath) {
     Set<Long> blockIds = Sets.newHashSet(blocks.stream().map(spb -> spb.getBlockId()).collect(Collectors.toList()));
     HdfsClientReadHandler handler = new HdfsClientReadHandler(appId, shuffleId, partitionId,
-        100, 1, 10, 1000, basePath, blockIds);
+        100, 1, 10, 1000, basePath, blockIds, new Configuration());
 
     ShuffleDataResult sdr = handler.readShuffleData(blockIds);
 

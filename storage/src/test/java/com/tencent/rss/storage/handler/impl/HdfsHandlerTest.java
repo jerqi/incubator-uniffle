@@ -16,6 +16,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.junit.Rule;
 import org.junit.Test;
@@ -90,7 +91,7 @@ public class HdfsHandlerTest extends HdfsTestBase {
     // read directly and compare
     HdfsClientReadHandler readHandler = new HdfsClientReadHandler(
         appId, shuffleId, partitionId, 100, 1, 10,
-        10000, basePath, Sets.newHashSet(expectedBlockId));
+        10000, basePath, Sets.newHashSet(expectedBlockId), new Configuration());
     try {
       List<ByteBuffer> actual = readData(readHandler, Sets.newHashSet(expectedBlockId));
       compareBytes(expectedData, actual);
