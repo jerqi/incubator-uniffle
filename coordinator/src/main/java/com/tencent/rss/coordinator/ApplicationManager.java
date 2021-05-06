@@ -26,6 +26,9 @@ public class ApplicationManager {
   }
 
   public void refreshAppId(String appId) {
+    if (!appIds.containsKey(appId)) {
+      CoordinatorMetrics.counterTotalAppNum.inc();
+    }
     appIds.put(appId, System.currentTimeMillis());
   }
 
@@ -40,7 +43,6 @@ public class ApplicationManager {
     for (Map.Entry<String, Long> entry : appIds.entrySet()) {
       long lastReport = entry.getValue();
       if (current - lastReport > expired) {
-
         expiredAppIds.add(entry.getKey());
       }
     }
@@ -48,5 +50,6 @@ public class ApplicationManager {
       LOG.info("Remove expired application:" + appId);
       appIds.remove(appId);
     }
+    CoordinatorMetrics.gaugeRunningAppNum.set(appIds.size());
   }
 }
