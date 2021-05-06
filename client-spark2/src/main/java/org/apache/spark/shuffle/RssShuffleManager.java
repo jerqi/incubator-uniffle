@@ -12,11 +12,13 @@ import com.tencent.rss.common.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import org.apache.spark.MapOutputTracker;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkEnv;
@@ -309,9 +311,24 @@ public class RssShuffleManager implements ShuffleManager {
   // get the actual tasks and filter the duplicate data caused by speculation task
   private List<Long> getExpectedTasks(int shuffleId, int startPartition, int endPartition) {
     List<Long> expectedTasks = Lists.newArrayList();
-    Iterator<Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>>> mapStatusIter =
-        SparkEnv.get().mapOutputTracker().getMapSizesByExecutorId(
-            shuffleId, startPartition, endPartition, false);
+    Iterator<Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>>> mapStatusIter = null;
+    try {
+      // try call api with spark 2.4+
+      mapStatusIter =
+          SparkEnv.get().mapOutputTracker().getMapSizesByExecutorId(
+              shuffleId, startPartition, endPartition, false);
+    } catch (NoSuchMethodError error) {
+      try {
+        // spark version < 2.4
+        Method applyMethod = MapOutputTracker.class.getDeclaredMethod(
+            "getMapSizesByExecutorId", int.class, int.class, int.class);
+        mapStatusIter = (Iterator<Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>>>) applyMethod
+            .invoke(SparkEnv.get().mapOutputTracker(), shuffleId, startPartition, endPartition);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
     while (mapStatusIter.hasNext()) {
       Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>> tuple2 = mapStatusIter.next();
       Option<String> topologyInfo = tuple2._1().topologyInfo();

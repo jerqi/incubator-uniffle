@@ -237,8 +237,6 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         BlockManagerId blockManagerId =
             createDummyBlockManagerId(appId + "_" + taskId, taskAttemptId);
 
-        Option.apply(MapStatus$.MODULE$.apply(blockManagerId, partitionLengths, partitionLengths));
-
         Map<Integer, List<Long>> ptb = Maps.newHashMap();
         for (Map.Entry<Integer, Set<Long>> entry : partitionToBlockIds.entrySet()) {
           ptb.put(entry.getKey(), Lists.newArrayList(entry.getValue()));
