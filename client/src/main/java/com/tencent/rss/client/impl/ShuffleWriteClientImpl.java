@@ -191,8 +191,9 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
 
   @Override
   public void reportShuffleResult(Set<ShuffleServerInfo> shuffleServerInfoSet,
-      String appId, int shuffleId, Map<Integer, List<Long>> partitionToBlockIds) {
-    RssReportShuffleResultRequest request = new RssReportShuffleResultRequest(appId, shuffleId, partitionToBlockIds);
+      String appId, int shuffleId, long taskAttemptId, Map<Integer, List<Long>> partitionToBlockIds) {
+    RssReportShuffleResultRequest request = new RssReportShuffleResultRequest(
+        appId, shuffleId, taskAttemptId, partitionToBlockIds);
     boolean isSuccessful = false;
     for (ShuffleServerInfo ssi : shuffleServerInfoSet) {
       try {
@@ -213,8 +214,9 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
 
   @Override
   public List<Long> getShuffleResult(String clientType, Set<ShuffleServerInfo> shuffleServerInfoSet,
-      String appId, int shuffleId, int partitionId) {
-    RssGetShuffleResultRequest request = new RssGetShuffleResultRequest(appId, shuffleId, partitionId);
+      String appId, int shuffleId, int partitionId, List<Long> taskAttemptIds) {
+    RssGetShuffleResultRequest request = new RssGetShuffleResultRequest(
+        appId, shuffleId, partitionId, taskAttemptIds);
     boolean isSuccessful = false;
     List<Long> blockIds = Lists.newArrayList();
     for (ShuffleServerInfo ssi : shuffleServerInfoSet) {

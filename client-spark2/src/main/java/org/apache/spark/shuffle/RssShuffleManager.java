@@ -1,6 +1,7 @@
 package org.apache.spark.shuffle;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
@@ -11,36 +12,36 @@ import com.tencent.rss.common.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkContext;
-import org.apache.spark.SparkContext$;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
-import org.apache.spark.deploy.SparkHadoopUtil;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.shuffle.reader.RssShuffleReader;
 import org.apache.spark.shuffle.writer.AddBlockEvent;
 import org.apache.spark.shuffle.writer.BufferManagerOptions;
 import org.apache.spark.shuffle.writer.RssShuffleWriter;
 import org.apache.spark.shuffle.writer.WriteBufferManager;
+import org.apache.spark.storage.BlockId;
+import org.apache.spark.storage.BlockManagerId;
 import org.apache.spark.util.EventLoop;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
+import scala.Tuple2;
+import scala.collection.Iterator;
+import scala.collection.Seq;
 
 public class RssShuffleManager implements ShuffleManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(RssShuffleManager.class);
   private SparkConf sparkConf;
-  private String appId;
+  private String appId = "";
   private boolean isDriver;
   private String clientType;
   private ShuffleWriteClient shuffleWriteClient;
@@ -130,26 +131,16 @@ public class RssShuffleManager implements ShuffleManager {
   // pass that ShuffleHandle to executors (getWriter/getReader).
   @Override
   public <K, V, C> ShuffleHandle registerShuffle(int shuffleId, int numMaps, ShuffleDependency<K, V, C> dependency) {
-    // SparkContext is created after RssShuffleManager, can't get appId in RssShuffleManager's construct
-    String attemptId = "";
-    SparkContext sc = null;
-    try {
-      // try call method with spark 2.4+
-      sc = SparkContext$.MODULE$.getActive().get();
-    } catch (NoSuchMethodError e) {
-      try {
-        // spark version < 2.4
-        Method getActiveContextMethod = SparkContext$.class.getDeclaredMethod("getActiveContext");
-        sc = (SparkContext) getActiveContextMethod.invoke(SparkContext$.MODULE$);
-      } catch (Exception ex) {
-        throw new RuntimeException(ex);
-      }
+    // If yarn enable retry ApplicationMaster, appId will be not unique and shuffle data will be incorrect,
+    // appId + timestamp can avoid such problem,
+    // can't get appId in construct because SparkEnv is not created yet,
+    // appId will be initialized only once in this method which
+    // will be called many times depend on how many shuffle stage
+    if ("".equals(appId)) {
+      appId = SparkEnv.get().conf().getAppId() + "_" + System.currentTimeMillis();
+      LOG.info("Generate application id used in rss: " + appId);
     }
-    Option<String> optionAttemptId = sc.applicationAttemptId();
-    if (optionAttemptId.isDefined()) {
-      attemptId = "_" + optionAttemptId.get();
-    }
-    appId = SparkEnv.get().conf().getAppId() + attemptId;
+
     startHeartbeat();
 
     int partitionNumPerRange = sparkConf.getInt(RssClientConfig.RSS_PARTITION_NUM_PER_RANGE,
@@ -238,7 +229,7 @@ public class RssShuffleManager implements ShuffleManager {
           writeMetrics);
       taskToBuffManager.put(taskId, bufferManager);
 
-      return new RssShuffleWriter(rssHandle.getAppId(), shuffleId, taskId, bufferManager,
+      return new RssShuffleWriter(rssHandle.getAppId(), shuffleId, taskId, context.taskAttemptId(), bufferManager,
           writeMetrics, this, sparkConf, shuffleWriteClient, rssHandle);
     } else {
       throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());
@@ -266,9 +257,14 @@ public class RssShuffleManager implements ShuffleManager {
         LOG.warn(RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE + " can support 2g as max");
         readBufferSize = Integer.MAX_VALUE;
       }
+      int shuffleId = rssShuffleHandle.getShuffleId();
+      long start = System.currentTimeMillis();
+      List<Long> expectedTasks = getExpectedTasks(shuffleId, startPartition, endPartition);
+      LOG.info("Get taskId cost " + (System.currentTimeMillis() - start) + " ms, and request expected blockIds from "
+          + expectedTasks.size() + " tasks for shuffleId[" + shuffleId + "]");
       List<Long> expectedBlockIds = shuffleWriteClient.getShuffleResult(
           clientType, rssShuffleHandle.getShuffleServersForResult(),
-          rssShuffleHandle.getAppId(), rssShuffleHandle.getShuffleId(), startPartition);
+          rssShuffleHandle.getAppId(), shuffleId, startPartition, expectedTasks);
 
       return new RssShuffleReader<K, C>(startPartition, endPartition, context,
           rssShuffleHandle, shuffleDataBasePath, indexReadLimit,
@@ -307,6 +303,26 @@ public class RssShuffleManager implements ShuffleManager {
   @VisibleForTesting
   public void setEventLoop(EventLoop<AddBlockEvent> eventLoop) {
     this.eventLoop = eventLoop;
+  }
+
+  // when speculation enable, duplicate data will be sent and reported to shuffle server,
+  // get the actual tasks and filter the duplicate data caused by speculation task
+  private List<Long> getExpectedTasks(int shuffleId, int startPartition, int endPartition) {
+    List<Long> expectedTasks = Lists.newArrayList();
+    Iterator<Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>>> mapStatusIter =
+        SparkEnv.get().mapOutputTracker().getMapSizesByExecutorId(
+            shuffleId, startPartition, endPartition, false);
+    while (mapStatusIter.hasNext()) {
+      Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>> tuple2 = mapStatusIter.next();
+      Option<String> topologyInfo = tuple2._1().topologyInfo();
+      if (topologyInfo.isDefined()) {
+        expectedTasks.add(Long.parseLong(tuple2._1().topologyInfo().get()));
+      } else {
+        throw new RuntimeException("Can't get expected taskAttemptId");
+      }
+    }
+    LOG.info("Got result from MapStatus for expected tasks " + expectedTasks.size());
+    return expectedTasks;
   }
 
   public Set<Long> getFailedBlockIds(String taskId) {

@@ -64,7 +64,8 @@ message GetShuffleDataResponse {
 message ReportShuffleResultRequest {
   string appId = 1;
   int32 shuffleId = 2;
-  repeated PartitionToBlockIds partitionToBlockIds = 3;
+  int64 taskAttemptId = 3;
+  repeated PartitionToBlockIds partitionToBlockIds = 4;
 }
 
 message PartitionToBlockIds {
@@ -81,6 +82,7 @@ message GetShuffleResultRequest {
   string appId = 1;
   int32 shuffleId = 2;
   int32 partitionId = 3;
+  repeated int64 taskAttemptIds = 4;
 }
 
 message GetShuffleResultResponse {

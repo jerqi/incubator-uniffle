@@ -21,13 +21,13 @@ public interface ShuffleWriteClient {
   void registerCoordinatorClient(String host, int port);
 
   void reportShuffleResult(Set<ShuffleServerInfo> shuffleServerInfoSet,
-      String appId, int shuffleId, Map<Integer, List<Long>> partitionToBlockIds);
+      String appId, int shuffleId, long taskAttemptId, Map<Integer, List<Long>> partitionToBlockIds);
 
   ShuffleAssignmentsInfo getShuffleAssignments(
       String appId, int shuffleId, int partitionNum, int partitionNumPerRange, int dataReplica);
 
   List<Long> getShuffleResult(String clientType, Set<ShuffleServerInfo> shuffleServerInfoSet,
-      String appId, int shuffleId, int partitionId);
+      String appId, int shuffleId, int partitionId, List<Long> taskAttemptIds);
 
   void close();
 }

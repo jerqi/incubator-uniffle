@@ -101,29 +101,60 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     partitionToBlockIds.put(2, Lists.newArrayList(4L, 5L));
     partitionToBlockIds.put(3, Lists.newArrayList(6L));
     RssReportShuffleResultRequest request =
-        new RssReportShuffleResultRequest("appId", 0, partitionToBlockIds);
+        new RssReportShuffleResultRequest("appId", 0, 1L, partitionToBlockIds);
     RssReportShuffleResultResponse response = shuffleServerClient.reportShuffleResult(request);
     assertEquals(ResponseStatusCode.SUCCESS, response.getStatusCode());
-    RssGetShuffleResultRequest req = new RssGetShuffleResultRequest("appId", 0, 1);
+    partitionToBlockIds = Maps.newHashMap();
+    partitionToBlockIds.put(1, Lists.newArrayList(11L, 12L, 13L));
+    partitionToBlockIds.put(2, Lists.newArrayList(14L, 15L));
+    partitionToBlockIds.put(3, Lists.newArrayList(16L));
+    request =
+        new RssReportShuffleResultRequest("appId", 0, 2L, partitionToBlockIds);
+    shuffleServerClient.reportShuffleResult(request);
+    RssGetShuffleResultRequest req = new RssGetShuffleResultRequest("appId", 0, 1, Lists.newArrayList(1L));
     RssGetShuffleResultResponse result = shuffleServerClient.getShuffleResult(req);
     assertEquals(Lists.newArrayList(1L, 2L, 3L), result.getBlockIds());
 
-    req = new RssGetShuffleResultRequest("appId", 0, 2);
+    req = new RssGetShuffleResultRequest("appId", 0, 2, Lists.newArrayList(1L));
     result = shuffleServerClient.getShuffleResult(req);
     assertEquals(Lists.newArrayList(4L, 5L), result.getBlockIds());
 
-    req = new RssGetShuffleResultRequest("appId", 0, 3);
+    req = new RssGetShuffleResultRequest("appId", 0, 3, Lists.newArrayList(1L));
     result = shuffleServerClient.getShuffleResult(req);
     assertEquals(Lists.newArrayList(6L), result.getBlockIds());
 
+    req = new RssGetShuffleResultRequest("appId", 0, 1, Lists.newArrayList(2L));
+    result = shuffleServerClient.getShuffleResult(req);
+    assertEquals(Lists.newArrayList(11L, 12L, 13L), result.getBlockIds());
+
+    req = new RssGetShuffleResultRequest("appId", 0, 2, Lists.newArrayList(2L));
+    result = shuffleServerClient.getShuffleResult(req);
+    assertEquals(Lists.newArrayList(14L, 15L), result.getBlockIds());
+
+    req = new RssGetShuffleResultRequest("appId", 0, 3, Lists.newArrayList(2L));
+    result = shuffleServerClient.getShuffleResult(req);
+    assertEquals(Lists.newArrayList(16L), result.getBlockIds());
+
+    req = new RssGetShuffleResultRequest("appId", 0, 1, Lists.newArrayList(1L, 2L));
+    result = shuffleServerClient.getShuffleResult(req);
+    assertEquals(Lists.newArrayList(1L, 2L, 3L, 11L, 12L, 13L), result.getBlockIds());
+
+    req = new RssGetShuffleResultRequest("appId", 0, 2, Lists.newArrayList(1L, 2L));
+    result = shuffleServerClient.getShuffleResult(req);
+    assertEquals(Lists.newArrayList(4L, 5L, 14L, 15L), result.getBlockIds());
+
+    req = new RssGetShuffleResultRequest("appId", 0, 3, Lists.newArrayList(1L, 2L));
+    result = shuffleServerClient.getShuffleResult(req);
+    assertEquals(Lists.newArrayList(6L, 16L), result.getBlockIds());
+
     partitionToBlockIds = Maps.newHashMap();
     partitionToBlockIds.put(1, Lists.newArrayList(7L, 8L));
-    request = new RssReportShuffleResultRequest("appId", 0, partitionToBlockIds);
+    request = new RssReportShuffleResultRequest("appId", 0, 3L, partitionToBlockIds);
     shuffleServerClient.reportShuffleResult(request);
 
-    req = new RssGetShuffleResultRequest("appId", 0, 1);
+    req = new RssGetShuffleResultRequest("appId", 0, 1, Lists.newArrayList(1L, 2L, 3L));
     result = shuffleServerClient.getShuffleResult(req);
-    assertEquals(Lists.newArrayList(1L, 2L, 3L, 7L, 8L), result.getBlockIds());
+    assertEquals(Lists.newArrayList(1L, 2L, 3L, 11L, 12L, 13L, 7L, 8L), result.getBlockIds());
   }
 
   @Test
@@ -135,7 +166,7 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
         blockIds.add(i);
         ptbs.put(1, blockIds);
         RssReportShuffleResultRequest req1 =
-            new RssReportShuffleResultRequest("appId", 1, ptbs);
+            new RssReportShuffleResultRequest("appId", 1, i, ptbs);
         shuffleServerClient.reportShuffleResult(req1);
       }
     };
@@ -146,7 +177,7 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
         blockIds.add(i);
         ptbs.put(1, blockIds);
         RssReportShuffleResultRequest req1 =
-            new RssReportShuffleResultRequest("appId", 1, ptbs);
+            new RssReportShuffleResultRequest("appId", 1, i, ptbs);
         shuffleServerClient.reportShuffleResult(req1);
       }
     };
@@ -157,7 +188,7 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
         blockIds.add(i);
         ptbs.put(1, blockIds);
         RssReportShuffleResultRequest req1 =
-            new RssReportShuffleResultRequest("appId", 1, ptbs);
+            new RssReportShuffleResultRequest("appId", 1, i, ptbs);
         shuffleServerClient.reportShuffleResult(req1);
       }
     };
@@ -172,11 +203,14 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     t3.join();
 
     List<Long> expectedBlockIds = Lists.newArrayList();
+    List<Long> taskAttemptIds = Lists.newArrayList();
     for (long i = 0; i < 300; i++) {
       expectedBlockIds.add(i);
+      taskAttemptIds.add(i);
     }
 
-    RssGetShuffleResultRequest req = new RssGetShuffleResultRequest("appId", 1, 1);
+    RssGetShuffleResultRequest req = new RssGetShuffleResultRequest(
+        "appId", 1, 1, taskAttemptIds);
     RssGetShuffleResultResponse result = shuffleServerClient.getShuffleResult(req);
     assertEquals(expectedBlockIds.size(), result.getBlockIds().size());
     assertTrue(expectedBlockIds.containsAll(result.getBlockIds()));

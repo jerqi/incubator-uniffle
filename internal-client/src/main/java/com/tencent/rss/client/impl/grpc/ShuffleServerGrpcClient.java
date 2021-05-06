@@ -259,6 +259,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
     ReportShuffleResultRequest recRequest = ReportShuffleResultRequest.newBuilder()
         .setAppId(request.getAppId())
         .setShuffleId(request.getShuffleId())
+        .setTaskAttemptId(request.getTaskAttemptId())
         .addAllPartitionToBlockIds(partitionToBlockIds)
         .build();
     ReportShuffleResultResponse rpcResponse = blockingStub.reportShuffleResult(recRequest);
@@ -287,6 +288,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         .setAppId(request.getAppId())
         .setShuffleId(request.getShuffleId())
         .setPartitionId(request.getPartitionId())
+        .addAllTaskAttemptIds(request.getTaskAttemptIds())
         .build();
     GetShuffleResultResponse rpcResponse = blockingStub.getShuffleResult(rpcRequest);
     StatusCode statusCode = rpcResponse.getStatus();

@@ -41,6 +41,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private int numMaps;
   private int shuffleId;
   private String taskId;
+  private long taskAttemptId;
   private ShuffleDependency<K, V, C> shuffleDependency;
   private ShuffleWriteMetrics shuffleWriteMetrics;
   private Partitioner partitioner;
@@ -60,6 +61,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       String appId,
       int shuffleId,
       String taskId,
+      long taskAttempId,
       WriteBufferManager bufferManager,
       ShuffleWriteMetrics shuffleWriteMetrics,
       RssShuffleManager shuffleManager,
@@ -70,6 +72,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.bufferManager = bufferManager;
     this.shuffleId = shuffleId;
     this.taskId = taskId;
+    this.taskAttemptId = taskAttempId;
     this.numMaps = rssHandle.getNumMaps();
     this.shuffleDependency = rssHandle.getDependency();
     this.shuffleWriteMetrics = shuffleWriteMetrics;
@@ -91,10 +94,10 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   /**
    * Create dummy BlockManagerId and embed partition->blockIds
    */
-  private BlockManagerId createDummyBlockManagerId(String executorId) {
+  private BlockManagerId createDummyBlockManagerId(String executorId, long taskAttemptId) {
     // dummy values are used there for host and port check in BlockManagerId
     // hack: use topologyInfo field in BlockManagerId to store [partition, blockIds]
-    return BlockManagerId.apply(executorId, DUMMY_HOST, DUMMY_PORT, Option.apply(null));
+    return BlockManagerId.apply(executorId, DUMMY_HOST, DUMMY_PORT, Option.apply(Long.toString(taskAttemptId)));
   }
 
   @Override
@@ -232,12 +235,18 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         long[] partitionLengths = new long[partitioner.numPartitions()];
         Arrays.fill(partitionLengths, 1);
         BlockManagerId blockManagerId =
-            createDummyBlockManagerId(appId + "_" + taskId);
+            createDummyBlockManagerId(appId + "_" + taskId, taskAttemptId);
+
+        Option.apply(MapStatus$.MODULE$.apply(blockManagerId, partitionLengths, partitionLengths));
+
         Map<Integer, List<Long>> ptb = Maps.newHashMap();
         for (Map.Entry<Integer, Set<Long>> entry : partitionToBlockIds.entrySet()) {
           ptb.put(entry.getKey(), Lists.newArrayList(entry.getValue()));
         }
-        shuffleWriteClient.reportShuffleResult(shuffleServerInfoForResult, appId, shuffleId, ptb);
+        long start = System.currentTimeMillis();
+        shuffleWriteClient.reportShuffleResult(shuffleServerInfoForResult, appId, shuffleId, taskAttemptId, ptb);
+        LOG.info("Report shuffle result for task[" + taskAttemptId + "] cost "
+            + (System.currentTimeMillis() - start) + " ms");
         MapStatus mapStatus = null;
         try {
           // try call api with spark 2.4+

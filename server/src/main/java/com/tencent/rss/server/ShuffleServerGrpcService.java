@@ -255,18 +255,20 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     ShuffleServerMetrics.counterTotalRequest.inc();
     String appId = request.getAppId();
     int shuffleId = request.getShuffleId();
+    long taskAttemptId = request.getTaskAttemptId();
     Map<Integer, List<Long>> partitionToBlockIds = toPartionBlocksMap(request.getPartitionToBlockIdsList());
     StatusCode status = StatusCode.SUCCESS;
     String msg = "OK";
     ReportShuffleResultResponse reply;
-    String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "]";
+    String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "], taskAttemptId[" + taskAttemptId + "]";
 
     if (partitionToBlockIds.isEmpty()) {
       LOG.warn("Report 0 block as shuffle result for " + requestInfo);
     } else {
       try {
         LOG.info("Report " + partitionToBlockIds.size() + " blocks as shuffle result for the task of " + requestInfo);
-        shuffleServer.getShuffleTaskManager().addFinishedBlockIds(appId, shuffleId, partitionToBlockIds);
+        shuffleServer.getShuffleTaskManager().addFinishedBlockIds(
+            appId, shuffleId, taskAttemptId, partitionToBlockIds);
       } catch (Exception e) {
         status = StatusCode.INTERNAL_ERROR;
         msg = e.getMessage();
@@ -287,6 +289,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     String appId = request.getAppId();
     int shuffleId = request.getShuffleId();
     int partitionId = request.getPartitionId();
+    List<Long> taskAttemptIds = request.getTaskAttemptIdsList();
     StatusCode status = StatusCode.SUCCESS;
     String msg = "OK";
     GetShuffleResultResponse reply;
@@ -294,7 +297,8 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "], partitionId[" + partitionId + "]";
 
     try {
-      blockIds = shuffleServer.getShuffleTaskManager().getFinishedBlockIds(appId, shuffleId, partitionId);
+      blockIds = shuffleServer.getShuffleTaskManager().getFinishedBlockIds(
+          appId, shuffleId, partitionId, taskAttemptIds);
     } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
       msg = e.getMessage();

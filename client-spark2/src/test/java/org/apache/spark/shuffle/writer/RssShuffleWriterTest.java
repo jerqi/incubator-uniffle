@@ -80,7 +80,7 @@ public class RssShuffleWriterTest {
     WriteBufferManager bufferManagerSpy = spy(bufferManager);
     doReturn(1000000L).when(bufferManagerSpy).acquireMemory(anyLong());
 
-    RssShuffleWriter rssShuffleWriter = new RssShuffleWriter("appId", 0, "taskId",
+    RssShuffleWriter rssShuffleWriter = new RssShuffleWriter("appId", 0, "taskId", 1L,
         bufferManagerSpy, (new TaskMetrics()).shuffleWriteMetrics(),
         manager, conf, mockShuffleWriteClient, mockHandle);
 
@@ -185,7 +185,7 @@ public class RssShuffleWriterTest {
     WriteBufferManager bufferManagerSpy = spy(bufferManager);
     doReturn(1000000L).when(bufferManagerSpy).acquireMemory(anyLong());
 
-    RssShuffleWriter rssShuffleWriter = new RssShuffleWriter("appId", 0, "taskId",
+    RssShuffleWriter rssShuffleWriter = new RssShuffleWriter("appId", 0, "taskId", 1L,
         bufferManagerSpy, shuffleWriteMetrics, manager, conf, mockShuffleWriteClient, mockHandle);
 
     RssShuffleWriter<String, String, String> rssShuffleWriterSpy = spy(rssShuffleWriter);
@@ -260,7 +260,7 @@ public class RssShuffleWriterTest {
     ShuffleWriteClient mockWriteClient = mock(ShuffleWriteClient.class);
     SparkConf conf = new SparkConf();
     conf.set(RssClientConfig.RSS_CLIENT_SEND_SIZE_LIMIT, "32");
-    RssShuffleWriter writer = new RssShuffleWriter("appId", 0, "taskId",
+    RssShuffleWriter writer = new RssShuffleWriter("appId", 0, "taskId", 1L,
         mockBufferManager, mockMetrics, mockShuffleManager, conf, mockWriteClient, mockHandle);
     List<ShuffleBlockInfo> shuffleBlockInfoList = createShuffleBlockList(1, 31);
     writer.postBlockEvent(shuffleBlockInfoList);
