@@ -147,7 +147,7 @@ public class ShuffleBufferManager {
       }
     }
     // release memory
-    releaseMemory(size, false);
+    releaseMemory(size, false, false);
     bufferPool.remove(appId);
   }
 
@@ -166,7 +166,7 @@ public class ShuffleBufferManager {
     return false;
   }
 
-  public void releaseMemory(long size, boolean isReleaseFlushMemory) {
+  public void releaseMemory(long size, boolean isReleaseFlushMemory, boolean isReleasePreAllocation) {
     if (usedMemory.get() >= size) {
       usedMemory.addAndGet(-size);
     } else {
@@ -179,6 +179,10 @@ public class ShuffleBufferManager {
 
     if (isReleaseFlushMemory) {
       releaseFlushMemory(size);
+    }
+
+    if (isReleasePreAllocation) {
+      releasePreAllocatedSize(size);
     }
   }
 

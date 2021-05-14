@@ -113,7 +113,7 @@ public class ShuffleFlushManager {
       LOG.error("Exception happened when process flush shuffle data for " + event, e);
     } finally {
       if (shuffleServer != null) {
-        shuffleServer.getShuffleBufferManager().releaseMemory(event.getSize(), true);
+        shuffleServer.getShuffleBufferManager().releaseMemory(event.getSize(), true, false);
         long duration = System.currentTimeMillis() - start;
         if (writeSuccess) {
           LOG.debug("Flush to file success in " + duration + " ms and release " + event.getSize() + " bytes");

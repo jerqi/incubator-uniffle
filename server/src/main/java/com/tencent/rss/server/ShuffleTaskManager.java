@@ -245,7 +245,7 @@ public class ShuffleTaskManager {
     for (PreAllocatedBufferInfo info : requireBufferIds.values()) {
       if (current - info.getTimestamp() > preAllocationExpired) {
         removeIds.add(info.getRequireId());
-        shuffleBufferManager.releaseMemory(info.getRequireSize(), false);
+        shuffleBufferManager.releaseMemory(info.getRequireSize(), false, true);
       }
     }
     for (Long requireId : removeIds) {
