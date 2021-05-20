@@ -256,7 +256,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     String appId = request.getAppId();
     int shuffleId = request.getShuffleId();
     long taskAttemptId = request.getTaskAttemptId();
-    Map<Integer, List<Long>> partitionToBlockIds = toPartionBlocksMap(request.getPartitionToBlockIdsList());
+    Map<Integer, long[]> partitionToBlockIds = toPartionBlocksMap(request.getPartitionToBlockIdsList());
     StatusCode status = StatusCode.SUCCESS;
     String msg = "OK";
     ReportShuffleResultResponse reply;
@@ -412,12 +412,16 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     return ret;
   }
 
-  private Map<Integer, List<Long>> toPartionBlocksMap(List<PartitionToBlockIds> partitionToBlockIds) {
-    Map<Integer, List<Long>> result = Maps.newHashMap();
+  private Map<Integer, long[]> toPartionBlocksMap(List<PartitionToBlockIds> partitionToBlockIds) {
+    Map<Integer, long[]> result = Maps.newHashMap();
     for (PartitionToBlockIds ptb : partitionToBlockIds) {
       List<Long> blockIds = ptb.getBlockIdsList();
       if (blockIds != null && !blockIds.isEmpty()) {
-        result.put(ptb.getPartitionId(), blockIds);
+        long[] array = new long[blockIds.size()];
+        for (int i = 0; i < array.length; i++) {
+          array[i] = blockIds.get(i);
+        }
+        result.put(ptb.getPartitionId(), array);
       }
     }
     return result;

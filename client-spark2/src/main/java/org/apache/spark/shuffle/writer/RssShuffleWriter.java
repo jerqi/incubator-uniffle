@@ -12,6 +12,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.spark.Partitioner;
 import org.apache.spark.ShuffleDependency;
@@ -188,7 +191,24 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   @VisibleForTesting
   protected void sendCommit() {
-    shuffleWriteClient.sendCommit(shuffleServersForData, appId, shuffleId, numMaps);
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Future<Void> future = executor.submit(() -> {
+      shuffleWriteClient.sendCommit(shuffleServersForData, appId, shuffleId, numMaps);
+      return null;
+    });
+    long start = System.currentTimeMillis();
+    int currentWait = 200;
+    int maxWait = 5000;
+    while (!future.isDone()) {
+      LOG.info("Wait commit to shuffle server for task[" + taskAttemptId + "] cost "
+          + (System.currentTimeMillis() - start) + " ms");
+      try {
+        Thread.sleep(currentWait);
+        currentWait = Math.min(currentWait * 2, maxWait);
+      } catch (Exception e) {
+        LOG.error("Exception happened when thread.sleep", e);
+      }
+    }
   }
 
   @VisibleForTesting

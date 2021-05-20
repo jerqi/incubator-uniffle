@@ -30,7 +30,7 @@ public class ShuffleTaskManager {
   private long commitCheckInterval;
   // appId -> shuffleId -> partitionId -> taskAttemptId -> blockIds to avoid too many appId
   // store taskAttemptId info to filter speculation task
-  private Map<String, Map<Integer, Map<Integer, Map<Long, List<Long>>>>> partitionsToBlockIds;
+  private Map<String, Map<Integer, Map<Integer, Map<Long, long[]>>>> partitionsToBlockIds;
   private ShuffleBufferManager shuffleBufferManager;
   private Map<String, Long> appIds = Maps.newConcurrentMap();
   // appId -> shuffleId -> commit count
@@ -100,13 +100,13 @@ public class ShuffleTaskManager {
   }
 
   public synchronized void addFinishedBlockIds(
-      String appId, Integer shuffleId, Long taskAttemptId, Map<Integer, List<Long>> partitionToBlockIds) {
+      String appId, Integer shuffleId, Long taskAttemptId, Map<Integer, long[]> partitionToBlockIds) {
     refreshAppId(appId);
     partitionsToBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
-    Map<Integer, Map<Integer, Map<Long, List<Long>>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
+    Map<Integer, Map<Integer, Map<Long, long[]>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
     shuffleToPartitions.putIfAbsent(shuffleId, Maps.newConcurrentMap());
-    Map<Integer, Map<Long, List<Long>>> existPartitionToBlockIds = shuffleToPartitions.get(shuffleId);
-    for (Map.Entry<Integer, List<Long>> entry : partitionToBlockIds.entrySet()) {
+    Map<Integer, Map<Long, long[]>> existPartitionToBlockIds = shuffleToPartitions.get(shuffleId);
+    for (Map.Entry<Integer, long[]> entry : partitionToBlockIds.entrySet()) {
       Integer partitionId = entry.getKey();
       existPartitionToBlockIds.putIfAbsent(partitionId, Maps.newConcurrentMap());
       existPartitionToBlockIds.get(partitionId).put(taskAttemptId, entry.getValue());
@@ -161,21 +161,23 @@ public class ShuffleTaskManager {
   public List<Long> getFinishedBlockIds(
       String appId, Integer shuffleId, Integer partitionId, List<Long> taskAttemptIds) {
     refreshAppId(appId);
-    Map<Integer, Map<Integer, Map<Long, List<Long>>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
+    Map<Integer, Map<Integer, Map<Long, long[]>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
     if (shuffleToPartitions == null) {
       return Lists.newArrayList();
     }
-    Map<Integer, Map<Long, List<Long>>> partitionToBlockIds = shuffleToPartitions.get(shuffleId);
+    Map<Integer, Map<Long, long[]>> partitionToBlockIds = shuffleToPartitions.get(shuffleId);
     if (partitionToBlockIds == null) {
       return Lists.newArrayList();
     }
-    Map<Long, List<Long>> taskToBlockIds = partitionToBlockIds.get(partitionId);
+    Map<Long, long[]> taskToBlockIds = partitionToBlockIds.get(partitionId);
     List<Long> blockIds = Lists.newArrayList();
     if (taskToBlockIds != null) {
       for (Long taskAttemptId : taskAttemptIds) {
-        List<Long> taskBlockIds = taskToBlockIds.get(taskAttemptId);
-        if (taskBlockIds != null && taskBlockIds.size() > 0) {
-          blockIds.addAll(taskBlockIds);
+        long[] taskBlockIds = taskToBlockIds.get(taskAttemptId);
+        if (taskBlockIds != null && taskBlockIds.length > 0) {
+          for (long blockId : taskBlockIds) {
+            blockIds.add(blockId);
+          }
         }
       }
     }
