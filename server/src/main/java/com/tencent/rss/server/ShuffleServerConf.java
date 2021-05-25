@@ -8,6 +8,8 @@ import java.util.Map;
 
 public class ShuffleServerConf extends RssBaseConf {
 
+  public static final String PREFIX_HADOOP_CONF = "rss.server.hadoop";
+
   public static final ConfigOption<Long> SERVER_BUFFER_CAPACITY = ConfigOptions
       .key("rss.server.buffer.capacity")
       .longType()
@@ -212,6 +214,11 @@ public class ShuffleServerConf extends RssBaseConf {
       if (SERVER_READ_BUFFER_CAPACITY.key().equalsIgnoreCase(k)) {
         set(SERVER_READ_BUFFER_CAPACITY, Long.valueOf(v));
       }
+
+      if (k.startsWith(PREFIX_HADOOP_CONF)) {
+        setString(k, v);
+      }
+
     });
 
     return true;

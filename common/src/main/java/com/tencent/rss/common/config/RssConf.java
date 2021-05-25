@@ -1,8 +1,10 @@
 package com.tencent.rss.common.config;
 
+import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class RssConf {
@@ -28,18 +30,25 @@ public class RssConf {
     this.settings = new ConcurrentHashMap<>(other.settings);
   }
 
+  public Set<String> getKeySet() {
+    if (settings != null) {
+      return settings.keySet();
+    }
+    return Sets.newHashSet();
+  }
+
   /**
    * Returns the value associated with the given key as a string.
    *
-   * @param key          the key pointing to the associated value
+   * @param key the key pointing to the associated value
    * @param defaultValue the default value which is returned when there is no
-   *                     value associated with the given key
+   *     value associated with the given key
    * @return the (default) value associated with the given key
    */
   public String getString(String key, String defaultValue) {
     return getRawValue(key)
-      .map(ConfigUtils::convertToString)
-      .orElse(defaultValue);
+        .map(ConfigUtils::convertToString)
+        .orElse(defaultValue);
   }
 
   /**
@@ -50,7 +59,7 @@ public class RssConf {
    */
   public String getString(ConfigOption<String> configOption) {
     return getOptional(configOption)
-      .orElseGet(configOption::defaultValue);
+        .orElseGet(configOption::defaultValue);
   }
 
   /**
@@ -63,13 +72,13 @@ public class RssConf {
    */
   public String getString(ConfigOption<String> configOption, String overrideDefault) {
     return getOptional(configOption)
-      .orElse(overrideDefault);
+        .orElse(overrideDefault);
   }
 
   /**
    * Adds the given key/value pair to the configuration object.
    *
-   * @param key   the key of the key/value pair to be added
+   * @param key the key of the key/value pair to be added
    * @param value the value of the key/value pair to be added
    */
   public void setString(String key, String value) {
@@ -80,7 +89,7 @@ public class RssConf {
    * Adds the given value to the configuration object.
    * The main key of the config option will be used to map the value.
    *
-   * @param key   the option specifying the key to be added
+   * @param key the option specifying the key to be added
    * @param value the value of the key/value pair to be added
    */
   public void setString(ConfigOption<String> key, String value) {
@@ -90,15 +99,15 @@ public class RssConf {
   /**
    * Returns the value associated with the given key as an integer.
    *
-   * @param key          the key pointing to the associated value
+   * @param key the key pointing to the associated value
    * @param defaultValue the default value which is returned when there is no
-   *                     value associated with the given key
+   *     value associated with the given key
    * @return the (default) value associated with the given key
    */
   public int getInteger(String key, int defaultValue) {
     return getRawValue(key)
-      .map(ConfigUtils::convertToInt)
-      .orElse(defaultValue);
+        .map(ConfigUtils::convertToInt)
+        .orElse(defaultValue);
   }
 
   /**
@@ -110,7 +119,7 @@ public class RssConf {
   public int getInteger(ConfigOption<Integer> configOption) {
     Optional<Integer> a = getOptional(configOption);
     return getOptional(configOption)
-      .orElseGet(configOption::defaultValue);
+        .orElseGet(configOption::defaultValue);
   }
 
   /**
@@ -118,19 +127,19 @@ public class RssConf {
    * If no value is mapped under any key of the option, it returns the specified
    * default instead of the option's default value.
    *
-   * @param configOption    The configuration option
+   * @param configOption The configuration option
    * @param overrideDefault The value to return if no value was mapper for any key of the option
    * @return the configured value associated with the given config option, or the overrideDefault
    */
   public int getInteger(ConfigOption<Integer> configOption, int overrideDefault) {
     return getOptional(configOption)
-      .orElse(overrideDefault);
+        .orElse(overrideDefault);
   }
 
   /**
    * Adds the given key/value pair to the configuration object.
    *
-   * @param key   the key of the key/value pair to be added
+   * @param key the key of the key/value pair to be added
    * @param value the value of the key/value pair to be added
    */
   public void setInteger(String key, int value) {
@@ -141,7 +150,7 @@ public class RssConf {
    * Adds the given value to the configuration object.
    * The main key of the config option will be used to map the value.
    *
-   * @param key   the option specifying the key to be added
+   * @param key the option specifying the key to be added
    * @param value the value of the key/value pair to be added
    */
   public void setInteger(ConfigOption<Integer> key, int value) {
@@ -151,15 +160,15 @@ public class RssConf {
   /**
    * Returns the value associated with the given key as a long.
    *
-   * @param key          the key pointing to the associated value
+   * @param key the key pointing to the associated value
    * @param defaultValue the default value which is returned in case there is no value
-   *                     associated with the given key
+   *     associated with the given key
    * @return the (default) value associated with the given key
    */
   public long getLong(String key, long defaultValue) {
     return getRawValue(key)
-      .map(ConfigUtils::convertToLong)
-      .orElse(defaultValue);
+        .map(ConfigUtils::convertToLong)
+        .orElse(defaultValue);
   }
 
   /**
@@ -170,7 +179,7 @@ public class RssConf {
    */
   public long getLong(ConfigOption<Long> configOption) {
     return getOptional(configOption)
-      .orElseGet(configOption::defaultValue);
+        .orElseGet(configOption::defaultValue);
   }
 
   /**
@@ -178,19 +187,19 @@ public class RssConf {
    * If no value is mapped under any key of the option, it returns the specified
    * default instead of the option's default value.
    *
-   * @param configOption    The configuration option
+   * @param configOption The configuration option
    * @param overrideDefault The value to return if no value was mapper for any key of the option
    * @return the configured value associated with the given config option, or the overrideDefault
    */
   public long getLong(ConfigOption<Long> configOption, long overrideDefault) {
     return getOptional(configOption)
-      .orElse(overrideDefault);
+        .orElse(overrideDefault);
   }
 
   /**
    * Adds the given key/value pair to the configuration object.
    *
-   * @param key   the key of the key/value pair to be added
+   * @param key the key of the key/value pair to be added
    * @param value the value of the key/value pair to be added
    */
   public void setLong(String key, long value) {
@@ -201,7 +210,7 @@ public class RssConf {
    * Adds the given value to the configuration object.
    * The main key of the config option will be used to map the value.
    *
-   * @param key   the option specifying the key to be added
+   * @param key the option specifying the key to be added
    * @param value the value of the key/value pair to be added
    */
   public void setLong(ConfigOption<Long> key, long value) {
@@ -211,15 +220,15 @@ public class RssConf {
   /**
    * Returns the value associated with the given key as a boolean.
    *
-   * @param key          the key pointing to the associated value
+   * @param key the key pointing to the associated value
    * @param defaultValue the default value which is returned when there is no value
-   *                     associated with the given key
+   *     associated with the given key
    * @return the (default) value associated with the given key
    */
   public boolean getBoolean(String key, boolean defaultValue) {
     return getRawValue(key)
-      .map(ConfigUtils::convertToBoolean)
-      .orElse(defaultValue);
+        .map(ConfigUtils::convertToBoolean)
+        .orElse(defaultValue);
   }
 
   /**
@@ -230,7 +239,7 @@ public class RssConf {
    */
   public boolean getBoolean(ConfigOption<Boolean> configOption) {
     return getOptional(configOption)
-      .orElseGet(configOption::defaultValue);
+        .orElseGet(configOption::defaultValue);
   }
 
   /**
@@ -238,19 +247,19 @@ public class RssConf {
    * If no value is mapped under any key of the option, it returns the specified
    * default instead of the option's default value.
    *
-   * @param configOption    The configuration option
+   * @param configOption The configuration option
    * @param overrideDefault The value to return if no value was mapper for any key of the option
    * @return the configured value associated with the given config option, or the overrideDefault
    */
   public boolean getBoolean(ConfigOption<Boolean> configOption, boolean overrideDefault) {
     return getOptional(configOption)
-      .orElse(overrideDefault);
+        .orElse(overrideDefault);
   }
 
   /**
    * Adds the given key/value pair to the configuration object.
    *
-   * @param key   the key of the key/value pair to be added
+   * @param key the key of the key/value pair to be added
    * @param value the value of the key/value pair to be added
    */
   public void setBoolean(String key, boolean value) {
@@ -261,7 +270,7 @@ public class RssConf {
    * Adds the given value to the configuration object.
    * The main key of the config option will be used to map the value.
    *
-   * @param key   the option specifying the key to be added
+   * @param key the option specifying the key to be added
    * @param value the value of the key/value pair to be added
    */
   public void setBoolean(ConfigOption<Boolean> key, boolean value) {
@@ -271,15 +280,15 @@ public class RssConf {
   /**
    * Returns the value associated with the given key as a float.
    *
-   * @param key          the key pointing to the associated value
+   * @param key the key pointing to the associated value
    * @param defaultValue the default value which is returned in case there is no value associated with the
-   *                     given key
+   *     given key
    * @return the (default) value associated with the given key
    */
   public float getFloat(String key, float defaultValue) {
     return getRawValue(key)
-      .map(ConfigUtils::convertToFloat)
-      .orElse(defaultValue);
+        .map(ConfigUtils::convertToFloat)
+        .orElse(defaultValue);
   }
 
   /**
@@ -290,7 +299,7 @@ public class RssConf {
    */
   public float getFloat(ConfigOption<Float> configOption) {
     return getOptional(configOption)
-      .orElseGet(configOption::defaultValue);
+        .orElseGet(configOption::defaultValue);
   }
 
   /**
@@ -298,19 +307,19 @@ public class RssConf {
    * If no value is mapped under any key of the option, it returns the specified
    * default instead of the option's default value.
    *
-   * @param configOption    The configuration option
+   * @param configOption The configuration option
    * @param overrideDefault The value to return if no value was mapper for any key of the option
    * @return the configured value associated with the given config option, or the overrideDefault
    */
   public float getFloat(ConfigOption<Float> configOption, float overrideDefault) {
     return getOptional(configOption)
-      .orElse(overrideDefault);
+        .orElse(overrideDefault);
   }
 
   /**
    * Adds the given key/value pair to the configuration object.
    *
-   * @param key   the key of the key/value pair to be added
+   * @param key the key of the key/value pair to be added
    * @param value the value of the key/value pair to be added
    */
   public void setFloat(String key, float value) {
@@ -321,7 +330,7 @@ public class RssConf {
    * Adds the given value to the configuration object.
    * The main key of the config option will be used to map the value.
    *
-   * @param key   the option specifying the key to be added
+   * @param key the option specifying the key to be added
    * @param value the value of the key/value pair to be added
    */
   public void setFloat(ConfigOption<Float> key, float value) {
@@ -331,15 +340,15 @@ public class RssConf {
   /**
    * Returns the value associated with the given key as a double.
    *
-   * @param key          the key pointing to the associated value
+   * @param key the key pointing to the associated value
    * @param defaultValue the default value which is returned when there is no value associated with the given
-   *                     key
+   *     key
    * @return the (default) value associated with the given key
    */
   public double getDouble(String key, double defaultValue) {
     return getRawValue(key)
-      .map(ConfigUtils::convertToDouble)
-      .orElse(defaultValue);
+        .map(ConfigUtils::convertToDouble)
+        .orElse(defaultValue);
   }
 
   /**
@@ -350,7 +359,7 @@ public class RssConf {
    */
   public double getDouble(ConfigOption<Double> configOption) {
     return getOptional(configOption)
-      .orElseGet(configOption::defaultValue);
+        .orElseGet(configOption::defaultValue);
   }
 
   /**
@@ -358,19 +367,19 @@ public class RssConf {
    * If no value is mapped under any key of the option, it returns the specified
    * default instead of the option's default value.
    *
-   * @param configOption    The configuration option
+   * @param configOption The configuration option
    * @param overrideDefault The value to return if no value was mapper for any key of the option
    * @return the configured value associated with the given config option, or the overrideDefault
    */
   public double getDouble(ConfigOption<Double> configOption, double overrideDefault) {
     return getOptional(configOption)
-      .orElse(overrideDefault);
+        .orElse(overrideDefault);
   }
 
   /**
    * Adds the given key/value pair to the configuration object.
    *
-   * @param key   the key of the key/value pair to be added
+   * @param key the key of the key/value pair to be added
    * @param value the value of the key/value pair to be added
    */
   public void setDouble(String key, double value) {
@@ -381,7 +390,7 @@ public class RssConf {
    * Adds the given value to the configuration object.
    * The main key of the config option will be used to map the value.
    *
-   * @param key   the option specifying the key to be added
+   * @param key the option specifying the key to be added
    * @param value the value of the key/value pair to be added
    */
   public void setDouble(ConfigOption<Double> key, double value) {
@@ -391,28 +400,28 @@ public class RssConf {
   /**
    * Returns the value associated with the given key as a byte array.
    *
-   * @param key          The key pointing to the associated value.
+   * @param key The key pointing to the associated value.
    * @param defaultValue The default value which is returned in case there is no value associated with the
-   *                     given key.
+   *     given key.
    * @return the (default) value associated with the given key.
    */
   public byte[] getBytes(String key, byte[] defaultValue) {
     return getRawValue(key).map(o -> {
-        if (o.getClass().equals(byte[].class)) {
-          return (byte[]) o;
-        } else {
-          throw new IllegalArgumentException(String.format(
-            "Configuration cannot evaluate value %s as a byte[] value",
-            o));
+          if (o.getClass().equals(byte[].class)) {
+            return (byte[]) o;
+          } else {
+            throw new IllegalArgumentException(String.format(
+                "Configuration cannot evaluate value %s as a byte[] value",
+                o));
+          }
         }
-      }
     ).orElse(defaultValue);
   }
 
   /**
    * Adds the given byte array to the configuration object. If key is <code>null</code> then nothing is added.
    *
-   * @param key   The key under which the bytes are added.
+   * @param key The key under which the bytes are added.
    * @param bytes The bytes to be added.
    */
   public void setBytes(String key, byte[] bytes) {
@@ -427,8 +436,8 @@ public class RssConf {
    */
   public String getValue(ConfigOption<?> configOption) {
     return Optional.ofNullable(getRawValueFromOption(configOption).orElseGet(configOption::defaultValue))
-      .map(String::valueOf)
-      .orElse(null);
+        .map(String::valueOf)
+        .orElse(null);
   }
 
   // --------------------------------------------------------------------------------------------
@@ -459,7 +468,7 @@ public class RssConf {
    *
    * @param configOption The configuration option
    * @return <tt>true</tt> if a valid (current or deprecated) key of the config option is stored,
-   * <tt>false</tt> otherwise
+   *     <tt>false</tt> otherwise
    */
   public boolean contains(ConfigOption<?> configOption) {
     return this.settings.containsKey(configOption.key());
@@ -467,7 +476,7 @@ public class RssConf {
 
   public <T> T get(ConfigOption<T> option) {
     return getOptional(option)
-      .orElseGet(option::defaultValue);
+        .orElseGet(option::defaultValue);
   }
 
   public <T> Optional<T> getOptional(ConfigOption<T> option) {
@@ -477,9 +486,9 @@ public class RssConf {
       return rawValue.map(v -> ConfigUtils.convertValue(v, clazz));
     } catch (Exception e) {
       throw new IllegalArgumentException(String.format(
-        "Could not parse value '%s' for key '%s'.",
-        rawValue.map(Object::toString).orElse(""),
-        option.key()), e);
+          "Could not parse value '%s' for key '%s'.",
+          rawValue.map(Object::toString).orElse(""),
+          option.key()), e);
     }
   }
 

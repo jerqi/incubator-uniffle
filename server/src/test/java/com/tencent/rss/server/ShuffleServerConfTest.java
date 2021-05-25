@@ -56,6 +56,8 @@ public class ShuffleServerConfTest {
     assertEquals("/var/tmp/test", shuffleServerConf.getString(ShuffleServerConf.RSS_STORAGE_BASE_PATH));
     assertFalse(shuffleServerConf.loadConfFromFile("/var/tmp/null"));
     assertEquals(2, shuffleServerConf.getLong(ShuffleServerConf.SERVER_BUFFER_CAPACITY));
+    assertEquals("value1", shuffleServerConf.getString("rss.server.hadoop.a.b", ""));
+    assertEquals("", shuffleServerConf.getString("rss.server.had.a.b", ""));
 
     thrown.expect(NullPointerException.class);
     shuffleServerConf.getInteger(ShuffleServerConf.SERVER_PARTITION_BUFFER_SIZE);

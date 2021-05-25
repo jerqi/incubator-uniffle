@@ -47,6 +47,16 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
   }
 
   @Test
+  public void hadoopConfTest() {
+    shuffleServerConf.setString("rss.server.hadoop.dfs.replication", "2");
+    shuffleServerConf.setString("rss.server.hadoop.a.b", "value");
+    ShuffleFlushManager manager =
+        new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);
+    assertEquals("2", manager.getHadoopConf().get("dfs.replication"));
+    assertEquals("value", manager.getHadoopConf().get("a.b"));
+  }
+
+  @Test
   public void writeTest() throws Exception {
     ShuffleFlushManager manager =
         new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null);

@@ -63,6 +63,7 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     serverConf.setInteger("rss.jetty.http.port", 18080);
     serverConf.setInteger("rss.jetty.corePool.size", 64);
     serverConf.setInteger("rss.rpc.executor.size", 10);
+    serverConf.setString("rss.server.hadoop.dfs.replication", "2");
     return serverConf;
   }
 

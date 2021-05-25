@@ -34,7 +34,8 @@ public class ShuffleFlushManager {
   private final String shuffleServerId;
   private final String storageType;
   private final int storageDataReplica;
-  private final Configuration hadoopConf;
+  private final ShuffleServerConf shuffleServerConf;
+  private Configuration hadoopConf;
   // appId -> shuffleId -> partitionId -> handlers
   private Map<String, Map<Integer, RangeMap<Integer, ShuffleWriteHandler>>> handlers = Maps.newConcurrentMap();
   // appId -> shuffleId -> committed shuffle block data count
@@ -46,7 +47,8 @@ public class ShuffleFlushManager {
   public ShuffleFlushManager(ShuffleServerConf shuffleServerConf, String shuffleServerId, ShuffleServer shuffleServer) {
     this.shuffleServerId = shuffleServerId;
     this.shuffleServer = shuffleServer;
-    this.hadoopConf = new Configuration();
+    this.shuffleServerConf = shuffleServerConf;
+    initHadoopConf();
     retryMax = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_WRITE_RETRY_MAX);
     long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.SERVER_FLUSH_THREAD_ALIVE);
     storageType = shuffleServerConf.get(RssBaseConf.RSS_STORAGE_TYPE);
@@ -169,8 +171,24 @@ public class ShuffleFlushManager {
     deleteHandler.delete(storageBasePaths, appId);
   }
 
+  protected void initHadoopConf() {
+    hadoopConf = new Configuration();
+    for (String key : shuffleServerConf.getKeySet()) {
+      if (key.startsWith(ShuffleServerConf.PREFIX_HADOOP_CONF)) {
+        String value = shuffleServerConf.getString(key, "");
+        String hadoopKey = key.substring(ShuffleServerConf.PREFIX_HADOOP_CONF.length() + 1);
+        LOG.info("Update hadoop configuration:" + hadoopKey + "=" + value);
+        hadoopConf.set(hadoopKey, value);
+      }
+    }
+  }
+
   public int getEventNumInFlush() {
     return flushQueue.size();
+  }
+
+  public Configuration getHadoopConf() {
+    return hadoopConf;
   }
 
   @VisibleForTesting
