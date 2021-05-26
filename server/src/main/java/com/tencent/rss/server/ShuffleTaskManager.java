@@ -95,6 +95,7 @@ public class ShuffleTaskManager {
       LOG.info("Checking commit result for appId[" + appId + "], shuffleId[" + shuffleId
           + "], expect committed[" + expectedCommitted + "], actual committed[" + committedBlockCount + "]");
     }
+    LOG.info("Finish commit " + expectedCommitted + " blocks for appId[" + appId + "], shuffleId[" + shuffleId + "]");
 
     return StatusCode.SUCCESS;
   }
