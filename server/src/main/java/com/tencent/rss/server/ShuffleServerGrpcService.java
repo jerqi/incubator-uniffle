@@ -132,6 +132,9 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
             responseMessage = errorMsg;
             break;
           } else {
+            // remove require bufferId, the memory should be updated already
+            shuffleServer
+                .getShuffleTaskManager().removeRequireBufferId(requireBufferId);
             shuffleServer.getShuffleTaskManager().updateCachedBlockCount(
                 appId, shuffleId, spd.getBlockList().size());
           }
@@ -144,8 +147,6 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
           break;
         }
       }
-      shuffleServer
-          .getShuffleTaskManager().removeRequireBufferId(requireBufferId);
       reply = SendShuffleDataResponse.newBuilder().setStatus(valueOf(ret)).setRetMsg(responseMessage).build();
       LOG.debug("Cache Shuffle Data for appId[" + appId + "], shuffleId[" + shuffleId
           + "], cost " + (System.currentTimeMillis() - start)

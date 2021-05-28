@@ -13,9 +13,11 @@ import com.tencent.rss.client.request.RssAppHeartBeatRequest;
 import com.tencent.rss.client.request.RssGetShuffleResultRequest;
 import com.tencent.rss.client.request.RssRegisterShuffleRequest;
 import com.tencent.rss.client.request.RssReportShuffleResultRequest;
+import com.tencent.rss.client.request.RssSendShuffleDataRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
 import com.tencent.rss.client.response.RssGetShuffleResultResponse;
 import com.tencent.rss.client.response.RssReportShuffleResultResponse;
+import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.test.IntegrationTestBase;
@@ -37,6 +39,7 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     ShuffleServerConf shuffleServerConf = getShuffleServerConf();
     shuffleServerConf.setLong("rss.server.app.expired.withHeartbeat", 10000L);
     shuffleServerConf.setLong("rss.server.app.expired.withoutHeartbeat", 5000L);
+    shuffleServerConf.setLong("rss.server.preAllocation.expired", 5000L);
     createShuffleServer(shuffleServerConf);
     startServers();
   }
@@ -155,6 +158,22 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     req = new RssGetShuffleResultRequest("appId", 0, 1, Lists.newArrayList(1L, 2L, 3L));
     result = shuffleServerClient.getShuffleResult(req);
     assertEquals(Lists.newArrayList(1L, 2L, 3L, 11L, 12L, 13L, 7L, 8L), result.getBlockIds());
+  }
+
+  @Test
+  public void noRegisterTest() throws Exception {
+    List<ShuffleBlockInfo> blockInfos = Lists.newArrayList(new ShuffleBlockInfo(0, 0, 0, 100, 0,
+        new byte[]{}, Lists.newArrayList(), 0));
+    Map<Integer, List<ShuffleBlockInfo>> partitionToBlocks = Maps.newHashMap();
+    partitionToBlocks.put(0, blockInfos);
+    Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleToBlocks = Maps.newHashMap();
+    shuffleToBlocks.put(0, partitionToBlocks);
+
+    RssSendShuffleDataRequest rssdr = new RssSendShuffleDataRequest("appId", 3, 1000, shuffleToBlocks);
+    shuffleServerClient.sendShuffleData(rssdr);
+    assertEquals(100, shuffleServers.get(0).getPreAllocatedMemory());
+    Thread.sleep(10000);
+    assertEquals(0, shuffleServers.get(0).getPreAllocatedMemory());
   }
 
   @Test

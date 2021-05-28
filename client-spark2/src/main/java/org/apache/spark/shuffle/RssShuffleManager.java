@@ -173,14 +173,18 @@ public class RssShuffleManager implements ShuffleManager {
   private void startHeartbeat() {
     if (!sparkConf.getBoolean(RssClientConfig.RSS_TEST_FLAG, false) && !heartbeatStarted) {
       new Thread(() -> {
-        try {
-          while (true) {
+        while (true) {
+          try {
             shuffleWriteClient.sendAppHeartbeat(appId);
             LOG.info("Successfully send heartbeat to coordinator");
-            Thread.sleep(heartbeatInterval);
+          } catch (Exception e) {
+            LOG.warn("Error happened when keep heartbeat from application to coordinator", e);
           }
-        } catch (Exception e) {
-          LOG.warn("Error happened when keep heartbeat from application to coordinator", e);
+          try {
+            Thread.sleep(heartbeatInterval);
+          } catch (Exception e) {
+            LOG.warn("Error happened when do the sleep", e);
+          }
         }
       }).start();
       heartbeatStarted = true;

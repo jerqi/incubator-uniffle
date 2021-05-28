@@ -127,7 +127,10 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
     sendShuffleDataAsync(appId, serverToBlocks, serverToBlockIds, successBlockIds, tempFailedBlockIds);
     if (!successBlockIds.containsAll(tempFailedBlockIds)) {
       tempFailedBlockIds.removeAll(successBlockIds);
+      // send data failed, task will be notified and throw exception
       LOG.error("Send: " + tempFailedBlockIds.size() + " blocks failed.");
+    } else {
+      tempFailedBlockIds.clear();
     }
 
     return new SendShuffleDataResult(successBlockIds, tempFailedBlockIds);
@@ -200,6 +203,11 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
         RssReportShuffleResultResponse response = getShuffleServerClient(ssi).reportShuffleResult(request);
         if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {
           isSuccessful = true;
+          LOG.info("Report shuffle result to " + ssi + " for appId[" + appId
+              + "], shuffleId[" + shuffleId + "] successfully");
+        } else {
+          LOG.warn("Report shuffle result to " + ssi + " for appId[" + appId
+              + "], shuffleId[" + shuffleId + "] failed with " + response.getStatusCode());
         }
       } catch (Exception e) {
         LOG.warn("Report shuffle result is failed to " + ssi
