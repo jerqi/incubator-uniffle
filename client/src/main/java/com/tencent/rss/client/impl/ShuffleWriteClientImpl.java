@@ -72,8 +72,8 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
 
           if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {
             successBlockIds.addAll(serverToBlockIds.get(ssi));
-            LOG.debug("Send: " + serverToBlockIds.get(ssi)
-                + " to [" + ssi.getId() + "] successfully");
+            LOG.info("Send: " + serverToBlockIds.get(ssi).size()
+                + " blocks to [" + ssi.getId() + "] successfully");
           } else {
             tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
             LOG.error("Send: " + serverToBlockIds.get(ssi).size() + " blocks to [" + ssi.getId()
@@ -139,24 +139,32 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   @Override
   public void sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId, int numMaps) {
     shuffleServerInfoSet.parallelStream().forEach(ssi -> {
-
       RssSendCommitRequest request = new RssSendCommitRequest(appId, shuffleId);
+      String errorMsg = "Failed to commit shuffle data to " + ssi + " for shuffleId[" + shuffleId + "]";
       long startTime = System.currentTimeMillis();
-      RssSendCommitResponse response = getShuffleServerClient(ssi).sendCommit(request);
-      LOG.info("SendCommit for appId[" + appId + "], shuffleId[" + shuffleId
-          + "] to ShuffleServer[" + ssi.getId() + "], cost " + (System.currentTimeMillis() - startTime) + " ms");
-
-      String msg = "Can't commit shuffle data to " + ssi
-          + " for [appId=" + request.getAppId() + ", shuffleId=" + shuffleId + "]";
-      throwExceptionIfNecessary(response, msg);
-
-      LOG.info("Got committed maps[" + response.getCommitCount() + "], map number of stage is " + numMaps);
-      if (response.getCommitCount() >= numMaps) {
-        RssFinishShuffleResponse rfsResponse =
-            getShuffleServerClient(ssi).finishShuffle(new RssFinishShuffleRequest(appId, shuffleId));
-        msg = "Can't finish shuffle commit to " + ssi
-            + " for [appId=" + request.getAppId() + ", shuffleId=" + shuffleId + "]";
-        throwExceptionIfNecessary(rfsResponse, msg);
+      try {
+        RssSendCommitResponse response = getShuffleServerClient(ssi).sendCommit(request);
+        if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {
+          int commitCount = response.getCommitCount();
+          LOG.info("Successfully sendCommit for appId[" + appId + "], shuffleId[" + shuffleId
+              + "] to ShuffleServer[" + ssi.getId() + "], cost "
+              + (System.currentTimeMillis() - startTime) + " ms, got committed maps["
+              + commitCount + "], map number of stage is " + numMaps);
+          if (commitCount >= numMaps) {
+            RssFinishShuffleResponse rfsResponse =
+                getShuffleServerClient(ssi).finishShuffle(new RssFinishShuffleRequest(appId, shuffleId));
+            if (rfsResponse.getStatusCode() != ResponseStatusCode.SUCCESS) {
+              LOG.error("Failed to finish shuffle to " + ssi + " for shuffleId[" + shuffleId
+                  + "] with statusCode " + rfsResponse.getStatusCode());
+            } else {
+              LOG.info("Successfully finish shuffle to " + ssi + " for shuffleId[" + shuffleId + "]");
+            }
+          }
+        } else {
+          LOG.error(errorMsg + " with statusCode " + response.getStatusCode());
+        }
+      } catch (Exception e) {
+        LOG.error(errorMsg, e);
       }
     });
   }

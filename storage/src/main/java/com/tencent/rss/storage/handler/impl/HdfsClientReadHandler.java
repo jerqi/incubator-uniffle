@@ -94,6 +94,8 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
     }
 
     for (FileStatus status : indexFiles) {
+      LOG.info("Find index file for shuffleId[" + shuffleId + "], partitionId["
+          + partitionId + "] " + status.getPath());
       String fileNamePrefix = getFileNamePrefix(status.getPath().getName());
       try {
         dataReaderMap.put(fileNamePrefix,
@@ -121,7 +123,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
     for (Entry<String, HdfsFileReader> entry : indexReaderMap.entrySet()) {
       String path = entry.getKey();
       try {
-        LOG.info("Read index file for: " + path);
+        LOG.info("Read index file for shuffleId[" + shuffleId + "], partitionId[" + partitionId + "] with " + path);
         ShuffleReader reader = entry.getValue();
         long start = System.currentTimeMillis();
         List<FileBasedShuffleSegment> segments = reader.readIndex(indexReadLimit);
