@@ -21,12 +21,32 @@ public class HdfsShuffleDeleteHandler implements ShuffleDeleteHandler {
   @Override
   public void delete(String[] storageBasePaths, String appId) {
     Path path = new Path(ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePaths[0], appId));
-    LOG.info("Delete shuffle data for appId[" + appId + "] with " + path);
-    try {
-      FileSystem fileSystem = ShuffleStorageUtils.getFileSystemForPath(path, hadoopConf);
-      fileSystem.delete(path, true);
-    } catch (Exception e) {
-      LOG.warn("Can't delete shuffle data for appId[" + appId + "]", e);
+    boolean isSuccess = false;
+    int times = 0;
+    int retryMax = 5;
+    long start = System.currentTimeMillis();
+    LOG.info("Try delete shuffle data in HDFS for appId[" + appId + "] with " + path);
+    while (!isSuccess && times < retryMax) {
+      try {
+        FileSystem fileSystem = ShuffleStorageUtils.getFileSystemForPath(path, hadoopConf);
+        fileSystem.delete(path, true);
+        isSuccess = true;
+      } catch (Exception e) {
+        times++;
+        LOG.warn("Can't delete shuffle data for appId[" + appId + "] with " + times + " times", e);
+        try {
+          Thread.sleep(1000);
+        } catch (Exception ex) {
+          LOG.warn("Exception happened when Thread.sleep", ex);
+        }
+      }
+    }
+    if (isSuccess) {
+      LOG.info("Delete shuffle data in HDFS for appId[" + appId + "] with " + path + " successfully in "
+          + (System.currentTimeMillis() - start) + " ms");
+    } else {
+      LOG.info("Failed to delete shuffle data in HDFS for appId[" + appId + "] with " + path + " in "
+          + (System.currentTimeMillis() - start) + " ms");
     }
   }
 }

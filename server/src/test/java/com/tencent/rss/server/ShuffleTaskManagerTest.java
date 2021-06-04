@@ -228,6 +228,8 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     Thread.sleep(3000);
     // application "clearTest2" was removed according to rss.server.app.expired.withoutHeartbeat
     shuffleTaskManager.checkResourceStatus(Sets.newHashSet("clearTest1"));
+    // wait resource delete
+    Thread.sleep(3000);
     assertEquals(Sets.newHashSet("clearTest1"), shuffleTaskManager.getAppIds().keySet());
   }
 

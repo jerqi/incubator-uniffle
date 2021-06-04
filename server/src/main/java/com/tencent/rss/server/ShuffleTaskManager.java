@@ -3,6 +3,7 @@ package com.tencent.rss.server;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedData;
@@ -11,6 +12,7 @@ import com.tencent.rss.storage.request.CreateShuffleReadHandlerRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +41,8 @@ public class ShuffleTaskManager {
   private Map<String, Map<Long, Integer>> cachedBlockCount = Maps.newHashMap();
   private Map<Long, PreAllocatedBufferInfo> requireBufferIds = Maps.newConcurrentMap();
   private ScheduledExecutorService scheduledExecutorService;
+  private Runnable clearResourceThread;
+  private BlockingQueue<String> expiredAppIdQueue = Queues.newLinkedBlockingQueue();
 
   public ShuffleTaskManager(
       ShuffleServerConf conf,
@@ -57,6 +61,18 @@ public class ShuffleTaskManager {
     scheduledExecutorService.scheduleAtFixedRate(
         () -> preAllocatedBufferCheck(), preAllocationExpired / 2,
         preAllocationExpired / 2, TimeUnit.MILLISECONDS);
+    // the thread for clear expired resources
+    clearResourceThread = () -> {
+      try {
+        while (true) {
+          String appId = expiredAppIdQueue.take();
+          removeResources(appId);
+        }
+      } catch (Exception e) {
+        LOG.error("Exception happened when clear resource for expired application", e);
+      }
+    };
+    new Thread(clearResourceThread).start();
   }
 
   public StatusCode registerShuffle(String appId, int shuffleId, int startPartition, int endPartition) {
@@ -209,9 +225,9 @@ public class ShuffleTaskManager {
     // remove applications not in coordinator's list and timeout according to rss.server.app.expired.withoutHeartbeat
     for (String appId : removed) {
       if (System.currentTimeMillis() - appIds.get(appId) > appExpiredWithoutHB) {
-        LOG.info("Remove resources of appId[" + appId + "] according "
+        LOG.info("Detect expired appId[" + appId + "] according "
             + "to rss.server.app.expired.withoutHeartbeat");
-        removeResources(appId);
+        expiredAppIdQueue.add(appId);
       }
     }
 
@@ -224,17 +240,20 @@ public class ShuffleTaskManager {
     }
 
     for (String appId : removed) {
-      LOG.info("Remove resources of appId[" + appId + "] according "
+      LOG.info("Detect expired appId[" + appId + "] according "
           + "to rss.server.app.expired.withHeartbeat");
-      removeResources(appId);
+      expiredAppIdQueue.add(appId);
     }
   }
 
   private void removeResources(String appId) {
+    LOG.info("Start remove resource for appId[" + appId + "]");
+    final long start = System.currentTimeMillis();
+    appIds.remove(appId);
     partitionsToBlockIds.remove(appId);
     shuffleBufferManager.removeBuffer(appId);
     shuffleFlushManager.removeResources(appId);
-    appIds.remove(appId);
+    LOG.info("Finish remove resource for appId[" + appId + "] cost " + (System.currentTimeMillis() - start) + " ms");
   }
 
   private void refreshAppId(String appId) {
