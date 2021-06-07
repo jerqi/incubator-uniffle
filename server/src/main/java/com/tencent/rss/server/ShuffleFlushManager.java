@@ -98,7 +98,9 @@ public class ShuffleFlushManager {
             break;
           }
           try {
+            long startWrite = System.currentTimeMillis();
             handler.write(blocks);
+            ShuffleServerMetrics.counterTotalWriteTime.inc(System.currentTimeMillis() - startWrite);
             updateCommittedBlockCount(event.getAppId(), event.getShuffleId(), event.getShuffleBlocks().size());
             writeSuccess = true;
             ShuffleServerMetrics.counterTotalWriteDataSize.inc(event.getSize());
