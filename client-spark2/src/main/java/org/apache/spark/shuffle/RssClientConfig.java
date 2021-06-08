@@ -18,8 +18,7 @@ public class RssClientConfig {
   public static int RSS_WRITER_REQUIRE_MEMORY_RETRY_MAX_DEFAULT_VALUE = 120;
   public static String RSS_WRITER_REQUIRE_MEMORY_INTERVAL = "spark.rss.writer.require.memory.interval";
   public static long RSS_WRITER_REQUIRE_MEMORY_INTERVAL_DEFAULT_VALUE = 1000; // 1s
-  public static String RSS_COORDINATOR_IP = "spark.rss.coordinator.ip";
-  public static String RSS_COORDINATOR_PORT = "spark.rss.coordinator.port";
+  public static String RSS_COORDINATOR_QUORUM = "spark.rss.coordinator.quorum";
   public static String RSS_WRITER_SEND_CHECK_TIMEOUT = "spark.rss.writer.send.check.timeout";
   public static long RSS_WRITER_SEND_CHECK_TIMEOUT_DEFAULT_VALUE = 2 * 60 * 1000; // 2 min
   public static String RSS_WRITER_SEND_CHECK_INTERVAL = "spark.rss.writer.send.check.interval";
@@ -35,12 +34,15 @@ public class RssClientConfig {
   public static int RSS_CLIENT_RETRY_MAX_DEFAULT_VALUE = 30;
   public static String RSS_CLIENT_RETRY_INTERVAL_MAX = "spark.rss.client.retry.interval.max";
   public static long RSS_CLIENT_RETRY_INTERVAL_MAX_DEFAULT_VALUE = 10000;
+  public static String RSS_CLIENT_HEARTBEAT_THREAD_NUM = "spark.rss.client.heartBeat.threadNum";
+  public static int RSS_CLIENT_HEARTBEAT_THREAD_NUM_DEFAULT_VALUE = 4;
   public static String RSS_CLIENT_SEND_SIZE_LIMIT = "spark.rss.client.send.size.limit";
   public static String RSS_CLIENT_SEND_SIZE_LIMIT_DEFAULT_VALUE = "32m";
   public static String RSS_CLIENT_READ_BUFFER_SIZE = "spark.rss.client.read.buffer.size";
   public static String RSS_CLIENT_READ_BUFFER_SIZE_DEFAULT_VALUE = "64m";
   public static String RSS_HEARTBEAT_INTERVAL = "spark.rss.heartbeat.interval";
   public static long RSS_HEARTBEAT_INTERVAL_DEFAULT_VALUE = 10 * 1000L;
+  public static String RSS_HEARTBEAT_TIMEOUT = "spark.rss.heartbeat.timeout";
   public static String RSS_CLIENT_SEND_THREAD_POOL_SIZE = "spark.rss.client.send.threadPool.size";
   public static int RSS_CLIENT_SEND_THREAD_POOL_SIZE_DEFAULT_VALUE = 24;
   public static String RSS_CLIENT_SEND_THREAD_POOL_KEEPALIVE = "spark.rss.client.send.threadPool.keepalive";

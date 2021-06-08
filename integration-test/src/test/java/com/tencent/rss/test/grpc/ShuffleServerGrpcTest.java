@@ -6,10 +6,9 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.tencent.rss.client.factory.CoordinatorClientFactory;
-import com.tencent.rss.client.impl.grpc.CoordinatorGrpcClient;
+import com.tencent.rss.client.api.ShuffleWriteClient;
+import com.tencent.rss.client.factory.ShuffleClientFactory;
 import com.tencent.rss.client.impl.grpc.ShuffleServerGrpcClient;
-import com.tencent.rss.client.request.RssAppHeartBeatRequest;
 import com.tencent.rss.client.request.RssGetShuffleResultRequest;
 import com.tencent.rss.client.request.RssRegisterShuffleRequest;
 import com.tencent.rss.client.request.RssReportShuffleResultRequest;
@@ -18,6 +17,7 @@ import com.tencent.rss.client.response.ResponseStatusCode;
 import com.tencent.rss.client.response.RssGetShuffleResultResponse;
 import com.tencent.rss.client.response.RssReportShuffleResultResponse;
 import com.tencent.rss.common.ShuffleBlockInfo;
+import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.test.IntegrationTestBase;
@@ -38,7 +38,7 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     createCoordinatorServer(coordinatorConf);
     ShuffleServerConf shuffleServerConf = getShuffleServerConf();
     shuffleServerConf.setLong("rss.server.app.expired.withHeartbeat", 10000L);
-    shuffleServerConf.setLong("rss.server.app.expired.withoutHeartbeat", 5000L);
+    shuffleServerConf.setLong("rss.server.app.expired.withoutHeartbeat", 2000L);
     shuffleServerConf.setLong("rss.server.preAllocation.expired", 5000L);
     createShuffleServer(shuffleServerConf);
     startServers();
@@ -51,11 +51,19 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
 
   @Test
   public void clearResourceTest() throws Exception {
-    CoordinatorClientFactory coordinatorFactory = new CoordinatorClientFactory("GRPC");
-    CoordinatorGrpcClient coordinatorClient =
-        (CoordinatorGrpcClient) coordinatorFactory.createCoordinatorClient(LOCALHOST, COORDINATOR_PORT);
-    coordinatorClient.sendAppHeartBeat(new RssAppHeartBeatRequest("clearResourceTest1"));
-    coordinatorClient.sendAppHeartBeat(new RssAppHeartBeatRequest("clearResourceTest2"));
+    final ShuffleWriteClient shuffleWriteClient =
+        ShuffleClientFactory.getInstance().createShuffleWriteClient(
+            "GRPC", 2, 10000L, 4);
+    shuffleWriteClient.registerCoordinators("127.0.0.1:19999");
+    shuffleWriteClient.registerShuffle(
+        new ShuffleServerInfo("127.0.0.1-20001", "127.0.0.1", 20001),
+        "clearResourceTest1",
+        0,
+        0,
+        1);
+
+    shuffleWriteClient.sendAppHeartbeat("clearResourceTest1", 1000L);
+    shuffleWriteClient.sendAppHeartbeat("clearResourceTest2", 1000L);
 
     RssRegisterShuffleRequest rrsr = new RssRegisterShuffleRequest("clearResourceTest1", 0, 0, 1);
     shuffleServerClient.registerShuffle(rrsr);
@@ -63,38 +71,37 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     shuffleServerClient.registerShuffle(rrsr);
     assertEquals(Sets.newHashSet("clearResourceTest1", "clearResourceTest2"),
         shuffleServers.get(0).getShuffleTaskManager().getAppIds().keySet());
+
     // Thread will keep refresh clearResourceTest1 in coordinator
     Thread t = new Thread(() -> {
       int i = 0;
       while (i < 20) {
-        coordinatorClient.sendAppHeartBeat(new RssAppHeartBeatRequest("clearResourceTest1"));
+        shuffleWriteClient.sendAppHeartbeat("clearResourceTest1", 1000L);
         i++;
         try {
           Thread.sleep(1000);
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
+          return;
         }
       }
     });
     t.start();
 
-    // after 3s, coordinator will remove expired appId,
-    // but shuffle server won't because of rss.server.app.expired.withoutHeartbeat
+    // Heartbeat is sent to coordinator too]
     Thread.sleep(3000);
     shuffleServerClient.registerShuffle(new RssRegisterShuffleRequest("clearResourceTest1", 0, 0, 1));
     assertEquals(Sets.newHashSet("clearResourceTest1"),
         coordinators.get(0).getApplicationManager().getAppIds());
-    assertEquals(Sets.newHashSet("clearResourceTest1", "clearResourceTest2"),
-        shuffleServers.get(0).getShuffleTaskManager().getAppIds().keySet());
     // clearResourceTest2 will be removed because of rss.server.app.expired.withoutHeartbeat
-    Thread.sleep(4000);
+    Thread.sleep(2000);
     assertEquals(Sets.newHashSet("clearResourceTest1"),
         shuffleServers.get(0).getShuffleTaskManager().getAppIds().keySet());
-    // clearResourceTest1 will be removed because of rss.server.app.expired.withHeartbeat
+
+    // clearResourceTest1 will be removed because of rss.server.app.expired.withoutHeartbeat
+    t.interrupt();
     Thread.sleep(8000);
-    assertEquals(Sets.newHashSet("clearResourceTest1"),
-        coordinators.get(0).getApplicationManager().getAppIds());
     assertEquals(0, shuffleServers.get(0).getShuffleTaskManager().getAppIds().size());
-    t.join(10000);
+
   }
 
   @Test

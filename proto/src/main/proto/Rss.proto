@@ -14,6 +14,7 @@ service ShuffleServer {
   rpc getShuffleResult (GetShuffleResultRequest) returns (GetShuffleResultResponse);
   rpc finishShuffle (FinishShuffleRequest) returns (FinishShuffleResponse);
   rpc requireBuffer (RequireBufferRequest) returns (RequireBufferResponse);
+  rpc appHeartbeat(AppHeartBeatRequest) returns (AppHeartBeatResponse);
 }
 
 message FinishShuffleRequest {

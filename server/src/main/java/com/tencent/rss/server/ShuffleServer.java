@@ -90,7 +90,7 @@ public class ShuffleServer {
     ip = InetAddress.getLocalHost().getHostAddress();
     port = shuffleServerConf.getInteger(ShuffleServerConf.RPC_SERVER_PORT);
     id = ip + "-" + port;
-
+    LOG.info("Start to initialize server {}", id);
     registerHeartBeat = new RegisterHeartBeat(this);
     shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id, this);
     shuffleBufferManager = new ShuffleBufferManager(shuffleServerConf, shuffleFlushManager);

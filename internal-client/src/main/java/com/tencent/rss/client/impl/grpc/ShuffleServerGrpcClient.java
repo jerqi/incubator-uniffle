@@ -3,6 +3,7 @@ package com.tencent.rss.client.impl.grpc;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import com.tencent.rss.client.api.ShuffleServerClient;
+import com.tencent.rss.client.request.RssAppHeartBeatRequest;
 import com.tencent.rss.client.request.RssFinishShuffleRequest;
 import com.tencent.rss.client.request.RssGetShuffleDataRequest;
 import com.tencent.rss.client.request.RssGetShuffleResultRequest;
@@ -11,6 +12,7 @@ import com.tencent.rss.client.request.RssReportShuffleResultRequest;
 import com.tencent.rss.client.request.RssSendCommitRequest;
 import com.tencent.rss.client.request.RssSendShuffleDataRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
+import com.tencent.rss.client.response.RssAppHeartBeatResponse;
 import com.tencent.rss.client.response.RssFinishShuffleResponse;
 import com.tencent.rss.client.response.RssGetShuffleDataResponse;
 import com.tencent.rss.client.response.RssGetShuffleResultResponse;
@@ -21,7 +23,8 @@ import com.tencent.rss.client.response.RssSendShuffleDataResponse;
 import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleDataResult;
-import com.tencent.rss.proto.RssProtos;
+import com.tencent.rss.proto.RssProtos.AppHeartBeatRequest;
+import com.tencent.rss.proto.RssProtos.AppHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.FinishShuffleRequest;
 import com.tencent.rss.proto.RssProtos.FinishShuffleResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleDataRequest;
@@ -40,6 +43,7 @@ import com.tencent.rss.proto.RssProtos.ShuffleCommitRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleCommitResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleData;
 import com.tencent.rss.proto.RssProtos.ShuffleDataBlockSegment;
+import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import com.tencent.rss.proto.ShuffleServerGrpc;
@@ -47,6 +51,7 @@ import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerBlockingStub;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,17 +74,28 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
     blockingStub = ShuffleServerGrpc.newBlockingStub(channel);
   }
 
-  public RssProtos.ShuffleRegisterResponse doRegisterShuffle(String appId, int shuffleId, int start, int end) {
-    RssProtos.ShuffleRegisterRequest request = RssProtos.ShuffleRegisterRequest.newBuilder().setAppId(appId)
+  @Override
+  public String getDesc() {
+    return "Shuffle server grpc client ref " + host + ":" + port;
+  }
+
+  private ShuffleRegisterResponse doRegisterShuffle(String appId, int shuffleId, int start, int end) {
+    ShuffleRegisterRequest request = ShuffleRegisterRequest.newBuilder().setAppId(appId)
         .setShuffleId(shuffleId).setStart(start).setEnd(end).build();
     return blockingStub.registerShuffle(request);
 
   }
 
-  public ShuffleCommitResponse doSendCommit(String appId, int shuffleId) {
+  private ShuffleCommitResponse doSendCommit(String appId, int shuffleId) {
     ShuffleCommitRequest request = ShuffleCommitRequest.newBuilder()
         .setAppId(appId).setShuffleId(shuffleId).build();
     return blockingStub.commitShuffleTask(request);
+  }
+
+  private AppHeartBeatResponse doSendHeartBeat(String appId, long timeout) {
+    AppHeartBeatRequest request = AppHeartBeatRequest.newBuilder().setAppId(appId).build();
+    blockingStub.withDeadlineAfter(timeout, TimeUnit.MILLISECONDS).appHeartbeat(request).getStatus();
+    return blockingStub.withDeadlineAfter(timeout, TimeUnit.MILLISECONDS).appHeartbeat(request);
   }
 
   public long requirePreAllocation(int requireSize, int retryMax, long retryIntervalMax) {
@@ -222,6 +238,20 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
       response.setCommitCount(rpcResponse.getCommitCount());
     }
     return response;
+  }
+
+  @Override
+  public RssAppHeartBeatResponse sendHeartBeat(RssAppHeartBeatRequest request) {
+    AppHeartBeatResponse appHeartBeatResponse = doSendHeartBeat(request.getAppId(), request.getTimeoutMs());
+    if (appHeartBeatResponse.getStatus() != StatusCode.SUCCESS) {
+      String msg = "Can't send heartbeat to " + host + ":" + port
+          + " for [appId=" + request.getAppId() + ", timeout=" + request.getTimeoutMs() + "ms], "
+          + "errorMsg:" + appHeartBeatResponse.getRetMsg();
+      LOG.error(msg);
+      return new RssAppHeartBeatResponse(ResponseStatusCode.INTERNAL_ERROR);
+    } else {
+      return new RssAppHeartBeatResponse(ResponseStatusCode.SUCCESS);
+    }
   }
 
   @Override

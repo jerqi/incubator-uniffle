@@ -189,8 +189,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     String storageBasePath = HDFS_URI + "rss/clearTest";
     int shuffleId = 1;
     conf.setString("rss.rpc.server.port", "1234");
-    conf.setString("rss.coordinator.ip", "localhost");
-    conf.setString("rss.coordinator.port", "9527");
+    conf.setString("rss.coordinator.quorum", "localhost:9527");
     conf.setString("rss.jetty.http.port", "12345");
     conf.setString("rss.jetty.corePool.size", "64");
     conf.setString("rss.server.buffer.capacity", "128");
@@ -207,6 +206,8 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf, shuffleFlushManager, shuffleBufferManager);
     shuffleTaskManager.registerShuffle("clearTest1", shuffleId, 0, 1);
     shuffleTaskManager.registerShuffle("clearTest2", shuffleId, 0, 1);
+    shuffleTaskManager.refreshAppId("clearTest1");
+    shuffleTaskManager.refreshAppId("clearTest2");
     assertEquals(2, shuffleTaskManager.getAppIds().size());
     ShufflePartitionedData partitionedData0 = createPartitionedData(1, 1, 35);
 
@@ -215,7 +216,8 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     while (retry < 10) {
       Thread.sleep(1000);
       shuffleTaskManager.cacheShuffleData("clearTest1", shuffleId, false, partitionedData0);
-      shuffleTaskManager.checkResourceStatus(Sets.newHashSet("clearTest1", "clearTest2"));
+      shuffleTaskManager.refreshAppId("clearTest1");
+      shuffleTaskManager.checkResourceStatus();
       retry++;
     }
     // application "clearTest2" was removed according to rss.server.app.expired.withHeartbeat
@@ -223,14 +225,15 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
 
     // register again
     shuffleTaskManager.registerShuffle("clearTest2", shuffleId, 0, 1);
-    shuffleTaskManager.checkResourceStatus(Sets.newHashSet("clearTest1"));
+    shuffleTaskManager.refreshAppId("clearTest2");
+    shuffleTaskManager.checkResourceStatus();
     assertEquals(Sets.newHashSet("clearTest1", "clearTest2"), shuffleTaskManager.getAppIds().keySet());
     Thread.sleep(3000);
     // application "clearTest2" was removed according to rss.server.app.expired.withoutHeartbeat
-    shuffleTaskManager.checkResourceStatus(Sets.newHashSet("clearTest1"));
+    shuffleTaskManager.checkResourceStatus();
     // wait resource delete
     Thread.sleep(3000);
-    assertEquals(Sets.newHashSet("clearTest1"), shuffleTaskManager.getAppIds().keySet());
+    assertEquals(Sets.newHashSet(), shuffleTaskManager.getAppIds().keySet());
   }
 
   private void waitForFlush(ShuffleFlushManager shuffleFlushManager,

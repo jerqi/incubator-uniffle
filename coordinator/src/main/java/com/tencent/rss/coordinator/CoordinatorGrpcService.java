@@ -15,6 +15,8 @@ import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
 import com.tencent.rss.proto.RssProtos.StatusCode;
+import io.grpc.Context;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -146,6 +148,13 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
         .setRetMsg("")
         .setStatus(StatusCode.SUCCESS)
         .build();
+
+    if (Context.current().isCancelled()) {
+      responseObserver.onError(Status.CANCELLED.withDescription("Cancelled by client").asRuntimeException());
+      LOG.warn("Cancelled by client {} for after deadline.", appId);
+      return;
+    }
+
     responseObserver.onNext(response);
     responseObserver.onCompleted();
   }

@@ -40,6 +40,12 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(10 * 1000L)
       .withDescription("rss heartbeat initial delay ms");
 
+  public static final ConfigOption<Integer> SERVER_HEARTBEAT_THREAD_NUM = ConfigOptions
+      .key("rss.server.heartbeat.threadNum")
+      .intType()
+      .defaultValue(2)
+      .withDescription("rss heartbeat thread number");
+
   public static final ConfigOption<Long> SERVER_HEARTBEAT_INTERVAL = ConfigOptions
       .key("rss.server.heartbeat.interval")
       .longType()
@@ -193,6 +199,10 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (SERVER_HEARTBEAT_TIMEOUT.key().equalsIgnoreCase(k)) {
         set(SERVER_HEARTBEAT_TIMEOUT, Long.valueOf(v));
+      }
+
+      if (SERVER_HEARTBEAT_THREAD_NUM.key().equalsIgnoreCase(k)) {
+        set(SERVER_HEARTBEAT_THREAD_NUM, Integer.valueOf(v));
       }
 
       if (SERVER_FLUSH_THREAD_POOL_SIZE.key().equalsIgnoreCase(k)) {

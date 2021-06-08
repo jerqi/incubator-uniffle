@@ -18,8 +18,8 @@ public class ShuffleClientFactory {
   }
 
   public ShuffleWriteClient createShuffleWriteClient(
-      String clientType, int retryMax, long retryIntervalMax) {
-    return new ShuffleWriteClientImpl(clientType, retryMax, retryIntervalMax);
+      String clientType, int retryMax, long retryIntervalMax, int heartBeatThreadNum) {
+    return new ShuffleWriteClientImpl(clientType, retryMax, retryIntervalMax, heartBeatThreadNum);
   }
 
   public ShuffleReadClient createShuffleReadClient(CreateShuffleReadClientRequest request) {

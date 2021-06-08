@@ -54,8 +54,7 @@ public class RssShuffleWriterTest {
         .set(RssClientConfig.RSS_TEST_FLAG, "true")
         .set(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT, "10000")
         .set(RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL, "1000")
-        .set(RssClientConfig.RSS_COORDINATOR_IP, "127.0.0.1")
-        .set(RssClientConfig.RSS_COORDINATOR_PORT, "12345");
+        .set(RssClientConfig.RSS_COORDINATOR_QUORUM, "127.0.0.1:12345,127.0.0.1:12346");
     // init SparkContext
     SparkContext sc = SparkContext.getOrCreate(conf);
     RssShuffleManager manager = new RssShuffleManager(conf, false);
@@ -120,8 +119,7 @@ public class RssShuffleWriterTest {
         .set(RssClientConfig.RSS_WRITER_BUFFER_SPILL_SIZE, "128")
         .set(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT, "10000")
         .set(RssClientConfig.RSS_WRITER_SEND_CHECK_INTERVAL, "1000")
-        .set(RssClientConfig.RSS_COORDINATOR_IP, "127.0.0.1")
-        .set(RssClientConfig.RSS_COORDINATOR_PORT, "12345");
+        .set(RssClientConfig.RSS_COORDINATOR_QUORUM, "127.0.0.1:12345,127.0.0.1:12346");
     // init SparkContext
     SparkContext sc = SparkContext.getOrCreate(conf);
     RssShuffleManager manager = new RssShuffleManager(conf, false);

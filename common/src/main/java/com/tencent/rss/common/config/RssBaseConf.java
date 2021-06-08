@@ -16,6 +16,12 @@ public class RssBaseConf extends RssConf {
       .noDefaultValue()
       .withDescription("Coordinator port");
 
+  public static final ConfigOption<String> RSS_COORDINATOR_QUORUM = ConfigOptions
+      .key("rss.coordinator.quorum")
+      .stringType()
+      .noDefaultValue()
+      .withDescription("Coordinator quorum");
+
   public static final ConfigOption<String> RPC_SERVER_TYPE = ConfigOptions
       .key("rss.rpc.server.type")
       .stringType()
@@ -171,6 +177,10 @@ public class RssBaseConf extends RssConf {
 
       if (RSS_COORDINATOR_PORT.key().equalsIgnoreCase(k)) {
         set(RSS_COORDINATOR_PORT, Integer.valueOf(v));
+      }
+
+      if (RSS_COORDINATOR_QUORUM.key().equalsIgnoreCase(k)) {
+        set(RSS_COORDINATOR_QUORUM, v);
       }
 
       if (RPC_SERVER_TYPE.key().equalsIgnoreCase(k)) {

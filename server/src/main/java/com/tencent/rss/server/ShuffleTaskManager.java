@@ -40,7 +40,8 @@ public class ShuffleTaskManager {
   // appId -> shuffleId -> shuffle block count
   private Map<String, Map<Long, Integer>> cachedBlockCount = Maps.newHashMap();
   private Map<Long, PreAllocatedBufferInfo> requireBufferIds = Maps.newConcurrentMap();
-  private ScheduledExecutorService scheduledExecutorService;
+  private final ScheduledExecutorService scheduledExecutorService;
+  private final ScheduledExecutorService expiredAppCleanupExecutorService;
   private Runnable clearResourceThread;
   private BlockingQueue<String> expiredAppIdQueue = Queues.newLinkedBlockingQueue();
 
@@ -57,10 +58,14 @@ public class ShuffleTaskManager {
     this.commitCheckInterval = conf.getLong(ShuffleServerConf.SERVER_COMMIT_CHECK_INTERVAL);
     this.preAllocationExpired = conf.getLong(ShuffleServerConf.SERVER_PRE_ALLOCATION_EXPIRED);
     // the thread for checking application status
-    scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+    this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     scheduledExecutorService.scheduleAtFixedRate(
         () -> preAllocatedBufferCheck(), preAllocationExpired / 2,
         preAllocationExpired / 2, TimeUnit.MILLISECONDS);
+    this.expiredAppCleanupExecutorService = Executors.newSingleThreadScheduledExecutor();
+    expiredAppCleanupExecutorService.scheduleAtFixedRate(
+        () -> checkResourceStatus(), appExpiredWithoutHB * 2,
+        appExpiredWithoutHB * 2, TimeUnit.MILLISECONDS);
     // the thread for clear expired resources
     clearResourceThread = () -> {
       try {
@@ -76,12 +81,10 @@ public class ShuffleTaskManager {
   }
 
   public StatusCode registerShuffle(String appId, int shuffleId, int startPartition, int endPartition) {
-    refreshAppId(appId);
     return shuffleBufferManager.registerBuffer(appId, shuffleId, startPartition, endPartition);
   }
 
   public StatusCode cacheShuffleData(String appId, int shuffleId, boolean isPreAllocated, ShufflePartitionedData spd) {
-    refreshAppId(appId);
     return shuffleBufferManager.cacheShuffleData(appId, shuffleId, isPreAllocated, spd);
   }
 
@@ -95,7 +98,6 @@ public class ShuffleTaskManager {
 
   public StatusCode commitShuffle(String appId, int shuffleId) throws Exception {
     long start = System.currentTimeMillis();
-    refreshAppId(appId);
     shuffleBufferManager.commitShuffleTask(appId, shuffleId);
     long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
     int expectedCommitted = getCachedBlockCount(appId, shuffleId);
@@ -119,7 +121,6 @@ public class ShuffleTaskManager {
 
   public synchronized void addFinishedBlockIds(
       String appId, Integer shuffleId, Long taskAttemptId, Map<Integer, long[]> partitionToBlockIds) {
-    refreshAppId(appId);
     partitionsToBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
     Map<Integer, Map<Integer, Map<Long, long[]>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
     shuffleToPartitions.putIfAbsent(shuffleId, Maps.newConcurrentMap());
@@ -178,7 +179,6 @@ public class ShuffleTaskManager {
 
   public List<Long> getFinishedBlockIds(
       String appId, Integer shuffleId, Integer partitionId, List<Long> taskAttemptIds) {
-    refreshAppId(appId);
     Map<Integer, Map<Integer, Map<Long, long[]>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
     if (shuffleToPartitions == null) {
       return Lists.newArrayList();
@@ -205,7 +205,6 @@ public class ShuffleTaskManager {
   public ShuffleDataResult getShuffleData(
       String appId, Integer shuffleId, Integer partitionId, int partitionNumPerRange,
       int partitionNum, int readBufferSize, String storageType, Set<Long> expectedBlockIds) {
-    refreshAppId(appId);
     CreateShuffleReadHandlerRequest request = new CreateShuffleReadHandlerRequest();
     request.setAppId(appId);
     request.setShuffleId(shuffleId);
@@ -219,10 +218,8 @@ public class ShuffleTaskManager {
     return ShuffleHandlerFactory.getInstance().getServerReadHandler(request).getShuffleData(expectedBlockIds);
   }
 
-  public void checkResourceStatus(Set<String> aliveAppIds) {
-    LOG.debug("Exist appIds:" + appIds + ", aliveAppIds:" + aliveAppIds);
+  public void checkResourceStatus() {
     Set<String> removed = Sets.newHashSet(appIds.keySet());
-    removed.removeAll(aliveAppIds);
     // remove applications not in coordinator's list and timeout according to rss.server.app.expired.withoutHeartbeat
     for (String appId : removed) {
       if (System.currentTimeMillis() - appIds.get(appId) > appExpiredWithoutHB) {
@@ -230,20 +227,6 @@ public class ShuffleTaskManager {
             + "to rss.server.app.expired.withoutHeartbeat");
         expiredAppIdQueue.add(appId);
       }
-    }
-
-    // remove expired applications in coordinator's list but timeout according to rss.server.app.expired.withHeartbeat
-    removed = Sets.newHashSet();
-    for (Map.Entry<String, Long> entry : appIds.entrySet()) {
-      if (System.currentTimeMillis() - entry.getValue() > appExpiredWithHB) {
-        removed.add(entry.getKey());
-      }
-    }
-
-    for (String appId : removed) {
-      LOG.info("Detect expired appId[" + appId + "] according "
-          + "to rss.server.app.expired.withHeartbeat");
-      expiredAppIdQueue.add(appId);
     }
   }
 
@@ -257,7 +240,7 @@ public class ShuffleTaskManager {
     LOG.info("Finish remove resource for appId[" + appId + "] cost " + (System.currentTimeMillis() - start) + " ms");
   }
 
-  private void refreshAppId(String appId) {
+  public void refreshAppId(String appId) {
     appIds.put(appId, System.currentTimeMillis());
   }
 

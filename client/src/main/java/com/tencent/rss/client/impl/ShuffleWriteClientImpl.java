@@ -34,6 +34,9 @@ import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,14 +47,17 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   private String clientType;
   private int retryMax;
   private long retryIntervalMax;
-  private CoordinatorClient coordinatorClient;
+  private List<CoordinatorClient> coordinatorClients = Lists.newLinkedList();
   private CoordinatorClientFactory coordinatorClientFactory;
+  private final List<ShuffleServerInfo> shuffleServerInfoList = Lists.newLinkedList();
+  private ExecutorService heartBeatExecutorService;
 
-  public ShuffleWriteClientImpl(String clientType, int retryMax, long retryIntervalMax) {
+  public ShuffleWriteClientImpl(String clientType, int retryMax, long retryIntervalMax, int heartBeatThreadNum) {
     this.clientType = clientType;
     this.retryMax = retryMax;
     this.retryIntervalMax = retryIntervalMax;
     coordinatorClientFactory = new CoordinatorClientFactory(clientType);
+    heartBeatExecutorService = Executors.newFixedThreadPool(heartBeatThreadNum);
   }
 
   private void sendShuffleDataAsync(
@@ -178,13 +184,13 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
     String msg = "Error happend when registerShuffle with appId[" + appId + "], shuffleId[" + shuffleId
         + "], start[" + start + "], end[" + end + "] to " + shuffleServerInfo;
     throwExceptionIfNecessary(response, msg);
+    shuffleServerInfoList.add(shuffleServerInfo);
   }
 
   @Override
-  public void registerCoordinatorClient(String host, int port) {
-    if (coordinatorClient == null) {
-      coordinatorClient = coordinatorClientFactory.createCoordinatorClient(host, port);
-    }
+  public void registerCoordinators(String coordinators) {
+    List<CoordinatorClient> clients = coordinatorClientFactory.createCoordinatorClient(coordinators);
+    coordinatorClients.addAll(clients);
   }
 
   @Override
@@ -192,10 +198,24 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
       String appId, int shuffleId, int partitionNum, int partitionNumPerRange, int dataReplica) {
     RssGetShuffleAssignmentsRequest request = new RssGetShuffleAssignmentsRequest(
         appId, shuffleId, partitionNum, partitionNumPerRange, dataReplica);
-    RssGetShuffleAssignmentsResponse response = coordinatorClient.getShuffleAssignments(request);
+
+    RssGetShuffleAssignmentsResponse response = new RssGetShuffleAssignmentsResponse(ResponseStatusCode.INTERNAL_ERROR);
+    for (CoordinatorClient coordinatorClient : coordinatorClients) {
+      try {
+        response = coordinatorClient.getShuffleAssignments(request);
+      } catch (Exception e) {
+        LOG.error(e.getMessage());
+      }
+
+      if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {
+        LOG.info("Success to get shuffle server assignment from {}", coordinatorClient.getDesc());
+        break;
+      }
+    }
     String msg = "Error happend when getShuffleAssignments with appId[" + appId + "], shuffleId[" + shuffleId
         + "], numMaps[" + partitionNum + "], partitionNumPerRange[" + partitionNumPerRange + "] to coordinator";
     throwExceptionIfNecessary(response, msg);
+
     return new ShuffleAssignmentsInfo(response.getPartitionToServers(),
         response.getRegisterInfoList(), response.getShuffleServersForResult());
   }
@@ -257,23 +277,49 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   }
 
   @Override
-  public void sendAppHeartbeat(String appId) {
-    RssAppHeartBeatRequest request = new RssAppHeartBeatRequest(appId);
-    RssAppHeartBeatResponse response = coordinatorClient.sendAppHeartBeat(request);
-    if (response.getStatusCode() != ResponseStatusCode.SUCCESS) {
-      LOG.warn("Send heartbeat failed for application[" + appId + "]");
-    }
+  public void sendAppHeartbeat(String appId, long timeoutMs) {
+    RssAppHeartBeatRequest request = new RssAppHeartBeatRequest(appId, timeoutMs);
+    shuffleServerInfoList.forEach(shuffleServerInfo ->
+      heartBeatExecutorService.execute(() -> {
+        try {
+          ShuffleServerClient client =
+              ShuffleServerClientFactory.getInstance().getShuffleServerClient(clientType, shuffleServerInfo);
+          RssAppHeartBeatResponse response = client.sendHeartBeat(request);
+          if (response.getStatusCode() != ResponseStatusCode.SUCCESS) {
+            LOG.warn("{} send heartbeat failed for application[{}]", client.getDesc(), appId);
+          }
+        } catch (Exception e) {
+          e.printStackTrace();
+          LOG.error("{} send heartbeat failed for application[{}], {}", shuffleServerInfo.getId(), appId,
+              e.getMessage());
+        }
+      })
+    );
+
+    coordinatorClients.forEach(coordinatorClient ->
+      heartBeatExecutorService.execute(() -> {
+        try {
+          RssAppHeartBeatResponse response = coordinatorClient.sendAppHeartBeat(request);
+          if (response.getStatusCode() != ResponseStatusCode.SUCCESS) {
+            LOG.warn("{} send heartbeat failed for application[{}]", coordinatorClient.getDesc(), appId);
+          }
+        } catch (Exception e) {
+          e.printStackTrace();
+          LOG.error("{} send heartbeat failed for application[{}], {}",
+              coordinatorClient.getDesc(), appId, e.getMessage());
+        }
+      })
+    );
   }
 
   @Override
   public void close() {
-    if (coordinatorClient != null) {
-      coordinatorClient.close();
-    }
+    heartBeatExecutorService.shutdownNow();
+    coordinatorClients.forEach(CoordinatorClient::close);
   }
 
   private void throwExceptionIfNecessary(ClientResponse response, String errorMsg) {
-    if (response.getStatusCode() != ResponseStatusCode.SUCCESS) {
+    if (response != null && response.getStatusCode() != ResponseStatusCode.SUCCESS) {
       LOG.error(errorMsg);
       throw new RuntimeException(errorMsg);
     }

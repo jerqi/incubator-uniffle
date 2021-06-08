@@ -1,7 +1,5 @@
 package com.tencent.rss.client.impl.grpc;
 
-import com.tencent.rss.client.response.ResponseStatusCode;
-import com.tencent.rss.proto.RssProtos;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.concurrent.TimeUnit;
@@ -42,29 +40,6 @@ public abstract class GrpcClient {
     this.channel = channel;
   }
 
-  protected ResponseStatusCode toResponseStatusCode(RssProtos.StatusCode code) {
-    switch (code) {
-      case SUCCESS:
-        return ResponseStatusCode.SUCCESS;
-      case DOUBLE_REGISTER:
-        return ResponseStatusCode.DOUBLE_REGISTER;
-      case NO_BUFFER:
-        return ResponseStatusCode.NO_BUFFER;
-      case INVALID_STORAGE:
-        return ResponseStatusCode.INVALID_STORAGE;
-      case NO_REGISTER:
-        return ResponseStatusCode.NO_REGISTER;
-      case NO_PARTITION:
-        return ResponseStatusCode.NO_PARTITION;
-      case INTERNAL_ERROR:
-        return ResponseStatusCode.INTERNAL_ERROR;
-      case TIMEOUT:
-        return ResponseStatusCode.TIMEOUT;
-      default:
-        return ResponseStatusCode.INTERNAL_ERROR;
-    }
-  }
-
   public void close() {
     try {
       channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
@@ -72,4 +47,5 @@ public abstract class GrpcClient {
       logger.error("Can't close GRPC client to " + host + ":" + port);
     }
   }
+
 }

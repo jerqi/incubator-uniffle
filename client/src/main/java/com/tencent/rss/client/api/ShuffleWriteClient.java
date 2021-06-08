@@ -12,13 +12,13 @@ public interface ShuffleWriteClient {
 
   SendShuffleDataResult sendShuffleData(String appId, List<ShuffleBlockInfo> shuffleBlockInfoList);
 
-  void sendAppHeartbeat(String appId);
+  void sendAppHeartbeat(String appId, long timeoutMs);
 
   void registerShuffle(ShuffleServerInfo shuffleServerInfo, String appId, int shuffleId, int start, int end);
 
   void sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId, int numMaps);
 
-  void registerCoordinatorClient(String host, int port);
+  void registerCoordinators(String coordinators);
 
   void reportShuffleResult(Set<ShuffleServerInfo> shuffleServerInfoSet,
       String appId, int shuffleId, long taskAttemptId, Map<Integer, List<Long>> partitionToBlockIds);

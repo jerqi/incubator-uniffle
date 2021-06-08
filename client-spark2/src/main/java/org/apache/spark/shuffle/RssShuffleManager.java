@@ -16,6 +16,8 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.apache.spark.MapOutputTracker;
@@ -51,7 +53,9 @@ public class RssShuffleManager implements ShuffleManager {
   private Map<String, Set<Long>> taskToFailedBlockIds = Maps.newConcurrentMap();
   private Map<String, WriteBufferManager> taskToBuffManager = Maps.newConcurrentMap();
   private boolean heartbeatStarted = false;
-  private long heartbeatInterval = 0;
+  private final long heartbeatInterval;
+  private final long heartbeatTimeout;
+  private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
   private ThreadPoolExecutor threadPoolExecutor;
   private EventLoop eventLoop = new EventLoop<AddBlockEvent>("ShuffleDataQueue") {
 
@@ -105,13 +109,16 @@ public class RssShuffleManager implements ShuffleManager {
         RssClientConfig.RSS_CLIENT_TYPE_DEFAULT_VALUE);
     this.heartbeatInterval = sparkConf.getLong(RssClientConfig.RSS_HEARTBEAT_INTERVAL,
         RssClientConfig.RSS_HEARTBEAT_INTERVAL_DEFAULT_VALUE);
+    this.heartbeatTimeout = sparkConf.getLong(RssClientConfig.RSS_HEARTBEAT_TIMEOUT, heartbeatInterval / 2);
     int retryMax = sparkConf.getInt(RssClientConfig.RSS_CLIENT_RETRY_MAX,
         RssClientConfig.RSS_CLIENT_RETRY_MAX_DEFAULT_VALUE);
     long retryIntervalMax = sparkConf.getLong(RssClientConfig.RSS_CLIENT_RETRY_INTERVAL_MAX,
         RssClientConfig.RSS_CLIENT_RETRY_INTERVAL_MAX_DEFAULT_VALUE);
+    int heartBeatThreadNum = sparkConf.getInt(RssClientConfig.RSS_CLIENT_HEARTBEAT_THREAD_NUM,
+        RssClientConfig.RSS_CLIENT_HEARTBEAT_THREAD_NUM_DEFAULT_VALUE);
     shuffleWriteClient = ShuffleClientFactory
         .getInstance()
-        .createShuffleWriteClient(clientType, retryMax, retryIntervalMax);
+        .createShuffleWriteClient(clientType, retryMax, retryIntervalMax, heartBeatThreadNum);
     registerCoordinator();
     if (!sparkConf.getBoolean(RssClientConfig.RSS_TEST_FLAG, false)) {
       // for non-driver executor, start a thread for sending shuffle data to shuffle server
@@ -143,8 +150,6 @@ public class RssShuffleManager implements ShuffleManager {
       LOG.info("Generate application id used in rss: " + appId);
     }
 
-    startHeartbeat();
-
     int partitionNumPerRange = sparkConf.getInt(RssClientConfig.RSS_PARTITION_NUM_PER_RANGE,
         RssClientConfig.RSS_PARTITION_NUM_PER_RANGE_DEFAULT_VALUE);
     int dataReplica = sparkConf.getInt(RssClientConfig.RSS_DATA_REPLICA,
@@ -154,9 +159,10 @@ public class RssShuffleManager implements ShuffleManager {
         appId, shuffleId, dependency.partitioner().numPartitions(), partitionNumPerRange, dataReplica);
     List<ShuffleRegisterInfo> shuffleRegisterInfoList = response.getRegisterInfoList();
     Map<Integer, List<ShuffleServerInfo>> partitionToServers = response.getPartitionToServers();
-    Set<ShuffleServerInfo> shuffleServerForResult = response.getShuffleServersForResult();
+    final Set<ShuffleServerInfo> shuffleServerForResult = response.getShuffleServersForResult();
 
     registerShuffleServers(appId, shuffleId, shuffleRegisterInfoList);
+    startHeartbeat();
 
     LOG.debug("RegisterShuffle with ShuffleId[" + shuffleId + "], size:" + partitionToServers.size());
     LOG.debug("Shuffle result assignment with ShuffleId[" + shuffleId + "], " + shuffleServerForResult);
@@ -172,21 +178,19 @@ public class RssShuffleManager implements ShuffleManager {
 
   private void startHeartbeat() {
     if (!sparkConf.getBoolean(RssClientConfig.RSS_TEST_FLAG, false) && !heartbeatStarted) {
-      new Thread(() -> {
-        while (true) {
-          try {
-            shuffleWriteClient.sendAppHeartbeat(appId);
-            LOG.info("Successfully send heartbeat to coordinator");
-          } catch (Exception e) {
-            LOG.warn("Error happened when keep heartbeat from application to coordinator", e);
-          }
-          try {
-            Thread.sleep(heartbeatInterval);
-          } catch (Exception e) {
-            LOG.warn("Error happened when do the sleep", e);
-          }
-        }
-      }).start();
+      scheduledExecutorService.scheduleAtFixedRate(
+          () -> {
+            try {
+              shuffleWriteClient.sendAppHeartbeat(appId, heartbeatTimeout);
+              LOG.info("Successfully send heartbeat to coordinator and servers");
+            } catch (Exception e) {
+              LOG.warn("Fail to send heartbeat to coordinator and servers {}", e.getMessage());
+              e.printStackTrace();
+            }
+          },
+          heartbeatInterval / 2,
+          heartbeatInterval,
+          TimeUnit.MILLISECONDS);
       heartbeatStarted = true;
     }
   }
@@ -206,10 +210,9 @@ public class RssShuffleManager implements ShuffleManager {
 
   @VisibleForTesting
   protected void registerCoordinator() {
-    String host = sparkConf.get(RssClientConfig.RSS_COORDINATOR_IP);
-    int port = Integer.parseInt(sparkConf.get(RssClientConfig.RSS_COORDINATOR_PORT));
-    LOG.info("Registering coordinator client [" + host + ":" + port + "]");
-    shuffleWriteClient.registerCoordinatorClient(host, port);
+    String coordinators = sparkConf.get(RssClientConfig.RSS_COORDINATOR_QUORUM);
+    LOG.info("Registering coordinators {}", coordinators);
+    shuffleWriteClient.registerCoordinators(coordinators);
   }
 
   // This method is called in Spark executor,
@@ -294,6 +297,8 @@ public class RssShuffleManager implements ShuffleManager {
 
   @Override
   public void stop() {
+    scheduledExecutorService.shutdownNow();
+    threadPoolExecutor.shutdownNow();
     shuffleWriteClient.close();
   }
 

@@ -10,6 +10,8 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.proto.RssProtos;
+import com.tencent.rss.proto.RssProtos.AppHeartBeatRequest;
+import com.tencent.rss.proto.RssProtos.AppHeartBeatResponse;
 import com.tencent.rss.proto.RssProtos.FinishShuffleRequest;
 import com.tencent.rss.proto.RssProtos.FinishShuffleResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleDataRequest;
@@ -31,6 +33,8 @@ import com.tencent.rss.proto.RssProtos.ShuffleDataBlockSegment;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerImplBase;
+import io.grpc.Context;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.List;
 import java.util.Map;
@@ -246,6 +250,28 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
             .setStatus(valueOf(status))
             .setRequireBufferId(requireBufferId)
             .build();
+    responseObserver.onNext(response);
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void appHeartbeat(
+      AppHeartBeatRequest request, StreamObserver<AppHeartBeatResponse> responseObserver) {
+    String appId = request.getAppId();
+    shuffleServer.getShuffleTaskManager().refreshAppId(appId);
+    AppHeartBeatResponse response = AppHeartBeatResponse
+        .newBuilder()
+        .setRetMsg("")
+        .setStatus(valueOf(StatusCode.SUCCESS))
+        .build();
+
+    if (Context.current().isCancelled()) {
+      responseObserver.onError(Status.CANCELLED.withDescription("Cancelled by client").asRuntimeException());
+      LOG.warn("Cancelled by client {} for after deadline.", appId);
+      return;
+    }
+
+    LOG.info("Get heartbeat from {}", appId);
     responseObserver.onNext(response);
     responseObserver.onCompleted();
   }

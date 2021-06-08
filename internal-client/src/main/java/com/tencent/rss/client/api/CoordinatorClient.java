@@ -15,5 +15,7 @@ public interface CoordinatorClient {
 
   RssGetShuffleAssignmentsResponse getShuffleAssignments(RssGetShuffleAssignmentsRequest request);
 
+  String getDesc();
+
   void close();
 }

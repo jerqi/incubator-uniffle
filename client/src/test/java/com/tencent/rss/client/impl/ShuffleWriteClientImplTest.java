@@ -21,7 +21,8 @@ public class ShuffleWriteClientImplTest {
 
   @Test
   public void testSendData() {
-    ShuffleWriteClientImpl shuffleWriteClient = new ShuffleWriteClientImpl("GRPC", 3, 2000);
+    ShuffleWriteClientImpl shuffleWriteClient =
+        new ShuffleWriteClientImpl("GRPC", 3, 2000, 4);
     ShuffleServerClient mockShuffleServerClient = mock(ShuffleServerClient.class);
     ShuffleWriteClientImpl spyClient = spy(shuffleWriteClient);
     doReturn(mockShuffleServerClient).when(spyClient).getShuffleServerClient(any());

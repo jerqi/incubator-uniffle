@@ -72,31 +72,4 @@ public class RegisterHeartBeatTest {
     assertTrue(ret);
   }
 
-
-  @Test
-  public void heartBeatFailTest() {
-    CoordinatorServerImplBase serviceImpl =
-        new CoordinatorServerImplBase() {
-          @Override
-          public void heartbeat(ShuffleServerHeartBeatRequest req,
-              StreamObserver<ShuffleServerHeartBeatResponse> streamObserver) {
-            ShuffleServerHeartBeatResponse resp = ShuffleServerHeartBeatResponse
-                .newBuilder()
-                .setStatus(RssProtos.StatusCode.INTERNAL_ERROR)
-                .build();
-            streamObserver.onNext(resp);
-            streamObserver.onCompleted();
-          }
-        };
-    serviceRegistry.addService(serviceImpl);
-
-    rh.setMaxHeartBeatRetry(3);
-
-    sendHeartBeat(rh);
-    sendHeartBeat(rh);
-    assertEquals(rh.getFailedHeartBeatCount(), 2);
-
-    sendHeartBeat(rh);
-    assertEquals(rh.getFailedHeartBeatCount(), 3);
-  }
 }

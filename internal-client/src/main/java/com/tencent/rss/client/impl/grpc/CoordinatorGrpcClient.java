@@ -60,6 +60,11 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
     blockingStub = CoordinatorServerGrpc.newBlockingStub(channel);
   }
 
+  @Override
+  public String getDesc() {
+    return "Coordinator grpc client ref to " + host + ":" + port;
+  }
+
   public GetShuffleServerListResponse getShuffleServerList() {
     return blockingStub.getShuffleServerList(Empty.newBuilder().build());
   }
@@ -148,7 +153,8 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
   @Override
   public RssAppHeartBeatResponse sendAppHeartBeat(RssAppHeartBeatRequest request) {
     AppHeartBeatRequest rpcRequest = AppHeartBeatRequest.newBuilder().setAppId(request.getAppId()).build();
-    AppHeartBeatResponse rpcResponse = blockingStub.appHeartbeat(rpcRequest);
+    AppHeartBeatResponse rpcResponse = blockingStub
+        .withDeadlineAfter(request.getTimeoutMs(), TimeUnit.MILLISECONDS).appHeartbeat(rpcRequest);
 
     RssAppHeartBeatResponse response;
     StatusCode statusCode = rpcResponse.getStatus();

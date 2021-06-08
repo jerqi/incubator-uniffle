@@ -12,10 +12,15 @@ import org.junit.AfterClass;
 
 abstract public class IntegrationTestBase extends HdfsTestBase {
 
-  protected static final int JETTY_PORT = 19998;
-  protected static int COORDINATOR_PORT = 19999;
-  protected static int SHUFFLE_SERVER_PORT = 20001;
-  protected static String LOCALHOST = "127.0.0.1";
+  protected static final int SHUFFLE_SERVER_PORT = 20001;
+  protected static final String LOCALHOST = "127.0.0.1";
+  protected static final int COORDINATOR_PORT_1 = 19999;
+  protected static final int COORDINATOR_PORT_2 = 20030;
+  protected static final int JETTY_PORT_1 = 19998;
+  protected static final int JETTY_PORT_2 = 20032;
+  protected static final String COORDINATOR_QUORUM =
+      LOCALHOST + ":" + COORDINATOR_PORT_1 + "," + LOCALHOST + ":" + COORDINATOR_PORT_2;
+
   protected static List<ShuffleServer> shuffleServers = Lists.newArrayList();
   protected static List<CoordinatorServer> coordinators = Lists.newArrayList();
 
@@ -42,8 +47,8 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
 
   protected static CoordinatorConf getCoordinatorConf() {
     CoordinatorConf coordinatorConf = new CoordinatorConf();
-    coordinatorConf.setInteger("rss.rpc.server.port", COORDINATOR_PORT);
-    coordinatorConf.setInteger("rss.jetty.http.port", JETTY_PORT);
+    coordinatorConf.setInteger("rss.rpc.server.port", COORDINATOR_PORT_1);
+    coordinatorConf.setInteger("rss.jetty.http.port", JETTY_PORT_1);
     return coordinatorConf;
   }
 
@@ -56,8 +61,7 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     serverConf.setString("rss.server.buffer.spill.threshold", "335544320");
     serverConf.setString("rss.server.read.buffer.capacity", "335544320");
     serverConf.setString("rss.server.partition.buffer.size", "67108864");
-    serverConf.setString("rss.coordinator.ip", "127.0.0.1");
-    serverConf.setInteger("rss.coordinator.port", COORDINATOR_PORT);
+    serverConf.setString("rss.coordinator.quorum", COORDINATOR_QUORUM);
     serverConf.setString("rss.server.heartbeat.delay", "1000");
     serverConf.setString("rss.server.heartbeat.interval", "1000");
     serverConf.setInteger("rss.jetty.http.port", 18080);
@@ -68,6 +72,9 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
   }
 
   protected static void createCoordinatorServer(CoordinatorConf coordinatorConf) throws Exception {
+    coordinators.add(new CoordinatorServer(coordinatorConf));
+    coordinatorConf.setInteger("rss.rpc.server.port", COORDINATOR_PORT_2);
+    coordinatorConf.setInteger("rss.jetty.http.port", JETTY_PORT_2);
     coordinators.add(new CoordinatorServer(coordinatorConf));
   }
 
