@@ -77,13 +77,12 @@ public class ShuffleServerMetricsTest {
     ShuffleServerMetrics.counterTotalRequest.inc();
     ShuffleServerMetrics.counterTotalRequest.inc();
     ShuffleServerMetrics.counterTotalReceivedDataSize.inc();
-    ShuffleServerMetrics.histogramWriteSpeed.observe(1000);
 
     String content = httpGetMetrics(SERVER_METRICS_URL);
     ObjectMapper mapper = new ObjectMapper();
     JsonNode actualObj = mapper.readTree(content);
     assertEquals(2, actualObj.size());
-    assertEquals(24, actualObj.get("metrics").size());
+    assertEquals(23, actualObj.get("metrics").size());
   }
 
   @Test

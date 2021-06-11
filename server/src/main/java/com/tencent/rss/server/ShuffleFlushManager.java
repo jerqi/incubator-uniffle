@@ -43,6 +43,10 @@ public class ShuffleFlushManager {
   private boolean isRunning;
   private Runnable processEventThread;
   private int retryMax;
+  private long writeSlowThreshold;
+  private long eventSizeThresholdL1;
+  private long eventSizeThresholdL2;
+  private long eventSizeThresholdL3;
 
   public ShuffleFlushManager(ShuffleServerConf shuffleServerConf, String shuffleServerId, ShuffleServer shuffleServer) {
     this.shuffleServerId = shuffleServerId;
@@ -50,13 +54,17 @@ public class ShuffleFlushManager {
     this.shuffleServerConf = shuffleServerConf;
     initHadoopConf();
     retryMax = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_WRITE_RETRY_MAX);
-    long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.SERVER_FLUSH_THREAD_ALIVE);
     storageType = shuffleServerConf.get(RssBaseConf.RSS_STORAGE_TYPE);
     storageDataReplica = shuffleServerConf.get(RssBaseConf.RSS_STORAGE_DATA_REPLICA);
+    writeSlowThreshold = shuffleServerConf.getLong(ShuffleServerConf.SERVER_WRITE_SLOW_THRESHOLD);
+    eventSizeThresholdL1 = shuffleServerConf.getLong(ShuffleServerConf.SERVER_EVENT_SIZE_THRESHOLD_L1);
+    eventSizeThresholdL2 = shuffleServerConf.getLong(ShuffleServerConf.SERVER_EVENT_SIZE_THRESHOLD_L2);
+    eventSizeThresholdL3 = shuffleServerConf.getLong(ShuffleServerConf.SERVER_EVENT_SIZE_THRESHOLD_L3);
     int waitQueueSize = shuffleServerConf.getInteger(
         ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE);
     BlockingQueue<Runnable> waitQueue = Queues.newLinkedBlockingQueue(waitQueueSize);
     int poolSize = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_FLUSH_THREAD_POOL_SIZE);
+    long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.SERVER_FLUSH_THREAD_ALIVE);
     threadPoolExecutor = new ThreadPoolExecutor(poolSize, poolSize, keepAliveTime, TimeUnit.SECONDS, waitQueue);
     storageBasePaths = shuffleServerConf.getString(ShuffleServerConf.RSS_STORAGE_BASE_PATH).split(",");
     isRunning = true;
@@ -67,7 +75,10 @@ public class ShuffleFlushManager {
         while (isRunning) {
           ShuffleDataFlushEvent event = flushQueue.take();
           threadPoolExecutor.execute(() -> {
+            ShuffleServerMetrics.gaugeEventQueueSize.set(flushQueue.size());
+            ShuffleServerMetrics.gaugeWriteHandler.inc();
             flushToFile(event);
+            ShuffleServerMetrics.gaugeWriteHandler.dec();
           });
         }
       } catch (InterruptedException ie) {
@@ -100,13 +111,28 @@ public class ShuffleFlushManager {
           try {
             long startWrite = System.currentTimeMillis();
             handler.write(blocks);
-            ShuffleServerMetrics.counterTotalWriteTime.inc(System.currentTimeMillis() - startWrite);
+            long writeTime = System.currentTimeMillis() - startWrite;
+            ShuffleServerMetrics.counterTotalWriteTime.inc(writeTime);
+            ShuffleServerMetrics.counterWriteTotal.inc();
+            if (writeTime > writeSlowThreshold) {
+              ShuffleServerMetrics.counterWriteSlow.inc();
+            }
             updateCommittedBlockCount(event.getAppId(), event.getShuffleId(), event.getShuffleBlocks().size());
             writeSuccess = true;
             ShuffleServerMetrics.counterTotalWriteDataSize.inc(event.getSize());
             ShuffleServerMetrics.counterTotalWriteBlockSize.inc(event.getShuffleBlocks().size());
+            if (event.getSize() < eventSizeThresholdL1) {
+              ShuffleServerMetrics.counterEventSizeThresholdLevel1.inc();
+            } else if (event.getSize() < eventSizeThresholdL2) {
+              ShuffleServerMetrics.counterEventSizeThresholdLevel2.inc();
+            } else if (event.getSize() < eventSizeThresholdL3) {
+              ShuffleServerMetrics.counterEventSizeThresholdLevel3.inc();
+            } else {
+              ShuffleServerMetrics.counterEventSizeThresholdLevel4.inc();
+            }
           } catch (Exception e) {
             LOG.warn("Exception happened when write data for " + event + ", try again", e);
+            ShuffleServerMetrics.counterWriteException.inc();
             Thread.sleep(1000);
           }
           retry++;

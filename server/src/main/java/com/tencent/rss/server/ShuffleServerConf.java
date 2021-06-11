@@ -118,6 +118,30 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(1000L)
       .withDescription("Interval for check commit status");
 
+  public static final ConfigOption<Long> SERVER_WRITE_SLOW_THRESHOLD = ConfigOptions
+      .key("rss.server.write.slow.threshold")
+      .longType()
+      .defaultValue(10000L)
+      .withDescription("Threshold for write slow defined");
+
+  public static final ConfigOption<Long> SERVER_EVENT_SIZE_THRESHOLD_L1 = ConfigOptions
+      .key("rss.server.event.size.threshold.l1")
+      .longType()
+      .defaultValue(200000L)
+      .withDescription("Threshold for event size");
+
+  public static final ConfigOption<Long> SERVER_EVENT_SIZE_THRESHOLD_L2 = ConfigOptions
+      .key("rss.server.event.size.threshold.l2")
+      .longType()
+      .defaultValue(1000000L)
+      .withDescription("Threshold for event size");
+
+  public static final ConfigOption<Long> SERVER_EVENT_SIZE_THRESHOLD_L3 = ConfigOptions
+      .key("rss.server.event.size.threshold.l3")
+      .longType()
+      .defaultValue(10000000L)
+      .withDescription("Threshold for event size");
+
   public ShuffleServerConf() {
   }
 
@@ -213,6 +237,22 @@ public class ShuffleServerConf extends RssBaseConf {
 
       if (SERVER_READ_BUFFER_CAPACITY.key().equalsIgnoreCase(k)) {
         set(SERVER_READ_BUFFER_CAPACITY, Long.valueOf(v));
+      }
+
+      if (SERVER_WRITE_SLOW_THRESHOLD.key().equalsIgnoreCase(k)) {
+        set(SERVER_WRITE_SLOW_THRESHOLD, Long.valueOf(v));
+      }
+
+      if (SERVER_EVENT_SIZE_THRESHOLD_L1.key().equalsIgnoreCase(k)) {
+        set(SERVER_EVENT_SIZE_THRESHOLD_L1, Long.valueOf(v));
+      }
+
+      if (SERVER_EVENT_SIZE_THRESHOLD_L2.key().equalsIgnoreCase(k)) {
+        set(SERVER_EVENT_SIZE_THRESHOLD_L2, Long.valueOf(v));
+      }
+
+      if (SERVER_EVENT_SIZE_THRESHOLD_L3.key().equalsIgnoreCase(k)) {
+        set(SERVER_EVENT_SIZE_THRESHOLD_L3, Long.valueOf(v));
       }
 
       if (k.startsWith(PREFIX_HADOOP_CONF)) {
