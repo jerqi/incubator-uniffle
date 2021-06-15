@@ -70,27 +70,30 @@ public class RegisterHeartBeat {
   boolean sendHeartBeat(String id, String ip, int port, long usedMemory,
       long preAllocatedMemory, long availableMemory, int eventNumInFlush) {
     boolean sendSuccessfully = false;
-    RssSendHeartBeatRequest request = new RssSendHeartBeatRequest(
-        id, ip, port, usedMemory, preAllocatedMemory, availableMemory, eventNumInFlush, heartBeatTimeout);
-    RssSendHeartBeatResponse response = rpcClient.sendHeartBeat(request);
-    ResponseStatusCode status = response.getStatusCode();
+    try {
+      RssSendHeartBeatRequest request = new RssSendHeartBeatRequest(
+          id, ip, port, usedMemory, preAllocatedMemory, availableMemory, eventNumInFlush, heartBeatTimeout);
+      RssSendHeartBeatResponse response = rpcClient.sendHeartBeat(request);
+      ResponseStatusCode status = response.getStatusCode();
 
-    if (status != ResponseStatusCode.SUCCESS) {
-      LOGGER.error("Can't send heartbeat to coordinator");
-      failedHeartBeatCount++;
-    } else {
-      LOGGER.debug("Get heartbeat response with appIds " + response.getAppIds());
-      failedHeartBeatCount = 0;
-      sendSuccessfully = true;
-      checkResourceStatus(response.getAppIds());
+      if (status != ResponseStatusCode.SUCCESS) {
+        LOGGER.error("Can't send heartbeat to coordinator");
+        failedHeartBeatCount++;
+      } else {
+        LOGGER.info("Send heartbeat to coordinator successfully");
+        failedHeartBeatCount = 0;
+        sendSuccessfully = true;
+        checkResourceStatus(response.getAppIds());
+      }
+
+      if (failedHeartBeatCount >= maxHeartBeatRetry) {
+        LOGGER.error(
+            "Failed heartbeat count {} exceed {}",
+            failedHeartBeatCount, maxHeartBeatRetry);
+      }
+    } catch (Exception e) {
+      LOGGER.warn("Exception happened when send heartbeat to coordinator", e);
     }
-
-    if (failedHeartBeatCount >= maxHeartBeatRetry) {
-      LOGGER.error(
-          "Failed heartbeat count {} exceed {}",
-          failedHeartBeatCount, maxHeartBeatRetry);
-    }
-
     return sendSuccessfully;
   }
 
