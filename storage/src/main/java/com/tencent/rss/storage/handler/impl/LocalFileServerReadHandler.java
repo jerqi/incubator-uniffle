@@ -64,9 +64,9 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
 
     long start = System.currentTimeMillis();
     if (storageBasePaths.length > 0) {
-      for (String path : storageBasePaths) {
-        prepareFilePath(appId, shuffleId, partitionId, partitionNumPerRange, partitionNum, path);
-      }
+      int[] range = ShuffleStorageUtils.getPartitionRange(partitionId, partitionNumPerRange, partitionNum);
+      int index = ShuffleStorageUtils.getStorageIndex(storageBasePaths.length, appId, shuffleId, range[0]);
+      prepareFilePath(appId, shuffleId, partitionId, partitionNumPerRange, partitionNum, storageBasePaths[index]);
     } else {
       throw new RuntimeException("Can't get base path, please check rss.storage.localFile.basePaths.");
     }
@@ -129,7 +129,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
     for (Entry<String, String> entry : indexPathMap.entrySet()) {
       String path = entry.getKey();
       try {
-        LOG.info("Read index file for: " + entry.getValue());
+        LOG.debug("Read index file for: " + entry.getValue());
         List<FileBasedShuffleSegment> allSegments = Lists.newArrayList();
         try (LocalFileReader reader = createFileReader(entry.getValue())) {
           List<FileBasedShuffleSegment> segments = reader.readIndex(indexReadLimit);
@@ -175,7 +175,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
         try (LocalFileReader reader = createFileReader(dataPathMap.get(fileSegment.getPath()))) {
           readBuffer = reader.readData(fileSegment.getOffset(), fileSegment.getLength());
         }
-        LOG.info("Read File segment: " + fileSegment.getPath() + ", offset["
+        LOG.debug("Read File segment: " + fileSegment.getPath() + ", offset["
             + fileSegment.getOffset() + "], length[" + fileSegment.getLength()
             + "], cost:" + (System.currentTimeMillis() - start) + " ms, for appId[" + appId
             + "], shuffleId[" + shuffleId + "], partitionId[" + partitionId + "]");

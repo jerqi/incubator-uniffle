@@ -25,6 +25,8 @@ public class ShuffleServerMetrics {
   private static final String EVENT_SIZE_THRESHOLD_LEVEL3 = "event_size_threshold_level3";
   private static final String EVENT_SIZE_THRESHOLD_LEVEL4 = "event_size_threshold_level4";
   private static final String EVENT_QUEUE_SIZE = "event_queue_size";
+  private static final String TOTAL_READ_DATA = "total_read_data";
+  private static final String TOTAL_READ_TIME = "total_read_time";
 
   private static final String REGISTERED_SHUFFLE = "registered_shuffle";
   private static final String REGISTERED_SHUFFLE_ENGINE = "registered_shuffle_engine";
@@ -48,6 +50,8 @@ public class ShuffleServerMetrics {
   static Counter counterEventSizeThresholdLevel2;
   static Counter counterEventSizeThresholdLevel3;
   static Counter counterEventSizeThresholdLevel4;
+  static Counter counterTotalReadDataSize;
+  static Counter counterTotalReadTime;
 
   static Gauge gaugeRegisteredShuffle;
   static Gauge gaugeRegisteredShuffleEngine;
@@ -93,6 +97,8 @@ public class ShuffleServerMetrics {
     counterEventSizeThresholdLevel2 = metricsManager.addCounter(EVENT_SIZE_THRESHOLD_LEVEL2);
     counterEventSizeThresholdLevel3 = metricsManager.addCounter(EVENT_SIZE_THRESHOLD_LEVEL3);
     counterEventSizeThresholdLevel4 = metricsManager.addCounter(EVENT_SIZE_THRESHOLD_LEVEL4);
+    counterTotalReadDataSize = metricsManager.addCounter(TOTAL_READ_DATA);
+    counterTotalReadTime = metricsManager.addCounter(TOTAL_READ_TIME);
 
     gaugeRegisteredShuffle = metricsManager.addGauge(REGISTERED_SHUFFLE);
     gaugeRegisteredShuffleEngine = metricsManager.addGauge(REGISTERED_SHUFFLE_ENGINE);

@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 
 public class LocalFileClientReadHandler extends AbstractFileClientReadHandler {
 
-  private static final Logger LOG = LoggerFactory.getLogger(HdfsClientReadHandler.class);
+  private static final Logger LOG = LoggerFactory.getLogger(LocalFileClientReadHandler.class);
   private int partitionNumPerRange;
   private int partitionNum;
   private int readBufferSize;

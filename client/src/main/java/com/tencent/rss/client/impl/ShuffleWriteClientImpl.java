@@ -36,20 +36,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ShuffleWriteClientImpl implements ShuffleWriteClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleWriteClientImpl.class);
-
   private String clientType;
   private int retryMax;
   private long retryIntervalMax;
   private List<CoordinatorClient> coordinatorClients = Lists.newLinkedList();
+  private Set<ShuffleServerInfo> shuffleServerInfoSet = Sets.newHashSet();
   private CoordinatorClientFactory coordinatorClientFactory;
-  private final List<ShuffleServerInfo> shuffleServerInfoList = Lists.newLinkedList();
   private ExecutorService heartBeatExecutorService;
 
   public ShuffleWriteClientImpl(String clientType, int retryMax, long retryIntervalMax, int heartBeatThreadNum) {
@@ -184,7 +182,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
     String msg = "Error happend when registerShuffle with appId[" + appId + "], shuffleId[" + shuffleId
         + "], start[" + start + "], end[" + end + "] to " + shuffleServerInfo;
     throwExceptionIfNecessary(response, msg);
-    shuffleServerInfoList.add(shuffleServerInfo);
+    shuffleServerInfoSet.add(shuffleServerInfo);
   }
 
   @Override
@@ -279,36 +277,34 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   @Override
   public void sendAppHeartbeat(String appId, long timeoutMs) {
     RssAppHeartBeatRequest request = new RssAppHeartBeatRequest(appId, timeoutMs);
-    shuffleServerInfoList.forEach(shuffleServerInfo ->
-      heartBeatExecutorService.execute(() -> {
-        try {
-          ShuffleServerClient client =
-              ShuffleServerClientFactory.getInstance().getShuffleServerClient(clientType, shuffleServerInfo);
-          RssAppHeartBeatResponse response = client.sendHeartBeat(request);
-          if (response.getStatusCode() != ResponseStatusCode.SUCCESS) {
-            LOG.warn("{} send heartbeat failed for application[{}]", client.getDesc(), appId);
+    shuffleServerInfoSet.parallelStream().forEach(shuffleServerInfo -> {
+          try {
+            ShuffleServerClient client =
+                ShuffleServerClientFactory.getInstance().getShuffleServerClient(clientType, shuffleServerInfo);
+            RssAppHeartBeatResponse response = client.sendHeartBeat(request);
+            if (response.getStatusCode() != ResponseStatusCode.SUCCESS) {
+              LOG.warn("Failed to send heartbeat to " + shuffleServerInfo);
+            } else {
+              LOG.info("Successfully send heartbeat to " + shuffleServerInfo);
+            }
+          } catch (Exception e) {
+            LOG.warn("Error happened when send heartbeat to " + shuffleServerInfo, e);
           }
-        } catch (Exception e) {
-          e.printStackTrace();
-          LOG.error("{} send heartbeat failed for application[{}], {}", shuffleServerInfo.getId(), appId,
-              e.getMessage());
         }
-      })
     );
 
-    coordinatorClients.forEach(coordinatorClient ->
-      heartBeatExecutorService.execute(() -> {
-        try {
-          RssAppHeartBeatResponse response = coordinatorClient.sendAppHeartBeat(request);
-          if (response.getStatusCode() != ResponseStatusCode.SUCCESS) {
-            LOG.warn("{} send heartbeat failed for application[{}]", coordinatorClient.getDesc(), appId);
+    coordinatorClients.parallelStream().forEach(coordinatorClient -> {
+          try {
+            RssAppHeartBeatResponse response = coordinatorClient.sendAppHeartBeat(request);
+            if (response.getStatusCode() != ResponseStatusCode.SUCCESS) {
+              LOG.warn("Failed to send heartbeat to " + coordinatorClient.getDesc());
+            } else {
+              LOG.info("Successfully send heartbeat to " + coordinatorClient.getDesc());
+            }
+          } catch (Exception e) {
+            LOG.warn("Error happened when send heartbeat to " + coordinatorClient.getDesc(), e);
           }
-        } catch (Exception e) {
-          e.printStackTrace();
-          LOG.error("{} send heartbeat failed for application[{}], {}",
-              coordinatorClient.getDesc(), appId, e.getMessage());
         }
-      })
     );
   }
 

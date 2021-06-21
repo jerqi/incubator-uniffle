@@ -354,9 +354,9 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         .build();
     long start = System.currentTimeMillis();
     GetShuffleDataResponse rpcResponse = blockingStub.getShuffleData(rpcRequest);
-    LOG.info("GetShuffleData for appId[" + request.getAppId() + "], shuffleId["
-        + request.getShuffleId() + "], partitionId[" + request.getPartitionId() + "] cost "
-        + (System.currentTimeMillis() - start) + " ms");
+    String requestInfo = "appId[" + request.getAppId() + "], shuffleId["
+        + request.getShuffleId() + "], partitionId[" + request.getPartitionId() + "]";
+    LOG.info("GetShuffleData for " + requestInfo + " cost " + (System.currentTimeMillis() - start) + " ms");
     StatusCode statusCode = rpcResponse.getStatus();
 
     RssGetShuffleDataResponse response;
@@ -370,8 +370,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         break;
       default:
         String msg = "Can't get shuffle data from " + host + ":" + port
-            + " for [appId=" + request.getAppId() + ", shuffleId=" + request.getShuffleId()
-            + ", errorMsg:" + rpcResponse.getRetMsg();
+            + " for " + requestInfo + ", errorMsg:" + rpcResponse.getRetMsg();
         LOG.error(msg);
         throw new RuntimeException(msg);
     }

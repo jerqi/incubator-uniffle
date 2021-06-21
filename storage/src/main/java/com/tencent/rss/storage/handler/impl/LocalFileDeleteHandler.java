@@ -15,10 +15,12 @@ public class LocalFileDeleteHandler implements ShuffleDeleteHandler {
   public void delete(String[] storageBasePaths, String appId) {
     for (String basePath : storageBasePaths) {
       String shufflePath = ShuffleStorageUtils.getFullShuffleDataFolder(basePath, appId);
-      LOG.info("Delete shuffle data for appId[" + appId + "] with " + shufflePath);
+      long start = System.currentTimeMillis();
       try {
         File baseFolder = new File(shufflePath);
         FileUtils.deleteDirectory(baseFolder);
+        LOG.info("Delete shuffle data for appId[" + appId + "] with " + shufflePath
+            + " cost " + (System.currentTimeMillis() - start) + " ms");
       } catch (Exception e) {
         LOG.warn("Can't delete shuffle data for appId[" + appId + "] with " + shufflePath, e);
       }

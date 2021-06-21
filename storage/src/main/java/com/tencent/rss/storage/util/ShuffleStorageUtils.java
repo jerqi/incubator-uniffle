@@ -136,4 +136,16 @@ public class ShuffleStorageUtils {
     }
     return range;
   }
+
+  public static int getStorageIndex(int max, String appId, int shuffleId, int startPartition) {
+    int code = appId.hashCode();
+    if (code < 0) {
+      code = code + 1;
+    }
+    int index = (code + shuffleId * 31 + startPartition * 31) % max;
+    if (index < 0) {
+      index = -index;
+    }
+    return index;
+  }
 }

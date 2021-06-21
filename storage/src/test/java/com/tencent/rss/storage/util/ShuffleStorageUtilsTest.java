@@ -234,4 +234,36 @@ public class ShuffleStorageUtilsTest {
     result = ShuffleStorageUtils.getShuffleDataPathWithRange("appId", 0, 6, 3, 7);
     assertEquals("appId/0/6-8", result);
   }
+
+  @Test
+  public void getStorageIndexTest() {
+    // negative case
+    int index = ShuffleStorageUtils.getStorageIndex(10, "application_1622974866027_1068997", 0, 1);
+    assertEquals(6, index);
+    // positive case
+    index = ShuffleStorageUtils.getStorageIndex(10, "abcde", 3, 1);
+    assertEquals(9, index);
+  }
+
+  @Test
+  public void getPartitionRangeTest() {
+    int[] range = ShuffleStorageUtils.getPartitionRange(0, 1, 5);
+    assertEquals(0, range[0]);
+    assertEquals(0, range[1]);
+    range = ShuffleStorageUtils.getPartitionRange(0, 2, 5);
+    assertEquals(0, range[0]);
+    assertEquals(1, range[1]);
+    range = ShuffleStorageUtils.getPartitionRange(1, 2, 5);
+    assertEquals(0, range[0]);
+    assertEquals(1, range[1]);
+    range = ShuffleStorageUtils.getPartitionRange(0, 3, 5);
+    assertEquals(0, range[0]);
+    assertEquals(2, range[1]);
+    range = ShuffleStorageUtils.getPartitionRange(1, 3, 5);
+    assertEquals(0, range[0]);
+    assertEquals(2, range[1]);
+    range = ShuffleStorageUtils.getPartitionRange(2, 3, 5);
+    assertEquals(0, range[0]);
+    assertEquals(2, range[1]);
+  }
 }

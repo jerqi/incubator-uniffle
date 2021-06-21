@@ -8,7 +8,6 @@ import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +26,7 @@ public class LocalFileWriteHandler implements ShuffleWriteHandler {
       String[] storageBasePaths,
       String fileNamePrefix) {
     this.fileNamePrefix = fileNamePrefix;
-    String storageBasePath = pickBasePath(storageBasePaths);
+    String storageBasePath = pickBasePath(storageBasePaths, appId, shuffleId, startPartition);
     this.basePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
         ShuffleStorageUtils.getShuffleDataPath(appId, shuffleId, startPartition, endPartition));
     createBasePath();
@@ -50,13 +49,13 @@ public class LocalFileWriteHandler implements ShuffleWriteHandler {
     }
   }
 
-  // pick basepath by random
-  private String pickBasePath(String[] storageBasePaths) {
+  // pick base path by hashcode
+  private String pickBasePath(String[] storageBasePaths, String appId, int shuffleId, int startPartition) {
     if (storageBasePaths == null || storageBasePaths.length == 0) {
       throw new RuntimeException("Base path can't be empty, please check rss.storage.localFile.basePaths");
     }
-    Random random = new Random();
-    return storageBasePaths[random.nextInt(storageBasePaths.length)];
+    int index = ShuffleStorageUtils.getStorageIndex(storageBasePaths.length, appId, shuffleId, startPartition);
+    return storageBasePaths[index];
   }
 
   @Override

@@ -44,6 +44,9 @@ import scala.collection.Seq;
 public class RssShuffleManager implements ShuffleManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(RssShuffleManager.class);
+  private final long heartbeatInterval;
+  private final long heartbeatTimeout;
+  private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
   private SparkConf sparkConf;
   private String appId = "";
   private boolean isDriver;
@@ -53,9 +56,6 @@ public class RssShuffleManager implements ShuffleManager {
   private Map<String, Set<Long>> taskToFailedBlockIds = Maps.newConcurrentMap();
   private Map<String, WriteBufferManager> taskToBuffManager = Maps.newConcurrentMap();
   private boolean heartbeatStarted = false;
-  private final long heartbeatInterval;
-  private final long heartbeatTimeout;
-  private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
   private ThreadPoolExecutor threadPoolExecutor;
   private EventLoop eventLoop = new EventLoop<AddBlockEvent>("ShuffleDataQueue") {
 
@@ -185,7 +185,6 @@ public class RssShuffleManager implements ShuffleManager {
               LOG.info("Successfully send heartbeat to coordinator and servers");
             } catch (Exception e) {
               LOG.warn("Fail to send heartbeat to coordinator and servers {}", e.getMessage());
-              e.printStackTrace();
             }
           },
           heartbeatInterval / 2,

@@ -39,7 +39,6 @@ import io.grpc.stub.StreamObserver;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +46,6 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleServerGrpcService.class);
   private final ShuffleServer shuffleServer;
-  private AtomicLong readDataTime = new AtomicLong(0);
 
   public ShuffleServerGrpcService(ShuffleServer shuffleServer) {
     this.shuffleServer = shuffleServer;
@@ -364,8 +362,10 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
         long start = System.currentTimeMillis();
         sdr = shuffleServer.getShuffleTaskManager().getShuffleData(appId, shuffleId, partitionId,
             partitionNumPerRange, partitionNum, readBufferSize, storageType, blockIds);
-        readDataTime.addAndGet(System.currentTimeMillis() - start);
-        LOG.info("GetShuffleData cost " + (System.currentTimeMillis() - start) + " ms for " + requestInfo);
+        long readTime = System.currentTimeMillis() - start;
+        ShuffleServerMetrics.counterTotalReadTime.inc(readTime);
+        ShuffleServerMetrics.counterTotalReadDataSize.inc(sdr.getData().length);
+        LOG.info("Successfully getShuffleData cost " + readTime + " ms for " + requestInfo);
         reply = GetShuffleDataResponse.newBuilder()
             .setStatus(valueOf(status))
             .setRetMsg(msg)
