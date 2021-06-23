@@ -287,18 +287,14 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     ReportShuffleResultResponse reply;
     String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "], taskAttemptId[" + taskAttemptId + "]";
 
-    if (partitionToBlockIds.isEmpty()) {
-      LOG.warn("Report 0 block as shuffle result for " + requestInfo);
-    } else {
-      try {
-        LOG.info("Report " + partitionToBlockIds.size() + " blocks as shuffle result for the task of " + requestInfo);
-        shuffleServer.getShuffleTaskManager().addFinishedBlockIds(
-            appId, shuffleId, taskAttemptId, partitionToBlockIds);
-      } catch (Exception e) {
-        status = StatusCode.INTERNAL_ERROR;
-        msg = e.getMessage();
-        LOG.error("Error happened when report shuffle result for " + requestInfo, e);
-      }
+    try {
+      LOG.info("Report " + partitionToBlockIds.size() + " blocks as shuffle result for the task of " + requestInfo);
+      shuffleServer.getShuffleTaskManager().addFinishedBlockIds(
+          appId, shuffleId, taskAttemptId, partitionToBlockIds);
+    } catch (Exception e) {
+      status = StatusCode.INTERNAL_ERROR;
+      msg = e.getMessage();
+      LOG.error("Error happened when report shuffle result for " + requestInfo, e);
     }
 
     reply = ReportShuffleResultResponse.newBuilder().setStatus(valueOf(status)).setRetMsg(msg).build();
@@ -329,6 +325,14 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
       msg = e.getMessage();
       LOG.error("Error happened when report shuffle result for " + requestInfo, e);
     }
+
+    if (blockIds == null) {
+      blockIds = Lists.newArrayList();
+      status = StatusCode.INTERNAL_ERROR;
+      msg = "Shuffle data is deleted";
+      LOG.error("Error happened when report shuffle result for " + requestInfo + " because " + msg);
+    }
+
     reply = GetShuffleResultResponse.newBuilder()
         .setStatus(valueOf(status))
         .setRetMsg(msg)

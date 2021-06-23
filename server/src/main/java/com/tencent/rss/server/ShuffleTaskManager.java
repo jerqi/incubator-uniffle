@@ -24,6 +24,8 @@ public class ShuffleTaskManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleTaskManager.class);
   private final ShuffleFlushManager shuffleFlushManager;
+  private final ScheduledExecutorService scheduledExecutorService;
+  private final ScheduledExecutorService expiredAppCleanupExecutorService;
   private AtomicLong requireBufferId = new AtomicLong(0);
   private ShuffleServerConf conf;
   private long appExpiredWithHB;
@@ -40,8 +42,6 @@ public class ShuffleTaskManager {
   // appId -> shuffleId -> shuffle block count
   private Map<String, Map<Long, Integer>> cachedBlockCount = Maps.newHashMap();
   private Map<Long, PreAllocatedBufferInfo> requireBufferIds = Maps.newConcurrentMap();
-  private final ScheduledExecutorService scheduledExecutorService;
-  private final ScheduledExecutorService expiredAppCleanupExecutorService;
   private Runnable clearResourceThread;
   private BlockingQueue<String> expiredAppIdQueue = Queues.newLinkedBlockingQueue();
 
@@ -64,8 +64,8 @@ public class ShuffleTaskManager {
         preAllocationExpired / 2, TimeUnit.MILLISECONDS);
     this.expiredAppCleanupExecutorService = Executors.newSingleThreadScheduledExecutor();
     expiredAppCleanupExecutorService.scheduleAtFixedRate(
-        () -> checkResourceStatus(), appExpiredWithoutHB * 2,
-        appExpiredWithoutHB * 2, TimeUnit.MILLISECONDS);
+        () -> checkResourceStatus(), appExpiredWithoutHB / 2,
+        appExpiredWithoutHB / 2, TimeUnit.MILLISECONDS);
     // the thread for clear expired resources
     clearResourceThread = () -> {
       try {
@@ -85,6 +85,7 @@ public class ShuffleTaskManager {
   }
 
   public StatusCode cacheShuffleData(String appId, int shuffleId, boolean isPreAllocated, ShufflePartitionedData spd) {
+    refreshAppId(appId);
     return shuffleBufferManager.cacheShuffleData(appId, shuffleId, isPreAllocated, spd);
   }
 
@@ -98,6 +99,7 @@ public class ShuffleTaskManager {
 
   public StatusCode commitShuffle(String appId, int shuffleId) throws Exception {
     long start = System.currentTimeMillis();
+    refreshAppId(appId);
     shuffleBufferManager.commitShuffleTask(appId, shuffleId);
     long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
     int expectedCommitted = getCachedBlockCount(appId, shuffleId);
@@ -121,6 +123,7 @@ public class ShuffleTaskManager {
 
   public synchronized void addFinishedBlockIds(
       String appId, Integer shuffleId, Long taskAttemptId, Map<Integer, long[]> partitionToBlockIds) {
+    refreshAppId(appId);
     partitionsToBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
     Map<Integer, Map<Integer, Map<Long, long[]>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
     shuffleToPartitions.putIfAbsent(shuffleId, Maps.newConcurrentMap());
@@ -179,9 +182,10 @@ public class ShuffleTaskManager {
 
   public List<Long> getFinishedBlockIds(
       String appId, Integer shuffleId, Integer partitionId, List<Long> taskAttemptIds) {
+    refreshAppId(appId);
     Map<Integer, Map<Integer, Map<Long, long[]>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
     if (shuffleToPartitions == null) {
-      return Lists.newArrayList();
+      return null;
     }
     Map<Integer, Map<Long, long[]>> partitionToBlockIds = shuffleToPartitions.get(shuffleId);
     if (partitionToBlockIds == null) {
@@ -205,6 +209,7 @@ public class ShuffleTaskManager {
   public ShuffleDataResult getShuffleData(
       String appId, Integer shuffleId, Integer partitionId, int partitionNumPerRange,
       int partitionNum, int readBufferSize, String storageType, Set<Long> expectedBlockIds) {
+    refreshAppId(appId);
     CreateShuffleReadHandlerRequest request = new CreateShuffleReadHandlerRequest();
     request.setAppId(appId);
     request.setShuffleId(shuffleId);

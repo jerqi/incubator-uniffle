@@ -2,6 +2,7 @@ package com.tencent.rss.test.grpc;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -105,7 +106,7 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
   }
 
   @Test
-  public void shuffleResultTest() {
+  public void shuffleResultTest() throws Exception {
     Map<Integer, List<Long>> partitionToBlockIds = Maps.newHashMap();
     partitionToBlockIds.put(1, Lists.newArrayList(1L, 2L, 3L));
     partitionToBlockIds.put(2, Lists.newArrayList(4L, 5L));
@@ -118,6 +119,7 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     partitionToBlockIds.put(1, Lists.newArrayList(11L, 12L, 13L));
     partitionToBlockIds.put(2, Lists.newArrayList(14L, 15L));
     partitionToBlockIds.put(3, Lists.newArrayList(16L));
+
     request =
         new RssReportShuffleResultRequest("appId", 0, 2L, partitionToBlockIds);
     shuffleServerClient.reportShuffleResult(request);
@@ -165,6 +167,23 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     req = new RssGetShuffleResultRequest("appId", 0, 1, Lists.newArrayList(1L, 2L, 3L));
     result = shuffleServerClient.getShuffleResult(req);
     assertEquals(Lists.newArrayList(1L, 2L, 3L, 11L, 12L, 13L, 7L, 8L), result.getBlockIds());
+
+    request =
+        new RssReportShuffleResultRequest("appId", 1, 1L, Maps.newHashMap());
+    shuffleServerClient.reportShuffleResult(request);
+    req = new RssGetShuffleResultRequest("appId", 1, 1, Lists.newArrayList(1L, 2L));
+    result = shuffleServerClient.getShuffleResult(req);
+    assertTrue(result.getBlockIds().isEmpty());
+
+    // wait resources are deleted
+    Thread.sleep(12000);
+    req = new RssGetShuffleResultRequest("appId", 1, 1, Lists.newArrayList(1L, 2L));
+    try {
+      shuffleServerClient.getShuffleResult(req);
+      fail("Exception should be thrown");
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("Shuffle data is deleted"));
+    }
   }
 
   @Test

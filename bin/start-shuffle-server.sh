@@ -51,9 +51,15 @@ JVM_ARGS=" -server \
           -XX:MaxGCPauseMillis=200 \
           -XX:ParallelGCThreads=20 \
           -XX:ConcGCThreads=5 \
-          -XX:InitiatingHeapOccupancyPercent=45 \
+          -XX:InitiatingHeapOccupancyPercent=20 \
           -XX:G1HeapRegionSize=32m \
+          -XX:+UnlockExperimentalVMOptions \
+          -XX:G1NewSizePercent=10 \
           -XX:+PrintGC \
+          -XX:+PrintAdaptiveSizePolicy \
+          -XX:+PrintGCDateStamps \
+          -XX:+PrintGCTimeStamps \
+          -XX:+PrintGCDetails \
           -Xloggc:./logs/gc.log"
 
 if [ -f ./conf/log4j.properties ]; then
