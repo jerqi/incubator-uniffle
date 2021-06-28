@@ -81,6 +81,7 @@ public class ShuffleTaskManager {
   }
 
   public StatusCode registerShuffle(String appId, int shuffleId, int startPartition, int endPartition) {
+    partitionsToBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
     return shuffleBufferManager.registerBuffer(appId, shuffleId, startPartition, endPartition);
   }
 
@@ -124,7 +125,6 @@ public class ShuffleTaskManager {
   public synchronized void addFinishedBlockIds(
       String appId, Integer shuffleId, Long taskAttemptId, Map<Integer, long[]> partitionToBlockIds) {
     refreshAppId(appId);
-    partitionsToBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
     Map<Integer, Map<Integer, Map<Long, long[]>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
     shuffleToPartitions.putIfAbsent(shuffleId, Maps.newConcurrentMap());
     Map<Integer, Map<Long, long[]>> existPartitionToBlockIds = shuffleToPartitions.get(shuffleId);

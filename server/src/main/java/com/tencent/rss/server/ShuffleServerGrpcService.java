@@ -293,7 +293,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
           appId, shuffleId, taskAttemptId, partitionToBlockIds);
     } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
-      msg = e.getMessage();
+      msg = "error happened when report shuffle result, check shuffle server for detail";
       LOG.error("Error happened when report shuffle result for " + requestInfo, e);
     }
 
@@ -329,7 +329,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     if (blockIds == null) {
       blockIds = Lists.newArrayList();
       status = StatusCode.INTERNAL_ERROR;
-      msg = "Shuffle data is deleted";
+      msg = "can't find shuffle data";
       LOG.error("Error happened when report shuffle result for " + requestInfo + " because " + msg);
     }
 

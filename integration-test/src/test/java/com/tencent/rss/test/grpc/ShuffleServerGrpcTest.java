@@ -111,8 +111,19 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     partitionToBlockIds.put(1, Lists.newArrayList(1L, 2L, 3L));
     partitionToBlockIds.put(2, Lists.newArrayList(4L, 5L));
     partitionToBlockIds.put(3, Lists.newArrayList(6L));
+
     RssReportShuffleResultRequest request =
         new RssReportShuffleResultRequest("appId", 0, 1L, partitionToBlockIds);
+    try {
+      shuffleServerClient.reportShuffleResult(request);
+      fail("Exception should be thrown");
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("error happened when report shuffle result"));
+    }
+
+    RssRegisterShuffleRequest rrsr = new RssRegisterShuffleRequest("appId", 100, 0, 1);
+    shuffleServerClient.registerShuffle(rrsr);
+
     RssReportShuffleResultResponse response = shuffleServerClient.reportShuffleResult(request);
     assertEquals(ResponseStatusCode.SUCCESS, response.getStatusCode());
     partitionToBlockIds = Maps.newHashMap();
@@ -182,8 +193,22 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
       shuffleServerClient.getShuffleResult(req);
       fail("Exception should be thrown");
     } catch (Exception e) {
-      assertTrue(e.getMessage().contains("Shuffle data is deleted"));
+      assertTrue(e.getMessage().contains("can't find shuffle data"));
     }
+
+    // doesn't registered
+    req = new RssGetShuffleResultRequest("appId1", 1, 1, Lists.newArrayList(1L, 2L));
+    try {
+      shuffleServerClient.getShuffleResult(req);
+      fail("Exception should be thrown");
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("can't find shuffle data"));
+    }
+    rrsr = new RssRegisterShuffleRequest("appId1", 100, 0, 1);
+    shuffleServerClient.registerShuffle(rrsr);
+    req = new RssGetShuffleResultRequest("appId1", 1, 1, Lists.newArrayList());
+    result = shuffleServerClient.getShuffleResult(req);
+    assertTrue(result.getBlockIds().isEmpty());
   }
 
   @Test
@@ -204,6 +229,9 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
 
   @Test
   public void multipleShuffleResultTest() throws Exception {
+    RssRegisterShuffleRequest rrsr = new RssRegisterShuffleRequest("appId", 100, 0, 1);
+    shuffleServerClient.registerShuffle(rrsr);
+
     Runnable r1 = () -> {
       for (long i = 0; i < 100; i++) {
         Map<Integer, List<Long>> ptbs = Maps.newHashMap();
