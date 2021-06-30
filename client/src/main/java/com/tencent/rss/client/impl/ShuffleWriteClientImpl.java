@@ -179,7 +179,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
     RssRegisterShuffleRequest request = new RssRegisterShuffleRequest(appId, shuffleId, start, end);
     RssRegisterShuffleResponse response = getShuffleServerClient(shuffleServerInfo).registerShuffle(request);
 
-    String msg = "Error happend when registerShuffle with appId[" + appId + "], shuffleId[" + shuffleId
+    String msg = "Error happened when registerShuffle with appId[" + appId + "], shuffleId[" + shuffleId
         + "], start[" + start + "], end[" + end + "] to " + shuffleServerInfo;
     throwExceptionIfNecessary(response, msg);
     shuffleServerInfoSet.add(shuffleServerInfo);
@@ -210,7 +210,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
         break;
       }
     }
-    String msg = "Error happend when getShuffleAssignments with appId[" + appId + "], shuffleId[" + shuffleId
+    String msg = "Error happened when getShuffleAssignments with appId[" + appId + "], shuffleId[" + shuffleId
         + "], numMaps[" + partitionNum + "], partitionNumPerRange[" + partitionNumPerRange + "] to coordinator";
     throwExceptionIfNecessary(response, msg);
 

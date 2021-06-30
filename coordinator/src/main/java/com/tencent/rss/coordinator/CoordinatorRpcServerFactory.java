@@ -15,14 +15,14 @@ public class CoordinatorRpcServerFactory {
 
   public ServerInterface getServer() {
     String type = conf.getString(CoordinatorConf.RPC_SERVER_TYPE);
-    if (type.equals(ServerTyep.GRPC.name())) {
+    if (type.equals(ServerType.GRPC.name())) {
       return new GrpcServer(conf, new CoordinatorGrpcService(coordinatorServer));
     } else {
       throw new UnsupportedOperationException("Unsupported server type " + type);
     }
   }
 
-  enum ServerTyep {
+  enum ServerType {
     GRPC
   }
 }

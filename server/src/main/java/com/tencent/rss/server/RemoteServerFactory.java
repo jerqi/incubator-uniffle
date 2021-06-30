@@ -15,14 +15,14 @@ public class RemoteServerFactory {
 
   public ServerInterface getServer() {
     String type = conf.getString(ShuffleServerConf.RPC_SERVER_TYPE);
-    if (type.equals(ServerTyep.GRPC.name())) {
+    if (type.equals(ServerType.GRPC.name())) {
       return new GrpcServer(conf, new ShuffleServerGrpcService(shuffleServer));
     } else {
       throw new UnsupportedOperationException("Unsupported server type " + type);
     }
   }
 
-  enum ServerTyep {
+  enum ServerType {
     GRPC
   }
 }
