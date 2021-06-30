@@ -18,7 +18,7 @@ public class SimpleClusterManager implements ClusterManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(SimpleClusterManager.class);
 
-  private final Map<String, ServerNode> servers = Maps.newHashMap();
+  private final Map<String, ServerNode> servers = Maps.newConcurrentMap();
   private long heartbeatTimeout;
   private ScheduledExecutorService scheduledExecutorService;
 
