@@ -1,7 +1,6 @@
 package com.tencent.rss.server;
 
 import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import com.tencent.rss.client.impl.grpc.CoordinatorGrpcClient;

@@ -2,8 +2,11 @@ package com.tencent.rss.common.util;
 
 import static org.junit.Assert.assertEquals;
 
+import java.net.InetAddress;
 import java.util.Map;
 import java.util.Objects;
+
+import org.junit.Assert;
 import org.junit.Test;
 
 public class RssUtilsTest {
@@ -18,5 +21,15 @@ public class RssUtilsTest {
     assertEquals("true", properties.get("rss.x.y.z"));
     assertEquals("-XX:+PrintGCDetails-Dkey=value-Dnumbers=\"one two three\"",
         properties.get("rss.a.b.c.extraJavaOptions"));
+  }
+
+  @Test
+  public void testGetHostIp() {
+    try {
+      String realIp = RssUtils.getHostIp();
+      Assert.assertNotEquals("127.0.0.1", realIp);
+    } catch (Exception e) {
+      Assert.fail(e.getMessage());
+    }
   }
 }

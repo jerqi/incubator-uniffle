@@ -3,12 +3,13 @@ package com.tencent.rss.server;
 import com.tencent.rss.common.Arguments;
 import com.tencent.rss.common.metrics.JvmMetrics;
 import com.tencent.rss.common.rpc.ServerInterface;
+import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.common.web.CommonMetricsServlet;
 import com.tencent.rss.common.web.JettyServer;
 import io.prometheus.client.CollectorRegistry;
 import java.io.FileNotFoundException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.net.SocketException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -30,12 +31,12 @@ public class ShuffleServer {
   private ShuffleFlushManager shuffleFlushManager;
   private ShuffleBufferManager shuffleBufferManager;
 
-  public ShuffleServer(ShuffleServerConf shuffleServerConf) throws UnknownHostException, FileNotFoundException {
+  public ShuffleServer(ShuffleServerConf shuffleServerConf) throws SocketException, FileNotFoundException {
     this.shuffleServerConf = shuffleServerConf;
     initialization();
   }
 
-  public ShuffleServer(String configFile) throws FileNotFoundException, IllegalStateException, UnknownHostException {
+  public ShuffleServer(String configFile) throws FileNotFoundException, IllegalStateException, SocketException {
     this.shuffleServerConf = new ShuffleServerConf(configFile);
     initialization();
   }
@@ -86,8 +87,11 @@ public class ShuffleServer {
     server.stop();
   }
 
-  private void initialization() throws UnknownHostException, FileNotFoundException {
-    ip = InetAddress.getLocalHost().getHostAddress();
+  private void initialization() throws SocketException, FileNotFoundException {
+    ip = RssUtils.getHostIp();
+    if (ip == null) {
+      throw new RuntimeException("Couldn't acquire host Ip");
+    }
     port = shuffleServerConf.getInteger(ShuffleServerConf.RPC_SERVER_PORT);
     id = ip + "-" + port;
     LOG.info("Start to initialize server {}", id);

@@ -4,16 +4,25 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RssUtils {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RssUtils.class);
+
+  private RssUtils() {
+  }
 
   /**
    * Load properties present in the given file.
@@ -54,5 +63,24 @@ public class RssUtils {
     }
 
     return result;
+  }
+
+  // `InetAddress.getLocalHost().getHostAddress()` could return 127.0.0.1. To avoid
+  // this situation, we can get current ip through network interface (filtered ipv6,
+  // loop back, etc.). If the network interface in the machine is more than one, we
+  // will choose the first IP.
+  public static String getHostIp() throws SocketException {
+    Enumeration<NetworkInterface> nif = NetworkInterface.getNetworkInterfaces();
+    while (nif.hasMoreElements()) {
+      NetworkInterface ni = nif.nextElement();
+      Enumeration<InetAddress> ad = ni.getInetAddresses();
+      while (ad.hasMoreElements()) {
+        InetAddress ia = ad.nextElement();
+        if (!ia.isLinkLocalAddress() && !ia.isLoopbackAddress() && ia instanceof InetAddress) {
+          return ia.getHostAddress();
+        }
+      }
+    }
+    return null;
   }
 }
