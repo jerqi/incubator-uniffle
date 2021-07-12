@@ -5,13 +5,18 @@ import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.handler.impl.DataFileSegment;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +24,7 @@ public class ShuffleStorageUtils {
 
   static final String HDFS_PATH_SEPARATOR = "/";
   static final String HDFS_DIRNAME_SEPARATOR = "-";
-  private static final Logger logger = LoggerFactory.getLogger(ShuffleStorageUtils.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ShuffleStorageUtils.class);
 
   public static FileSystem getFileSystemForPath(Path path, Configuration conf) throws IOException {
     // For local file systems, return the raw local file system, such calls to flush()
@@ -27,12 +32,12 @@ public class ShuffleStorageUtils {
     try {
       FileSystem fs = path.getFileSystem(conf);
       if (fs instanceof LocalFileSystem) {
-        logger.debug("{} is local file system", path);
+        LOG.debug("{} is local file system", path);
         return ((LocalFileSystem) fs).getRawFileSystem();
       }
       return fs;
     } catch (IOException e) {
-      logger.error("Fail to get filesystem of {}", path);
+      LOG.error("Fail to get filesystem of {}", path);
       throw e;
     }
   }
@@ -43,6 +48,10 @@ public class ShuffleStorageUtils {
 
   public static String generateIndexFileName(String fileNamePrefix) {
     return fileNamePrefix + Constants.SHUFFLE_INDEX_FILE_SUFFIX;
+  }
+
+  public static String generateAbsoluteFilePrefix(String base, String key, int partition) {
+    return String.join(HDFS_PATH_SEPARATOR, base, key, String.valueOf(partition), String.valueOf(partition));
   }
 
   public static List<DataFileSegment> mergeSegments(
@@ -92,6 +101,13 @@ public class ShuffleStorageUtils {
       }
     }
     return dataFileSegments;
+  }
+
+  public static String getShuffleDataPath(String appId, int shuffleId) {
+    return String.join(
+        HDFS_PATH_SEPARATOR,
+        appId,
+        String.valueOf(shuffleId));
   }
 
   public static String getShuffleDataPath(String appId, int shuffleId, int start, int end) {
@@ -148,5 +164,32 @@ public class ShuffleStorageUtils {
       index = -index;
     }
     return index;
+  }
+
+  public static void createDirIfNotExist(FileSystem fileSystem, String pathString) throws IOException {
+    Path path = new Path(pathString);
+    try {
+      if (!fileSystem.exists(path)) {
+        fileSystem.mkdirs(path);
+      }
+    } catch (IOException ioe) {
+      // if folder exist, ignore the exception
+      if (!fileSystem.exists(path)) {
+        LOG.error("Can't create shuffle folder {}, {}", pathString, ExceptionUtils.getStackTrace(ioe));
+        throw ioe;
+      }
+    }
+  }
+
+  public static long uploadFile(
+      File file, FSDataOutputStream fsDataOutputStream, int bufferSize) throws IOException {
+    long start = fsDataOutputStream.getPos();
+    try (FileInputStream inputStream = new FileInputStream(file)) {
+      IOUtils.copyBytes(inputStream, fsDataOutputStream, bufferSize);
+      return fsDataOutputStream.getPos() - start;
+    } catch (IOException e) {
+      LOG.error("Fail to upload file {}, {}", file.getAbsolutePath(), e);
+      throw new IOException(e);
+    }
   }
 }

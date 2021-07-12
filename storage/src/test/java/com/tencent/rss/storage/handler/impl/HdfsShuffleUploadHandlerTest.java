@@ -1,0 +1,432 @@
+package com.tencent.rss.storage.handler.impl;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import com.google.common.collect.Lists;
+import com.tencent.rss.common.util.ChecksumUtils;
+import com.tencent.rss.storage.HdfsTestBase;
+import com.tencent.rss.storage.handler.api.ShuffleUploadHandler;
+import com.tencent.rss.storage.util.ShuffleStorageUtils;
+import com.tencent.rss.storage.util.ShuffleUploadResult;
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Random;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+
+public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void initTest() throws IOException, IllegalStateException {
+    String basePath = HDFS_URI + "test_base";
+    Path path = new Path(basePath);
+    new HdfsShuffleUploadHandler(basePath, conf, "test", 4096, true);
+    assertTrue(fs.isDirectory(path));
+  }
+
+  @Test
+  public void uploadTestCombine() throws IOException, IllegalStateException {
+    String basePath = HDFS_URI + "test_base";
+    HdfsShuffleUploadHandler handler = new HdfsShuffleUploadHandler(
+        basePath, conf, "uploadTestCombine", 4096, true);
+
+    File dataFile1 = File.createTempFile("uploadTestCombine1", ".data", tmpDir.getRoot());
+    File dataFile2 = File.createTempFile("uploadTestCombine2", ".data", tmpDir.getRoot());
+
+    byte[] data1 = new byte[10];
+    new Random().nextBytes(data1);
+    try (OutputStream out = new FileOutputStream(dataFile1)) {
+      out.write(data1);
+    }
+
+    byte[] data2 = new byte[30];
+    new Random().nextBytes(data2);
+    try (OutputStream out = new FileOutputStream(dataFile2)) {
+      out.write(data2);
+    }
+
+    File indexFile1 = File.createTempFile("uploadTestCombine1", ".index", tmpDir.getRoot());
+    File indexFile2 = File.createTempFile("uploadTestCombine2", ".index", tmpDir.getRoot());
+
+    try (OutputStream out = new FileOutputStream(indexFile1)) {
+      out.write(new byte[5]);
+    }
+
+    try (OutputStream out = new FileOutputStream(indexFile2)) {
+      out.write(new byte[15]);
+    }
+
+    ShuffleUploadResult ret = handler.upload(
+        Lists.newArrayList(dataFile1, dataFile2),
+        Lists.newArrayList(indexFile1, indexFile2),
+        Lists.newArrayList(1, 2));
+    assertEquals(40L, ret.getSize());
+    assertEquals(Lists.newArrayList(1, 2), ret.getPartitions());
+
+
+    String ts = handler.getHdfsFilePrefixBase().split("-")[1];
+    Path dataPath = new Path(
+        basePath,"combine/uploadTestCombine-" + ts + "-1.data");
+    Path indexPath = new Path(
+        basePath,"combine/uploadTestCombine-" + ts + "-1.index");
+
+    assertTrue(fs.isFile(dataPath));
+    assertTrue(fs.isFile(indexPath));
+
+    FileStatus dataFileStatus = fs.getFileStatus(dataPath);
+    FileStatus indexFileStatus = fs.getFileStatus(indexPath);
+
+    // check data file and index file length
+    assertEquals(40, dataFileStatus.getLen());
+    assertEquals(HdfsShuffleUploadHandler.getIndexFileHeaderLen(2) + 20, indexFileStatus.getLen());
+
+    // check index file header
+    try (FSDataInputStream indexStream = fs.open(indexFileStatus.getPath())) {
+      assertEquals(2, indexStream.readInt());
+      assertEquals(1, indexStream.readInt());
+      assertEquals(5L, indexStream.readLong());
+      assertEquals(2, indexStream.readInt());
+      assertEquals(15L, indexStream.readLong());
+    }
+
+    // check data file content
+    try (FSDataInputStream dataStream = fs.open(dataFileStatus.getPath())) {
+      for (int i = 0; i < data1.length; ++i) {
+        assertEquals(data1[i], dataStream.readByte());
+      }
+
+      for (int i = 0; i < data2.length; ++i) {
+        assertEquals(data2[i], dataStream.readByte());
+      }
+
+      thrown.expect(EOFException.class);
+      dataStream.readByte();
+    }
+  }
+
+  @Test
+  public void uploadTestOneByOne() throws IOException, IllegalStateException {
+    String basePath = HDFS_URI + "test_base";
+    HdfsShuffleUploadHandler handler =
+        new HdfsShuffleUploadHandler(basePath, conf, "uploadTestOneByOne", 4096, false);
+    File dataFile1 = File.createTempFile("uploadTestOneByOne1", ".data", tmpDir.getRoot());
+    File dataFile2 = File.createTempFile("uploadTestOneByOne2", ".data", tmpDir.getRoot());
+
+    byte[] data1 = new byte[10];
+    new Random().nextBytes(data1);
+    try (OutputStream out = new FileOutputStream(dataFile1)) {
+      out.write(data1);
+    }
+
+    byte[] data2 = new byte[30];
+    new Random().nextBytes(data2);
+    try (OutputStream out = new FileOutputStream(dataFile2)) {
+      out.write(data2);
+    }
+
+    File indexFile1 = File.createTempFile("uploadTestOneByOne1", ".index", tmpDir.getRoot());
+    File indexFile2 = File.createTempFile("uploadTestOneByOne2", ".index", tmpDir.getRoot());
+
+    try (OutputStream out = new FileOutputStream(indexFile1)) {
+      out.write(new byte[5]);
+    }
+
+    try (OutputStream out = new FileOutputStream(indexFile2)) {
+      out.write(new byte[15]);
+    }
+
+    ShuffleUploadResult ret = handler.upload(
+        Lists.newArrayList(dataFile1, dataFile2),
+        Lists.newArrayList(indexFile1, indexFile2),
+        Lists.newArrayList(1, 2));
+    assertEquals(40L, ret.getSize());
+    assertEquals(Lists.newArrayList(1, 2), ret.getPartitions());
+
+    String ts = handler.getHdfsFilePrefixBase().split("-")[1];
+    Path dataPath1 = new Path(basePath,"1/uploadTestOneByOne-" + ts + "-1.data");
+    Path indexPath1 = new Path(basePath,"1/uploadTestOneByOne-" + ts + "-1.index");
+    Path dataPath2 = new Path(basePath,"2/uploadTestOneByOne-" + ts + "-2.data");
+    Path indexPath2 = new Path(basePath,"2/uploadTestOneByOne-" + ts + "-2.index");
+
+    assertTrue(fs.isFile(dataPath1));
+    assertTrue(fs.isFile(indexPath1));
+    assertTrue(fs.isFile(dataPath2));
+    assertTrue(fs.isFile(indexPath2));
+
+    FileStatus dataFileStatus1 = fs.getFileStatus(dataPath1);
+    FileStatus indexFileStatus1 = fs.getFileStatus(indexPath1);
+    FileStatus dataFileStatus2 = fs.getFileStatus(dataPath2);
+    FileStatus indexFileStatus2 = fs.getFileStatus(indexPath2);
+
+    // check data file and index file length
+    assertEquals(10, dataFileStatus1.getLen());
+    assertEquals(HdfsShuffleUploadHandler.getIndexFileHeaderLen(1) + 5, indexFileStatus1.getLen());
+    assertEquals(30, dataFileStatus2.getLen());
+    assertEquals(HdfsShuffleUploadHandler.getIndexFileHeaderLen(1) + 15, indexFileStatus2.getLen());
+
+    // check index file header
+    try (FSDataInputStream indexStream = fs.open(indexFileStatus1.getPath())) {
+      assertEquals(1, indexStream.readInt());
+      assertEquals(1, indexStream.readInt());
+      assertEquals(5L, indexStream.readLong());
+    }
+
+    try (FSDataInputStream indexStream = fs.open(indexFileStatus2.getPath())) {
+      assertEquals(1, indexStream.readInt());
+      assertEquals(2, indexStream.readInt());
+      assertEquals(15L, indexStream.readLong());
+    }
+
+    // check data file content
+    try (FSDataInputStream dataStream = fs.open(dataFileStatus1.getPath())) {
+      for (int i = 0; i < data1.length; ++i) {
+        assertEquals(data1[i], dataStream.readByte());
+      }
+    }
+
+    try (FSDataInputStream dataStream = fs.open(dataFileStatus2.getPath())) {
+      for (int i = 0; i < data2.length; ++i) {
+        assertEquals(data2[i], dataStream.readByte());
+      }
+
+      thrown.expect(EOFException.class);
+      dataStream.readByte();
+    }
+
+  }
+
+  @Test
+  public void uploadTestCombineBestEffort() throws IOException, IllegalStateException {
+    String basePath = HDFS_URI + "test_base";
+    HdfsShuffleUploadHandler handler =
+        new HdfsShuffleUploadHandler(basePath, conf, "uploadTestCombineBestEffort", 4096, true);
+    File dataFile1 = File.createTempFile("uploadTestCombineBestEffort1", ".data", tmpDir.getRoot());
+    File dataFile2 = File.createTempFile("uploadTestCombineBestEffort2", ".data", tmpDir.getRoot());
+    File dataFile3 = new File(dataFile1.getAbsolutePath() + "null");
+
+    byte[] data1 = new byte[10];
+    new Random().nextBytes(data1);
+    try (OutputStream out = new FileOutputStream(dataFile1)) {
+      out.write(data1);
+    }
+
+    byte[] data2 = new byte[30];
+    new Random().nextBytes(data2);
+    try (OutputStream out = new FileOutputStream(dataFile2)) {
+      out.write(data2);
+    }
+
+    File indexFile1 = File.createTempFile("uploadTestCombineBestEffort1", ".index", tmpDir.getRoot());
+    File indexFile2 = new File(indexFile1.getAbsolutePath() + "null");
+    File indexFile3 = new File(indexFile1.getAbsolutePath() + "null");
+
+    try (OutputStream out = new FileOutputStream(indexFile1)) {
+      out.write(new byte[5]);
+    }
+
+    ShuffleUploadResult ret = handler.upload(
+        Lists.newArrayList(dataFile1, dataFile2, dataFile3),
+        Lists.newArrayList(indexFile1, indexFile2, indexFile3),
+        Lists.newArrayList(1, 2, 3));
+    assertEquals(10L, ret.getSize());
+    assertEquals(Lists.newArrayList(1), ret.getPartitions());
+
+    String ts = handler.getHdfsFilePrefixBase().split("-")[1];
+    Path dataPath = new Path(basePath,"combine/uploadTestCombineBestEffort-" + ts + "-1.data");
+    Path indexPath = new Path(basePath,"combine/uploadTestCombineBestEffort-" + ts + "-1.index");
+
+    assertTrue(fs.isFile(dataPath));
+    assertTrue(fs.isFile(indexPath));
+
+    FileStatus dataFileStatus = fs.getFileStatus(dataPath);
+    FileStatus indexFileStatus = fs.getFileStatus(indexPath);
+
+    // check data file and index file length
+    assertEquals(40, dataFileStatus.getLen());
+    assertEquals(HdfsShuffleUploadHandler.getIndexFileHeaderLen(2) + 5, indexFileStatus.getLen());
+
+    // check data file content
+    try (FSDataInputStream dataStream = fs.open(dataFileStatus.getPath())) {
+      for (int i = 0; i < data1.length; ++i) {
+        assertEquals(data1[i], dataStream.readByte());
+      }
+
+      for (int i = 0; i < data2.length; ++i) {
+        assertEquals(data2[i], dataStream.readByte());
+      }
+    }
+
+    // check index file header
+    try (FSDataInputStream indexStream = fs.open(indexFileStatus.getPath())) {
+      assertEquals(2, indexStream.readInt());
+      assertEquals(1, indexStream.readInt());
+      assertEquals(5L, indexStream.readLong());
+      assertEquals(2, indexStream.readInt());
+      assertEquals(0L, indexStream.readLong());
+
+      indexStream.seek(HdfsShuffleUploadHandler.getIndexFileHeaderLen(2) + 5);
+      thrown.expect(EOFException.class);
+      indexStream.readByte();
+
+    }
+  }
+
+  @Test
+  public void uploadTestOneByOneBestEffort() throws IOException, IllegalStateException {
+    String basePath = HDFS_URI + "test_base";
+    HdfsShuffleUploadHandler handler = new HdfsShuffleUploadHandler(
+        basePath, conf, "uploadTestOneByOneBestEffort", 4096, false);
+    File dataFile1 = File.createTempFile("uploadTestOneByOneBestEffort1", ".data", tmpDir.getRoot());
+    File dataFile2 = new File(dataFile1.getAbsolutePath() + "null");
+    File dataFile3 = File.createTempFile("uploadTestOneByOneBestEffort3", ".data", tmpDir.getRoot());
+
+    byte[] data1 = new byte[10];
+    new Random().nextBytes(data1);
+    try (OutputStream out = new FileOutputStream(dataFile1)) {
+      out.write(data1);
+    }
+
+    byte[] data2 = new byte[30];
+    new Random().nextBytes(data2);
+    try (OutputStream out = new FileOutputStream(dataFile3)) {
+      out.write(data2);
+    }
+
+    File indexFile1 = File.createTempFile("uploadTestOneByOneBestEffort1", ".index", tmpDir.getRoot());
+    File indexFile2 = new File(indexFile1.getAbsolutePath() + "null");
+    File indexFile3 = new File(indexFile1.getAbsolutePath() + "null");
+
+    try (OutputStream out = new FileOutputStream(indexFile1)) {
+      out.write(new byte[5]);
+    }
+
+    ShuffleUploadResult ret = handler.upload(
+        Lists.newArrayList(dataFile1, dataFile2, dataFile3),
+        Lists.newArrayList(indexFile1, indexFile2, indexFile3),
+        Lists.newArrayList(1, 2, 3));
+    assertEquals(10L, ret.getSize());
+    assertEquals(Lists.newArrayList(1), ret.getPartitions());
+
+    String ts = handler.getHdfsFilePrefixBase().split("-")[1];
+    Path dataPath1 = new Path(basePath,"1/uploadTestOneByOneBestEffort-" + ts + "-1.data");
+    Path indexPath1 = new Path(basePath,"1/uploadTestOneByOneBestEffort-" + ts + "-1.index");
+    Path dataPath2 = new Path(basePath,"2/uploadTestOneByOneBestEffort-" + ts + "-2.data");
+    Path indexPath2 = new Path(basePath,"2/uploadTestOneByOneBestEffort-" + ts + "-2.index");
+    Path dataPath3 = new Path(basePath,"3/uploadTestOneByOneBestEffort-" + ts + "-3.data");
+    Path indexPath3 = new Path(basePath,"3/uploadTestOneByOneBestEffort-" + ts + "-3.index");
+
+    assertTrue(fs.isFile(dataPath1));
+    assertTrue(fs.isFile(indexPath1));
+    assertTrue(fs.isFile(dataPath2));
+    assertFalse(fs.isFile(indexPath2));
+    assertTrue(fs.isFile(dataPath3));
+    assertTrue(fs.isFile(indexPath3));
+
+    FileStatus dataFileStatus1 = fs.getFileStatus(dataPath1);
+    FileStatus indexFileStatus1 = fs.getFileStatus(indexPath1);
+    FileStatus dataFileStatus2 = fs.getFileStatus(dataPath2);
+
+    // check data file and index file length
+    assertEquals(10, dataFileStatus1.getLen());
+    assertEquals(HdfsShuffleUploadHandler.getIndexFileHeaderLen(1) + 5, indexFileStatus1.getLen());
+    assertEquals(0, fs.getFileStatus(dataPath2).getLen());
+    assertEquals(30, fs.getFileStatus(dataPath3).getLen());
+
+    // check data file content
+    try (FSDataInputStream dataStream = fs.open(dataFileStatus1.getPath())) {
+      for (int i = 0; i < data1.length; ++i) {
+        assertEquals(data1[i], dataStream.readByte());
+      }
+    }
+
+    assertEquals(0, dataFileStatus2.getLen());
+
+    // check index file header
+    try (FSDataInputStream indexStream = fs.open(indexFileStatus1.getPath())) {
+      assertEquals(1, indexStream.readInt());
+      assertEquals(1, indexStream.readInt());
+      assertEquals(5L, indexStream.readLong());
+
+      thrown.expect(EOFException.class);
+      indexStream.seek(HdfsShuffleUploadHandler.getIndexFileHeaderLen(1) + 5 + 1);
+
+    }
+
+  }
+
+  @Test
+  public void writeHeaderTest() {
+    try {
+      String basePath = HDFS_URI + "test_base";
+      HdfsShuffleUploadHandler handler = new HdfsShuffleUploadHandler(
+          basePath, conf, "uploadTestOneByOneBestEffort", 4096, false);
+
+      File indexFile1 = File.createTempFile("writeHeaderTest1", ".index", tmpDir.getRoot());
+      File indexFile2 = File.createTempFile("writeHeaderTest2", ".index", tmpDir.getRoot());
+      File indexFile3 = File.createTempFile("writeHeaderTest3", ".index", tmpDir.getRoot());
+
+      try (OutputStream out = new FileOutputStream(indexFile1)) {
+        out.write(new byte[5]);
+      }
+
+      try (OutputStream out = new FileOutputStream(indexFile2)) {
+        out.write(new byte[15]);
+      }
+
+      try (OutputStream out = new FileOutputStream(indexFile3)) {
+        out.write(new byte[25]);
+      }
+
+      FSDataOutputStream writeStream = fs.create(
+          new Path(handler.getBaseHdfsPath() + "/writeHeaderTest.index"));
+      handler.writeIndexHeader(
+          3,
+          Lists.newArrayList(1, 2, 3),
+          Lists.newArrayList(indexFile1, indexFile2, indexFile3),
+          writeStream);
+      writeStream.close();
+      byte[] buf = new byte[HdfsShuffleUploadHandler.getIndexFileHeaderLen(3) - 8];
+
+      FSDataInputStream readStream1 = fs.open(
+          new Path(handler.getBaseHdfsPath() + "/writeHeaderTest.index"));
+      assertEquals(3, readStream1.readInt());
+      assertEquals(1, readStream1.readInt());
+      assertEquals(5, readStream1.readLong());
+      assertEquals(2, readStream1.readInt());
+      assertEquals(15, readStream1.readLong());
+      assertEquals(3, readStream1.readInt());
+      assertEquals(25, readStream1.readLong());
+
+      FSDataInputStream readStream2 = fs.open(
+          new Path(handler.getBaseHdfsPath() + "/writeHeaderTest.index"));
+      readStream2.readFully(buf);
+      long crc = readStream1.readLong();
+      assertEquals(ChecksumUtils.getCrc32(buf), crc);
+
+      readStream1.close();
+      readStream2.close();
+
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail(e.getMessage());
+    }
+
+  }
+
+}

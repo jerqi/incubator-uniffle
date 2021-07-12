@@ -1,8 +1,12 @@
 package com.tencent.rss.server;
 
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tencent.rss.storage.common.DiskItem;
+import com.tencent.rss.storage.common.ShuffleUploader;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
+import com.tencent.rss.storage.util.StorageType;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +20,18 @@ public class MultiStorageManager {
   private final double cleanupThreshold;
   private final double highWaterMarkOfWrite;
   private final double lowWaterMarkOfWrite;
+
+  // config for uploader
+  private final boolean enableUploader;
+  private final int uploadThreadNum;
+  private final long uploadIntervalMS;
+  private final long uploadCombineThresholdMB;
+  private final long referenceUploadSpeedMBS;
+  private final StorageType remoteStorageType;
+  private final String hdfsBathPath;
+  private final String shuffleServerId;
+  private final Configuration hadoopConf;
+
   private final List<DiskItem> diskItems = Lists.newArrayList();
 
   public MultiStorageManager(
@@ -23,7 +39,16 @@ public class MultiStorageManager {
       long capacity,
       double cleanupThreshold,
       double highWaterMarkOfWrite,
-      double lowWaterMarkOfWrite) {
+      double lowWaterMarkOfWrite,
+      boolean enableUploader,
+      int uploadThreadNum,
+      long uploadIntervalMS,
+      long uploadCombineThresholdMB,
+      long referenceUploadSpeedMBS,
+      StorageType remoteStorageType,
+      String hdfsBathPath,
+      String shuffleServerId,
+      Configuration hadoopConf) {
     if (capacity <= 0) {
       throw new IllegalArgumentException("Capacity must be larger than zero");
     }
@@ -39,11 +64,21 @@ public class MultiStorageManager {
     if (highWaterMarkOfWrite > 100) {
       throw new IllegalArgumentException("highWaterMarkOfWrite must be smaller than 100");
     }
+
     this.dirs = dirs;
     this.capacity = capacity;
     this.cleanupThreshold = cleanupThreshold;
     this.highWaterMarkOfWrite = highWaterMarkOfWrite;
     this.lowWaterMarkOfWrite = lowWaterMarkOfWrite;
+    this.enableUploader = enableUploader;
+    this.uploadThreadNum = uploadThreadNum;
+    this.uploadIntervalMS = uploadIntervalMS;
+    this.uploadCombineThresholdMB = uploadCombineThresholdMB;
+    this.referenceUploadSpeedMBS = referenceUploadSpeedMBS;
+    this.remoteStorageType = remoteStorageType;
+    this.hdfsBathPath = hdfsBathPath;
+    this.shuffleServerId = shuffleServerId;
+    this.hadoopConf = hadoopConf;
     initialize();
   }
 
@@ -57,7 +92,30 @@ public class MultiStorageManager {
           dir, cleanupThreshold, highWaterMarkOfWrite, lowWaterMarkOfWrite, 100, 5000);
       diskItems.add(item);
     }
+
+    if (enableUploader) {
+      for (DiskItem item : diskItems) {
+        ShuffleUploader shuffleUploader = new ShuffleUploader.Builder()
+            .diskItem(item)
+            .uploadThreadNum(uploadThreadNum)
+            .uploadIntervalMS(uploadIntervalMS)
+            .uploadCombineThresholdMB(uploadCombineThresholdMB)
+            .referenceUploadSpeedMBS(referenceUploadSpeedMBS)
+            .remoteStorageType(remoteStorageType)
+            .hdfsBathPath(hdfsBathPath)
+            .hdfsFilePrefix(shuffleServerId)
+            .hadoopConf(hadoopConf)
+            .build();
+        new ThreadFactoryBuilder()
+            .setDaemon(true)
+            .setNameFormat(item.getBasePath() + " - ShuffleUploader-%d")
+            .build()
+            .newThread(shuffleUploader).start();
+      }
+    }
   }
+
+
 
   public boolean canWrite(ShuffleDataFlushEvent event) {
     DiskItem diskItem = getDiskItem(event);

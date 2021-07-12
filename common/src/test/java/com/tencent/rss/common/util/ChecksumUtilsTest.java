@@ -47,14 +47,28 @@ public class ChecksumUtilsTest {
       outputStream.write(data);
     }
 
+    long expectedChecksum = ChecksumUtils.getCrc32(data);
+
+    // test direct ByteBuffer
     Path path = Paths.get(file.getAbsolutePath());
     FileChannel fileChannel = FileChannel.open(path);
     ByteBuffer buffer = ByteBuffer.allocateDirect(length);
     int bytesRead = fileChannel.read(buffer);
     fileChannel.close();
-    buffer.clear();
     assertEquals(length, bytesRead);
-    assertEquals(ChecksumUtils.getCrc32(data), ChecksumUtils.getCrc32(buffer));
+    buffer.flip();
+    assertEquals(expectedChecksum, ChecksumUtils.getCrc32(buffer));
     assertEquals(length, buffer.position());
+
+    // test heap ByteBuffer
+    path = Paths.get(file.getAbsolutePath());
+    fileChannel = FileChannel.open(path);
+    buffer = ByteBuffer.allocate(length);
+    bytesRead = fileChannel.read(buffer);
+    fileChannel.close();
+    assertEquals(length, bytesRead);
+    buffer.flip();
+    assertEquals(expectedChecksum, ChecksumUtils.getCrc32(buffer));
+
   }
 }

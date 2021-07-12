@@ -6,7 +6,6 @@ import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -20,6 +19,7 @@ public class DiskItem {
   private final double cleanupThreshold;
   private final double highWaterMarkOfWrite;
   private final double lowWaterMarkOfWrite;
+
   private DiskMetaData diskMetaData = new DiskMetaData();
   private boolean canRead = true;
 
