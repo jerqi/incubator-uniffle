@@ -42,7 +42,6 @@ public class ShuffleFlushManager {
   private Map<String, Map<Integer, RangeMap<Integer, ShuffleWriteHandler>>> handlers = Maps.newConcurrentMap();
   // appId -> shuffleId -> committed shuffle blockIds
   private Map<String, Map<Integer, Roaring64NavigableMap>> committedBlockIds = Maps.newConcurrentMap();
-  private boolean isRunning;
   private Runnable processEventThread;
   private int retryMax;
   private long writeSlowThreshold;
@@ -73,12 +72,11 @@ public class ShuffleFlushManager {
     long keepAliveTime = shuffleServerConf.getLong(ShuffleServerConf.SERVER_FLUSH_THREAD_ALIVE);
     threadPoolExecutor = new ThreadPoolExecutor(poolSize, poolSize, keepAliveTime, TimeUnit.SECONDS, waitQueue);
     storageBasePaths = shuffleServerConf.getString(ShuffleServerConf.RSS_STORAGE_BASE_PATH).split(",");
-    isRunning = true;
 
     // the thread for flush data
     processEventThread = () -> {
-      try {
-        while (isRunning) {
+      while (true) {
+        try {
           ShuffleDataFlushEvent event = flushQueue.take();
           threadPoolExecutor.execute(() -> {
             ShuffleServerMetrics.gaugeEventQueueSize.set(flushQueue.size());
@@ -86,10 +84,9 @@ public class ShuffleFlushManager {
             flushToFile(event);
             ShuffleServerMetrics.gaugeWriteHandler.dec();
           });
+        } catch (Exception e) {
+          LOG.error("Exception happened when process event.", e);
         }
-      } catch (InterruptedException ie) {
-        LOG.error("Exception happened when process event.", ie);
-        isRunning = false;
       }
     };
     new Thread(processEventThread).start();
