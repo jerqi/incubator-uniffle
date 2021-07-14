@@ -56,6 +56,7 @@ public class ShuffleTaskManager {
   private BlockingQueue<String> expiredAppIdQueue = Queues.newLinkedBlockingQueue();
   // appId -> shuffleId -> serverReadHandler
   private Map<String, Map<String, ServerReadHandler>> serverReadHandlers = Maps.newConcurrentMap();
+  private MultiStorageManager multiStorageManager = null;// TODO: add to constructor
 
   public ShuffleTaskManager(
       ShuffleServerConf conf,
@@ -289,6 +290,9 @@ public class ShuffleTaskManager {
     Map<String, ServerReadHandler> handlerMap = serverReadHandlers.get(appId);
     String key = "" + request.getShuffleId() + "_" + partitionId;
     handlerMap.putIfAbsent(key, ShuffleHandlerFactory.getInstance().createServerReadHandler(request));
+
+    // TODO: get shuffle data result and update metadata
+    //  multiStorageManager.updateRead(appId, partitionId, partitionId, shuffleDataResult.getData().length);
 
     return handlerMap.get(key).getShuffleData(segmentIndex);
   }

@@ -27,6 +27,7 @@ public class ShuffleServer {
   private ServerInterface server;
   private ShuffleFlushManager shuffleFlushManager;
   private ShuffleBufferManager shuffleBufferManager;
+  private MultiStorageManager multiStorageManager;
 
   public ShuffleServer(ShuffleServerConf shuffleServerConf) throws Exception {
     this.shuffleServerConf = shuffleServerConf;
@@ -92,9 +93,12 @@ public class ShuffleServer {
     port = shuffleServerConf.getInteger(ShuffleServerConf.RPC_SERVER_PORT);
     id = ip + "-" + port;
     LOG.info("Start to initialize server {}", id);
+    //TODO: get conf param from shuffleServerConf and init multi storage manager
+    // multiStorageManager = new MultiStorageManager(dirs, capacity, cleanupThreshold, highWaterMark, lowWaterMark);
     registerHeartBeat = new RegisterHeartBeat(this);
     shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id, this);
     shuffleBufferManager = new ShuffleBufferManager(shuffleServerConf, shuffleFlushManager);
+    // TODO: trans multiStorageManager to shuffleTaskManager through constructor
     shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, shuffleFlushManager, shuffleBufferManager);
 
     RemoteServerFactory shuffleServerFactory = new RemoteServerFactory(this);
@@ -186,5 +190,9 @@ public class ShuffleServer {
 
   public ShuffleBufferManager getShuffleBufferManager() {
     return shuffleBufferManager;
+  }
+
+  public MultiStorageManager getMultiStorageManager() {
+    return multiStorageManager;
   }
 }

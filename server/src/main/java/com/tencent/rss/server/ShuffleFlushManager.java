@@ -8,6 +8,7 @@ import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.config.RssBaseConf;
+import com.tencent.rss.storage.common.DiskItem;
 import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
 import com.tencent.rss.storage.handler.api.ShuffleDeleteHandler;
 import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
@@ -48,11 +49,15 @@ public class ShuffleFlushManager {
   private long eventSizeThresholdL1;
   private long eventSizeThresholdL2;
   private long eventSizeThresholdL3;
+  private MultiStorageManager multiStorageManager;
 
   public ShuffleFlushManager(ShuffleServerConf shuffleServerConf, String shuffleServerId, ShuffleServer shuffleServer) {
     this.shuffleServerId = shuffleServerId;
     this.shuffleServer = shuffleServer;
     this.shuffleServerConf = shuffleServerConf;
+    if (shuffleServer != null) {
+      this.multiStorageManager = shuffleServer.getMultiStorageManager();
+    }
     initHadoopConf();
     retryMax = shuffleServerConf.getInteger(ShuffleServerConf.SERVER_WRITE_RETRY_MAX);
     storageType = shuffleServerConf.get(RssBaseConf.RSS_STORAGE_TYPE);
@@ -111,7 +116,15 @@ public class ShuffleFlushManager {
           }
           try {
             long startWrite = System.currentTimeMillis();
+
+            //TODO: check capacity befor write and update metadata and send signal to cleaner
+            // and uploader after write, timeout in canWrite loop
+            // while (!multiStorageManager.canWrite(event)) {
+            //  Thread.sleep(1000);
+            //  }
             handler.write(blocks);
+            // TODO: multiStorageManager.updateWriteEvent(event);
+
             long writeTime = System.currentTimeMillis() - startWrite;
             ShuffleServerMetrics.counterTotalWriteTime.inc(writeTime);
             ShuffleServerMetrics.counterWriteTotal.inc();
@@ -162,11 +175,21 @@ public class ShuffleFlushManager {
     shuffleIdToHandlers.putIfAbsent(event.getShuffleId(), TreeRangeMap.create());
     RangeMap<Integer, ShuffleWriteHandler> eventIdRangeMap = shuffleIdToHandlers.get(event.getShuffleId());
     if (eventIdRangeMap.get(event.getStartPartition()) == null) {
-      eventIdRangeMap.put(Range.closed(event.getStartPartition(), event.getEndPartition()),
-          ShuffleHandlerFactory.getInstance().createShuffleWriteHandler(
-              new CreateShuffleWriteHandlerRequest(
-                  storageType, event.getAppId(), event.getShuffleId(), event.getStartPartition(),
-                  event.getEndPartition(), storageBasePaths, shuffleServerId, hadoopConf, storageDataReplica)));
+      eventIdRangeMap.put(
+          Range.closed(event.getStartPartition(), event.getEndPartition()),
+          ShuffleHandlerFactory
+              .getInstance()
+              .createShuffleWriteHandler(
+                  new CreateShuffleWriteHandlerRequest(
+                      storageType,
+                      event.getAppId(),
+                      event.getShuffleId(),
+                      event.getStartPartition(),
+                      event.getEndPartition(),
+                      storageBasePaths,
+                      shuffleServerId,
+                      hadoopConf,
+                      storageDataReplica)));
     }
     return eventIdRangeMap.get(event.getStartPartition());
   }
