@@ -5,6 +5,7 @@ import com.google.common.collect.Sets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,11 +25,8 @@ public class DiskMetaData {
   private final AtomicLong size = new AtomicLong(0L);
   private final AtomicLong fileNum = new AtomicLong(0L);
   private final AtomicLong shuffleNum = new AtomicLong(0L);
+  private final Map<String, ShuffleMeta> shuffleMetaMap = Maps.newConcurrentMap();
 
-  private final Map<String, AtomicLong> shuffleSize = Maps.newConcurrentMap();
-  private final Map<String, Set<Integer>> shufflePartitionList = Maps.newConcurrentMap();
-  private final Map<String, Set<Integer>> uploadedShufflePartitionList = Maps.newConcurrentMap();
-  private final Map<String, AtomicLong> uploadedShuffleSize = Maps.newConcurrentMap();
 
   public long updateDiskSize(long delta) {
     return size.addAndGet(delta);
@@ -43,34 +41,35 @@ public class DiskMetaData {
   }
 
   public long updateShuffleSize(String shuffleId, long delta) {
-    return updateSizeInternal(shuffleSize, shuffleId, delta);
+    return getShuffleMeta(shuffleId).getSize().addAndGet(delta);
   }
 
   public long updateUploadedShuffleSize(String shuffleId, long delta) {
-    return updateSizeInternal(uploadedShuffleSize, shuffleId, delta);
+    return getShuffleMeta(shuffleId).getUploadedSize().addAndGet(delta);
   }
 
   public void updateShufflePartitionList(String shuffleId, List<Integer> partitions) {
-    addPartitionsInternal(shufflePartitionList, shuffleId, partitions);
+    getShuffleMeta(shuffleId).getPartitionSet().addAll(partitions);
   }
 
   public void updateUploadedShufflePartitionList(String shuffleId, List<Integer> partitions) {
-    addPartitionsInternal(uploadedShufflePartitionList, shuffleId, partitions);
+    getShuffleMeta(shuffleId).getUploadedPartitionSet().addAll(partitions);
+  }
+
+  public void setHasRead(String shuffleId) {
+    getShuffleMeta(shuffleId).getHasRead().set(true);
   }
 
   public void removeShufflePartitionList(String shuffleId, List<Integer> partitions) {
-    removePartitionsInternal(shufflePartitionList, shuffleId, partitions);
+    getShuffleMeta(shuffleId).getPartitionSet().removeAll(partitions);
   }
 
   public void removeUploadedShufflePartitionList(String shuffleId, List<Integer> partitions) {
-    removePartitionsInternal(uploadedShufflePartitionList, shuffleId, partitions);
+    getShuffleMeta(shuffleId).getUploadedPartitionSet().removeAll(partitions);
   }
 
   public void remoteShuffle(String shuffleId) {
-    shuffleSize.remove(shuffleId);
-    shufflePartitionList.remove(shuffleId);
-    uploadedShufflePartitionList.remove(shuffleId);
-    uploadedShuffleSize.remove(shuffleId);
+    shuffleMetaMap.remove(shuffleId);
   }
 
   public AtomicLong getDiskSize() {
@@ -85,47 +84,71 @@ public class DiskMetaData {
     return shuffleNum;
   }
 
-  public Map<String, AtomicLong> getShuffleSize() {
-    return shuffleSize;
+  public long getShuffleSize(String shuffleKey) {
+    return getShuffleMeta(shuffleKey).getSize().get();
   }
 
-  public Map<String, Set<Integer>> getShufflePartitionList() {
-    return shufflePartitionList;
+  public long getShuffleUploadedSize(String shuffleKey) {
+    return getShuffleMeta(shuffleKey).getUploadedSize().get();
   }
 
-  public Map<String, Set<Integer>> getUploadedShufflePartitionList() {
-    return uploadedShufflePartitionList;
+  public boolean getShuffleHasRead(String shuffleKey) {
+    return getShuffleMeta(shuffleKey).getHasRead().get();
   }
 
-  public Map<String, AtomicLong> getUploadedShuffleSize() {
-    return uploadedShuffleSize;
+  public Set<String> getShuffleMetaSet() {
+    return shuffleMetaMap.keySet();
   }
 
-  private long updateSizeInternal(Map<String, AtomicLong> map, String key, long delta) {
-    if (map.containsKey(key)) {
-      return map.get(key).addAndGet(delta);
-    } else {
-      map.putIfAbsent(key, new AtomicLong(0));
-      return map.get(key).addAndGet(delta);
+  /**
+   *  If the method is implemented as below:
+   *
+   *     if (shuffleMetaMap.contains(shuffleId)) {
+   *        // `Time A`
+   *        return shuffleMetaMap.get(shuffleId)
+   *     } else {
+   *        shuffleMetaMap.putIfAbsent(shuffleId, newMeta)
+   *        return newMeta
+   *    }
+   *
+   *  Because if shuffleMetaMap remove shuffleId at `Time A` in another thread,
+   *  shuffleMetaMap.get(shuffleId) will return null.
+   *  We need to guarantee that this method is thread safe, and won't return null.
+   **/
+  private ShuffleMeta getShuffleMeta(String shuffleKey) {
+    ShuffleMeta meta = new ShuffleMeta();
+    ShuffleMeta oldMeta = shuffleMetaMap.putIfAbsent(shuffleKey, meta);
+    return (oldMeta == null) ? meta : oldMeta;
+  }
+
+  // Consider that ShuffleMeta is a simple class, we keep the class ShuffleMeta as
+  // an inner class.
+  private class ShuffleMeta {
+    private final AtomicLong size = new AtomicLong(0);
+    private final Set<Integer> partitionSet = Sets.newConcurrentHashSet();
+    private final Set<Integer> uploadedPartitionSet = Sets.newConcurrentHashSet();
+    private final AtomicLong uploadedSize = new AtomicLong(0);
+    private final AtomicBoolean hasRead = new AtomicBoolean(false);
+
+    public AtomicLong getSize() {
+      return size;
     }
-  }
 
-  private void addPartitionsInternal(Map<String, Set<Integer>> map, String key, List<Integer> partitions) {
-    if (map.containsKey(key)) {
-      map.get(key).addAll(partitions);
-    } else {
-      map.putIfAbsent(key, Sets.newConcurrentHashSet());
-      map.get(key).addAll(partitions);
-    }
-  }
-
-  private void removePartitionsInternal(Map<String, Set<Integer>> map, String key, List<Integer> partitions) {
-    if (map.containsKey(key)) {
-      LOG.error("{} dont exist", key);
-      return;
+    public AtomicLong getUploadedSize() {
+      return uploadedSize;
     }
 
-    map.get(key).removeAll(partitions);
+    public Set<Integer> getPartitionSet() {
+      return partitionSet;
+    }
+
+    public Set<Integer> getUploadedPartitionSet() {
+      return uploadedPartitionSet;
+    }
+
+    public AtomicBoolean getHasRead() {
+      return hasRead;
+    }
   }
 
 }

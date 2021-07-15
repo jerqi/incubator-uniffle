@@ -8,7 +8,6 @@ import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.config.RssBaseConf;
-import com.tencent.rss.storage.common.DiskItem;
 import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
 import com.tencent.rss.storage.handler.api.ShuffleDeleteHandler;
 import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;

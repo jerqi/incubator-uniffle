@@ -3,10 +3,14 @@ package com.tencent.rss.server;
 import com.google.common.collect.Lists;
 import com.tencent.rss.storage.common.DiskItem;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 
 public class MultiStorageManager {
 
+  private static final Logger LOG = LoggerFactory.getLogger(MultiStorageManager.class);
   private final List<String> dirs;
   private final long capacity;
   private final double cleanupThreshold;
@@ -20,6 +24,21 @@ public class MultiStorageManager {
       double cleanupThreshold,
       double highWaterMarkOfWrite,
       double lowWaterMarkOfWrite) {
+    if (capacity <= 0) {
+      throw new IllegalArgumentException("Capacity must be larger than zero");
+    }
+    if (cleanupThreshold < 0 || cleanupThreshold > 100) {
+      throw new IllegalArgumentException("cleanupThreshold must be between 0 and 100");
+    }
+    if (highWaterMarkOfWrite < lowWaterMarkOfWrite) {
+      throw new IllegalArgumentException("highWaterMarkOfWrite must be larger than lowWaterMarkOfWrite");
+    }
+    if (lowWaterMarkOfWrite < 0) {
+      throw new IllegalArgumentException("lowWaterMarkOfWrite must be larger than zero");
+    }
+    if (highWaterMarkOfWrite > 100) {
+      throw new IllegalArgumentException("highWaterMarkOfWrite must be smaller than 100");
+    }
     this.dirs = dirs;
     this.capacity = capacity;
     this.cleanupThreshold = cleanupThreshold;
@@ -91,6 +110,4 @@ public class MultiStorageManager {
   public String generateDir(ShuffleDataFlushEvent event) {
     return generateDir(event.getAppId(), event.getShuffleId(), event.getStartPartition());
   }
-
-
 }
