@@ -3,6 +3,7 @@ package com.tencent.rss.test.grpc;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
@@ -13,6 +14,7 @@ import com.tencent.rss.client.request.RssRegisterShuffleRequest;
 import com.tencent.rss.client.request.RssSendCommitRequest;
 import com.tencent.rss.client.request.RssSendShuffleDataRequest;
 import com.tencent.rss.common.BufferSegment;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.util.ChecksumUtils;
@@ -28,6 +30,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.roaringbitmap.longlong.LongIterator;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
 
@@ -60,29 +64,36 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
 
   @Test
   public void localWriteReadTest() {
-    RssRegisterShuffleRequest rrsr = new RssRegisterShuffleRequest("appId", 0, 0, 1);
+    RssRegisterShuffleRequest rrsr = new RssRegisterShuffleRequest("appId", 0,
+        Lists.newArrayList(new PartitionRange(0, 1)));
     shuffleServerClient.registerShuffle(rrsr);
-    rrsr = new RssRegisterShuffleRequest("appId", 0, 2, 3);
+    rrsr = new RssRegisterShuffleRequest("appId", 0, Lists.newArrayList(new PartitionRange(2, 3)));
     shuffleServerClient.registerShuffle(rrsr);
 
     Map<Long, byte[]> expectedData = Maps.newHashMap();
-    Set<Long> expectedBlockIds1 = Sets.newHashSet();
-    Set<Long> expectedBlockIds2 = Sets.newHashSet();
-    Set<Long> expectedBlockIds3 = Sets.newHashSet();
-    Set<Long> expectedBlockIds4 = Sets.newHashSet();
+    Roaring64NavigableMap blockIdBitmap1 = Roaring64NavigableMap.bitmapOf();
+    Roaring64NavigableMap blockIdBitmap2 = Roaring64NavigableMap.bitmapOf();
+    Roaring64NavigableMap blockIdBitmap3 = Roaring64NavigableMap.bitmapOf();
+    Roaring64NavigableMap blockIdBitmap4 = Roaring64NavigableMap.bitmapOf();
+
     List<ShuffleBlockInfo> blocks1 = createShuffleBlockList(
-        0, 0, 3, 25, expectedBlockIds1, expectedData);
+        0, 0, 0, 3, 25, blockIdBitmap1, expectedData);
     List<ShuffleBlockInfo> blocks2 = createShuffleBlockList(
-        0, 1, 5, 25, expectedBlockIds2, expectedData);
+        0, 1, 1, 5, 25, blockIdBitmap2, expectedData);
     List<ShuffleBlockInfo> blocks3 = createShuffleBlockList(
-        0, 2, 4, 25, expectedBlockIds3, expectedData);
+        0, 2, 2, 4, 25, blockIdBitmap3, expectedData);
     List<ShuffleBlockInfo> blocks4 = createShuffleBlockList(
-        0, 3, 1, 25, expectedBlockIds4, expectedData);
+        0, 3, 3, 1, 25, blockIdBitmap4, expectedData);
     Map<Integer, List<ShuffleBlockInfo>> partitionToBlocks = Maps.newHashMap();
     partitionToBlocks.put(0, blocks1);
     partitionToBlocks.put(1, blocks2);
     partitionToBlocks.put(2, blocks3);
     partitionToBlocks.put(3, blocks4);
+
+    Set<Long> expectedBlockIds1 = transBitmapToSet(blockIdBitmap1);
+    Set<Long> expectedBlockIds2 = transBitmapToSet(blockIdBitmap2);
+    Set<Long> expectedBlockIds3 = transBitmapToSet(blockIdBitmap3);
+    Set<Long> expectedBlockIds4 = transBitmapToSet(blockIdBitmap4);
 
     Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleToBlocks = Maps.newHashMap();
     shuffleToBlocks.put(0, partitionToBlocks);
@@ -98,26 +109,26 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
     RssGetShuffleDataRequest rgsdr = new RssGetShuffleDataRequest(
         "appId", 0, 0, 2, 10, 1000, expectedBlockIds1);
     ShuffleDataResult sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
-    validateResult(sdr, expectedBlockIds1, expectedData);
+    validateResult(sdr, expectedBlockIds1, expectedData, 0);
 
     rgsdr = new RssGetShuffleDataRequest(
         "appId", 0, 1, 2, 10, 1000, expectedBlockIds2);
     sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
-    validateResult(sdr, expectedBlockIds2, expectedData);
+    validateResult(sdr, expectedBlockIds2, expectedData, 1);
 
     rgsdr = new RssGetShuffleDataRequest(
         "appId", 0, 2, 2, 10, 1000, expectedBlockIds3);
     sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
-    validateResult(sdr, expectedBlockIds3, expectedData);
+    validateResult(sdr, expectedBlockIds3, expectedData, 2);
 
     rgsdr = new RssGetShuffleDataRequest(
         "appId", 0, 3, 2, 10, 1000, expectedBlockIds4);
     sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
-    validateResult(sdr, expectedBlockIds4, expectedData);
+    validateResult(sdr, expectedBlockIds4, expectedData, 3);
   }
 
   protected void validateResult(ShuffleDataResult sdr, Set<Long> expectedBlockIds,
-      Map<Long, byte[]> expectedData) {
+      Map<Long, byte[]> expectedData, long expectedTaskAttemptId) {
     byte[] buffer = sdr.getData();
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     int matched = 0;
@@ -128,9 +139,19 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
         assertEquals(bs.getCrc(), ChecksumUtils.getCrc32(data));
         assertTrue(Arrays.equals(data, expectedData.get(bs.getBlockId())));
         assertTrue(expectedBlockIds.contains(bs.getBlockId()));
+        assertEquals(expectedTaskAttemptId, bs.getTaskAttemptId());
         matched++;
       }
     }
     assertEquals(expectedBlockIds.size(), matched);
+  }
+
+  private Set<Long> transBitmapToSet(Roaring64NavigableMap blockIdBitmap) {
+    Set<Long> blockIds = Sets.newHashSet();
+    LongIterator iter = blockIdBitmap.getLongIterator();
+    while (iter.hasNext()) {
+      blockIds.add(iter.next());
+    }
+    return blockIds;
   }
 }

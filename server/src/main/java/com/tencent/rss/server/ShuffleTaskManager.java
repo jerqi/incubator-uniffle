@@ -5,10 +5,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedData;
+import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
 import com.tencent.rss.storage.request.CreateShuffleReadHandlerRequest;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -17,6 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,13 +32,12 @@ public class ShuffleTaskManager {
   private final ScheduledExecutorService expiredAppCleanupExecutorService;
   private AtomicLong requireBufferId = new AtomicLong(0);
   private ShuffleServerConf conf;
-  private long appExpiredWithHB;
   private long appExpiredWithoutHB;
   private long preAllocationExpired;
   private long commitCheckInterval;
-  // appId -> shuffleId -> partitionId -> taskAttemptId -> blockIds to avoid too many appId
+  // appId -> shuffleId -> partitionId -> blockIds to avoid too many appId
   // store taskAttemptId info to filter speculation task
-  private Map<String, Map<Integer, Map<Integer, Map<Long, long[]>>>> partitionsToBlockIds;
+  private Map<String, Map<Integer, Map<Integer, Roaring64NavigableMap>>> partitionsToBlockIds;
   private ShuffleBufferManager shuffleBufferManager;
   private Map<String, Long> appIds = Maps.newConcurrentMap();
   // appId -> shuffleId -> commit count
@@ -53,7 +56,6 @@ public class ShuffleTaskManager {
     this.shuffleFlushManager = shuffleFlushManager;
     this.partitionsToBlockIds = Maps.newConcurrentMap();
     this.shuffleBufferManager = shuffleBufferManager;
-    this.appExpiredWithHB = conf.getLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITH_HEARTBEAT);
     this.appExpiredWithoutHB = conf.getLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT);
     this.commitCheckInterval = conf.getLong(ShuffleServerConf.SERVER_COMMIT_CHECK_INTERVAL);
     this.preAllocationExpired = conf.getLong(ShuffleServerConf.SERVER_PRE_ALLOCATION_EXPIRED);
@@ -80,9 +82,12 @@ public class ShuffleTaskManager {
     new Thread(clearResourceThread).start();
   }
 
-  public StatusCode registerShuffle(String appId, int shuffleId, int startPartition, int endPartition) {
+  public StatusCode registerShuffle(String appId, int shuffleId, List<PartitionRange> partitionRanges) {
     partitionsToBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
-    return shuffleBufferManager.registerBuffer(appId, shuffleId, startPartition, endPartition);
+    for (PartitionRange partitionRange : partitionRanges) {
+      shuffleBufferManager.registerBuffer(appId, shuffleId, partitionRange.getStart(), partitionRange.getEnd());
+    }
+    return StatusCode.SUCCESS;
   }
 
   public StatusCode cacheShuffleData(String appId, int shuffleId, boolean isPreAllocated, ShufflePartitionedData spd) {
@@ -123,15 +128,18 @@ public class ShuffleTaskManager {
   }
 
   public synchronized void addFinishedBlockIds(
-      String appId, Integer shuffleId, Long taskAttemptId, Map<Integer, long[]> partitionToBlockIds) {
+      String appId, Integer shuffleId, Map<Integer, long[]> partitionToBlockIds) {
     refreshAppId(appId);
-    Map<Integer, Map<Integer, Map<Long, long[]>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
-    shuffleToPartitions.putIfAbsent(shuffleId, Maps.newConcurrentMap());
-    Map<Integer, Map<Long, long[]>> existPartitionToBlockIds = shuffleToPartitions.get(shuffleId);
+    Map<Integer, Map<Integer, Roaring64NavigableMap>> shuffleIdToPartitions = partitionsToBlockIds.get(appId);
+    shuffleIdToPartitions.putIfAbsent(shuffleId, Maps.newConcurrentMap());
+    Map<Integer, Roaring64NavigableMap> partitionIdToBlockIds = shuffleIdToPartitions.get(shuffleId);
     for (Map.Entry<Integer, long[]> entry : partitionToBlockIds.entrySet()) {
       Integer partitionId = entry.getKey();
-      existPartitionToBlockIds.putIfAbsent(partitionId, Maps.newConcurrentMap());
-      existPartitionToBlockIds.get(partitionId).put(taskAttemptId, entry.getValue());
+      partitionIdToBlockIds.putIfAbsent(partitionId, Roaring64NavigableMap.bitmapOf());
+      Roaring64NavigableMap provider = partitionIdToBlockIds.get(partitionId);
+      for (long blockId : entry.getValue()) {
+        provider.addLong(blockId);
+      }
     }
   }
 
@@ -180,30 +188,22 @@ public class ShuffleTaskManager {
     return requireId;
   }
 
-  public List<Long> getFinishedBlockIds(
-      String appId, Integer shuffleId, Integer partitionId, List<Long> taskAttemptIds) {
+  public byte[] getFinishedBlockIds(
+      String appId, Integer shuffleId, Integer partitionId) throws IOException {
     refreshAppId(appId);
-    Map<Integer, Map<Integer, Map<Long, long[]>>> shuffleToPartitions = partitionsToBlockIds.get(appId);
-    if (shuffleToPartitions == null) {
+    Map<Integer, Map<Integer, Roaring64NavigableMap>> shuffleIdToPartitions = partitionsToBlockIds.get(appId);
+    if (shuffleIdToPartitions == null) {
       return null;
     }
-    Map<Integer, Map<Long, long[]>> partitionToBlockIds = shuffleToPartitions.get(shuffleId);
-    if (partitionToBlockIds == null) {
-      return Lists.newArrayList();
+    Map<Integer, Roaring64NavigableMap> partitionIdToBlockIds = shuffleIdToPartitions.get(shuffleId);
+    if (partitionIdToBlockIds == null) {
+      return new byte[]{};
     }
-    Map<Long, long[]> taskToBlockIds = partitionToBlockIds.get(partitionId);
-    List<Long> blockIds = Lists.newArrayList();
-    if (taskToBlockIds != null) {
-      for (Long taskAttemptId : taskAttemptIds) {
-        long[] taskBlockIds = taskToBlockIds.get(taskAttemptId);
-        if (taskBlockIds != null && taskBlockIds.length > 0) {
-          for (long blockId : taskBlockIds) {
-            blockIds.add(blockId);
-          }
-        }
-      }
+    Roaring64NavigableMap bitmap = partitionIdToBlockIds.get(partitionId);
+    if (bitmap == null) {
+      return new byte[]{};
     }
-    return blockIds;
+    return RssUtils.serializeBitMap(bitmap);
   }
 
   public ShuffleDataResult getShuffleData(

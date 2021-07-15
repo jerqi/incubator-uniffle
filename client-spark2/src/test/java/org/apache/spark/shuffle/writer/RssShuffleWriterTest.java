@@ -74,7 +74,7 @@ public class RssShuffleWriterTest {
 
     BufferManagerOptions bufferOptions = new BufferManagerOptions(conf);
     WriteBufferManager bufferManager = new WriteBufferManager(
-        0, 0, bufferOptions, kryoSerializer,
+        0, 0, 0, bufferOptions, kryoSerializer,
         Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics());
     WriteBufferManager bufferManagerSpy = spy(bufferManager);
     doReturn(1000000L).when(bufferManagerSpy).acquireMemory(anyLong());
@@ -178,7 +178,7 @@ public class RssShuffleWriterTest {
     ShuffleWriteMetrics shuffleWriteMetrics = new ShuffleWriteMetrics();
     BufferManagerOptions bufferOptions = new BufferManagerOptions(conf);
     WriteBufferManager bufferManager = new WriteBufferManager(
-        0, 0, bufferOptions, kryoSerializer,
+        0, 0, 0, bufferOptions, kryoSerializer,
         partitionToServers, mockTaskMemoryManager, shuffleWriteMetrics);
     WriteBufferManager bufferManagerSpy = spy(bufferManager);
     doReturn(1000000L).when(bufferManagerSpy).acquireMemory(anyLong());
@@ -332,7 +332,8 @@ public class RssShuffleWriterTest {
     List<ShuffleBlockInfo> shuffleBlockInfoList = Lists.newArrayList();
     for (int i = 0; i < blockNum; i++) {
       shuffleBlockInfoList.add(new ShuffleBlockInfo(
-          0, 0, 10, blockLength, 10, new byte[]{1}, shuffleServerInfoList, blockLength));
+          0, 0, 10, blockLength, 10, new byte[]{1},
+          shuffleServerInfoList, blockLength, 10, 0));
     }
     return shuffleBlockInfoList;
   }

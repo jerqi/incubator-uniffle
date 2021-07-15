@@ -63,7 +63,7 @@ public class HdfsFileReaderTest extends HdfsTestBase {
       ByteString byteString = ByteString.copyFrom(data);
       writer.writeData(byteString.asReadOnlyByteBuffer());
     }
-    FileBasedShuffleSegment segment = new FileBasedShuffleSegment(23, offset, length, length, 0xdeadbeef);
+    FileBasedShuffleSegment segment = new FileBasedShuffleSegment(23, offset, length, length, 0xdeadbeef, 1);
     try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
       byte[] actual = reader.readData(segment.getOffset(), segment.getLength());
       long crc22 = ChecksumUtils.getCrc32(actual);
@@ -73,7 +73,7 @@ public class HdfsFileReaderTest extends HdfsTestBase {
       }
       assertEquals(crc11, crc22);
       // EOF exception is expected
-      segment = new FileBasedShuffleSegment(23, offset * 2, length, length, 1);
+      segment = new FileBasedShuffleSegment(23, offset * 2, length, length, 1, 1);
       assertNull(reader.readData(segment.getOffset(), segment.getLength()));
     }
   }
@@ -82,9 +82,9 @@ public class HdfsFileReaderTest extends HdfsTestBase {
   public void readIndexTest() throws IOException {
     Path path = new Path(HDFS_URI, "readIndexTest");
     FileBasedShuffleSegment[] segments = {
-        new FileBasedShuffleSegment(123, 0, 32, 32, 1),
-        new FileBasedShuffleSegment(223, 32, 23, 23, 2),
-        new FileBasedShuffleSegment(323, 64, 32, 32, 3)
+        new FileBasedShuffleSegment(123, 0, 32, 32, 1, 1),
+        new FileBasedShuffleSegment(223, 32, 23, 23, 2, 1),
+        new FileBasedShuffleSegment(323, 64, 32, 32, 3, 2)
     };
 
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
@@ -103,14 +103,14 @@ public class HdfsFileReaderTest extends HdfsTestBase {
         assertEquals(segments[i], idx.get(i));
       }
 
-      long expected = 2 * (4 * 8); // segment length = 4 * 8
+      long expected = 2 * (4 * 8 + 2 * 4); // segment length = 4 * 8 + 2 * 4
       assertEquals(expected, reader.getOffset());
 
       idx = reader.readIndex(1000);
       assertEquals(1, idx.size());
       assertEquals(segments[2], idx.get(0));
 
-      expected = 3 * (4 * 8);
+      expected = 3 * (4 * 8 + 2 * 4);
       assertEquals(expected, reader.getOffset());
     }
   }
@@ -119,9 +119,9 @@ public class HdfsFileReaderTest extends HdfsTestBase {
   public void readIndexFailTest() throws IOException {
     Path path = new Path(HDFS_URI, "readIndexFailTest");
     FileBasedShuffleSegment[] segments = {
-        new FileBasedShuffleSegment(123, 0, 32, 32, 1),
-        new FileBasedShuffleSegment(223, 32, 23, 32, 2),
-        new FileBasedShuffleSegment(323, 64, 32, 32, 3)
+        new FileBasedShuffleSegment(123, 0, 32, 32, 1, 1),
+        new FileBasedShuffleSegment(223, 32, 23, 32, 2, 1),
+        new FileBasedShuffleSegment(323, 64, 32, 32, 3, 2)
     };
 
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {

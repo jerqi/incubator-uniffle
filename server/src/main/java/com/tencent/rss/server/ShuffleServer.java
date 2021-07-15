@@ -7,9 +7,6 @@ import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.common.web.CommonMetricsServlet;
 import com.tencent.rss.common.web.JettyServer;
 import io.prometheus.client.CollectorRegistry;
-import java.io.FileNotFoundException;
-import java.net.SocketException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -31,12 +28,12 @@ public class ShuffleServer {
   private ShuffleFlushManager shuffleFlushManager;
   private ShuffleBufferManager shuffleBufferManager;
 
-  public ShuffleServer(ShuffleServerConf shuffleServerConf) throws SocketException, FileNotFoundException {
+  public ShuffleServer(ShuffleServerConf shuffleServerConf) throws Exception {
     this.shuffleServerConf = shuffleServerConf;
     initialization();
   }
 
-  public ShuffleServer(String configFile) throws FileNotFoundException, IllegalStateException, SocketException {
+  public ShuffleServer(String configFile) throws Exception {
     this.shuffleServerConf = new ShuffleServerConf(configFile);
     initialization();
   }
@@ -87,7 +84,7 @@ public class ShuffleServer {
     server.stop();
   }
 
-  private void initialization() throws SocketException, FileNotFoundException {
+  private void initialization() throws Exception {
     ip = RssUtils.getHostIp();
     if (ip == null) {
       throw new RuntimeException("Couldn't acquire host Ip");

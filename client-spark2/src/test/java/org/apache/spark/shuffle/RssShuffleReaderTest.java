@@ -6,11 +6,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.tencent.rss.storage.handler.impl.HdfsShuffleWriteHandler;
 import com.tencent.rss.storage.util.StorageType;
 import java.util.Map;
-import java.util.Set;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
@@ -19,6 +17,7 @@ import org.apache.spark.serializer.KryoSerializer;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.shuffle.reader.RssShuffleReader;
 import org.junit.Test;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import scala.Option;
 
 public class RssShuffleReaderTest extends AbstractRssReaderTest {
@@ -33,9 +32,10 @@ public class RssShuffleReaderTest extends AbstractRssReaderTest {
         new HdfsShuffleWriteHandler("appId", 0, 0, 1, basePath, "test", conf);
 
     Map<String, String> expectedData = Maps.newHashMap();
-    Set<Long> expectedBlockIds = Sets.newHashSet();
+    Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
+    Roaring64NavigableMap taskIdBitmap = Roaring64NavigableMap.bitmapOf(0);
     writeTestData(writeHandler, 2, 5, expectedData,
-        expectedBlockIds, "key", KRYO_SERIALIZER);
+        blockIdBitmap, "key", KRYO_SERIALIZER);
 
     TaskContext contextMock = mock(TaskContext.class);
     RssShuffleHandle handleMock = mock(RssShuffleHandle.class);
@@ -54,7 +54,7 @@ public class RssShuffleReaderTest extends AbstractRssReaderTest {
 
     RssShuffleReader rssShuffleReaderSpy = spy(new RssShuffleReader<String, String>(0, 1, contextMock,
         handleMock, basePath, 1000, conf, StorageType.HDFS.name(),
-        1000, 2, 10, expectedBlockIds));
+        1000, 2, 10, blockIdBitmap, taskIdBitmap));
 
     validateResult(rssShuffleReaderSpy.read(), expectedData, 10);
   }

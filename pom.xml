@@ -40,6 +40,7 @@
     <prometheus.simpleclient.version>0.9.0</prometheus.simpleclient.version>
     <protobuf.version>3.12.0</protobuf.version>
     <protoc.version>3.12.0</protoc.version>
+    <roaring.bitmap.version>0.9.15</roaring.bitmap.version>
     <rss.shade.packageName>com.tencent.rss</rss.shade.packageName>
     <scala.binary.version>2.11</scala.binary.version>
     <skipDeploy>false</skipDeploy>
@@ -467,6 +468,12 @@
             <artifactId>nimbus-jose-jwt</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.roaringbitmap</groupId>
+        <artifactId>RoaringBitmap</artifactId>
+        <version>${roaring.bitmap.version}</version>
       </dependency>
 
       <dependency>

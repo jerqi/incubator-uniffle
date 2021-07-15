@@ -256,7 +256,7 @@ public class ShuffleBufferManager {
   }
 
   @VisibleForTesting
-  protected Map<String, Map<Integer, RangeMap<Integer, ShuffleBuffer>>> getBufferPool() {
+  public Map<String, Map<Integer, RangeMap<Integer, ShuffleBuffer>>> getBufferPool() {
     return bufferPool;
   }
 

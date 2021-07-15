@@ -51,7 +51,7 @@ public class ShuffleHandlerFactory {
           request.getPartitionNum(),
           request.getReadBufferSize(),
           request.getStorageBasePath(),
-          request.getExpectedBlockIds(),
+          request.getBlockIdBitmap(),
           request.getHadoopConf());
     } else if (StorageType.LOCALFILE.name().equals(request.getStorageType())) {
       List<ShuffleServerInfo> shuffleServerInfoList = request.getShuffleServerInfoList();

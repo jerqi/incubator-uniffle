@@ -1,20 +1,19 @@
 package com.tencent.rss.client.response;
 
-import java.util.List;
+import com.tencent.rss.common.util.RssUtils;
+import java.io.IOException;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 public class RssGetShuffleResultResponse extends ClientResponse {
 
-  private List<Long> blockIds;
+  private Roaring64NavigableMap blockIdBitmap;
 
-  public RssGetShuffleResultResponse(ResponseStatusCode statusCode) {
+  public RssGetShuffleResultResponse(ResponseStatusCode statusCode, byte[] serializedBitmap) throws IOException {
     super(statusCode);
+    blockIdBitmap = RssUtils.deserializeBitMap(serializedBitmap);
   }
 
-  public List<Long> getBlockIds() {
-    return blockIds;
-  }
-
-  public void setBlockIds(List<Long> blockIds) {
-    this.blockIds = blockIds;
+  public Roaring64NavigableMap getBlockIdBitmap() {
+    return blockIdBitmap;
   }
 }

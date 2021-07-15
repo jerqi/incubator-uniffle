@@ -16,29 +16,20 @@ public class ShufflePartitionedBlockTest {
 
   @Test
   public void shufflePartitionedBlockTest() {
-    ShufflePartitionedBlock b1 = new ShufflePartitionedBlock(1, 1, 2, 3);
+    byte[] buf = new byte[3];
+    new Random().nextBytes(buf);
+
+    ShufflePartitionedBlock b1 = new ShufflePartitionedBlock(1, 1, 2, 3, 1, ByteBuffer.wrap(buf));
     assertEquals(1, b1.getLength());
     assertEquals(2, b1.getCrc());
     assertEquals(3, b1.getBlockId());
 
-    byte[] buf = new byte[3];
-    new Random().nextBytes(buf);
-
     ByteBuffer bb = ByteBuffer.wrap(buf);
-    ShufflePartitionedBlock b2 = new ShufflePartitionedBlock(1, 1, 2, 3, bb);
+    ShufflePartitionedBlock b2 = new ShufflePartitionedBlock(1, 1, 2, 3, 1, bb);
     assertEquals(bb, b2.getData());
     assertArrayEquals(buf, b2.getData().array());
 
-    ShufflePartitionedBlock b3 = new ShufflePartitionedBlock(1, 1, 2, 3, buf);
+    ShufflePartitionedBlock b3 = new ShufflePartitionedBlock(1, 1, 2, 3, 3, ByteBuffer.wrap(buf));
     assertArrayEquals(buf, b3.getData().array());
-
-    ByteBuffer nullBb = null;
-    thrown.expect(NullPointerException.class);
-    new ShufflePartitionedBlock(1, 1, 2, 3, nullBb);
-
-    byte[] nullBuf = null;
-    thrown.expect(NullPointerException.class);
-    new ShufflePartitionedBlock(1, 1, 2, 3, nullBuf);
-
   }
 }

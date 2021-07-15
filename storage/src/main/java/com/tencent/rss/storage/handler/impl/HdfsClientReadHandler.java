@@ -19,6 +19,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +29,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
   private final int indexReadLimit;
   private Map<String, HdfsFileReader> dataReaderMap = Maps.newHashMap();
   private Map<String, HdfsFileReader> indexReaderMap = Maps.newHashMap();
-  private Set<Long> expectedBlockIds = Sets.newHashSet();
+  private Roaring64NavigableMap blockIdBitmap;
   private List<FileReadSegment> fileReadSegments = Lists.newArrayList();
   private int partitionNumPerRange;
   private int partitionNum;
@@ -47,7 +48,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
       int partitionNum,
       int readBufferSize,
       String storageBasePath,
-      Set<Long> expectedBlockIds,
+      Roaring64NavigableMap blockIdBitmap,
       Configuration hadoopConf) {
     this.appId = appId;
     this.shuffleId = shuffleId;
@@ -57,9 +58,9 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
     this.partitionNum = partitionNum;
     this.readBufferSize = readBufferSize;
     this.storageBasePath = storageBasePath;
-    this.expectedBlockIds = expectedBlockIds;
+    this.blockIdBitmap = blockIdBitmap;
     this.hadoopConf = hadoopConf;
-    if (expectedBlockIds != null && !expectedBlockIds.isEmpty()) {
+    if (blockIdBitmap != null && !blockIdBitmap.isEmpty()) {
       init();
     }
   }
@@ -119,7 +120,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
    * Read all index files, and get all FileBasedShuffleSegment for every index file
    */
   private void readAllIndexSegments() {
-    Set<Long> blockIds = Sets.newHashSet();
+    Roaring64NavigableMap processedBlockIdsBitmap = Roaring64NavigableMap.bitmapOf();
     for (Entry<String, HdfsFileReader> entry : indexReaderMap.entrySet()) {
       String path = entry.getKey();
       try {
@@ -132,7 +133,7 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
           LOG.debug("Get segment : " + segments);
           allSegments.addAll(segments);
           for (FileBasedShuffleSegment segment : segments) {
-            blockIds.add(segment.getBlockId());
+            processedBlockIdsBitmap.addLong(segment.getBlockId());
           }
           segments = reader.readIndex(indexReadLimit);
         }
@@ -143,11 +144,14 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
       }
     }
 
-    if (!blockIds.containsAll(expectedBlockIds)) {
-      Set<Long> copy = Sets.newHashSet(expectedBlockIds);
-      copy.removeAll(blockIds);
-      throw new RuntimeException("Missing " + copy.size() + " blockIds, expected "
-          + expectedBlockIds.size() + " blockIds");
+    // processedBlockIdsBitmap should contain request blockIds
+    processedBlockIdsBitmap.and(blockIdBitmap);
+    if (!processedBlockIdsBitmap.equals(blockIdBitmap)) {
+      long expectedSize = blockIdBitmap.getLongCardinality();
+      // check missing num
+      blockIdBitmap.andNot(processedBlockIdsBitmap);
+      throw new RuntimeException("BlockId is incorrect when read index file, expected "
+          + expectedSize + " blockIds, missing " + blockIdBitmap.getLongCardinality() + " blockIds");
     }
   }
 

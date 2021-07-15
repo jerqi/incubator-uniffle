@@ -7,15 +7,15 @@ import java.util.Set;
 public class ShuffleAssignmentsInfo {
 
   private Map<Integer, List<ShuffleServerInfo>> partitionToServers;
-  private List<ShuffleRegisterInfo> registerInfoList;
   private Set<ShuffleServerInfo> shuffleServersForResult;
+  private Map<ShuffleServerInfo, List<PartitionRange>> serverToPartitionRanges;
 
   public ShuffleAssignmentsInfo(
       Map<Integer, List<ShuffleServerInfo>> partitionToServers,
-      List<ShuffleRegisterInfo> registerInfoList,
+      Map<ShuffleServerInfo, List<PartitionRange>> serverToPartitionRanges,
       Set<ShuffleServerInfo> shuffleServersForResult) {
     this.partitionToServers = partitionToServers;
-    this.registerInfoList = registerInfoList;
+    this.serverToPartitionRanges = serverToPartitionRanges;
     this.shuffleServersForResult = shuffleServersForResult;
   }
 
@@ -23,11 +23,11 @@ public class ShuffleAssignmentsInfo {
     return partitionToServers;
   }
 
-  public List<ShuffleRegisterInfo> getRegisterInfoList() {
-    return registerInfoList;
-  }
-
   public Set<ShuffleServerInfo> getShuffleServersForResult() {
     return shuffleServersForResult;
+  }
+
+  public Map<ShuffleServerInfo, List<PartitionRange>> getServerToPartitionRanges() {
+    return serverToPartitionRanges;
   }
 }

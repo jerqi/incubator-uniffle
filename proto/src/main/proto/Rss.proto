@@ -43,6 +43,7 @@ message ShuffleDataBlockSegment {
   int32 length = 3;
   int32 uncompressLength = 4;
   int64 crc = 5;
+  int64 taskAttemptId = 6;
 }
 
 message GetShuffleDataRequest {
@@ -83,20 +84,23 @@ message GetShuffleResultRequest {
   string appId = 1;
   int32 shuffleId = 2;
   int32 partitionId = 3;
-  repeated int64 taskAttemptIds = 4;
 }
 
 message GetShuffleResultResponse {
   StatusCode status = 1;
   string retMsg = 2;
-  repeated int64 blockIds = 4;
+  bytes serializedBitmap = 3;
+}
+
+message ShufflePartitionRange {
+  int32 start = 1;
+  int32 end = 2;
 }
 
 message ShuffleRegisterRequest {
   string appId = 1;
   int32 shuffleId = 2;
-  int32 start = 3; // start partition
-  int32 end = 4; // end partition
+  repeated ShufflePartitionRange partitionRanges = 3;
 }
 
 message ShuffleRegisterResponse {
@@ -127,6 +131,7 @@ message ShuffleBlock {
   int32 uncompressLength = 3;
   int64 crc = 4;
   bytes data = 5;
+  int64 taskAttemptId = 6;
 }
 
 message ShuffleCommitRequest {

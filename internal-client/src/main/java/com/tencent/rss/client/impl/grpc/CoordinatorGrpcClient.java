@@ -13,13 +13,14 @@ import com.tencent.rss.client.response.ResponseStatusCode;
 import com.tencent.rss.client.response.RssAppHeartBeatResponse;
 import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
 import com.tencent.rss.client.response.RssSendHeartBeatResponse;
-import com.tencent.rss.common.ShuffleRegisterInfo;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.proto.CoordinatorServerGrpc;
 import com.tencent.rss.proto.CoordinatorServerGrpc.CoordinatorServerBlockingStub;
 import com.tencent.rss.proto.RssProtos;
 import com.tencent.rss.proto.RssProtos.AppHeartBeatRequest;
 import com.tencent.rss.proto.RssProtos.AppHeartBeatResponse;
+import com.tencent.rss.proto.RssProtos.GetShuffleAssignmentsResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleServerListResponse;
 import com.tencent.rss.proto.RssProtos.PartitionRangeAssignment;
 import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
@@ -28,7 +29,6 @@ import com.tencent.rss.proto.RssProtos.ShuffleServerId;
 import com.tencent.rss.proto.RssProtos.StatusCode;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -183,14 +183,12 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
       case SUCCESS:
         response = new RssGetShuffleAssignmentsResponse(ResponseStatusCode.SUCCESS);
         // get all register info according to coordinator's response
-        List<ShuffleRegisterInfo> shuffleRegisterInfoList = getShuffleRegisterInfoList(rpcResponse);
+        Map<ShuffleServerInfo, List<PartitionRange>> serverToPartitionRanges = getServerToPartitionRanges(rpcResponse);
         Map<Integer, List<ShuffleServerInfo>> partitionToServers = getPartitionToServers(rpcResponse);
         Set<ShuffleServerInfo> shuffleServersForResult = getServersForResult(rpcResponse);
-        response.setRegisterInfoList(shuffleRegisterInfoList);
+        response.setServerToPartitionRanges(serverToPartitionRanges);
         response.setPartitionToServers(partitionToServers);
         response.setShuffleServersForResult(shuffleServersForResult);
-        LOG.debug("Successfully get shuffle assignments from coordinator, "
-            + shuffleRegisterInfoList + ", " + partitionToServers);
         break;
       case TIMEOUT:
         response = new RssGetShuffleAssignmentsResponse(ResponseStatusCode.TIMEOUT);
@@ -206,7 +204,7 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
   // {partition1 -> [server1, server2], partition2 - > [server1, server2]}
   @VisibleForTesting
   public Map<Integer, List<ShuffleServerInfo>> getPartitionToServers(
-      RssProtos.GetShuffleAssignmentsResponse response) {
+      GetShuffleAssignmentsResponse response) {
     Map<Integer, List<ShuffleServerInfo>> partitionToServers = Maps.newHashMap();
     List<PartitionRangeAssignment> assigns = response.getAssignmentsList();
     for (PartitionRangeAssignment partitionRangeAssignment : assigns) {
@@ -229,27 +227,25 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
 
   // get all ShuffleRegisterInfo with [shuffleServer, startPartitionId, endPartitionId]
   @VisibleForTesting
-  public List<ShuffleRegisterInfo> getShuffleRegisterInfoList(
-      RssProtos.GetShuffleAssignmentsResponse response) {
-    // make the list thread safe, or get incorrect result in parallelStream
-    List<ShuffleRegisterInfo> shuffleRegisterInfoList = Collections.synchronizedList(Lists.newArrayList());
+  public Map<ShuffleServerInfo, List<PartitionRange>> getServerToPartitionRanges(
+      GetShuffleAssignmentsResponse response) {
+    Map<ShuffleServerInfo, List<PartitionRange>> serverToPartitionRanges = Maps.newHashMap();
     List<PartitionRangeAssignment> assigns = response.getAssignmentsList();
     for (PartitionRangeAssignment assign : assigns) {
       List<ShuffleServerId> shuffleServerIds = assign.getServerList();
-      final int startPartition = assign.getStartPartition();
-      final int endPartition = assign.getEndPartition();
       if (shuffleServerIds != null) {
-        shuffleServerIds.parallelStream().forEach(ssi -> {
-              ShuffleServerInfo shuffleServerInfo =
-                  new ShuffleServerInfo(ssi.getId(), ssi.getIp(), ssi.getPort());
-              ShuffleRegisterInfo shuffleRegisterInfo = new ShuffleRegisterInfo(shuffleServerInfo,
-                  startPartition, endPartition);
-              shuffleRegisterInfoList.add(shuffleRegisterInfo);
-            }
-        );
+        PartitionRange partitionRange = new PartitionRange(assign.getStartPartition(), assign.getEndPartition());
+        for (ShuffleServerId ssi : shuffleServerIds) {
+          ShuffleServerInfo shuffleServerInfo =
+              new ShuffleServerInfo(ssi.getId(), ssi.getIp(), ssi.getPort());
+          if (!serverToPartitionRanges.containsKey(shuffleServerInfo)) {
+            serverToPartitionRanges.put(shuffleServerInfo, Lists.newArrayList());
+          }
+          serverToPartitionRanges.get(shuffleServerInfo).add(partitionRange);
+        }
       }
     }
-    return shuffleRegisterInfoList;
+    return serverToPartitionRanges;
   }
 
   private Set<ShuffleServerInfo> getServersForResult(RssProtos.GetShuffleAssignmentsResponse response) {

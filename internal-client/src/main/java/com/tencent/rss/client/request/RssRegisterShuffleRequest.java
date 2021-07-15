@@ -1,17 +1,18 @@
 package com.tencent.rss.client.request;
 
+import com.tencent.rss.common.PartitionRange;
+import java.util.List;
+
 public class RssRegisterShuffleRequest {
 
   private String appId;
   private int shuffleId;
-  private int start;
-  private int end;
+  private List<PartitionRange> partitionRanges;
 
-  public RssRegisterShuffleRequest(String appId, int shuffleId, int start, int end) {
+  public RssRegisterShuffleRequest(String appId, int shuffleId, List<PartitionRange> partitionRanges) {
     this.appId = appId;
     this.shuffleId = shuffleId;
-    this.start = start;
-    this.end = end;
+    this.partitionRanges = partitionRanges;
   }
 
   public String getAppId() {
@@ -22,11 +23,7 @@ public class RssRegisterShuffleRequest {
     return shuffleId;
   }
 
-  public int getStart() {
-    return start;
-  }
-
-  public int getEnd() {
-    return end;
+  public List<PartitionRange> getPartitionRanges() {
+    return partitionRanges;
   }
 }

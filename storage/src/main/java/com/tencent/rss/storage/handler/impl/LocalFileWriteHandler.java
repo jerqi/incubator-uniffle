@@ -59,7 +59,8 @@ public class LocalFileWriteHandler implements ShuffleWriteHandler {
   }
 
   @Override
-  public void write(List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException {
+  public synchronized void write(
+      List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException {
     long accessTime = System.currentTimeMillis();
     String dataFileName = ShuffleStorageUtils.generateDataFileName(fileNamePrefix);
     String indexFileName = ShuffleStorageUtils.generateIndexFileName(fileNamePrefix);
@@ -76,7 +77,7 @@ public class LocalFileWriteHandler implements ShuffleWriteHandler {
         dataWriter.writeData(block.getData());
 
         FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
-            blockId, startOffset, block.getLength(), block.getUncompressLength(), crc);
+            blockId, startOffset, block.getLength(), block.getUncompressLength(), crc, block.getTaskAttemptId());
         indexWriter.writeIndex(segment);
       }
       LOG.debug(

@@ -5,7 +5,6 @@ import com.tencent.rss.client.factory.ShuffleClientFactory;
 import com.tencent.rss.client.request.CreateShuffleReadClientRequest;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;
-import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.ShuffleDependency;
@@ -15,6 +14,7 @@ import org.apache.spark.shuffle.RssShuffleHandle;
 import org.apache.spark.shuffle.ShuffleReader;
 import org.apache.spark.util.CompletionIterator$;
 import org.apache.spark.util.collection.ExternalSorter;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Function0;
@@ -45,7 +45,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   private int partitionNumPerRange;
   private int partitionNum;
   private String storageType;
-  private Set<Long> expectedBlockIds;
+  private Roaring64NavigableMap blockIdBitmap;
+  private Roaring64NavigableMap taskIdBitmap;
   private List<ShuffleServerInfo> shuffleServerInfoList;
 
   public RssShuffleReader(
@@ -60,7 +61,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
       int readBufferSize,
       int partitionNumPerRange,
       int partitionNum,
-      Set<Long> expectedBlockIds) {
+      Roaring64NavigableMap blockIdBitmap,
+      Roaring64NavigableMap taskIdBitmap) {
     this.appId = rssShuffleHandle.getAppId();
     this.startPartition = startPartition;
     this.endPartition = endPartition;
@@ -76,7 +78,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     this.readBufferSize = readBufferSize;
     this.partitionNumPerRange = partitionNumPerRange;
     this.partitionNum = partitionNum;
-    this.expectedBlockIds = expectedBlockIds;
+    this.blockIdBitmap = blockIdBitmap;
+    this.taskIdBitmap = taskIdBitmap;
     this.shuffleServerInfoList =
         (List<ShuffleServerInfo>) (rssShuffleHandle.getPartitionToServers().get(startPartition));
   }
@@ -87,7 +90,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
 
     CreateShuffleReadClientRequest request = new CreateShuffleReadClientRequest(
         appId, shuffleId, startPartition, storageType, basePath, hadoopConf, indexReadLimit,
-        readBufferSize, partitionNumPerRange, partitionNum, expectedBlockIds, shuffleServerInfoList);
+        readBufferSize, partitionNumPerRange, partitionNum, blockIdBitmap, taskIdBitmap, shuffleServerInfoList);
     ShuffleReadClient shuffleReadClient = ShuffleClientFactory.getInstance().createShuffleReadClient(request);
 
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator<K, C>(

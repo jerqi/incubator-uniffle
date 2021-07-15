@@ -52,7 +52,8 @@ public class ShuffleStorageUtils {
       if (segments.size() == 1) {
         List<BufferSegment> bufferSegments = Lists.newArrayList();
         bufferSegments.add(new BufferSegment(segments.get(0).getBlockId(), 0,
-            segments.get(0).getLength(), segments.get(0).getUncompressLength(), segments.get(0).getCrc()));
+            segments.get(0).getLength(), segments.get(0).getUncompressLength(), segments.get(0).getCrc(),
+            segments.get(0).getTaskAttemptId()));
         fileReadSegments.add(new FileReadSegment(
             path, segments.get(0).getOffset(), segments.get(0).getLength(), bufferSegments));
       } else {
@@ -77,7 +78,7 @@ public class ShuffleStorageUtils {
           lastestPosition = segment.getOffset() + segment.getLength();
           bufferSegments.add(new BufferSegment(segment.getBlockId(),
               segment.getOffset() - start, segment.getLength(),
-              segment.getUncompressLength(), segment.getCrc()));
+              segment.getUncompressLength(), segment.getCrc(), segment.getTaskAttemptId()));
           if (lastestPosition - start >= readBufferSize) {
             fileReadSegments.add(new FileReadSegment(
                 path, start, (int) (lastestPosition - start), bufferSegments));

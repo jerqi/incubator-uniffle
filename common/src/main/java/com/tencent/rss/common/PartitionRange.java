@@ -1,4 +1,4 @@
-package com.tencent.rss.coordinator;
+package com.tencent.rss.common;
 
 import java.util.Objects;
 

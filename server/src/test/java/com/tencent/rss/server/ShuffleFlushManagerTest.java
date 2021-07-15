@@ -13,12 +13,12 @@ import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
 import java.io.FileNotFoundException;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
@@ -26,6 +26,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.junit.Before;
 import org.junit.Test;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 public class ShuffleFlushManagerTest extends HdfsTestBase {
 
@@ -177,14 +178,20 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
       byte[] buf = new byte[length];
       new Random().nextBytes(buf);
       blocks.add(new ShufflePartitionedBlock(
-          length, length, ChecksumUtils.getCrc32(buf), ATOMIC_INT.incrementAndGet(), buf));
+          length, length, ChecksumUtils.getCrc32(buf),
+          ATOMIC_INT.incrementAndGet(), 0, ByteBuffer.wrap(buf)));
     }
     return blocks;
   }
 
   private void validate(String appId, int shuffleId, int partitionId, List<ShufflePartitionedBlock> blocks,
       int partitionNumPerRange, String basePath) {
-    Set<Long> blockIds = Sets.newHashSet(blocks.stream().map(spb -> spb.getBlockId()).collect(Collectors.toList()));
+    Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
+    Set<Long> remainIds = Sets.newHashSet();
+    for (ShufflePartitionedBlock spb : blocks) {
+      blockIdBitmap.addLong(spb.getBlockId());
+      remainIds.add(spb.getBlockId());
+    }
     HdfsClientReadHandler handler = new HdfsClientReadHandler(
         appId,
         shuffleId,
@@ -194,11 +201,10 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
         10,
         blocks.size() * 32,
         basePath,
-        blockIds,
+        blockIdBitmap,
         new Configuration());
     ShuffleDataResult sdr = null;
     int matchNum = 0;
-    Set<Long> remainIds = Sets.newHashSet(blockIds);
     sdr = handler.readShuffleData(remainIds);
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     for (ShufflePartitionedBlock block : blocks) {

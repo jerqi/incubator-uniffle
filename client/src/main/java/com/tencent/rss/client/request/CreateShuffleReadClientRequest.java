@@ -2,8 +2,8 @@ package com.tencent.rss.client.request;
 
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;
-import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 public class CreateShuffleReadClientRequest {
 
@@ -17,12 +17,14 @@ public class CreateShuffleReadClientRequest {
   private int readBufferSize;
   private int partitionNumPerRange;
   private int partitionNum;
-  private Set<Long> expectedBlockIds;
+  private Roaring64NavigableMap blockIdBitmap;
+  private Roaring64NavigableMap taskIdBitmap;
   private List<ShuffleServerInfo> shuffleServerInfoList;
 
   public CreateShuffleReadClientRequest(String appId, int shuffleId, int partitionId, String storageType,
       String basePath, Configuration hadoopConf, int indexReadLimit, int readBufferSize, int partitionNumPerRange,
-      int partitionNum, Set<Long> expectedBlockIds, List<ShuffleServerInfo> shuffleServerInfoList) {
+      int partitionNum, Roaring64NavigableMap blockIdBitmap, Roaring64NavigableMap taskIdBitmap,
+      List<ShuffleServerInfo> shuffleServerInfoList) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.partitionId = partitionId;
@@ -33,7 +35,8 @@ public class CreateShuffleReadClientRequest {
     this.readBufferSize = readBufferSize;
     this.partitionNumPerRange = partitionNumPerRange;
     this.partitionNum = partitionNum;
-    this.expectedBlockIds = expectedBlockIds;
+    this.blockIdBitmap = blockIdBitmap;
+    this.taskIdBitmap = taskIdBitmap;
     this.shuffleServerInfoList = shuffleServerInfoList;
   }
 
@@ -77,8 +80,12 @@ public class CreateShuffleReadClientRequest {
     return readBufferSize;
   }
 
-  public Set<Long> getExpectedBlockIds() {
-    return expectedBlockIds;
+  public Roaring64NavigableMap getBlockIdBitmap() {
+    return blockIdBitmap;
+  }
+
+  public Roaring64NavigableMap getTaskIdBitmap() {
+    return taskIdBitmap;
   }
 
   public List<ShuffleServerInfo> getShuffleServerInfoList() {

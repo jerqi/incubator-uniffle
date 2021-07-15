@@ -5,6 +5,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.tencent.rss.client.factory.CoordinatorClientFactory;
 import com.tencent.rss.client.impl.grpc.CoordinatorGrpcClient;
@@ -13,6 +14,7 @@ import com.tencent.rss.client.request.RssGetShuffleAssignmentsRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
 import com.tencent.rss.client.response.RssAppHeartBeatResponse;
 import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.coordinator.CoordinatorConf;
@@ -90,38 +92,50 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
   @Test
   public void getShuffleRegisterInfoTest() {
     GetShuffleAssignmentsResponse testResponse = generateShuffleAssignmentsResponse();
-    List<ShuffleRegisterInfo> shuffleRegisterInfos = coordinatorClient.getShuffleRegisterInfoList(testResponse);
+    Map<ShuffleServerInfo, List<PartitionRange>> serverToPartitionRanges =
+        coordinatorClient.getServerToPartitionRanges(testResponse);
     List<ShuffleRegisterInfo> expected = Arrays.asList(
-        new ShuffleRegisterInfo(new ShuffleServerInfo("id1", "0.0.0.1", 100), 0, 1),
-        new ShuffleRegisterInfo(new ShuffleServerInfo("id2", "0.0.0.2", 100), 0, 1),
-        new ShuffleRegisterInfo(new ShuffleServerInfo("id3", "0.0.0.3", 100), 2, 3),
-        new ShuffleRegisterInfo(new ShuffleServerInfo("id4", "0.0.0.4", 100), 2, 3));
-    assertEquals(4, shuffleRegisterInfos.size());
+        new ShuffleRegisterInfo(new ShuffleServerInfo("id1", "0.0.0.1", 100),
+            Lists.newArrayList(new PartitionRange(0, 1))),
+        new ShuffleRegisterInfo(new ShuffleServerInfo("id2", "0.0.0.2", 100),
+            Lists.newArrayList(new PartitionRange(0, 1))),
+        new ShuffleRegisterInfo(new ShuffleServerInfo("id3", "0.0.0.3", 100),
+            Lists.newArrayList(new PartitionRange(2, 3))),
+        new ShuffleRegisterInfo(new ShuffleServerInfo("id4", "0.0.0.4", 100),
+            Lists.newArrayList(new PartitionRange(2, 3))));
+    assertEquals(4, serverToPartitionRanges.size());
     for (ShuffleRegisterInfo sri : expected) {
-      assertTrue(shuffleRegisterInfos.contains(sri));
+      List<PartitionRange> partitionRanges = serverToPartitionRanges.get(sri.getShuffleServerInfo());
+      assertEquals(sri.getPartitionRanges(), partitionRanges);
     }
   }
 
   @Test
   public void getShuffleAssignmentsTest() throws Exception {
     waitForRegister(2);
-    RssGetShuffleAssignmentsRequest request = new RssGetShuffleAssignmentsRequest("appId", 1, 10, 4, 1);
+    RssGetShuffleAssignmentsRequest request = new RssGetShuffleAssignmentsRequest(
+        "getShuffleAssignmentsTest", 1, 10, 4, 1);
     RssGetShuffleAssignmentsResponse response = coordinatorClient.getShuffleAssignments(request);
     Set<Integer> expectedStart = Sets.newHashSet(0, 4, 8);
 
-    assertEquals(3, response.getRegisterInfoList().size());
-    for (ShuffleRegisterInfo sri : response.getRegisterInfoList()) {
-      switch (sri.getStart()) {
+    Map<ShuffleServerInfo, List<PartitionRange>> serverToPartitionRanges = response.getServerToPartitionRanges();
+    assertEquals(2, serverToPartitionRanges.size());
+    List<PartitionRange> partitionRanges = Lists.newArrayList();
+    for (List<PartitionRange> ranges : serverToPartitionRanges.values()) {
+      partitionRanges.addAll(ranges);
+    }
+    for (PartitionRange pr : partitionRanges) {
+      switch (pr.getStart()) {
         case 0:
-          assertEquals(3, sri.getEnd());
+          assertEquals(3, pr.getEnd());
           expectedStart.remove(0);
           break;
         case 4:
-          assertEquals(7, sri.getEnd());
+          assertEquals(7, pr.getEnd());
           expectedStart.remove(4);
           break;
         case 8:
-          assertEquals(11, sri.getEnd());
+          assertEquals(11, pr.getEnd());
           expectedStart.remove(8);
           break;
         default:
@@ -131,24 +145,31 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
     assertTrue(expectedStart.isEmpty());
     assertEquals(1, response.getShuffleServersForResult().size());
 
-    request = new RssGetShuffleAssignmentsRequest("appId", 1, 10, 4, 2);
+    request = new RssGetShuffleAssignmentsRequest(
+        "getShuffleAssignmentsTest", 1, 10, 4, 2);
     response = coordinatorClient.getShuffleAssignments(request);
-    assertEquals(6, response.getRegisterInfoList().size());
+    serverToPartitionRanges = response.getServerToPartitionRanges();
+    assertEquals(2, serverToPartitionRanges.size());
+    partitionRanges = Lists.newArrayList();
+    for (List<PartitionRange> ranges : serverToPartitionRanges.values()) {
+      partitionRanges.addAll(ranges);
+    }
+    assertEquals(6, partitionRanges.size());
     int range0To3 = 0;
     int range4To7 = 0;
     int range8To11 = 0;
-    for (ShuffleRegisterInfo sri : response.getRegisterInfoList()) {
-      switch (sri.getStart()) {
+    for (PartitionRange pr : partitionRanges) {
+      switch (pr.getStart()) {
         case 0:
-          assertEquals(3, sri.getEnd());
+          assertEquals(3, pr.getEnd());
           range0To3++;
           break;
         case 4:
-          assertEquals(7, sri.getEnd());
+          assertEquals(7, pr.getEnd());
           range4To7++;
           break;
         case 8:
-          assertEquals(11, sri.getEnd());
+          assertEquals(11, pr.getEnd());
           range8To11++;
           break;
         default:

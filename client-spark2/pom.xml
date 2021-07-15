@@ -66,7 +66,8 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <shadedArtifactAttached>false</shadedArtifactAttached>
+              <outputDirectory>${project.build.directory}/shaded</outputDirectory>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
               <artifactSet>
                 <includes>
                   <include>com.tencent.rss:*</include>
@@ -82,6 +83,8 @@
                   <include>com.fasterxml.jackson.core:jackson-databind</include>
                   <include>com.fasterxml.jackson.core:jackson-core</include>
                   <include>com.fasterxml.jackson.core:jackson-annotations</include>
+                  <include>org.roaringbitmap:RoaringBitmap</include>
+                  <include>org.roaringbitmap:shims</include>
                 </includes>
               </artifactSet>
               <finalName>${project.artifactId}-${project.version}</finalName>
@@ -132,6 +135,10 @@
                 <relocation>
                   <pattern>io.netty</pattern>
                   <shadedPattern>${rss.shade.packageName}.io.netty</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.roaringbitmap</pattern>
+                  <shadedPattern>${rss.shade.packageName}.org.roaringbitmap</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

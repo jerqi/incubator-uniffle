@@ -2,6 +2,7 @@ package com.tencent.rss.coordinator;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import com.tencent.rss.common.PartitionRange;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;

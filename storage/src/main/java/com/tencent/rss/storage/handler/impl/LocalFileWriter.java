@@ -15,12 +15,14 @@ public class LocalFileWriter implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileWriter.class);
 
   private DataOutputStream dataOutputStream;
+  private FileOutputStream fileOutputStream;
   private long initSize;
   private long nextOffset;
 
   public LocalFileWriter(File file) throws IOException {
+    fileOutputStream = new FileOutputStream(file, true);
     // init fsDataOutputStream
-    dataOutputStream = new DataOutputStream(new FileOutputStream(file, true));
+    dataOutputStream = new DataOutputStream(fileOutputStream);
     initSize = file.length();
     nextOffset = initSize;
   }
@@ -44,6 +46,7 @@ public class LocalFileWriter implements Closeable {
     dataOutputStream.writeInt(segment.getUncompressLength());
     dataOutputStream.writeLong(segment.getCrc());
     dataOutputStream.writeLong(segment.getBlockId());
+    dataOutputStream.writeLong(segment.getTaskAttemptId());
   }
 
   public long nextOffset() {
@@ -56,5 +59,4 @@ public class LocalFileWriter implements Closeable {
       dataOutputStream.close();
     }
   }
-
 }

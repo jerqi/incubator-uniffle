@@ -5,6 +5,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
 import com.tencent.rss.common.BufferSegment;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
@@ -30,6 +31,7 @@ import com.tencent.rss.proto.RssProtos.ShuffleCommitRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleCommitResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleData;
 import com.tencent.rss.proto.RssProtos.ShuffleDataBlockSegment;
+import com.tencent.rss.proto.RssProtos.ShufflePartitionRange;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerImplBase;
@@ -81,12 +83,13 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     ShuffleRegisterResponse reply;
     String appId = req.getAppId();
     int shuffleId = req.getShuffleId();
-    int start = req.getStart();
-    int end = req.getEnd();
+    List<PartitionRange> partitionRanges = toPartitionRanges(req.getPartitionRangesList());
+    LOG.info("Get register request for appId[" + appId + "], shuffleId[" + shuffleId + "] with "
+        + partitionRanges.size() + " partition ranges");
 
     StatusCode result = shuffleServer
         .getShuffleTaskManager()
-        .registerShuffle(appId, shuffleId, start, end);
+        .registerShuffle(appId, shuffleId, partitionRanges);
 
     reply = ShuffleRegisterResponse
         .newBuilder()
@@ -183,7 +186,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
 
     try {
       commitCount = shuffleServer.getShuffleTaskManager().updateAndGetCommitCount(appId, shuffleId);
-      LOG.info("Got commitShuffleTask request for appId[" + appId + "], shuffleId["
+      LOG.info("Get commitShuffleTask request for appId[" + appId + "], shuffleId["
           + shuffleId + "], currentCommitted[" + commitCount + "]");
     } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
@@ -212,7 +215,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     String errorMsg = "Fail to finish shuffle for appId["
         + appId + "], shuffleId[" + shuffleId + "], data may be lost";
     try {
-      LOG.info("Got finishShuffle request for appId[" + appId + "], shuffleId[" + shuffleId + "]");
+      LOG.info("Get finishShuffle request for appId[" + appId + "], shuffleId[" + shuffleId + "]");
       status = shuffleServer.getShuffleTaskManager().commitShuffle(appId, shuffleId);
       if (status != StatusCode.SUCCESS) {
         status = StatusCode.INTERNAL_ERROR;
@@ -290,7 +293,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     try {
       LOG.info("Report " + partitionToBlockIds.size() + " blocks as shuffle result for the task of " + requestInfo);
       shuffleServer.getShuffleTaskManager().addFinishedBlockIds(
-          appId, shuffleId, taskAttemptId, partitionToBlockIds);
+          appId, shuffleId, partitionToBlockIds);
     } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
       msg = "error happened when report shuffle result, check shuffle server for detail";
@@ -310,24 +313,23 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     String appId = request.getAppId();
     int shuffleId = request.getShuffleId();
     int partitionId = request.getPartitionId();
-    List<Long> taskAttemptIds = request.getTaskAttemptIdsList();
     StatusCode status = StatusCode.SUCCESS;
     String msg = "OK";
     GetShuffleResultResponse reply;
-    List<Long> blockIds = Lists.newArrayList();
+    byte[] serializedBlockIds = null;
     String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "], partitionId[" + partitionId + "]";
 
     try {
-      blockIds = shuffleServer.getShuffleTaskManager().getFinishedBlockIds(
-          appId, shuffleId, partitionId, taskAttemptIds);
+      serializedBlockIds = shuffleServer.getShuffleTaskManager().getFinishedBlockIds(
+          appId, shuffleId, partitionId);
     } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
       msg = e.getMessage();
       LOG.error("Error happened when report shuffle result for " + requestInfo, e);
     }
 
-    if (blockIds == null) {
-      blockIds = Lists.newArrayList();
+    if (serializedBlockIds == null) {
+      serializedBlockIds = new byte[]{};
       status = StatusCode.INTERNAL_ERROR;
       msg = "can't find shuffle data";
       LOG.error("Error happened when report shuffle result for " + requestInfo + " because " + msg);
@@ -336,7 +338,8 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     reply = GetShuffleResultResponse.newBuilder()
         .setStatus(valueOf(status))
         .setRetMsg(msg)
-        .addAllBlockIds(blockIds).build();
+        .setSerializedBitmap(ByteString.copyFrom(serializedBlockIds))
+        .build();
     responseObserver.onNext(reply);
     responseObserver.onCompleted();
   }
@@ -410,6 +413,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
           .setLength(segment.getLength())
           .setUncompressLength(segment.getUncompressLength())
           .setCrc(segment.getCrc())
+          .setTaskAttemptId(segment.getTaskAttemptId())
           .build());
     }
 
@@ -437,6 +441,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
           block.getUncompressLength(),
           block.getCrc(),
           block.getBlockId(),
+          block.getTaskAttemptId(),
           block.getData().asReadOnlyByteBuffer()));
     }
 
@@ -456,5 +461,13 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
       }
     }
     return result;
+  }
+
+  private List<PartitionRange> toPartitionRanges(List<ShufflePartitionRange> shufflePartitionRanges) {
+    List<PartitionRange> partitionRanges = Lists.newArrayList();
+    for (ShufflePartitionRange spr : shufflePartitionRanges) {
+      partitionRanges.add(new PartitionRange(spr.getStart(), spr.getEnd()));
+    }
+    return partitionRanges;
   }
 }

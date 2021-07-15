@@ -7,13 +7,15 @@ public class BufferSegment {
   private int length;
   private int uncompressLength;
   private long crc;
+  private long taskAttemptId;
 
-  public BufferSegment(long blockId, long offset, int length, int uncompressLength, long crc) {
+  public BufferSegment(long blockId, long offset, int length, int uncompressLength, long crc, long taskAttemptId) {
     this.blockId = blockId;
     this.offset = offset;
     this.length = length;
     this.uncompressLength = uncompressLength;
     this.crc = crc;
+    this.taskAttemptId = taskAttemptId;
   }
 
   @Override
@@ -23,9 +25,17 @@ public class BufferSegment {
           && offset == ((BufferSegment) obj).getOffset()
           && length == ((BufferSegment) obj).getLength()
           && uncompressLength == ((BufferSegment) obj).getUncompressLength()
-          && crc == ((BufferSegment) obj).getCrc();
+          && crc == ((BufferSegment) obj).getCrc()
+          && taskAttemptId == ((BufferSegment) obj).getTaskAttemptId();
     }
     return false;
+  }
+
+  @Override
+  public String toString() {
+    return "BufferSegment{blockId[" + blockId + "], taskAttemptId[" + taskAttemptId
+        + "], offset[" + offset + "], length[" + length + "], crc[" + crc
+        + "], uncompressLength[" + uncompressLength + "]}";
   }
 
   public int getOffset() {
@@ -49,5 +59,9 @@ public class BufferSegment {
 
   public int getUncompressLength() {
     return uncompressLength;
+  }
+
+  public long getTaskAttemptId() {
+    return taskAttemptId;
   }
 }

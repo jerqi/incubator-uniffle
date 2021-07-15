@@ -9,13 +9,21 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
   private int uncompressLength;
   private long crc;
   private long blockId;
+  private long taskAttemptId;
 
-  public FileBasedShuffleSegment(long blockId, long offset, int length, int uncompressLength, long crc) {
+  public FileBasedShuffleSegment(
+      long blockId,
+      long offset,
+      int length,
+      int uncompressLength,
+      long crc,
+      long taskAttemptId) {
     this.offset = offset;
     this.length = length;
     this.uncompressLength = uncompressLength;
     this.crc = crc;
     this.blockId = blockId;
+    this.taskAttemptId = taskAttemptId;
   }
 
   public long getOffset() {
@@ -46,6 +54,10 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
     return uncompressLength;
   }
 
+  public long getTaskAttemptId() {
+    return taskAttemptId;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -59,7 +71,8 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
         && length == that.length
         && crc == that.crc
         && blockId == that.blockId
-        && uncompressLength == that.uncompressLength;
+        && uncompressLength == that.uncompressLength
+        && taskAttemptId == that.taskAttemptId;
   }
 
   @Override
@@ -80,7 +93,8 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
   @Override
   public String toString() {
     return "FileBasedShuffleSegment{" + "offset[" + offset + "], length[" + length
-        + "], uncompressLength[" + uncompressLength + "], crc[" + crc + "], blockId[" + blockId + "]}";
+        + "], uncompressLength[" + uncompressLength + "], crc[" + crc
+        + "], blockId[" + blockId + "], taskAttemptId[" + taskAttemptId + "]}";
   }
 
 }

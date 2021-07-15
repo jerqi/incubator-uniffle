@@ -9,13 +9,15 @@ public class ShuffleBlockInfo {
   private int length;
   private int shuffleId;
   private long crc;
+  private long taskAttemptId;
   private byte[] data;
   private List<ShuffleServerInfo> shuffleServerInfos;
   private int uncompressLength;
   private long freeMemory;
 
   public ShuffleBlockInfo(int shuffleId, int partitionId, long blockId, int length, long crc,
-      byte[] data, List<ShuffleServerInfo> shuffleServerInfos, int uncompressLength) {
+      byte[] data, List<ShuffleServerInfo> shuffleServerInfos,
+      int uncompressLength, int freeMemory, long taskAttemptId) {
     this.partitionId = partitionId;
     this.blockId = blockId;
     this.length = length;
@@ -24,12 +26,8 @@ public class ShuffleBlockInfo {
     this.shuffleId = shuffleId;
     this.shuffleServerInfos = shuffleServerInfos;
     this.uncompressLength = uncompressLength;
-  }
-
-  public ShuffleBlockInfo(int shuffleId, int partitionId, long blockId, int length, long crc,
-      byte[] data, List<ShuffleServerInfo> shuffleServerInfos, int uncompressLength, int freeMemory) {
-    this(shuffleId, partitionId, blockId, length, crc, data, shuffleServerInfos, uncompressLength);
     this.freeMemory = freeMemory;
+    this.taskAttemptId = taskAttemptId;
   }
 
   public long getBlockId() {
@@ -66,6 +64,10 @@ public class ShuffleBlockInfo {
 
   public long getFreeMemory() {
     return freeMemory;
+  }
+
+  public long getTaskAttemptId() {
+    return taskAttemptId;
   }
 
   @Override

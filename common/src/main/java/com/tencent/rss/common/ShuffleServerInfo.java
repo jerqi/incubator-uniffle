@@ -45,6 +45,6 @@ public class ShuffleServerInfo implements Serializable {
 
   @Override
   public String toString() {
-    return "ShuffleServerInfo with id[" + id + "], host[" + host + "], port[" + port + "]";
+    return "ShuffleServerInfo{id[" + id + "], host[" + host + "], port[" + port + "]}";
   }
 }

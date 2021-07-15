@@ -9,20 +9,22 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.BufferSegment;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 public class ShuffleTaskManagerTest extends HdfsTestBase {
 
@@ -46,8 +48,8 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     String appId = "registerTest1";
     int shuffleId = 1;
 
-    shuffleTaskManager.registerShuffle(appId, shuffleId, 0, 1);
-    shuffleTaskManager.registerShuffle(appId, shuffleId, 2, 3);
+    shuffleTaskManager.registerShuffle(appId, shuffleId, Lists.newArrayList(new PartitionRange(0, 1)));
+    shuffleTaskManager.registerShuffle(appId, shuffleId, Lists.newArrayList(new PartitionRange(2, 3)));
 
     Map<String, Map<Integer, RangeMap<Integer, ShuffleBuffer>>> bufferPool =
         shuffleServer.getShuffleBufferManager().getBufferPool();
@@ -59,7 +61,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     assertEquals(bufferPool.get(appId).get(shuffleId).get(2), bufferPool.get(appId).get(shuffleId).get(3));
 
     // register again
-    shuffleTaskManager.registerShuffle(appId, shuffleId, 0, 1);
+    shuffleTaskManager.registerShuffle(appId, shuffleId, Lists.newArrayList(new PartitionRange(0, 1)));
     assertEquals(buffer, bufferPool.get(appId).get(shuffleId).get(0));
   }
 
@@ -81,8 +83,8 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     ShuffleBufferManager shuffleBufferManager = shuffleServer.getShuffleBufferManager();
     ShuffleFlushManager shuffleFlushManager = shuffleServer.getShuffleFlushManager();
     ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf, shuffleFlushManager, shuffleBufferManager);
-    shuffleTaskManager.registerShuffle(appId, shuffleId, 1, 1);
-    shuffleTaskManager.registerShuffle(appId, shuffleId, 2, 2);
+    shuffleTaskManager.registerShuffle(appId, shuffleId, Lists.newArrayList(new PartitionRange(1, 1)));
+    shuffleTaskManager.registerShuffle(appId, shuffleId, Lists.newArrayList(new PartitionRange(2, 2)));
     List<ShufflePartitionedBlock> expectedBlocks1 = Lists.newArrayList();
     List<ShufflePartitionedBlock> expectedBlocks2 = Lists.newArrayList();
     Map<Long, PreAllocatedBufferInfo> bufferIds = shuffleTaskManager.getRequireBufferIds();
@@ -204,8 +206,8 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     ShuffleBufferManager shuffleBufferManager = shuffleServer.getShuffleBufferManager();
     ShuffleFlushManager shuffleFlushManager = shuffleServer.getShuffleFlushManager();
     ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf, shuffleFlushManager, shuffleBufferManager);
-    shuffleTaskManager.registerShuffle("clearTest1", shuffleId, 0, 1);
-    shuffleTaskManager.registerShuffle("clearTest2", shuffleId, 0, 1);
+    shuffleTaskManager.registerShuffle("clearTest1", shuffleId, Lists.newArrayList(new PartitionRange(0, 1)));
+    shuffleTaskManager.registerShuffle("clearTest2", shuffleId, Lists.newArrayList(new PartitionRange(0, 1)));
     shuffleTaskManager.refreshAppId("clearTest1");
     shuffleTaskManager.refreshAppId("clearTest2");
     assertEquals(2, shuffleTaskManager.getAppIds().size());
@@ -224,7 +226,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     assertEquals(Sets.newHashSet("clearTest1"), shuffleTaskManager.getAppIds().keySet());
 
     // register again
-    shuffleTaskManager.registerShuffle("clearTest2", shuffleId, 0, 1);
+    shuffleTaskManager.registerShuffle("clearTest2", shuffleId, Lists.newArrayList(new PartitionRange(0, 1)));
     shuffleTaskManager.refreshAppId("clearTest2");
     shuffleTaskManager.checkResourceStatus();
     assertEquals(Sets.newHashSet("clearTest1", "clearTest2"), shuffleTaskManager.getAppIds().keySet());
@@ -263,19 +265,23 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
       byte[] buf = new byte[length];
       new Random().nextBytes(buf);
       blocks.add(new ShufflePartitionedBlock(
-          length, length, ChecksumUtils.getCrc32(buf), ATOMIC_INT.incrementAndGet(), buf));
+          length, length, ChecksumUtils.getCrc32(buf), ATOMIC_INT.incrementAndGet(), 0, ByteBuffer.wrap(buf)));
     }
     return blocks;
   }
 
   private void validate(String appId, int shuffleId, int partitionId, List<ShufflePartitionedBlock> blocks,
       String basePath) {
-    Set<Long> blockIds = Sets.newHashSet(blocks.stream().map(spb -> spb.getBlockId()).collect(Collectors.toList()));
+    Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
+    Set<Long> remainIds = Sets.newHashSet();
+    for (ShufflePartitionedBlock spb : blocks) {
+      blockIdBitmap.addLong(spb.getBlockId());
+      remainIds.add(spb.getBlockId());
+    }
     HdfsClientReadHandler handler = new HdfsClientReadHandler(appId, shuffleId, partitionId,
-        100, 1, 10, 1000, basePath, blockIds, new Configuration());
+        100, 1, 10, 1000, basePath, blockIdBitmap, new Configuration());
 
-    ShuffleDataResult sdr = handler.readShuffleData(blockIds);
-
+    ShuffleDataResult sdr = handler.readShuffleData(remainIds);
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     int matchNum = 0;
     for (ShufflePartitionedBlock block : blocks) {

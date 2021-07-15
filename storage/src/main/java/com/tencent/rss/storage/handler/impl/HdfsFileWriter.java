@@ -67,6 +67,7 @@ public class HdfsFileWriter implements Closeable {
     fsDataOutputStream.writeInt(segment.getUncompressLength());
     fsDataOutputStream.writeLong(segment.getCrc());
     fsDataOutputStream.writeLong(segment.getBlockId());
+    fsDataOutputStream.writeLong(segment.getTaskAttemptId());
   }
 
   public long nextOffset() {

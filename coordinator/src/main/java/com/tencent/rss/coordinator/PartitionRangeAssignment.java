@@ -1,6 +1,7 @@
 package com.tencent.rss.coordinator;
 
 import com.google.common.base.Objects;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.proto.RssProtos;
 import java.util.ArrayList;
 import java.util.List;

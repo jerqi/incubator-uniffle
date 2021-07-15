@@ -18,7 +18,7 @@ public class ShuffleStorageUtilsTest {
   @Test
   public void mergeSegmentsTest() {
     List<FileBasedShuffleSegment> segments = Lists.newArrayList(
-        new FileBasedShuffleSegment(1, 0, 40, 0, 0));
+        new FileBasedShuffleSegment(1, 0, 40, 0, 0, 0));
     List<FileReadSegment> fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(1, fileSegments.size());
     for (FileReadSegment seg : fileSegments) {
@@ -27,13 +27,13 @@ public class ShuffleStorageUtilsTest {
       assertEquals("path", seg.getPath());
       List<BufferSegment> bufferSegments = seg.getBufferSegments();
       assertEquals(1, bufferSegments.size());
-      assertEquals(new BufferSegment(1, 0, 40, 0, 0), bufferSegments.get(0));
+      assertEquals(new BufferSegment(1, 0, 40, 0, 0, 0), bufferSegments.get(0));
     }
 
     segments = Lists.newArrayList(
-        new FileBasedShuffleSegment(1, 0, 40, 0, 0),
-        new FileBasedShuffleSegment(2, 40, 40, 0, 0),
-        new FileBasedShuffleSegment(3, 80, 20, 0, 0));
+        new FileBasedShuffleSegment(1, 0, 40, 0, 0, 0),
+        new FileBasedShuffleSegment(2, 40, 40, 0, 0, 0),
+        new FileBasedShuffleSegment(3, 80, 20, 0, 0, 0));
     fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(1, fileSegments.size());
     for (FileReadSegment seg : fileSegments) {
@@ -45,13 +45,13 @@ public class ShuffleStorageUtilsTest {
       Set<Long> testedBlockIds = Sets.newHashSet();
       for (BufferSegment segment : bufferSegments) {
         if (segment.getBlockId() == 1) {
-          assertTrue(segment.equals(new BufferSegment(1, 0, 40, 0, 0)));
+          assertTrue(segment.equals(new BufferSegment(1, 0, 40, 0, 0, 0)));
           testedBlockIds.add(1L);
         } else if (segment.getBlockId() == 2) {
-          assertTrue(segment.equals(new BufferSegment(2, 40, 40, 0, 0)));
+          assertTrue(segment.equals(new BufferSegment(2, 40, 40, 0, 0, 0)));
           testedBlockIds.add(2L);
         } else if (segment.getBlockId() == 3) {
-          assertTrue(segment.equals(new BufferSegment(3, 80, 20, 0, 0)));
+          assertTrue(segment.equals(new BufferSegment(3, 80, 20, 0, 0, 0)));
           testedBlockIds.add(3L);
         }
       }
@@ -59,10 +59,10 @@ public class ShuffleStorageUtilsTest {
     }
 
     segments = Lists.newArrayList(
-        new FileBasedShuffleSegment(1, 0, 40, 0, 0),
-        new FileBasedShuffleSegment(2, 40, 40, 0, 0),
-        new FileBasedShuffleSegment(3, 80, 20, 0, 0),
-        new FileBasedShuffleSegment(4, 100, 20, 0, 0));
+        new FileBasedShuffleSegment(1, 0, 40, 0, 0, 0),
+        new FileBasedShuffleSegment(2, 40, 40, 0, 0, 0),
+        new FileBasedShuffleSegment(3, 80, 20, 0, 0, 0),
+        new FileBasedShuffleSegment(4, 100, 20, 0, 0, 0));
     fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(2, fileSegments.size());
     boolean tested = false;
@@ -73,17 +73,17 @@ public class ShuffleStorageUtilsTest {
         assertEquals("path", seg.getPath());
         List<BufferSegment> bufferSegments = seg.getBufferSegments();
         assertEquals(1, bufferSegments.size());
-        assertTrue(bufferSegments.get(0).equals(new BufferSegment(4, 0, 20, 0, 0)));
+        assertTrue(bufferSegments.get(0).equals(new BufferSegment(4, 0, 20, 0, 0, 0)));
       }
     }
     assertTrue(tested);
 
     segments = Lists.newArrayList(
-        new FileBasedShuffleSegment(1, 0, 40, 0, 0),
-        new FileBasedShuffleSegment(2, 40, 40, 0, 0),
-        new FileBasedShuffleSegment(3, 80, 20, 0, 0),
-        new FileBasedShuffleSegment(4, 100, 20, 0, 0),
-        new FileBasedShuffleSegment(5, 120, 100, 0, 0));
+        new FileBasedShuffleSegment(1, 0, 40, 0, 0, 0),
+        new FileBasedShuffleSegment(2, 40, 40, 0, 0, 0),
+        new FileBasedShuffleSegment(3, 80, 20, 0, 0, 0),
+        new FileBasedShuffleSegment(4, 100, 20, 0, 0, 0),
+        new FileBasedShuffleSegment(5, 120, 100, 0, 0, 0));
     fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(2, fileSegments.size());
     tested = false;
@@ -97,10 +97,10 @@ public class ShuffleStorageUtilsTest {
         Set<Long> testedBlockIds = Sets.newHashSet();
         for (BufferSegment segment : bufferSegments) {
           if (segment.getBlockId() == 4) {
-            assertTrue(segment.equals(new BufferSegment(4, 0, 20, 0, 0)));
+            assertTrue(segment.equals(new BufferSegment(4, 0, 20, 0, 0, 0)));
             testedBlockIds.add(4L);
           } else if (segment.getBlockId() == 5) {
-            assertTrue(segment.equals(new BufferSegment(5, 20, 100, 0, 0)));
+            assertTrue(segment.equals(new BufferSegment(5, 20, 100, 0, 0, 0)));
             testedBlockIds.add(5L);
           }
         }
@@ -110,10 +110,10 @@ public class ShuffleStorageUtilsTest {
     assertTrue(tested);
 
     segments = Lists.newArrayList(
-        new FileBasedShuffleSegment(1, 10, 40, 0, 0),
-        new FileBasedShuffleSegment(2, 80, 20, 0, 0),
-        new FileBasedShuffleSegment(3, 500, 120, 0, 0),
-        new FileBasedShuffleSegment(4, 700, 20, 0, 0));
+        new FileBasedShuffleSegment(1, 10, 40, 0, 0, 0),
+        new FileBasedShuffleSegment(2, 80, 20, 0, 0, 0),
+        new FileBasedShuffleSegment(3, 500, 120, 0, 0, 0),
+        new FileBasedShuffleSegment(4, 700, 20, 0, 0, 0));
     fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(3, fileSegments.size());
     Set<Long> expectedOffset = Sets.newHashSet(10L, 500L, 700L);
@@ -125,10 +125,10 @@ public class ShuffleStorageUtilsTest {
         Set<Long> testedBlockIds = Sets.newHashSet();
         for (BufferSegment segment : bufferSegments) {
           if (segment.getBlockId() == 1) {
-            assertTrue(segment.equals(new BufferSegment(1, 0, 40, 0, 0)));
+            assertTrue(segment.equals(new BufferSegment(1, 0, 40, 0, 0, 0)));
             testedBlockIds.add(1L);
           } else if (segment.getBlockId() == 2) {
-            assertTrue(segment.equals(new BufferSegment(2, 70, 20, 0, 0)));
+            assertTrue(segment.equals(new BufferSegment(2, 70, 20, 0, 0, 0)));
             testedBlockIds.add(2L);
           }
         }
@@ -139,26 +139,26 @@ public class ShuffleStorageUtilsTest {
         assertEquals(120, seg.getLength());
         List<BufferSegment> bufferSegments = seg.getBufferSegments();
         assertEquals(1, bufferSegments.size());
-        assertTrue(bufferSegments.get(0).equals(new BufferSegment(3, 0, 120, 0, 0)));
+        assertTrue(bufferSegments.get(0).equals(new BufferSegment(3, 0, 120, 0, 0, 0)));
         expectedOffset.remove(500L);
       }
       if (seg.getOffset() == 700) {
         assertEquals(20, seg.getLength());
         List<BufferSegment> bufferSegments = seg.getBufferSegments();
         assertEquals(1, bufferSegments.size());
-        assertTrue(bufferSegments.get(0).equals(new BufferSegment(4, 0, 20, 0, 0)));
+        assertTrue(bufferSegments.get(0).equals(new BufferSegment(4, 0, 20, 0, 0, 0)));
         expectedOffset.remove(700L);
       }
     }
     assertTrue(expectedOffset.isEmpty());
 
     segments = Lists.newArrayList(
-        new FileBasedShuffleSegment(5, 500, 120, 0, 0),
-        new FileBasedShuffleSegment(3, 630, 10, 0, 0),
-        new FileBasedShuffleSegment(2, 80, 20, 0, 0),
-        new FileBasedShuffleSegment(1, 10, 40, 0, 0),
-        new FileBasedShuffleSegment(6, 769, 20, 0, 0),
-        new FileBasedShuffleSegment(4, 700, 20, 0, 0));
+        new FileBasedShuffleSegment(5, 500, 120, 0, 0, 0),
+        new FileBasedShuffleSegment(3, 630, 10, 0, 0, 0),
+        new FileBasedShuffleSegment(2, 80, 20, 0, 0, 0),
+        new FileBasedShuffleSegment(1, 10, 40, 0, 0, 0),
+        new FileBasedShuffleSegment(6, 769, 20, 0, 0, 0),
+        new FileBasedShuffleSegment(4, 700, 20, 0, 0, 0));
     fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(4, fileSegments.size());
     expectedOffset = Sets.newHashSet(10L, 500L, 630L, 700L);
@@ -170,10 +170,10 @@ public class ShuffleStorageUtilsTest {
         Set<Long> testedBlockIds = Sets.newHashSet();
         for (BufferSegment segment : bufferSegments) {
           if (segment.getBlockId() == 1) {
-            assertTrue(segment.equals(new BufferSegment(1, 0, 40, 0, 0)));
+            assertTrue(segment.equals(new BufferSegment(1, 0, 40, 0, 0, 0)));
             testedBlockIds.add(1L);
           } else if (segment.getBlockId() == 2) {
-            assertTrue(segment.equals(new BufferSegment(2, 70, 20, 0, 0)));
+            assertTrue(segment.equals(new BufferSegment(2, 70, 20, 0, 0, 0)));
             testedBlockIds.add(2L);
           }
         }
@@ -184,14 +184,14 @@ public class ShuffleStorageUtilsTest {
         assertEquals(120, seg.getLength());
         List<BufferSegment> bufferSegments = seg.getBufferSegments();
         assertEquals(1, bufferSegments.size());
-        assertTrue(bufferSegments.get(0).equals(new BufferSegment(5, 0, 120, 0, 0)));
+        assertTrue(bufferSegments.get(0).equals(new BufferSegment(5, 0, 120, 0, 0, 0)));
         expectedOffset.remove(500L);
       }
       if (seg.getOffset() == 630) {
         assertEquals(10, seg.getLength());
         List<BufferSegment> bufferSegments = seg.getBufferSegments();
         assertEquals(1, bufferSegments.size());
-        assertTrue(bufferSegments.get(0).equals(new BufferSegment(3, 0, 10, 0, 0)));
+        assertTrue(bufferSegments.get(0).equals(new BufferSegment(3, 0, 10, 0, 0, 0)));
         expectedOffset.remove(630L);
       }
       if (seg.getOffset() == 700) {
@@ -201,10 +201,10 @@ public class ShuffleStorageUtilsTest {
         Set<Long> testedBlockIds = Sets.newHashSet();
         for (BufferSegment segment : bufferSegments) {
           if (segment.getBlockId() == 4) {
-            assertTrue(segment.equals(new BufferSegment(4, 0, 20, 0, 0)));
+            assertTrue(segment.equals(new BufferSegment(4, 0, 20, 0, 0, 0)));
             testedBlockIds.add(4L);
           } else if (segment.getBlockId() == 6) {
-            assertTrue(segment.equals(new BufferSegment(6, 69, 20, 0, 0)));
+            assertTrue(segment.equals(new BufferSegment(6, 69, 20, 0, 0, 0)));
             testedBlockIds.add(6L);
           }
         }

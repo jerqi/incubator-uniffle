@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +25,6 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
   private Map<String, String> dataPathMap = Maps.newHashMap();
   private List<FileReadSegment> fileReadSegments = Lists.newArrayList();
   private int readBufferSize;
-  private AtomicLong readDataTime = new AtomicLong(0);
   private String appId;
   private int shuffleId;
   private int partitionId;
@@ -179,7 +177,6 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
             + fileSegment.getOffset() + "], length[" + fileSegment.getLength()
             + "], cost:" + (System.currentTimeMillis() - start) + " ms, for appId[" + appId
             + "], shuffleId[" + shuffleId + "], partitionId[" + partitionId + "]");
-        readDataTime.addAndGet(System.currentTimeMillis() - start);
       } catch (Exception e) {
         LOG.warn("Can't read data for " + fileSegment.getPath() + ", offset["
             + fileSegment.getOffset() + "], length[" + fileSegment.getLength() + "]");

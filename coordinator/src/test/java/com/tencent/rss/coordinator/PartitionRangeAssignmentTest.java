@@ -3,6 +3,7 @@ package com.tencent.rss.coordinator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.proto.RssProtos;
 import java.util.Collections;
 import java.util.List;

@@ -1,7 +1,6 @@
 package com.tencent.rss.common;
 
 import java.nio.ByteBuffer;
-import java.util.Objects;
 
 public class ShufflePartitionedBlock {
 
@@ -10,24 +9,21 @@ public class ShufflePartitionedBlock {
   private long blockId;
   private int uncompressLength;
   private ByteBuffer data;
+  private long taskAttemptId;
 
-  public ShufflePartitionedBlock(int length, int uncompressLength, long crc, long blockId, ByteBuffer data) {
-    this(length, uncompressLength, crc, blockId);
-    Objects.requireNonNull(data);
-    this.data = data;
-  }
-
-  public ShufflePartitionedBlock(int length, int uncompressLength, long crc, long blockId, byte[] data) {
-    this(length, uncompressLength, crc, blockId);
-    Objects.requireNonNull(data);
-    this.data = ByteBuffer.wrap(data);
-  }
-
-  public ShufflePartitionedBlock(int length, int uncompressLength, long crc, long blockId) {
+  public ShufflePartitionedBlock(
+      int length,
+      int uncompressLength,
+      long crc,
+      long blockId,
+      long taskAttemptId,
+      ByteBuffer data) {
     this.length = length;
     this.crc = crc;
     this.blockId = blockId;
     this.uncompressLength = uncompressLength;
+    this.taskAttemptId = taskAttemptId;
+    this.data = data;
   }
 
   public long size() {
@@ -85,10 +81,18 @@ public class ShufflePartitionedBlock {
     return uncompressLength;
   }
 
+  public long getTaskAttemptId() {
+    return taskAttemptId;
+  }
+
+  public void setTaskAttemptId(long taskAttemptId) {
+    this.taskAttemptId = taskAttemptId;
+  }
+
   @Override
   public String toString() {
     return "ShufflePartitionedBlock{blockId[" + blockId + "], length[" + length
-        + "], uncompressLength[" + uncompressLength + "], crc[" + crc + "]}";
+        + "], uncompressLength[" + uncompressLength + "], crc[" + crc + "], taskAttemptId[" + taskAttemptId + "]}";
   }
 
 }

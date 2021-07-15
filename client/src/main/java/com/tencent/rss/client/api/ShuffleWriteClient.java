@@ -1,12 +1,14 @@
 package com.tencent.rss.client.api;
 
 import com.tencent.rss.client.response.SendShuffleDataResult;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 public interface ShuffleWriteClient {
 
@@ -14,7 +16,8 @@ public interface ShuffleWriteClient {
 
   void sendAppHeartbeat(String appId, long timeoutMs);
 
-  void registerShuffle(ShuffleServerInfo shuffleServerInfo, String appId, int shuffleId, int start, int end);
+  void registerShuffle(ShuffleServerInfo shuffleServerInfo,
+      String appId, int shuffleId, List<PartitionRange> partitionRanges);
 
   void sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId, int numMaps);
 
@@ -26,8 +29,8 @@ public interface ShuffleWriteClient {
   ShuffleAssignmentsInfo getShuffleAssignments(
       String appId, int shuffleId, int partitionNum, int partitionNumPerRange, int dataReplica);
 
-  List<Long> getShuffleResult(String clientType, Set<ShuffleServerInfo> shuffleServerInfoSet,
-      String appId, int shuffleId, int partitionId, List<Long> taskAttemptIds);
+  Roaring64NavigableMap getShuffleResult(String clientType, Set<ShuffleServerInfo> shuffleServerInfoSet,
+      String appId, int shuffleId, int partitionId);
 
   void close();
 }

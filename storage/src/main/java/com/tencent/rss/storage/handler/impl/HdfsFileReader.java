@@ -81,8 +81,9 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
     int uncompressLength = getIntegerFromStream(intBuf);
     long crc = getLongFromStream(longBuf);
     long blockId = getLongFromStream(longBuf);
+    long taskAttemptId = getLongFromStream(longBuf);
 
-    return new FileBasedShuffleSegment(blockId, offset, length, uncompressLength, crc);
+    return new FileBasedShuffleSegment(blockId, offset, length, uncompressLength, crc, taskAttemptId);
   }
 
   private long getLongFromStream(ByteBuffer buf) throws IOException, IllegalStateException {

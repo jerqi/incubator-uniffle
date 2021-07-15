@@ -28,6 +28,7 @@ import com.tencent.rss.client.response.RssReportShuffleResultResponse;
 import com.tencent.rss.client.response.RssSendCommitResponse;
 import com.tencent.rss.client.response.RssSendShuffleDataResponse;
 import com.tencent.rss.client.response.SendShuffleDataResult;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
@@ -36,6 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -174,13 +176,13 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   }
 
   @Override
-  public void registerShuffle(
-      ShuffleServerInfo shuffleServerInfo, String appId, int shuffleId, int start, int end) {
-    RssRegisterShuffleRequest request = new RssRegisterShuffleRequest(appId, shuffleId, start, end);
+  public void registerShuffle(ShuffleServerInfo shuffleServerInfo,
+      String appId, int shuffleId, List<PartitionRange> partitionRanges) {
+    RssRegisterShuffleRequest request = new RssRegisterShuffleRequest(appId, shuffleId, partitionRanges);
     RssRegisterShuffleResponse response = getShuffleServerClient(shuffleServerInfo).registerShuffle(request);
 
     String msg = "Error happened when registerShuffle with appId[" + appId + "], shuffleId[" + shuffleId
-        + "], start[" + start + "], end[" + end + "] to " + shuffleServerInfo;
+        + "], " + shuffleServerInfo;
     throwExceptionIfNecessary(response, msg);
     shuffleServerInfoSet.add(shuffleServerInfo);
   }
@@ -214,8 +216,8 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
         + "], numMaps[" + partitionNum + "], partitionNumPerRange[" + partitionNumPerRange + "] to coordinator";
     throwExceptionIfNecessary(response, msg);
 
-    return new ShuffleAssignmentsInfo(response.getPartitionToServers(),
-        response.getRegisterInfoList(), response.getShuffleServersForResult());
+    return new ShuffleAssignmentsInfo(response.getPartitionToServers(), response.getServerToPartitionRanges(),
+        response.getShuffleServersForResult());
   }
 
   @Override
@@ -247,18 +249,18 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   }
 
   @Override
-  public List<Long> getShuffleResult(String clientType, Set<ShuffleServerInfo> shuffleServerInfoSet,
-      String appId, int shuffleId, int partitionId, List<Long> taskAttemptIds) {
+  public Roaring64NavigableMap getShuffleResult(String clientType, Set<ShuffleServerInfo> shuffleServerInfoSet,
+      String appId, int shuffleId, int partitionId) {
     RssGetShuffleResultRequest request = new RssGetShuffleResultRequest(
-        appId, shuffleId, partitionId, taskAttemptIds);
+        appId, shuffleId, partitionId);
     boolean isSuccessful = false;
-    List<Long> blockIds = Lists.newArrayList();
+    Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
     for (ShuffleServerInfo ssi : shuffleServerInfoSet) {
       try {
         RssGetShuffleResultResponse response = ShuffleServerClientFactory
             .getInstance().getShuffleServerClient(clientType, ssi).getShuffleResult(request);
         if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {
-          blockIds = response.getBlockIds();
+          blockIdBitmap = response.getBlockIdBitmap();
           isSuccessful = true;
           break;
         }
@@ -271,7 +273,7 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
       throw new RuntimeException("Get shuffle result is failed for appId["
           + appId + "], shuffleId[" + shuffleId + "]");
     }
-    return blockIds;
+    return blockIdBitmap;
   }
 
   @Override

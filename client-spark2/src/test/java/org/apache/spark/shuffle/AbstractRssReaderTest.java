@@ -10,12 +10,14 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.spark.serializer.SerializationStream;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.serializer.SerializerInstance;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import scala.Product2;
 import scala.collection.Iterator;
 import scala.reflect.ClassTag$;
@@ -38,7 +40,7 @@ public abstract class AbstractRssReaderTest extends HdfsTestBase {
 
   protected void writeTestData(ShuffleWriteHandler handler,
       int blockNum, int recordNum, Map<String, String> expectedData,
-      Set<Long> expectedBlockIds, String keyPrefix, Serializer serializer) throws Exception {
+      Roaring64NavigableMap blockIdBitmap, String keyPrefix, Serializer serializer) throws Exception {
     List<ShufflePartitionedBlock> blocks = Lists.newArrayList();
     SerializerInstance serializerInstance = serializer.newInstance();
     for (int i = 0; i < blockNum; i++) {
@@ -51,7 +53,7 @@ public abstract class AbstractRssReaderTest extends HdfsTestBase {
         writeData(serializeStream, key, value);
       }
       long blockId = ClientUtils.getBlockId(1, ClientUtils.getAtomicInteger());
-      expectedBlockIds.add(blockId);
+      blockIdBitmap.add(blockId);
       blocks.add(createShuffleBlock(output.toBytes(), blockId));
       serializeStream.close();
     }
@@ -61,7 +63,8 @@ public abstract class AbstractRssReaderTest extends HdfsTestBase {
   protected ShufflePartitionedBlock createShuffleBlock(byte[] data, long blockId) {
     byte[] compressData = RssShuffleUtils.compressData(data);
     long crc = ChecksumUtils.getCrc32(compressData);
-    return new ShufflePartitionedBlock(compressData.length, data.length, crc, blockId, compressData);
+    return new ShufflePartitionedBlock(compressData.length, data.length, crc, blockId, 0,
+        ByteBuffer.wrap(compressData));
   }
 
   protected void writeData(SerializationStream serializeStream, String key, String value) {

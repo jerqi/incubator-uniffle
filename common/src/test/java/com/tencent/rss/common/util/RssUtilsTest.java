@@ -1,13 +1,13 @@
 package com.tencent.rss.common.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.fail;
 
-import java.net.InetAddress;
 import java.util.Map;
 import java.util.Objects;
-
-import org.junit.Assert;
 import org.junit.Test;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 public class RssUtilsTest {
 
@@ -27,9 +27,18 @@ public class RssUtilsTest {
   public void testGetHostIp() {
     try {
       String realIp = RssUtils.getHostIp();
-      Assert.assertNotEquals("127.0.0.1", realIp);
+      assertNotEquals("127.0.0.1", realIp);
     } catch (Exception e) {
-      Assert.fail(e.getMessage());
+      fail(e.getMessage());
     }
+  }
+
+  @Test
+  public void testSerializeBitmap() throws Exception {
+    Roaring64NavigableMap bitmap1 = Roaring64NavigableMap.bitmapOf(1, 2, 100, 10000);
+    byte[] bytes = RssUtils.serializeBitMap(bitmap1);
+    Roaring64NavigableMap bitmap2 = RssUtils.deserializeBitMap(bytes);
+    assertEquals(bitmap1, bitmap2);
+    assertEquals(Roaring64NavigableMap.bitmapOf(), RssUtils.deserializeBitMap(new byte[]{}));
   }
 }

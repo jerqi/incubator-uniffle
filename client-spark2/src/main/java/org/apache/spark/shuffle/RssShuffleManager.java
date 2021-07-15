@@ -1,16 +1,15 @@
 package org.apache.spark.shuffle;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.tencent.rss.client.api.ShuffleWriteClient;
 import com.tencent.rss.client.factory.ShuffleClientFactory;
 import com.tencent.rss.client.response.SendShuffleDataResult;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
-import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -34,6 +33,7 @@ import org.apache.spark.shuffle.writer.WriteBufferManager;
 import org.apache.spark.storage.BlockId;
 import org.apache.spark.storage.BlockManagerId;
 import org.apache.spark.util.EventLoop;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -157,22 +157,14 @@ public class RssShuffleManager implements ShuffleManager {
     // get all register info according to coordinator's response
     ShuffleAssignmentsInfo response = shuffleWriteClient.getShuffleAssignments(
         appId, shuffleId, dependency.partitioner().numPartitions(), partitionNumPerRange, dataReplica);
-    List<ShuffleRegisterInfo> shuffleRegisterInfoList = response.getRegisterInfoList();
     Map<Integer, List<ShuffleServerInfo>> partitionToServers = response.getPartitionToServers();
     final Set<ShuffleServerInfo> shuffleServerForResult = response.getShuffleServersForResult();
 
-    registerShuffleServers(appId, shuffleId, shuffleRegisterInfoList);
+    registerShuffleServers(appId, shuffleId, response.getServerToPartitionRanges());
     startHeartbeat();
 
-    LOG.debug("RegisterShuffle with ShuffleId[" + shuffleId + "], size:" + partitionToServers.size());
-    LOG.debug("Shuffle result assignment with ShuffleId[" + shuffleId + "], " + shuffleServerForResult);
-    for (Map.Entry<Integer, List<ShuffleServerInfo>> entry : partitionToServers.entrySet()) {
-      for (ShuffleServerInfo ssi : entry.getValue()) {
-        LOG.debug("RegisterShuffle ShuffleId[" + shuffleId + "], partitionId[" + entry.getKey()
-            + "], shuffleServer[" + ssi.getId() + "]");
-      }
-    }
-
+    LOG.info("RegisterShuffle with ShuffleId[" + shuffleId + "], partitionNum[" + partitionToServers.size()
+        + "], shuffleServerForResult:" + shuffleServerForResult);
     return new RssShuffleHandle(shuffleId, appId, numMaps, dependency, partitionToServers, shuffleServerForResult);
   }
 
@@ -196,15 +188,19 @@ public class RssShuffleManager implements ShuffleManager {
 
   @VisibleForTesting
   protected void registerShuffleServers(String appId, int shuffleId,
-      List<ShuffleRegisterInfo> shuffleRegisterInfoList) {
-    if (shuffleRegisterInfoList == null || shuffleRegisterInfoList.isEmpty()) {
+      Map<ShuffleServerInfo, List<PartitionRange>> serverToPartitionRanges) {
+    if (serverToPartitionRanges == null || serverToPartitionRanges.isEmpty()) {
       return;
     }
-    for (ShuffleRegisterInfo sri : shuffleRegisterInfoList) {
-      shuffleWriteClient.registerShuffle(
-          sri.getShuffleServerInfo(), appId, shuffleId, sri.getStart(), sri.getEnd());
-      LOG.debug("Register with " + sri + " successfully");
-    }
+    LOG.info("Start to register shuffleId[" + shuffleId + "]");
+    long start = System.currentTimeMillis();
+    serverToPartitionRanges.entrySet()
+        .parallelStream()
+        .forEach(entry -> {
+          shuffleWriteClient.registerShuffle(
+              entry.getKey(), appId, shuffleId, entry.getValue());
+        });
+    LOG.info("Finish register shuffleId[" + shuffleId + "] with " + (System.currentTimeMillis() - start) + " ms");
   }
 
   @VisibleForTesting
@@ -232,7 +228,7 @@ public class RssShuffleManager implements ShuffleManager {
       BufferManagerOptions bufferOptions = new BufferManagerOptions(sparkConf);
       ShuffleWriteMetrics writeMetrics = context.taskMetrics().shuffleWriteMetrics();
       WriteBufferManager bufferManager = new WriteBufferManager(
-          shuffleId, executorId, bufferOptions, rssHandle.getDependency().serializer(),
+          shuffleId, executorId, context.taskAttemptId(), bufferOptions, rssHandle.getDependency().serializer(),
           rssHandle.getPartitionToServers(), context.taskMemoryManager(),
           writeMetrics);
       taskToBuffManager.put(taskId, bufferManager);
@@ -267,18 +263,18 @@ public class RssShuffleManager implements ShuffleManager {
       }
       int shuffleId = rssShuffleHandle.getShuffleId();
       long start = System.currentTimeMillis();
-      List<Long> expectedTasks = getExpectedTasks(shuffleId, startPartition, endPartition);
+      Roaring64NavigableMap taskIdBitmap = getExpectedTasks(shuffleId, startPartition, endPartition);
       LOG.info("Get taskId cost " + (System.currentTimeMillis() - start) + " ms, and request expected blockIds from "
-          + expectedTasks.size() + " tasks for shuffleId[" + shuffleId + "]");
-      List<Long> expectedBlockIds = shuffleWriteClient.getShuffleResult(
+          + taskIdBitmap.getLongCardinality() + " tasks for shuffleId[" + shuffleId + "]");
+      Roaring64NavigableMap blockIdBitmap = shuffleWriteClient.getShuffleResult(
           clientType, rssShuffleHandle.getShuffleServersForResult(),
-          rssShuffleHandle.getAppId(), shuffleId, startPartition, expectedTasks);
+          rssShuffleHandle.getAppId(), shuffleId, startPartition);
 
       return new RssShuffleReader<K, C>(startPartition, endPartition, context,
           rssShuffleHandle, shuffleDataBasePath, indexReadLimit,
           RssShuffleUtils.newHadoopConfiguration(sparkConf),
           storageType, (int) readBufferSize, partitionNumPerRange, partitionNum,
-          Sets.newHashSet(expectedBlockIds));
+          blockIdBitmap, taskIdBitmap);
     } else {
       throw new RuntimeException("Unexpected ShuffleHandle:" + handle.getClass().getName());
     }
@@ -317,8 +313,8 @@ public class RssShuffleManager implements ShuffleManager {
 
   // when speculation enable, duplicate data will be sent and reported to shuffle server,
   // get the actual tasks and filter the duplicate data caused by speculation task
-  private List<Long> getExpectedTasks(int shuffleId, int startPartition, int endPartition) {
-    List<Long> expectedTasks = Lists.newArrayList();
+  private Roaring64NavigableMap getExpectedTasks(int shuffleId, int startPartition, int endPartition) {
+    Roaring64NavigableMap taskIdBitmap = Roaring64NavigableMap.bitmapOf();
     Iterator<Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>>> mapStatusIter = null;
     try {
       // try call api with spark 2.4+
@@ -341,13 +337,13 @@ public class RssShuffleManager implements ShuffleManager {
       Tuple2<BlockManagerId, Seq<Tuple2<BlockId, Object>>> tuple2 = mapStatusIter.next();
       Option<String> topologyInfo = tuple2._1().topologyInfo();
       if (topologyInfo.isDefined()) {
-        expectedTasks.add(Long.parseLong(tuple2._1().topologyInfo().get()));
+        taskIdBitmap.addLong(Long.parseLong(tuple2._1().topologyInfo().get()));
       } else {
         throw new RuntimeException("Can't get expected taskAttemptId");
       }
     }
-    LOG.info("Got result from MapStatus for expected tasks " + expectedTasks.size());
-    return expectedTasks;
+    LOG.info("Got result from MapStatus for expected tasks " + taskIdBitmap.getLongCardinality());
+    return taskIdBitmap;
   }
 
   public Set<Long> getFailedBlockIds(String taskId) {

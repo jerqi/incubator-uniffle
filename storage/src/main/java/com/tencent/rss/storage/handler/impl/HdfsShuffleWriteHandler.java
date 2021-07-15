@@ -84,7 +84,7 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
           dataWriter.writeData(bb);
 
           FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
-              blockId, startOffset, block.getLength(), block.getUncompressLength(), crc);
+              blockId, startOffset, block.getLength(), block.getUncompressLength(), crc, block.getTaskAttemptId());
           indexWriter.writeIndex(segment);
         }
         LOG.debug(

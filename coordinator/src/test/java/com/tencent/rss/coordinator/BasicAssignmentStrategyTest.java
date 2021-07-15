@@ -2,6 +2,7 @@ package com.tencent.rss.coordinator;
 
 import static org.junit.Assert.assertEquals;
 
+import com.tencent.rss.common.PartitionRange;
 import java.util.Iterator;
 import java.util.List;
 import java.util.SortedMap;

@@ -3,6 +3,7 @@ package com.tencent.rss.coordinator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
+import com.tencent.rss.common.PartitionRange;
 import org.junit.Test;
 
 public class PartitionRangeTest {

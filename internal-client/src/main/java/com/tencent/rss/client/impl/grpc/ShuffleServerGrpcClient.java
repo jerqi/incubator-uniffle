@@ -21,6 +21,7 @@ import com.tencent.rss.client.response.RssReportShuffleResultResponse;
 import com.tencent.rss.client.response.RssSendCommitResponse;
 import com.tencent.rss.client.response.RssSendShuffleDataResponse;
 import com.tencent.rss.common.BufferSegment;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.proto.RssProtos.AppHeartBeatRequest;
@@ -43,6 +44,7 @@ import com.tencent.rss.proto.RssProtos.ShuffleCommitRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleCommitResponse;
 import com.tencent.rss.proto.RssProtos.ShuffleData;
 import com.tencent.rss.proto.RssProtos.ShuffleDataBlockSegment;
+import com.tencent.rss.proto.RssProtos.ShufflePartitionRange;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.RssProtos.StatusCode;
@@ -79,11 +81,10 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
     return "Shuffle server grpc client ref " + host + ":" + port;
   }
 
-  private ShuffleRegisterResponse doRegisterShuffle(String appId, int shuffleId, int start, int end) {
+  private ShuffleRegisterResponse doRegisterShuffle(String appId, int shuffleId, List<PartitionRange> partitionRanges) {
     ShuffleRegisterRequest request = ShuffleRegisterRequest.newBuilder().setAppId(appId)
-        .setShuffleId(shuffleId).setStart(start).setEnd(end).build();
+        .setShuffleId(shuffleId).addAllPartitionRanges(toShufflePartitionRanges(partitionRanges)).build();
     return blockingStub.registerShuffle(request);
-
   }
 
   private ShuffleCommitResponse doSendCommit(String appId, int shuffleId) {
@@ -133,8 +134,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
     ShuffleRegisterResponse rpcResponse = doRegisterShuffle(
         request.getAppId(),
         request.getShuffleId(),
-        request.getStart(),
-        request.getEnd());
+        request.getPartitionRanges());
 
     RssRegisterShuffleResponse response;
     StatusCode statusCode = rpcResponse.getStatus();
@@ -144,9 +144,8 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         break;
       default:
         String msg = "Can't register shuffle to " + host + ":" + port
-            + " for [appId=" + request.getAppId() + ", shuffleId=" + request.getShuffleId()
-            + ", start=" + request.getStart() + ", end=" + request.getEnd() + "], "
-            + "errorMsg:" + rpcResponse.getRetMsg();
+            + " for appId[" + request.getAppId() + "], shuffleId[" + request.getShuffleId()
+            + "], errorMsg:" + rpcResponse.getRetMsg();
         LOG.error(msg);
         throw new RuntimeException(msg);
     }
@@ -173,6 +172,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
           shuffleBlocks.add(ShuffleBlock.newBuilder().setBlockId(sbi.getBlockId())
               .setCrc(sbi.getCrc())
               .setLength(sbi.getLength())
+              .setTaskAttemptId(sbi.getTaskAttemptId())
               .setUncompressLength(sbi.getUncompressLength())
               .setData(ByteString.copyFrom(sbi.getData()))
               .build());
@@ -317,7 +317,6 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         .setAppId(request.getAppId())
         .setShuffleId(request.getShuffleId())
         .setPartitionId(request.getPartitionId())
-        .addAllTaskAttemptIds(request.getTaskAttemptIds())
         .build();
     GetShuffleResultResponse rpcResponse = blockingStub.getShuffleResult(rpcRequest);
     StatusCode statusCode = rpcResponse.getStatus();
@@ -325,8 +324,12 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
     RssGetShuffleResultResponse response;
     switch (statusCode) {
       case SUCCESS:
-        response = new RssGetShuffleResultResponse(ResponseStatusCode.SUCCESS);
-        response.setBlockIds(rpcResponse.getBlockIdsList());
+        try {
+          response = new RssGetShuffleResultResponse(ResponseStatusCode.SUCCESS,
+              rpcResponse.getSerializedBitmap().toByteArray());
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
         break;
       default:
         String msg = "Can't get shuffle result from " + host + ":" + port
@@ -385,7 +388,18 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
     List<BufferSegment> ret = Lists.newArrayList();
     for (ShuffleDataBlockSegment segment : blockSegments) {
       ret.add(new BufferSegment(segment.getBlockId(), segment.getOffset(),
-          segment.getLength(), segment.getUncompressLength(), segment.getCrc()));
+          segment.getLength(), segment.getUncompressLength(), segment.getCrc(), segment.getTaskAttemptId()));
+    }
+    return ret;
+  }
+
+  private List<ShufflePartitionRange> toShufflePartitionRanges(List<PartitionRange> partitionRanges) {
+    List<ShufflePartitionRange> ret = Lists.newArrayList();
+    for (PartitionRange partitionRange : partitionRanges) {
+      ret.add(ShufflePartitionRange
+          .newBuilder()
+          .setStart(partitionRange.getStart())
+          .setEnd(partitionRange.getEnd()).build());
     }
     return ret;
   }

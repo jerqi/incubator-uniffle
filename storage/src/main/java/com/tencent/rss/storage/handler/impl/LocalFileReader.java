@@ -58,7 +58,8 @@ public class LocalFileReader implements ShuffleReader, Closeable {
     int uncompressLength = dataInputStream.readInt();
     long crc = dataInputStream.readLong();
     long blockId = dataInputStream.readLong();
-    return new FileBasedShuffleSegment(blockId, offset, length, uncompressLength, crc);
+    long taskAttemptId = dataInputStream.readLong();
+    return new FileBasedShuffleSegment(blockId, offset, length, uncompressLength, crc, taskAttemptId);
   }
 
   @Override

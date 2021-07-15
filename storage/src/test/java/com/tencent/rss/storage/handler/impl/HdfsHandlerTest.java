@@ -21,6 +21,7 @@ import org.apache.hadoop.fs.Path;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 public class HdfsHandlerTest extends HdfsTestBase {
 
@@ -50,9 +51,9 @@ public class HdfsHandlerTest extends HdfsTestBase {
       byte[] buf = new byte[i * 8];
       new Random().nextBytes(buf);
       expectedData.add(buf);
-      blocks.add(new ShufflePartitionedBlock(i * 8, i * 8, i, i, buf));
+      blocks.add(new ShufflePartitionedBlock(i * 8, i * 8, i, i, 0, ByteBuffer.wrap(buf)));
       expectedBlockId.add(Long.valueOf(i));
-      expectedIndex.add(new FileBasedShuffleSegment(i, pos, i * 8, i * 8, i));
+      expectedIndex.add(new FileBasedShuffleSegment(i, pos, i * 8, i * 8, i, 0));
       pos += i * 8;
     }
     writeHandler.write(blocks);
@@ -70,8 +71,8 @@ public class HdfsHandlerTest extends HdfsTestBase {
       new Random().nextBytes(buf);
       expectedData.add(buf);
       expectedBlockId.add(Long.valueOf(i));
-      blocksAppend.add(new ShufflePartitionedBlock(i * 8, i * 8, i, i, buf));
-      expectedIndex.add(new FileBasedShuffleSegment(i, pos, i * 8, i * 8, i));
+      blocksAppend.add(new ShufflePartitionedBlock(i * 8, i * 8, i, i, i, ByteBuffer.wrap(buf)));
+      expectedIndex.add(new FileBasedShuffleSegment(i, pos, i * 8, i * 8, i, i));
       pos += i * 8;
     }
     writeHandler =
@@ -88,10 +89,14 @@ public class HdfsHandlerTest extends HdfsTestBase {
       String basePath,
       List<byte[]> expectedData,
       List<Long> expectedBlockId) throws IllegalStateException {
+    Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
+    for (long blockId : expectedBlockId) {
+      blockIdBitmap.addLong(blockId);
+    }
     // read directly and compare
     HdfsClientReadHandler readHandler = new HdfsClientReadHandler(
         appId, shuffleId, partitionId, 100, 1, 10,
-        10000, basePath, Sets.newHashSet(expectedBlockId), new Configuration());
+        10000, basePath, blockIdBitmap, new Configuration());
     try {
       List<ByteBuffer> actual = readData(readHandler, Sets.newHashSet(expectedBlockId));
       compareBytes(expectedData, actual);

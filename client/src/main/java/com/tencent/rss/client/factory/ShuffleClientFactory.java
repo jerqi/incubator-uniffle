@@ -26,6 +26,7 @@ public class ShuffleClientFactory {
     return new ShuffleReadClientImpl(request.getStorageType(), request.getAppId(), request.getShuffleId(),
         request.getPartitionId(), request.getIndexReadLimit(), request.getPartitionNumPerRange(),
         request.getPartitionNum(), request.getReadBufferSize(), request.getBasePath(),
-        request.getExpectedBlockIds(), request.getShuffleServerInfoList(), request.getHadoopConf());
+        request.getBlockIdBitmap(), request.getTaskIdBitmap(), request.getShuffleServerInfoList(),
+        request.getHadoopConf());
   }
 }

@@ -26,7 +26,7 @@ public class WriteBufferManagerTest {
 
     BufferManagerOptions bufferOptions = new BufferManagerOptions(conf);
     WriteBufferManager wbm = new WriteBufferManager(
-        0, 0, bufferOptions, kryoSerializer,
+        0, 0, 0, bufferOptions, kryoSerializer,
         Maps.newHashMap(), mockTaskMemoryManager, new ShuffleWriteMetrics());
     WriteBufferManager spyManager = spy(wbm);
     doReturn(512L).when(spyManager).acquireMemory(anyLong());

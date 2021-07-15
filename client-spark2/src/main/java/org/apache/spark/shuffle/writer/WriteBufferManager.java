@@ -36,6 +36,7 @@ public class WriteBufferManager extends MemoryConsumer {
   private long askExecutorMemory;
   private int executorId;
   private int shuffleId;
+  private long taskAttemptId;
   private SerializerInstance instance;
   private ShuffleWriteMetrics shuffleWriteMetrics;
   // cache partition -> records
@@ -58,6 +59,7 @@ public class WriteBufferManager extends MemoryConsumer {
   public WriteBufferManager(
       int shuffleId,
       int executorId,
+      long taskAttemptId,
       BufferManagerOptions bufferManagerOptions,
       Serializer serializer,
       Map<Integer, List<ShuffleServerInfo>> partitionToServers,
@@ -70,6 +72,7 @@ public class WriteBufferManager extends MemoryConsumer {
     this.instance = serializer.newInstance();
     this.buffers = Maps.newHashMap();
     this.shuffleId = shuffleId;
+    this.taskAttemptId = taskAttemptId;
     this.partitionToServers = partitionToServers;
     this.shuffleWriteMetrics = shuffleWriteMetrics;
     this.serializerBufferSize = bufferManagerOptions.getSerializerBufferSize();
@@ -160,7 +163,7 @@ public class WriteBufferManager extends MemoryConsumer {
     // add memory to indicate bytes which will be sent to shuffle server
     inSendListBytes.addAndGet(wb.getMemoryUsed());
     return new ShuffleBlockInfo(shuffleId, partitionId, blockId, compressed.length, crc32,
-        compressed, partitionToServers.get(partitionId), uncompressLength, wb.getMemoryUsed());
+        compressed, partitionToServers.get(partitionId), uncompressLength, wb.getMemoryUsed(), taskAttemptId);
   }
 
   private void requestMemory(long requiredMem) {

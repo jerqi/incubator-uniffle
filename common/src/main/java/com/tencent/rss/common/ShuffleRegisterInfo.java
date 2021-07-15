@@ -1,27 +1,23 @@
 package com.tencent.rss.common;
 
+import java.util.List;
+
 public class ShuffleRegisterInfo {
 
   private ShuffleServerInfo shuffleServerInfo;
-  private int start;
-  private int end;
+  private List<PartitionRange> partitionRanges;
 
-  public ShuffleRegisterInfo(ShuffleServerInfo shuffleServerInfo, int start, int end) {
+  public ShuffleRegisterInfo(ShuffleServerInfo shuffleServerInfo, List<PartitionRange> partitionRanges) {
     this.shuffleServerInfo = shuffleServerInfo;
-    this.start = start;
-    this.end = end;
+    this.partitionRanges = partitionRanges;
   }
 
   public ShuffleServerInfo getShuffleServerInfo() {
     return shuffleServerInfo;
   }
 
-  public int getStart() {
-    return start;
-  }
-
-  public int getEnd() {
-    return end;
+  public List<PartitionRange> getPartitionRanges() {
+    return partitionRanges;
   }
 
   @Override
@@ -33,15 +29,13 @@ public class ShuffleRegisterInfo {
   public boolean equals(Object obj) {
     if (obj instanceof ShuffleRegisterInfo) {
       return shuffleServerInfo.equals(((ShuffleRegisterInfo) obj).getShuffleServerInfo())
-          && start == ((ShuffleRegisterInfo) obj).getStart()
-          && end == ((ShuffleRegisterInfo) obj).getEnd();
+          && partitionRanges.equals(((ShuffleRegisterInfo) obj).getPartitionRanges());
     }
     return false;
   }
 
   @Override
   public String toString() {
-    return "ShuffleRegisterInfo: shuffleServerInfo[" + shuffleServerInfo.getId() + "],"
-        + " start: " + start + ", end: " + end;
+    return "ShuffleRegisterInfo: shuffleServerInfo[" + shuffleServerInfo.getId() + "], " + partitionRanges;
   }
 }

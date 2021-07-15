@@ -1,19 +1,21 @@
 package com.tencent.rss.common.util;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-
-import com.google.common.annotations.VisibleForTesting;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,18 +71,40 @@ public class RssUtils {
   // this situation, we can get current ip through network interface (filtered ipv6,
   // loop back, etc.). If the network interface in the machine is more than one, we
   // will choose the first IP.
-  public static String getHostIp() throws SocketException {
+  public static String getHostIp() throws Exception {
     Enumeration<NetworkInterface> nif = NetworkInterface.getNetworkInterfaces();
     while (nif.hasMoreElements()) {
       NetworkInterface ni = nif.nextElement();
       Enumeration<InetAddress> ad = ni.getInetAddresses();
       while (ad.hasMoreElements()) {
         InetAddress ia = ad.nextElement();
-        if (!ia.isLinkLocalAddress() && !ia.isLoopbackAddress() && ia instanceof InetAddress) {
+        if (!ia.isLinkLocalAddress() && !ia.isLoopbackAddress()
+            && ia instanceof InetAddress && ia.isReachable(5000)) {
           return ia.getHostAddress();
         }
       }
     }
     return null;
+  }
+
+  public static byte[] serializeBitMap(Roaring64NavigableMap bitmap) throws IOException {
+    long size = bitmap.serializedSizeInBytes();
+    if (size > Integer.MAX_VALUE) {
+      throw new RuntimeException("Unsupported serialized size of bitmap: " + size);
+    }
+    ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream((int) size);
+    DataOutputStream dataOutputStream = new DataOutputStream(arrayOutputStream);
+    bitmap.serialize(dataOutputStream);
+    return arrayOutputStream.toByteArray();
+  }
+
+  public static Roaring64NavigableMap deserializeBitMap(byte[] bytes) throws IOException {
+    Roaring64NavigableMap bitmap = Roaring64NavigableMap.bitmapOf();
+    if (bytes.length == 0) {
+      return bitmap;
+    }
+    DataInputStream dataInputStream = new DataInputStream(new ByteArrayInputStream(bytes));
+    bitmap.deserialize(dataInputStream);
+    return bitmap;
   }
 }

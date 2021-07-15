@@ -144,7 +144,7 @@ public class HdfsFileWriterTest extends HdfsTestBase {
   @Test
   public void writeSegmentTest() throws IOException {
     FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
-        23, 128, 32, 32, 0xdeadbeef);
+        23, 128, 32, 32, 0xdeadbeef, 0);
 
     Path path = new Path(HDFS_URI, "writeSegmentTest");
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
