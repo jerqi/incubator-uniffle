@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
 
+import java.net.InetAddress;
 import java.util.Map;
 import java.util.Objects;
 import org.junit.Test;
@@ -26,8 +27,12 @@ public class RssUtilsTest {
   @Test
   public void testGetHostIp() {
     try {
+      String address = InetAddress.getLocalHost().getHostAddress();
       String realIp = RssUtils.getHostIp();
       assertNotEquals("127.0.0.1", realIp);
+      if (!address.equals("127.0.0.1")) {
+        assertEquals(address, realIp);
+      }
     } catch (Exception e) {
       fail(e.getMessage());
     }

@@ -75,6 +75,9 @@ public class RssUtils {
     Enumeration<NetworkInterface> nif = NetworkInterface.getNetworkInterfaces();
     while (nif.hasMoreElements()) {
       NetworkInterface ni = nif.nextElement();
+      if (!ni.isUp() || ni.isLoopback() || ni.isPointToPoint() || ni.isVirtual()) {
+        continue;
+      }
       Enumeration<InetAddress> ad = ni.getInetAddresses();
       while (ad.hasMoreElements()) {
         InetAddress ia = ad.nextElement();
