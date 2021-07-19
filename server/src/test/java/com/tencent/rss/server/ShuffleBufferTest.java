@@ -49,7 +49,7 @@ public class ShuffleBufferTest {
     byte[] buf = new byte[len];
     new Random().nextBytes(buf);
     ShufflePartitionedBlock block = new ShufflePartitionedBlock(len, len, 1, 1, 1, buf);
-    ShufflePartitionedData data = new ShufflePartitionedData(1, block);
+    ShufflePartitionedData data = new ShufflePartitionedData(1, new ShufflePartitionedBlock[]{block});
     return data;
   }
 

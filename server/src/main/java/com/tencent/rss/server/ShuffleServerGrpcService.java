@@ -141,7 +141,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
             shuffleServer
                 .getShuffleTaskManager().removeRequireBufferId(requireBufferId);
             shuffleServer.getShuffleTaskManager().updateCachedBlockCount(
-                appId, shuffleId, spd.getBlockList().size());
+                appId, shuffleId, spd.getBlockList().length);
           }
         } catch (Exception e) {
           String errorMsg = "Error happened when shuffleEngine.write for "
@@ -432,19 +432,22 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     return ret;
   }
 
-  private List<ShufflePartitionedBlock> toPartitionedBlock(List<ShuffleBlock> blocks) {
-    List<ShufflePartitionedBlock> ret = Lists.newArrayList();
-
+  private ShufflePartitionedBlock[] toPartitionedBlock(List<ShuffleBlock> blocks) {
+    if (blocks == null || blocks.size() == 0) {
+      return new ShufflePartitionedBlock[]{};
+    }
+    ShufflePartitionedBlock[] ret = new ShufflePartitionedBlock[blocks.size()];
+    int i = 0;
     for (ShuffleBlock block : blocks) {
-      ret.add(new ShufflePartitionedBlock(
+      ret[i] = new ShufflePartitionedBlock(
           block.getLength(),
           block.getUncompressLength(),
           block.getCrc(),
           block.getBlockId(),
           block.getTaskAttemptId(),
-          block.getData().toByteArray()));
+          block.getData().toByteArray());
+      i++;
     }
-
     return ret;
   }
 

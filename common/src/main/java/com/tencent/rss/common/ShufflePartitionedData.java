@@ -1,27 +1,13 @@
 package com.tencent.rss.common;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-
 public class ShufflePartitionedData {
 
   private int partitionId;
-  private List<ShufflePartitionedBlock> blockList;
+  private ShufflePartitionedBlock[] blockList;
 
-  public ShufflePartitionedData(int partitionId, List<ShufflePartitionedBlock> blockList) {
+  public ShufflePartitionedData(int partitionId, ShufflePartitionedBlock[] blockList) {
     this.partitionId = partitionId;
     this.blockList = blockList;
-  }
-
-  public ShufflePartitionedData(int partitionId, ShufflePartitionedBlock block) {
-    this.partitionId = partitionId;
-    Objects.requireNonNull(block);
-    this.blockList = Collections.singletonList(block);
-  }
-
-  public long size() {
-    return blockList.stream().mapToLong(ShufflePartitionedBlock::size).sum();
   }
 
   @Override
@@ -37,7 +23,10 @@ public class ShufflePartitionedData {
     this.partitionId = partitionId;
   }
 
-  public List<ShufflePartitionedBlock> getBlockList() {
+  public ShufflePartitionedBlock[] getBlockList() {
+    if (blockList == null) {
+      return new ShufflePartitionedBlock[]{};
+    }
     return blockList;
   }
 

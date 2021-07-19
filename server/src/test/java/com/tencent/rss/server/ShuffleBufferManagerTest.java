@@ -275,7 +275,7 @@ public class ShuffleBufferManagerTest {
     byte[] buf = new byte[len];
     new Random().nextBytes(buf);
     ShufflePartitionedBlock block = new ShufflePartitionedBlock(len, len, 1, 1, 0, buf);
-    ShufflePartitionedData data = new ShufflePartitionedData(partitionId, block);
+    ShufflePartitionedData data = new ShufflePartitionedData(partitionId, new ShufflePartitionedBlock[]{block});
     return data;
   }
 }

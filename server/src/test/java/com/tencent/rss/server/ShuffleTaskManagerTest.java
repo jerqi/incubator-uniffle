@@ -100,7 +100,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
 
     // won't flush for partition 1-1
     ShufflePartitionedData partitionedData0 = createPartitionedData(1, 1, 35);
-    expectedBlocks1.addAll(partitionedData0.getBlockList());
+    expectedBlocks1.addAll(Lists.newArrayList(partitionedData0.getBlockList()));
     long requireId = shuffleTaskManager.requireBuffer(35);
     assertEquals(1, bufferIds.size());
     PreAllocatedBufferInfo pabi = bufferIds.get(requireId);
@@ -115,7 +115,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
 
     // flush for partition 1-1
     ShufflePartitionedData partitionedData1 = createPartitionedData(1, 2, 35);
-    expectedBlocks1.addAll(partitionedData1.getBlockList());
+    expectedBlocks1.addAll(Lists.newArrayList(partitionedData1.getBlockList()));
     shuffleTaskManager.requireBuffer(70);
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, true, partitionedData1);
     shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 2);
@@ -124,7 +124,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
 
     // won't flush for partition 1-1
     ShufflePartitionedData partitionedData2 = createPartitionedData(1, 1, 30);
-    expectedBlocks1.addAll(partitionedData2.getBlockList());
+    expectedBlocks1.addAll(Lists.newArrayList(partitionedData2.getBlockList()));
     // receive un-preAllocation data
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, false, partitionedData2);
     shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 1);
@@ -132,7 +132,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
 
     // won't flush for partition 2-2
     ShufflePartitionedData partitionedData3 = createPartitionedData(2, 1, 30);
-    expectedBlocks2.addAll(partitionedData3.getBlockList());
+    expectedBlocks2.addAll(Lists.newArrayList(partitionedData3.getBlockList()));
     shuffleTaskManager.requireBuffer(30);
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, true, partitionedData3);
     shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 1);
@@ -140,7 +140,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
 
     // flush for partition 2-2
     ShufflePartitionedData partitionedData4 = createPartitionedData(2, 1, 35);
-    expectedBlocks2.addAll(partitionedData4.getBlockList());
+    expectedBlocks2.addAll(Lists.newArrayList(partitionedData4.getBlockList()));
     shuffleTaskManager.requireBuffer(35);
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, true, partitionedData4);
     shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 1);
@@ -153,7 +153,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     // flush for partition 1-1
     ShufflePartitionedData partitionedData5 = createPartitionedData(1, 2, 35);
     shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 2);
-    expectedBlocks1.addAll(partitionedData5.getBlockList());
+    expectedBlocks1.addAll(Lists.newArrayList(partitionedData5.getBlockList()));
     shuffleTaskManager.requireBuffer(70);
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, true, partitionedData5);
     assertEquals(StatusCode.SUCCESS, sc);
@@ -254,17 +254,17 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
   }
 
   private ShufflePartitionedData createPartitionedData(int partitionId, int blockNum, int dataLength) {
-    List<ShufflePartitionedBlock> blocks = createBlock(blockNum, dataLength);
+    ShufflePartitionedBlock[] blocks = createBlock(blockNum, dataLength);
     return new ShufflePartitionedData(partitionId, blocks);
   }
 
-  private List<ShufflePartitionedBlock> createBlock(int num, int length) {
-    List<ShufflePartitionedBlock> blocks = Lists.newArrayList();
+  private ShufflePartitionedBlock[] createBlock(int num, int length) {
+    ShufflePartitionedBlock[] blocks = new ShufflePartitionedBlock[num];
     for (int i = 0; i < num; i++) {
       byte[] buf = new byte[length];
       new Random().nextBytes(buf);
-      blocks.add(new ShufflePartitionedBlock(
-          length, length, ChecksumUtils.getCrc32(buf), ATOMIC_INT.incrementAndGet(), 0, buf));
+      blocks[i] = new ShufflePartitionedBlock(
+          length, length, ChecksumUtils.getCrc32(buf), ATOMIC_INT.incrementAndGet(), 0, buf);
     }
     return blocks;
   }
