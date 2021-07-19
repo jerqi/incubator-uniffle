@@ -20,15 +20,15 @@ public class ShuffleBufferTest {
   public void appendTest() {
     ShuffleBuffer shuffleBuffer = new ShuffleBuffer(100);
     shuffleBuffer.append(createData(10));
-    assertEquals(10, shuffleBuffer.getSize());
+    assertEquals(42, shuffleBuffer.getSize());
     assertFalse(shuffleBuffer.isFull());
 
-    shuffleBuffer.append(createData(90));
+    shuffleBuffer.append(createData(26));
     assertEquals(100, shuffleBuffer.getSize());
     assertFalse(shuffleBuffer.isFull());
 
     shuffleBuffer.append(createData(1));
-    assertEquals(101, shuffleBuffer.getSize());
+    assertEquals(133, shuffleBuffer.getSize());
     assertTrue(shuffleBuffer.isFull());
   }
 
@@ -38,9 +38,9 @@ public class ShuffleBufferTest {
     ShuffleDataFlushEvent event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
     assertNull(event);
     shuffleBuffer.append(createData(10));
-    assertEquals(10, shuffleBuffer.getSize());
+    assertEquals(42, shuffleBuffer.getSize());
     event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
-    assertEquals(10, event.getSize());
+    assertEquals(42, event.getSize());
     assertEquals(0, shuffleBuffer.getSize());
     assertEquals(0, shuffleBuffer.getBlocks().size());
   }

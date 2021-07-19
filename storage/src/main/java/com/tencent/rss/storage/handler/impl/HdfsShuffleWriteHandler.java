@@ -61,7 +61,6 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
   public void write(
       List<ShufflePartitionedBlock> shuffleBlocks) throws IOException, IllegalStateException {
     final long start = System.currentTimeMillis();
-    final long writeSize = shuffleBlocks.stream().mapToLong(ShufflePartitionedBlock::size).sum();
     HdfsFileWriter dataWriter = null;
     HdfsFileWriter indexWriter = null;
     writeLock.lock();
@@ -104,9 +103,8 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
       writeLock.unlock();
     }
     LOG.debug(
-        "Write handler outside write {} blocks {} bytes cost {} ms for {}",
+        "Write handler outside write {} blocks cost {} ms for {}",
         shuffleBlocks.size(),
-        writeSize,
         (System.currentTimeMillis() - start),
         fileNamePrefix);
   }

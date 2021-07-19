@@ -64,7 +64,6 @@ public class LocalFileWriteHandler implements ShuffleWriteHandler {
     long accessTime = System.currentTimeMillis();
     String dataFileName = ShuffleStorageUtils.generateDataFileName(fileNamePrefix);
     String indexFileName = ShuffleStorageUtils.generateIndexFileName(fileNamePrefix);
-    long writeSize = shuffleBlocks.stream().mapToLong(ShufflePartitionedBlock::size).sum();
 
     try (LocalFileWriter dataWriter = createWriter(dataFileName);
         LocalFileWriter indexWriter = createWriter(indexFileName)) {
@@ -81,15 +80,13 @@ public class LocalFileWriteHandler implements ShuffleWriteHandler {
         indexWriter.writeIndex(segment);
       }
       LOG.debug(
-          "Write handler write {} blocks {} for {} ms without file open close",
+          "Write handler write {} blocks cost {} ms without file open close",
           shuffleBlocks.size(),
-          writeSize,
           (System.currentTimeMillis() - startTime));
     }
     LOG.debug(
-        "Write handler write {} blocks {} for {} ms with file open close",
+        "Write handler write {} blocks cost {} ms with file open close",
         shuffleBlocks.size(),
-        writeSize,
         (System.currentTimeMillis() - accessTime));
   }
 

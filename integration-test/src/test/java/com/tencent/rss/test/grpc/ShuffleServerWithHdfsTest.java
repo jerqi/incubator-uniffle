@@ -83,7 +83,7 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
 
     RssSendShuffleDataRequest rssdr = new RssSendShuffleDataRequest(appId, 3, 1000, shuffleToBlocks);
     shuffleServerClient.sendShuffleData(rssdr);
-    assertEquals(200, shuffleServers.get(0).getShuffleBufferManager().getUsedMemory());
+    assertEquals(456, shuffleServers.get(0).getShuffleBufferManager().getUsedMemory());
     assertEquals(0, shuffleServers.get(0).getShuffleBufferManager().getPreAllocatedSize());
     RssSendCommitRequest rscr = new RssSendCommitRequest(appId, 0);
     shuffleServerClient.sendCommit(rscr);

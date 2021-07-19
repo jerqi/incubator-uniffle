@@ -24,7 +24,7 @@ public class ShuffleBuffer {
     synchronized (this) {
       for (ShufflePartitionedBlock block : data.getBlockList()) {
         blocks.add(block);
-        mSize += block.getLength();
+        mSize += block.getSize();
         size += mSize;
       }
     }

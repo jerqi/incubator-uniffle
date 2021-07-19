@@ -257,7 +257,7 @@ public class RssShuffleWriterTest {
         Sets.newHashSet(new ShuffleServerInfo("id100", "0.0.0.100", 100)));
     ShuffleWriteClient mockWriteClient = mock(ShuffleWriteClient.class);
     SparkConf conf = new SparkConf();
-    conf.set(RssClientConfig.RSS_CLIENT_SEND_SIZE_LIMIT, "32");
+    conf.set(RssClientConfig.RSS_CLIENT_SEND_SIZE_LIMIT, "64");
     RssShuffleWriter writer = new RssShuffleWriter("appId", 0, "taskId", 1L,
         mockBufferManager, mockMetrics, mockShuffleManager, conf, mockWriteClient, mockHandle);
     List<ShuffleBlockInfo> shuffleBlockInfoList = createShuffleBlockList(1, 31);

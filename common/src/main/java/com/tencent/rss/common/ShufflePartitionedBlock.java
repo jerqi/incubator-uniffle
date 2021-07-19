@@ -24,8 +24,10 @@ public class ShufflePartitionedBlock {
     this.data = data;
   }
 
-  public long size() {
-    return length;
+  // calculate the data size for this block in memory including metadata which are
+  // blockId, crc, taskAttemptId, length, uncompressLength
+  public long getSize() {
+    return length + 3 * 8 + 2 * 4;
   }
 
   @Override

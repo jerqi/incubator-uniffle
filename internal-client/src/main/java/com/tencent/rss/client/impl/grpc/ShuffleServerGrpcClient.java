@@ -176,7 +176,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
               .setUncompressLength(sbi.getUncompressLength())
               .setData(ByteString.copyFrom(sbi.getData()))
               .build());
-          size += sbi.getLength();
+          size += sbi.getSize();
           blockNum++;
         }
         shuffleData.add(ShuffleData.newBuilder().setPartitionId(ptb.getKey())

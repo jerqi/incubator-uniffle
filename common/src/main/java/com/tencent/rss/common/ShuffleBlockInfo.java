@@ -38,6 +38,12 @@ public class ShuffleBlockInfo {
     return length;
   }
 
+  // calculate the data size for this block in memory including metadata which are
+  // blockId, crc, taskAttemptId, length, uncompressLength
+  public int getSize() {
+    return length + 3 * 8 + 2 * 4;
+  }
+
   public long getCrc() {
     return crc;
   }
