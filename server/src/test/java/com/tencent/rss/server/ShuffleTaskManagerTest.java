@@ -16,7 +16,6 @@ import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -265,7 +264,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
       byte[] buf = new byte[length];
       new Random().nextBytes(buf);
       blocks.add(new ShufflePartitionedBlock(
-          length, length, ChecksumUtils.getCrc32(buf), ATOMIC_INT.incrementAndGet(), 0, ByteBuffer.wrap(buf)));
+          length, length, ChecksumUtils.getCrc32(buf), ATOMIC_INT.incrementAndGet(), 0, buf));
     }
     return blocks;
   }

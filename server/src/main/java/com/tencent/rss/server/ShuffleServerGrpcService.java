@@ -442,7 +442,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
           block.getCrc(),
           block.getBlockId(),
           block.getTaskAttemptId(),
-          block.getData().asReadOnlyByteBuffer()));
+          block.getData().toByteArray()));
     }
 
     return ret;

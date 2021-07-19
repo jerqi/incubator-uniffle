@@ -4,7 +4,6 @@ import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -49,16 +48,11 @@ public class HdfsFileWriter implements Closeable {
     }
   }
 
-  public void writeData(ByteBuffer byteBuffer) throws IOException {
-    if (byteBuffer.hasArray()) {
-      fsDataOutputStream.write(
-          byteBuffer.array(), byteBuffer.arrayOffset() + byteBuffer.position(), byteBuffer.remaining());
-    } else {
-      byte[] byteArray = new byte[byteBuffer.remaining()];
-      byteBuffer.get(byteArray);
-      fsDataOutputStream.write(byteArray);
+  public void writeData(byte[] data) throws IOException {
+    if (data != null && data.length > 0) {
+      fsDataOutputStream.write(data);
+      nextOffset = fsDataOutputStream.getPos();
     }
-    nextOffset = fsDataOutputStream.getPos();
   }
 
   public void writeIndex(FileBasedShuffleSegment segment) throws IOException {

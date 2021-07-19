@@ -5,7 +5,6 @@ import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -79,9 +78,7 @@ public class HdfsShuffleWriteHandler implements ShuffleWriteHandler {
           long blockId = block.getBlockId();
           long crc = block.getCrc();
           long startOffset = dataWriter.nextOffset();
-          ByteBuffer bb = block.getData();
-          bb.rewind();
-          dataWriter.writeData(bb);
+          dataWriter.writeData(block.getData());
 
           FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
               blockId, startOffset, block.getLength(), block.getUncompressLength(), crc, block.getTaskAttemptId());

@@ -6,7 +6,6 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,17 +26,11 @@ public class LocalFileWriter implements Closeable {
     nextOffset = initSize;
   }
 
-
-  public void writeData(ByteBuffer byteBuffer) throws IOException {
-    if (byteBuffer.hasArray()) {
-      dataOutputStream.write(
-          byteBuffer.array(), byteBuffer.arrayOffset() + byteBuffer.position(), byteBuffer.remaining());
-    } else {
-      byte[] byteArray = new byte[byteBuffer.remaining()];
-      byteBuffer.get(byteArray);
-      dataOutputStream.write(byteArray);
+  public void writeData(byte[] data) throws IOException {
+    if (data != null && data.length > 0) {
+      dataOutputStream.write(data);
+      nextOffset = initSize + dataOutputStream.size();
     }
-    nextOffset = initSize + dataOutputStream.size();
   }
 
   public void writeIndex(FileBasedShuffleSegment segment) throws IOException {

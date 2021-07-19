@@ -13,7 +13,6 @@ import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
 import java.io.FileNotFoundException;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -179,7 +178,7 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
       new Random().nextBytes(buf);
       blocks.add(new ShufflePartitionedBlock(
           length, length, ChecksumUtils.getCrc32(buf),
-          ATOMIC_INT.incrementAndGet(), 0, ByteBuffer.wrap(buf)));
+          ATOMIC_INT.incrementAndGet(), 0, buf));
     }
     return blocks;
   }

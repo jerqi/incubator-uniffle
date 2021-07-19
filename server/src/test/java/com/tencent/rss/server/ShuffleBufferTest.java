@@ -7,7 +7,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
-import java.nio.ByteBuffer;
 import java.util.Random;
 import org.junit.Test;
 
@@ -49,7 +48,7 @@ public class ShuffleBufferTest {
   private ShufflePartitionedData createData(int len) {
     byte[] buf = new byte[len];
     new Random().nextBytes(buf);
-    ShufflePartitionedBlock block = new ShufflePartitionedBlock(len, len, 1, 1, 1, ByteBuffer.wrap(buf));
+    ShufflePartitionedBlock block = new ShufflePartitionedBlock(len, len, 1, 1, 1, buf);
     ShufflePartitionedData data = new ShufflePartitionedData(1, block);
     return data;
   }

@@ -15,7 +15,6 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.storage.util.StorageType;
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Random;
 import org.junit.Before;
@@ -275,7 +274,7 @@ public class ShuffleBufferManagerTest {
   private ShufflePartitionedData createData(int partitionId, int len) {
     byte[] buf = new byte[len];
     new Random().nextBytes(buf);
-    ShufflePartitionedBlock block = new ShufflePartitionedBlock(len, len, 1, 1, 0, ByteBuffer.wrap(buf));
+    ShufflePartitionedBlock block = new ShufflePartitionedBlock(len, len, 1, 1, 0, buf);
     ShufflePartitionedData data = new ShufflePartitionedData(partitionId, block);
     return data;
   }

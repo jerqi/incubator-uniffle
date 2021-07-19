@@ -6,7 +6,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.protobuf.ByteString;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
@@ -60,8 +59,7 @@ public class HdfsFileReaderTest extends HdfsTestBase {
     long crc11 = ChecksumUtils.getCrc32(ByteBuffer.wrap(data, offset, length));
 
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
-      ByteString byteString = ByteString.copyFrom(data);
-      writer.writeData(byteString.asReadOnlyByteBuffer());
+      writer.writeData(data);
     }
     FileBasedShuffleSegment segment = new FileBasedShuffleSegment(23, offset, length, length, 0xdeadbeef, 1);
     try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
@@ -133,7 +131,7 @@ public class HdfsFileReaderTest extends HdfsTestBase {
 
       ByteBuffer buf = ByteBuffer.allocate(4 * data.length);
       buf.asIntBuffer().put(data);
-      writer.writeData(buf);
+      writer.writeData(buf.array());
     }
 
     try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {

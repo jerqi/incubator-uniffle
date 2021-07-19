@@ -16,7 +16,6 @@ import com.tencent.rss.storage.handler.api.ServerReadHandler;
 import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -85,7 +84,7 @@ public class LocalFileHandlerTest {
       new Random().nextBytes(buf);
       long blockId = ATOMIC_LONG.incrementAndGet();
       blocks.add(new ShufflePartitionedBlock(length, length, ChecksumUtils.getCrc32(buf), blockId, 100,
-          ByteBuffer.wrap(buf)));
+          buf));
       expectedData.put(blockId, buf);
       expectedBlockIds.add(blockId);
     }

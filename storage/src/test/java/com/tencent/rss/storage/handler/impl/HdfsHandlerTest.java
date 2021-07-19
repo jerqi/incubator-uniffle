@@ -51,7 +51,7 @@ public class HdfsHandlerTest extends HdfsTestBase {
       byte[] buf = new byte[i * 8];
       new Random().nextBytes(buf);
       expectedData.add(buf);
-      blocks.add(new ShufflePartitionedBlock(i * 8, i * 8, i, i, 0, ByteBuffer.wrap(buf)));
+      blocks.add(new ShufflePartitionedBlock(i * 8, i * 8, i, i, 0, buf));
       expectedBlockId.add(Long.valueOf(i));
       expectedIndex.add(new FileBasedShuffleSegment(i, pos, i * 8, i * 8, i, 0));
       pos += i * 8;
@@ -71,7 +71,7 @@ public class HdfsHandlerTest extends HdfsTestBase {
       new Random().nextBytes(buf);
       expectedData.add(buf);
       expectedBlockId.add(Long.valueOf(i));
-      blocksAppend.add(new ShufflePartitionedBlock(i * 8, i * 8, i, i, i, ByteBuffer.wrap(buf)));
+      blocksAppend.add(new ShufflePartitionedBlock(i * 8, i * 8, i, i, i, buf));
       expectedIndex.add(new FileBasedShuffleSegment(i, pos, i * 8, i * 8, i, i));
       pos += i * 8;
     }

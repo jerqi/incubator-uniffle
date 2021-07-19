@@ -1,14 +1,12 @@
 package com.tencent.rss.common;
 
-import java.nio.ByteBuffer;
-
 public class ShufflePartitionedBlock {
 
   private int length;
   private long crc;
   private long blockId;
   private int uncompressLength;
-  private ByteBuffer data;
+  private byte[] data;
   private long taskAttemptId;
 
   public ShufflePartitionedBlock(
@@ -17,7 +15,7 @@ public class ShufflePartitionedBlock {
       long crc,
       long blockId,
       long taskAttemptId,
-      ByteBuffer data) {
+      byte[] data) {
     this.length = length;
     this.crc = crc;
     this.blockId = blockId;
@@ -69,11 +67,11 @@ public class ShufflePartitionedBlock {
     this.blockId = blockId;
   }
 
-  public ByteBuffer getData() {
+  public byte[] getData() {
     return data;
   }
 
-  public void setData(ByteBuffer data) {
+  public void setData(byte[] data) {
     this.data = data;
   }
 

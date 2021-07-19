@@ -451,7 +451,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
       new Random().nextBytes(buf);
       long blockId = ATOMIC_LONG.incrementAndGet();
       blocks.add(new ShufflePartitionedBlock(
-          length, length, ChecksumUtils.getCrc32(buf), blockId, taskAttemptId, ByteBuffer.wrap(buf)));
+          length, length, ChecksumUtils.getCrc32(buf), blockId, taskAttemptId, buf));
       expectedData.put(blockId, buf);
       blockIdBitmap.addLong(blockId);
     }

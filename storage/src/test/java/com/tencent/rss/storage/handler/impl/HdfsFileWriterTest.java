@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.protobuf.ByteString;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import java.io.EOFException;
@@ -36,13 +35,12 @@ public class HdfsFileWriterTest extends HdfsTestBase {
   public void createStreamAppendTest() throws IOException {
     byte[] data = new byte[32];
     new Random().nextBytes(data);
-    ByteString byteString = ByteString.copyFrom(data);
 
     // create a file and fill 32 bytes
     Path path = new Path(HDFS_URI, "createStreamAppendTest");
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       assertEquals(0, writer.nextOffset());
-      writer.writeData(byteString.asReadOnlyByteBuffer());
+      writer.writeData(data);
       assertEquals(32, writer.nextOffset());
     }
 
@@ -88,7 +86,7 @@ public class HdfsFileWriterTest extends HdfsTestBase {
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       assertEquals(0, writer.nextOffset());
       buf.flip();
-      writer.writeData(buf);
+      writer.writeData(buf.array());
       assertEquals(32, writer.nextOffset());
     }
   }
@@ -97,12 +95,11 @@ public class HdfsFileWriterTest extends HdfsTestBase {
   public void writeBufferTest() throws IOException {
     byte[] data = new byte[32];
     new Random().nextBytes(data);
-    ByteString byteString = ByteString.copyFrom(data);
 
     Path path = new Path(HDFS_URI, "writeBufferTest");
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       assertEquals(0, writer.nextOffset());
-      writer.writeData(byteString.asReadOnlyByteBuffer());
+      writer.writeData(data);
       assertEquals(32, writer.nextOffset());
     }
 
@@ -127,7 +124,7 @@ public class HdfsFileWriterTest extends HdfsTestBase {
     Path path = new Path(HDFS_URI, "writeBufferArrayTest");
     try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
       assertEquals(0, writer.nextOffset());
-      writer.writeData(buf);
+      writer.writeData(buf.array());
       assertEquals(20, writer.nextOffset());
     }
 

@@ -10,7 +10,6 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,7 +63,7 @@ public abstract class AbstractRssReaderTest extends HdfsTestBase {
     byte[] compressData = RssShuffleUtils.compressData(data);
     long crc = ChecksumUtils.getCrc32(compressData);
     return new ShufflePartitionedBlock(compressData.length, data.length, crc, blockId, 0,
-        ByteBuffer.wrap(compressData));
+        compressData);
   }
 
   protected void writeData(SerializationStream serializeStream, String key, String value) {
