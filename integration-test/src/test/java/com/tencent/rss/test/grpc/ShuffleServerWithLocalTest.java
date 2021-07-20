@@ -1,6 +1,8 @@
 package com.tencent.rss.test.grpc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Lists;
@@ -48,6 +50,7 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
     String basePath = dataDir1.getAbsolutePath() + "," + dataDir2.getAbsolutePath();
     shuffleServerConf.setString("rss.storage.type", StorageType.LOCALFILE.name());
     shuffleServerConf.setString("rss.storage.basePath", basePath);
+    shuffleServerConf.setString("rss.server.app.expired.withoutHeartbeat", "5000");
     createShuffleServer(shuffleServerConf);
     startServers();
   }
@@ -63,11 +66,12 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
   }
 
   @Test
-  public void localWriteReadTest() {
-    RssRegisterShuffleRequest rrsr = new RssRegisterShuffleRequest("appId", 0,
+  public void localWriteReadTest() throws Exception {
+    String testAppId = "localWriteReadTest";
+    RssRegisterShuffleRequest rrsr = new RssRegisterShuffleRequest(testAppId, 0,
         Lists.newArrayList(new PartitionRange(0, 1)));
     shuffleServerClient.registerShuffle(rrsr);
-    rrsr = new RssRegisterShuffleRequest("appId", 0, Lists.newArrayList(new PartitionRange(2, 3)));
+    rrsr = new RssRegisterShuffleRequest(testAppId, 0, Lists.newArrayList(new PartitionRange(2, 3)));
     shuffleServerClient.registerShuffle(rrsr);
 
     Map<Long, byte[]> expectedData = Maps.newHashMap();
@@ -99,32 +103,40 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
     shuffleToBlocks.put(0, partitionToBlocks);
 
     RssSendShuffleDataRequest rssdr = new RssSendShuffleDataRequest(
-        "appId", 3, 1000, shuffleToBlocks);
+        testAppId, 3, 1000, shuffleToBlocks);
     shuffleServerClient.sendShuffleData(rssdr);
-    RssSendCommitRequest rscr = new RssSendCommitRequest("appId", 0);
+    RssSendCommitRequest rscr = new RssSendCommitRequest(testAppId, 0);
     shuffleServerClient.sendCommit(rscr);
-    RssFinishShuffleRequest rfsr = new RssFinishShuffleRequest("appId", 0);
+    RssFinishShuffleRequest rfsr = new RssFinishShuffleRequest(testAppId, 0);
     shuffleServerClient.finishShuffle(rfsr);
 
     RssGetShuffleDataRequest rgsdr = new RssGetShuffleDataRequest(
-        "appId", 0, 0, 2, 10, 1000, expectedBlockIds1);
+        testAppId, 0, 0, 2, 10, 1000, expectedBlockIds1);
     ShuffleDataResult sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
     validateResult(sdr, expectedBlockIds1, expectedData, 0);
 
     rgsdr = new RssGetShuffleDataRequest(
-        "appId", 0, 1, 2, 10, 1000, expectedBlockIds2);
+        testAppId, 0, 1, 2, 10, 1000, expectedBlockIds2);
     sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
     validateResult(sdr, expectedBlockIds2, expectedData, 1);
 
     rgsdr = new RssGetShuffleDataRequest(
-        "appId", 0, 2, 2, 10, 1000, expectedBlockIds3);
+        testAppId, 0, 2, 2, 10, 1000, expectedBlockIds3);
     sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
     validateResult(sdr, expectedBlockIds3, expectedData, 2);
 
     rgsdr = new RssGetShuffleDataRequest(
-        "appId", 0, 3, 2, 10, 1000, expectedBlockIds4);
+        testAppId, 0, 3, 2, 10, 1000, expectedBlockIds4);
     sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
     validateResult(sdr, expectedBlockIds4, expectedData, 3);
+
+    assertEquals(4, shuffleServers.get(0).getShuffleTaskManager()
+        .getServerReadHandlers().get(testAppId).size());
+    assertNotNull(shuffleServers.get(0).getShuffleTaskManager()
+        .getPartitionsToBlockIds().get(testAppId));
+    Thread.sleep(8000);
+    assertNull(shuffleServers.get(0).getShuffleTaskManager().getServerReadHandlers().get(testAppId));
+    assertNull(shuffleServers.get(0).getShuffleTaskManager().getPartitionsToBlockIds().get(testAppId));
   }
 
   protected void validateResult(ShuffleDataResult sdr, Set<Long> expectedBlockIds,

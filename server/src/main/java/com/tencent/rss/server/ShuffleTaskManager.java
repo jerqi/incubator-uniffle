@@ -10,6 +10,7 @@ import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
+import com.tencent.rss.storage.handler.api.ServerReadHandler;
 import com.tencent.rss.storage.request.CreateShuffleReadHandlerRequest;
 import java.io.IOException;
 import java.util.List;
@@ -47,6 +48,8 @@ public class ShuffleTaskManager {
   private Map<Long, PreAllocatedBufferInfo> requireBufferIds = Maps.newConcurrentMap();
   private Runnable clearResourceThread;
   private BlockingQueue<String> expiredAppIdQueue = Queues.newLinkedBlockingQueue();
+  // appId -> shuffleId -> serverReadHandler
+  private Map<String, Map<String, ServerReadHandler>> serverReadHandlers = Maps.newConcurrentMap();
 
   public ShuffleTaskManager(
       ShuffleServerConf conf,
@@ -220,7 +223,13 @@ public class ShuffleTaskManager {
     request.setExpectedBlockIds(expectedBlockIds);
     request.setStorageType(storageType);
     request.setRssBaseConf(conf);
-    return ShuffleHandlerFactory.getInstance().getServerReadHandler(request).getShuffleData(expectedBlockIds);
+
+    serverReadHandlers.putIfAbsent(appId, Maps.newConcurrentMap());
+    Map<String, ServerReadHandler> handlerMap = serverReadHandlers.get(appId);
+    String key = "" + request.getShuffleId() + "_" + partitionId;
+    handlerMap.putIfAbsent(key, ShuffleHandlerFactory.getInstance().createServerReadHandler(request));
+
+    return handlerMap.get(key).getShuffleData(expectedBlockIds);
   }
 
   public void checkResourceStatus() {
@@ -239,6 +248,7 @@ public class ShuffleTaskManager {
     LOG.info("Start remove resource for appId[" + appId + "]");
     final long start = System.currentTimeMillis();
     appIds.remove(appId);
+    serverReadHandlers.remove(appId);
     partitionsToBlockIds.remove(appId);
     shuffleBufferManager.removeBuffer(appId);
     shuffleFlushManager.removeResources(appId);
@@ -281,5 +291,15 @@ public class ShuffleTaskManager {
   @VisibleForTesting
   Map<Long, PreAllocatedBufferInfo> getRequireBufferIds() {
     return requireBufferIds;
+  }
+
+  @VisibleForTesting
+  public Map<String, Map<String, ServerReadHandler>> getServerReadHandlers() {
+    return serverReadHandlers;
+  }
+
+  @VisibleForTesting
+  public Map<String, Map<Integer, Map<Integer, Roaring64NavigableMap>>> getPartitionsToBlockIds() {
+    return partitionsToBlockIds;
   }
 }
