@@ -16,7 +16,7 @@ public class MultiStorageManager {
   private final double cleanupThreshold;
   private final double highWaterMarkOfWrite;
   private final double lowWaterMarkOfWrite;
-  private final List<DiskItem> directoryItems = Lists.newArrayList();
+  private final List<DiskItem> diskItems = Lists.newArrayList();
 
   public MultiStorageManager(
       List<String> dirs,
@@ -51,9 +51,11 @@ public class MultiStorageManager {
     // TODO: 1.adapt to heterogeneous env and config different capacity for each disk item
     //       2.each total capacity and server buffer size,
     for (String dir : dirs) {
+      // todo: if there is a disk is corrupted, we should skip. now shuffleServer will
+      // crash.
       DiskItem item = new DiskItem(
-          capacity, dir, cleanupThreshold, highWaterMarkOfWrite, lowWaterMarkOfWrite);
-      directoryItems.add(item);
+          dir, cleanupThreshold, highWaterMarkOfWrite, lowWaterMarkOfWrite, 100, 5000);
+      diskItems.add(item);
     }
   }
 
@@ -76,7 +78,7 @@ public class MultiStorageManager {
     DiskItem diskItem = getDiskItem(appId, shuffleId, partitionId);
     // TODO: use appId, shuffleId, partitionId to update metadata in diskItem
     String key = generateKey(appId, shuffleId);
-    diskItem.updateWrite(key, size);
+    diskItem.updateRead(key, size);
   }
 
   public DiskItem getDiskItem(ShuffleDataFlushEvent event) {
@@ -87,7 +89,7 @@ public class MultiStorageManager {
   public DiskItem getDiskItem(String appId, int shuffleId, int partitionId) {
     // TODO: add exception handling and LOG
     int dirId = getDiskItemId(appId, shuffleId, partitionId);
-    return directoryItems.get(dirId);
+    return diskItems.get(dirId);
   }
 
   public String generateKey(String appId, int shuffleId) {
@@ -99,7 +101,7 @@ public class MultiStorageManager {
   }
 
   public int getDiskItemId(String appId, int shuffleId, int partitionId) {
-    return ShuffleStorageUtils.getStorageIndex(directoryItems.size(), appId, shuffleId, partitionId);
+    return ShuffleStorageUtils.getStorageIndex(diskItems.size(), appId, shuffleId, partitionId);
   }
 
   public String generateDir(String appId, int shuffleId, int partitionId) {
@@ -109,5 +111,9 @@ public class MultiStorageManager {
 
   public String generateDir(ShuffleDataFlushEvent event) {
     return generateDir(event.getAppId(), event.getShuffleId(), event.getStartPartition());
+  }
+
+  public void removeResources(String shuffleKey) {
+    diskItems.forEach(item -> item.removeResources(shuffleKey));
   }
 }

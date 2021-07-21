@@ -322,6 +322,12 @@ public class ShuffleTaskManager {
     cachedBlockIds.remove(appId);
     shuffleBufferManager.removeBuffer(appId);
     shuffleFlushManager.removeResources(appId);
+    Map<Integer, Roaring64NavigableMap[]> shuffleToPartitions = partitionsToBlockIds.get(appId);
+    if (shuffleToPartitions != null) {
+      shuffleToPartitions.keySet().forEach((shuffleId) -> {
+        multiStorageManager.removeResources(appId + "/" + shuffleId);
+      });
+    }
     LOG.info("Finish remove resource for appId[" + appId + "] cost " + (System.currentTimeMillis() - start) + " ms");
   }
 

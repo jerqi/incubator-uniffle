@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 public class DiskItem {
@@ -20,23 +21,39 @@ public class DiskItem {
   private final double highWaterMarkOfWrite;
   private final double lowWaterMarkOfWrite;
   private DiskMetaData diskMetaData = new DiskMetaData();
+  private boolean canRead = true;
 
-  private final Runnable cleaner = () -> {
+  // todo: refactor this construct method by builder pattern
+  public DiskItem(
+      String basePath,
+      double cleanupThreshold,
+      double highWaterMarkOfWrite,
+      double lowWaterMarkOfWrite,
+      long capacity,
+      long cleanIntervalMs) {
 
-  };
-
-  public DiskItem(long capacity, String basePath, double cleanupThreshold, double highWaterMarkOfWrite,
-      double lowWaterMarkOfWrite) {
-
-    this.capacity = capacity;
     this.basePath = basePath;
     this.cleanupThreshold = cleanupThreshold;
     this.highWaterMarkOfWrite = highWaterMarkOfWrite;
     this.lowWaterMarkOfWrite = lowWaterMarkOfWrite;
-    initialize();
+    this.capacity = capacity;
+    File baseFolder = new File(basePath);
+    try {
+        FileUtils.deleteDirectory(baseFolder);
+        baseFolder.mkdirs();
+    } catch (IOException ioe) {
+      LOG.warn("Init base directory " + basePath + " fail, the disk should be corrupted", ioe);
+      throw new RuntimeException(ioe);
+    }
+    long freeSpace = baseFolder.getFreeSpace();
+    if (freeSpace < capacity) {
+      throw new IllegalArgumentException("Disk Available Capacity " + freeSpace
+          + " is smaller than configuration");
+    }
     // todo: extract a class named Service, and support stop method. Now
     // we assume that it's enough for one thread per disk. If in testing mode
-    // the thread won't be started.
+    // the thread won't be started. cleanInterval should minus the execute time
+    // of the method clean.
     new Thread(basePath + "-Cleaner") {
       @Override
       public void run() {
@@ -45,7 +62,7 @@ public class DiskItem {
           try {
               clean();
               // todo: get sleepInterval from configuration
-              Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
+              Uninterruptibles.sleepUninterruptibly(cleanIntervalMs, TimeUnit.MILLISECONDS);
           } catch (Exception e) {
             LOG.error(getName() + " happened exception: ", e);
           }
@@ -54,22 +71,22 @@ public class DiskItem {
     }.start();
   }
 
-  void initialize() throws RuntimeException {
-    // create the base path is not exist and throw runtime exception if fail.
-
-  }
-
   public boolean canWrite() {
-    // TODO: start force clean signal to cleaner and uploader
-    return true;
+    if (canRead) {
+      canRead = diskMetaData.getDiskSize().doubleValue() * 100 / capacity < highWaterMarkOfWrite;
+    } else {
+      canRead = diskMetaData.getDiskSize().doubleValue() * 100 / capacity < lowWaterMarkOfWrite;
+    }
+    return canRead;
   }
 
   public String getBasePath() {
     return basePath;
   }
 
-  public void updateWrite(String key, long delta) {
-    // TODO: update metadata and send signal to cleaner
+  public void updateWrite(String shuffleKey, long delta) {
+    diskMetaData.updateDiskSize(delta);
+    diskMetaData.updateShuffleSize(shuffleKey, delta);
   }
 
   public void updateRead(String key, long delta) {
@@ -92,8 +109,7 @@ public class DiskItem {
         try {
           File baseFolder = new File(shufflePath);
           FileUtils.deleteDirectory(baseFolder);
-          diskMetaData.updateDiskSize(-diskMetaData.getShuffleSize(shuffleKey));
-          diskMetaData.remoteShuffle(shuffleKey);
+          removeResources(shuffleKey);
           LOG.info("Delete shuffle data for shuffle [" + shuffleKey + "] with " + shufflePath
               + " cost " + (System.currentTimeMillis() - start) + " ms");
         } catch (Exception e) {
@@ -111,5 +127,10 @@ public class DiskItem {
   @VisibleForTesting
   DiskMetaData getDiskMetaData() {
     return diskMetaData;
+  }
+
+  public void removeResources(String shuffleKey) {
+    diskMetaData.updateDiskSize(-diskMetaData.getShuffleSize(shuffleKey));
+    diskMetaData.remoteShuffle(shuffleKey);
   }
 }
