@@ -6,12 +6,12 @@
   <parent>
     <groupId>com.tencent.rss</groupId>
     <artifactId>rss-main</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
   </parent>
 
   <groupId>com.tencent.rss</groupId>
   <artifactId>rss-client-spark2</artifactId>
-  <version>1.1.0</version>
+  <version>1.1.1</version>
   <packaging>jar</packaging>
 
   <dependencies>
