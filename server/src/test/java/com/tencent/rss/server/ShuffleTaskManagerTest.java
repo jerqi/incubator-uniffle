@@ -43,7 +43,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     conf.setString("rss.server.commit.timeout", "10000");
     ShuffleServer shuffleServer = new ShuffleServer(conf);
     ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf,
-        shuffleServer.getShuffleFlushManager(), shuffleServer.getShuffleBufferManager());
+        shuffleServer.getShuffleFlushManager(), shuffleServer.getShuffleBufferManager(), null);
 
     String appId = "registerTest1";
     int shuffleId = 1;
@@ -82,7 +82,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     ShuffleServer shuffleServer = new ShuffleServer(conf);
     ShuffleBufferManager shuffleBufferManager = shuffleServer.getShuffleBufferManager();
     ShuffleFlushManager shuffleFlushManager = shuffleServer.getShuffleFlushManager();
-    ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf, shuffleFlushManager, shuffleBufferManager);
+    ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf, shuffleFlushManager, shuffleBufferManager, null);
     shuffleTaskManager.registerShuffle(appId, shuffleId, Lists.newArrayList(new PartitionRange(1, 1)));
     shuffleTaskManager.registerShuffle(appId, shuffleId, Lists.newArrayList(new PartitionRange(2, 2)));
     List<ShufflePartitionedBlock> expectedBlocks1 = Lists.newArrayList();
@@ -204,7 +204,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     ShuffleServer shuffleServer = new ShuffleServer(conf);
     ShuffleBufferManager shuffleBufferManager = shuffleServer.getShuffleBufferManager();
     ShuffleFlushManager shuffleFlushManager = shuffleServer.getShuffleFlushManager();
-    ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf, shuffleFlushManager, shuffleBufferManager);
+    ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf, shuffleFlushManager, shuffleBufferManager, null);
     shuffleTaskManager.registerShuffle("clearTest1", shuffleId, Lists.newArrayList(new PartitionRange(0, 1)));
     shuffleTaskManager.registerShuffle("clearTest2", shuffleId, Lists.newArrayList(new PartitionRange(0, 1)));
     shuffleTaskManager.refreshAppId("clearTest1");

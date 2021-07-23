@@ -2,8 +2,11 @@ package com.tencent.rss.server;
 
 import com.tencent.rss.common.config.ConfigOption;
 import com.tencent.rss.common.config.ConfigOptions;
+import com.tencent.rss.common.config.ConfigUtils;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.common.util.RssUtils;
+
+import java.util.List;
 import java.util.Map;
 
 public class ShuffleServerConf extends RssBaseConf {
@@ -148,6 +151,83 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(10000000L)
       .withDescription("Threshold for event size");
 
+  public static final ConfigOption<Double> RSS_CLEANUP_THRESHOLD = ConfigOptions
+      .key("rss.server.cleanup.threshold")
+      .doubleType()
+      .defaultValue(70.0)
+      .withDescription("Threshold for disk cleanup");
+
+  public static final ConfigOption<Double> RSS_HIGH_WATER_MARK_OF_WRITE = ConfigOptions
+      .key("rss.server.high.watermark.write")
+      .doubleType()
+      .defaultValue(95.0)
+      .withDescription("If disk usage is bigger than this value, disk cannot been written");
+
+  public static final ConfigOption<Double> RSS_LOW_WATER_MARK_OF_WRITE = ConfigOptions
+      .key("rss.server.low.watermark.write")
+      .doubleType()
+      .defaultValue(85.0)
+      .withDescription("If disk usage is smaller than this value, disk can been written again");
+  public static final ConfigOption<Long> RSS_PENDING_EVENT_TIMEOUT_SEC = ConfigOptions
+      .key("rss.server.pending.event.timeoutSec")
+      .longType()
+      .defaultValue(60L)
+      .withDescription("If disk cannot be written for timeout seconds, the flush data event will fail");
+
+  public static final ConfigOption<Boolean> RSS_UPLOADER_ENABLE = ConfigOptions
+      .key("rss.server.uploader.enable")
+      .booleanType()
+      .defaultValue(false)
+      .withDescription("A switch of the uploader");
+
+  public static final ConfigOption<Integer> RSS_UPLOADER_THREAD_NUM = ConfigOptions
+      .key("rss.server.uploader.thread.number")
+      .intType()
+      .defaultValue(1)
+      .withDescription("The thread number of the uploader");
+
+  public static final ConfigOption<Long> RSS_UPLOADER_INTERVAL_MS = ConfigOptions
+      .key("rss.server.uploader.interval.ms")
+      .longType()
+      .defaultValue(1000L)
+      .withDescription("The interval for the uploader");
+
+  public static final ConfigOption<Long> RSS_UPLOAD_COMBINE_THRESHOLD_MB = ConfigOptions
+      .key("rss.server.uploader.combine.threshold.MB")
+      .longType()
+      .defaultValue(32L)
+      .withDescription("The threshold of the combine mode");
+
+  public static final ConfigOption<String> RSS_HDFS_BASE_PATH = ConfigOptions
+      .key("rss.server.uploader.base.path")
+      .stringType()
+      .noDefaultValue()
+      .withDescription("The base path of the uploader");
+
+  public static final ConfigOption<String> RSS_UPLOAD_STORAGE_TYPE = ConfigOptions
+      .key("rss.server.uploader.remote.storage.type")
+      .stringType()
+      .defaultValue("HDFS")
+      .withDescription("The remote storage type of the uploader");
+
+  public static final ConfigOption<Long> RSS_REFERENCE_UPLOAD_SPEED_MBS = ConfigOptions
+      .key("rss.server.uploader.references.speed.mbps")
+      .longType()
+      .defaultValue(2L)
+      .withDescription("The speed for the uploader");
+
+  public static final ConfigOption<Long> RSS_DISK_CAPACITY = ConfigOptions
+      .key("rss.server.disk.capacity")
+      .longType()
+      .defaultValue(1024L * 1024L * 1024L * 1024L)
+      .withDescription("Disk capacity that shuffle server can use");
+
+  public static final ConfigOption<Long> RSS_CLEANUP_INTERVAL_MS = ConfigOptions
+      .key("rss.server.cleanup.interval.ms")
+      .longType()
+      .defaultValue(3000L)
+      .withDescription("The interval for cleanup");
+
   public ShuffleServerConf() {
   }
 
@@ -168,107 +248,20 @@ public class ShuffleServerConf extends RssBaseConf {
 
     loadCommonConf(properties);
 
+    List<ConfigOption> configOptions = ConfigUtils.getAllConfigOptions(ShuffleServerConf.class);
+
     properties.forEach((k, v) -> {
+      configOptions.forEach(config -> {
+        if (config.key().equalsIgnoreCase(k)) {
+          set(config, ConfigUtils.convertValue(v, config.getClazz()));
+        }
+      });
       if (RPC_SERVER_TYPE.key().equalsIgnoreCase(k)) {
         set(RPC_SERVER_TYPE, v.toUpperCase());
       }
-
-      if (RPC_SERVER_PORT.key().equalsIgnoreCase(k)) {
-        set(RPC_SERVER_PORT, Integer.valueOf(v));
-      }
-
-      if (SERVER_BUFFER_CAPACITY.key().equalsIgnoreCase(k)) {
-        set(SERVER_BUFFER_CAPACITY, Long.valueOf(v));
-      }
-
-      if (SERVER_BUFFER_SPILL_THRESHOLD.key().equalsIgnoreCase(k)) {
-        set(SERVER_BUFFER_SPILL_THRESHOLD, Long.valueOf(v));
-      }
-
-      if (SERVER_PARTITION_BUFFER_SIZE.key().equalsIgnoreCase(k)) {
-        set(SERVER_PARTITION_BUFFER_SIZE, Integer.valueOf(v));
-      }
-
-      if (SERVER_HEARTBEAT_DELAY.key().equalsIgnoreCase(k)) {
-        set(SERVER_HEARTBEAT_DELAY, Long.valueOf(v));
-      }
-
-      if (SERVER_HEARTBEAT_INTERVAL.key().equalsIgnoreCase(k)) {
-        set(SERVER_HEARTBEAT_INTERVAL, Long.valueOf(v));
-      }
-
-      if (SERVER_HEARTBEAT_TIMEOUT.key().equalsIgnoreCase(k)) {
-        set(SERVER_HEARTBEAT_TIMEOUT, Long.valueOf(v));
-      }
-
-      if (SERVER_HEARTBEAT_THREAD_NUM.key().equalsIgnoreCase(k)) {
-        set(SERVER_HEARTBEAT_THREAD_NUM, Integer.valueOf(v));
-      }
-
-      if (SERVER_FLUSH_THREAD_POOL_SIZE.key().equalsIgnoreCase(k)) {
-        set(SERVER_FLUSH_THREAD_POOL_SIZE, Integer.valueOf(v));
-      }
-
-      if (SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE.key().equalsIgnoreCase(k)) {
-        set(SERVER_FLUSH_THREAD_POOL_QUEUE_SIZE, Integer.valueOf(v));
-      }
-
-      if (SERVER_FLUSH_THREAD_ALIVE.key().equalsIgnoreCase(k)) {
-        set(SERVER_FLUSH_THREAD_ALIVE, Long.valueOf(v));
-      }
-
-      if (SERVER_COMMIT_TIMEOUT.key().equalsIgnoreCase(k)) {
-        set(SERVER_COMMIT_TIMEOUT, Long.valueOf(v));
-      }
-
-      if (SERVER_APP_EXPIRED_WITH_HEARTBEAT.key().equalsIgnoreCase(k)) {
-        set(SERVER_APP_EXPIRED_WITH_HEARTBEAT, Long.valueOf(v));
-      }
-
-      if (SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT.key().equalsIgnoreCase(k)) {
-        set(SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT, Long.valueOf(v));
-      }
-
-      if (SERVER_MEMORY_REQUEST_RETRY_MAX.key().equalsIgnoreCase(k)) {
-        set(SERVER_MEMORY_REQUEST_RETRY_MAX, Integer.valueOf(v));
-      }
-
-      if (SERVER_WRITE_RETRY_MAX.key().equalsIgnoreCase(k)) {
-        set(SERVER_WRITE_RETRY_MAX, Integer.valueOf(v));
-      }
-
-      if (SERVER_PRE_ALLOCATION_EXPIRED.key().equalsIgnoreCase(k)) {
-        set(SERVER_PRE_ALLOCATION_EXPIRED, Long.valueOf(v));
-      }
-
-      if (SERVER_COMMIT_CHECK_INTERVAL_MAX.key().equalsIgnoreCase(k)) {
-        set(SERVER_COMMIT_CHECK_INTERVAL_MAX, Long.valueOf(v));
-      }
-
-      if (SERVER_READ_BUFFER_CAPACITY.key().equalsIgnoreCase(k)) {
-        set(SERVER_READ_BUFFER_CAPACITY, Long.valueOf(v));
-      }
-
-      if (SERVER_WRITE_SLOW_THRESHOLD.key().equalsIgnoreCase(k)) {
-        set(SERVER_WRITE_SLOW_THRESHOLD, Long.valueOf(v));
-      }
-
-      if (SERVER_EVENT_SIZE_THRESHOLD_L1.key().equalsIgnoreCase(k)) {
-        set(SERVER_EVENT_SIZE_THRESHOLD_L1, Long.valueOf(v));
-      }
-
-      if (SERVER_EVENT_SIZE_THRESHOLD_L2.key().equalsIgnoreCase(k)) {
-        set(SERVER_EVENT_SIZE_THRESHOLD_L2, Long.valueOf(v));
-      }
-
-      if (SERVER_EVENT_SIZE_THRESHOLD_L3.key().equalsIgnoreCase(k)) {
-        set(SERVER_EVENT_SIZE_THRESHOLD_L3, Long.valueOf(v));
-      }
-
       if (k.startsWith(PREFIX_HADOOP_CONF)) {
         setString(k, v);
       }
-
     });
 
     return true;

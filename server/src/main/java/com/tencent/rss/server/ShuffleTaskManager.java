@@ -56,16 +56,18 @@ public class ShuffleTaskManager {
   private BlockingQueue<String> expiredAppIdQueue = Queues.newLinkedBlockingQueue();
   // appId -> shuffleId -> serverReadHandler
   private Map<String, Map<String, ServerReadHandler>> serverReadHandlers = Maps.newConcurrentMap();
-  private MultiStorageManager multiStorageManager = null;// TODO: add to constructor
+  private final MultiStorageManager multiStorageManager;
 
   public ShuffleTaskManager(
       ShuffleServerConf conf,
       ShuffleFlushManager shuffleFlushManager,
-      ShuffleBufferManager shuffleBufferManager) {
+      ShuffleBufferManager shuffleBufferManager,
+      MultiStorageManager multiStorageManager) {
     this.conf = conf;
     this.shuffleFlushManager = shuffleFlushManager;
     this.partitionsToBlockIds = Maps.newConcurrentMap();
     this.shuffleBufferManager = shuffleBufferManager;
+    this.multiStorageManager = multiStorageManager;
     this.appExpiredWithoutHB = conf.getLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT);
     this.commitCheckIntervalMax = conf.getLong(ShuffleServerConf.SERVER_COMMIT_CHECK_INTERVAL_MAX);
     this.preAllocationExpired = conf.getLong(ShuffleServerConf.SERVER_PRE_ALLOCATION_EXPIRED);
@@ -291,10 +293,12 @@ public class ShuffleTaskManager {
     String key = "" + request.getShuffleId() + "_" + partitionId;
     handlerMap.putIfAbsent(key, ShuffleHandlerFactory.getInstance().createServerReadHandler(request));
 
-    // TODO: get shuffle data result and update metadata
-    //  multiStorageManager.updateRead(appId, partitionId, partitionId, shuffleDataResult.getData().length);
+    if (multiStorageManager != null) {
+      multiStorageManager.updateReadEvent(appId, shuffleId, partitionId);
+    }
 
-    return handlerMap.get(key).getShuffleData(segmentIndex);
+    ShuffleDataResult shuffleDataResult = handlerMap.get(key).getShuffleData(segmentIndex);
+    return shuffleDataResult;
   }
 
   public void checkResourceStatus() {
@@ -325,7 +329,7 @@ public class ShuffleTaskManager {
     Map<Integer, Roaring64NavigableMap[]> shuffleToPartitions = partitionsToBlockIds.get(appId);
     if (shuffleToPartitions != null) {
       shuffleToPartitions.keySet().forEach((shuffleId) -> {
-        multiStorageManager.removeResources(appId + "/" + shuffleId);
+        multiStorageManager.removeResources(appId, shuffleId);
       });
     }
     LOG.info("Finish remove resource for appId[" + appId + "] cost " + (System.currentTimeMillis() - start) + " ms");

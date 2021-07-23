@@ -207,7 +207,7 @@ public class ShuffleBufferManagerTest {
     conf.setString("rss.server.partition.buffer.size", "96");
 
     ShuffleServer mockShuffleServer = mock(ShuffleServer.class);
-    ShuffleFlushManager shuffleFlushManager = new ShuffleFlushManager(conf, "serverId", mockShuffleServer);
+    ShuffleFlushManager shuffleFlushManager = new ShuffleFlushManager(conf, "serverId", mockShuffleServer, null);
     shuffleBufferManager = new ShuffleBufferManager(conf, shuffleFlushManager);
 
     when(mockShuffleServer

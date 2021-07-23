@@ -89,8 +89,8 @@ public class DiskItem {
     diskMetaData.updateShuffleSize(shuffleKey, delta);
   }
 
-  public void updateRead(String key, long delta) {
-    // TODO: update metadata and send signal to uploader
+  public void updateRead(String key) {
+    diskMetaData.setHasRead(key);
   }
 
   // todo: refactor DeleteHandler to support shuffleKey level deletion

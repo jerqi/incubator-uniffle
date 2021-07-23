@@ -1,6 +1,8 @@
 package com.tencent.rss.common.config;
 
+import java.util.List;
 import java.util.Map;
+
 
 public class RssBaseConf extends RssConf {
 
@@ -165,115 +167,19 @@ public class RssBaseConf extends RssConf {
       .defaultValue(1000)
       .withDescription("Thread number for grpc to process request");
 
+
   public boolean loadCommonConf(Map<String, String> properties) {
     if (properties == null) {
       return false;
     }
 
+    List<ConfigOption> configOptions = ConfigUtils.getAllConfigOptions(RssBaseConf.class);
     properties.forEach((k, v) -> {
-      if (RSS_COORDINATOR_IP.key().equalsIgnoreCase(k)) {
-        set(RSS_COORDINATOR_IP, v);
-      }
-
-      if (RSS_COORDINATOR_PORT.key().equalsIgnoreCase(k)) {
-        set(RSS_COORDINATOR_PORT, Integer.valueOf(v));
-      }
-
-      if (RSS_COORDINATOR_QUORUM.key().equalsIgnoreCase(k)) {
-        set(RSS_COORDINATOR_QUORUM, v);
-      }
-
-      if (RPC_SERVER_TYPE.key().equalsIgnoreCase(k)) {
-        set(RPC_SERVER_TYPE, v);
-      }
-
-      if (RPC_SERVER_PORT.key().equalsIgnoreCase(k)) {
-        set(RPC_SERVER_PORT, Integer.valueOf(v));
-      }
-
-      if (JETTY_HTTP_PORT.key().equalsIgnoreCase(k)) {
-        set(JETTY_HTTP_PORT, Integer.valueOf(v));
-      }
-
-      if (JETTY_MAX_THREAD.key().equalsIgnoreCase(k)) {
-        set(JETTY_MAX_THREAD, Integer.valueOf(v));
-      }
-
-      if (JETTY_MIN_THREAD.key().equalsIgnoreCase(k)) {
-        set(JETTY_MIN_THREAD, Integer.valueOf(v));
-      }
-
-      if (JETTY_CORE_POOL_SIZE.key().equalsIgnoreCase(k)) {
-        set(JETTY_CORE_POOL_SIZE, Integer.valueOf(v));
-      }
-
-      if (JETTY_MAX_POOL_SIZE.key().equalsIgnoreCase(k)) {
-        set(JETTY_MAX_POOL_SIZE, Integer.valueOf(v));
-      }
-
-      if (JETTY_QUEUE_SIZE.key().equalsIgnoreCase(k)) {
-        set(JETTY_QUEUE_SIZE, Integer.valueOf(v));
-      }
-
-      if (JETTY_HEADER_BUFFER_SIZE.key().equalsIgnoreCase(k)) {
-        set(JETTY_HEADER_BUFFER_SIZE, Integer.valueOf(v));
-      }
-
-      if (JETTY_HTTPS_PORT.key().equalsIgnoreCase(k)) {
-        set(JETTY_HTTPS_PORT, Integer.valueOf(v));
-      }
-
-      if (JETTY_SSL_KEYSTORE_PATH.key().equalsIgnoreCase(k)) {
-        set(JETTY_SSL_KEYSTORE_PATH, v);
-      }
-
-      if (JETTY_SSL_KEYSTORE_PASSWORD.key().equalsIgnoreCase(k)) {
-        set(JETTY_SSL_KEYSTORE_PASSWORD, v);
-      }
-
-      if (JETTY_SSL_TRUSTSTORE_PASSWORD.key().equalsIgnoreCase(k)) {
-        set(JETTY_SSL_TRUSTSTORE_PASSWORD, v);
-      }
-
-      if (JETTY_SSL_KEYMANAGER_PASSWORD.key().equalsIgnoreCase(k)) {
-        set(JETTY_SSL_KEYMANAGER_PASSWORD, v);
-      }
-
-      if (JETTY_STOP_TIMEOUT.key().equalsIgnoreCase(k)) {
-        set(JETTY_STOP_TIMEOUT, Long.valueOf(v));
-      }
-
-      if (JETTY_HTTP_IDLE_TIMEOUT.key().equalsIgnoreCase(k)) {
-        set(JETTY_HTTP_IDLE_TIMEOUT, Long.valueOf(v));
-      }
-
-      if (RPC_MESSAGE_MAX_SIZE.key().equalsIgnoreCase(k)) {
-        set(RPC_MESSAGE_MAX_SIZE, Integer.valueOf(v));
-      }
-
-      if (RSS_CLIENT_TYPE.key().equalsIgnoreCase(k)) {
-        set(RSS_CLIENT_TYPE, v);
-      }
-
-      if (RSS_STORAGE_TYPE.key().equalsIgnoreCase(k)) {
-        set(RSS_STORAGE_TYPE, v.toUpperCase());
-      }
-
-      if (RSS_STORAGE_BASE_PATH.key().equalsIgnoreCase(k)) {
-        set(RSS_STORAGE_BASE_PATH, v);
-      }
-
-      if (RSS_STORAGE_INDEX_READ_LIMIT.key().equalsIgnoreCase(k)) {
-        set(RSS_STORAGE_INDEX_READ_LIMIT, Integer.valueOf(k));
-      }
-
-      if (RPC_EXECUTOR_SIZE.key().equalsIgnoreCase(k)) {
-        set(RPC_EXECUTOR_SIZE, Integer.valueOf(v));
-      }
-
-      if (RSS_STORAGE_DATA_REPLICA.key().equalsIgnoreCase(k)) {
-        set(RSS_STORAGE_DATA_REPLICA, Integer.valueOf(v));
-      }
+      configOptions.forEach(config -> {
+        if (config.key().equalsIgnoreCase(k)) {
+          set(config, ConfigUtils.convertValue(v, config.getClazz()));
+        }
+      });
     });
 
     return true;

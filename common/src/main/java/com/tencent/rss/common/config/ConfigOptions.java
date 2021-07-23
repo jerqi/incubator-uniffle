@@ -1,6 +1,7 @@
 package com.tencent.rss.common.config;
 
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * {@code ConfigOptions} are used to build a {@link ConfigOption}.

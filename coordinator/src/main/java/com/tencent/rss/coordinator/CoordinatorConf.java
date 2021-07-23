@@ -2,8 +2,11 @@ package com.tencent.rss.coordinator;
 
 import com.tencent.rss.common.config.ConfigOption;
 import com.tencent.rss.common.config.ConfigOptions;
+import com.tencent.rss.common.config.ConfigUtils;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.common.util.RssUtils;
+
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -50,21 +53,14 @@ public class CoordinatorConf extends RssBaseConf {
 
     loadCommonConf(properties);
 
+    List<ConfigOption> configOptions = ConfigUtils.getAllConfigOptions(CoordinatorConf.class);
     properties.forEach((k, v) -> {
-
-      if (COORDINATOR_ASSIGNMENT_STRATEGY.key().equalsIgnoreCase(k)) {
-        set(COORDINATOR_ASSIGNMENT_STRATEGY, v.toUpperCase());
-      }
-
-      if (COORDINATOR_HEARTBEAT_TIMEOUT.key().equalsIgnoreCase(k)) {
-        set(COORDINATOR_HEARTBEAT_TIMEOUT, Long.valueOf(v));
-      }
-
-      if (COORDINATOR_APP_EXPIRED.key().equalsIgnoreCase(k)) {
-        set(COORDINATOR_APP_EXPIRED, Long.valueOf(v));
-      }
+      configOptions.forEach(config -> {
+        if (config.key().equalsIgnoreCase(k)) {
+          set(config, ConfigUtils.convertValue(v, config.getClazz()));
+        }
+      });
     });
-
     return true;
   }
 }

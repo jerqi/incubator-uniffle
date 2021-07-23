@@ -58,6 +58,8 @@ public class ShuffleServerConfTest {
     assertEquals(2, shuffleServerConf.getLong(ShuffleServerConf.SERVER_BUFFER_CAPACITY));
     assertEquals("value1", shuffleServerConf.getString("rss.server.hadoop.a.b", ""));
     assertEquals("", shuffleServerConf.getString("rss.server.had.a.b", ""));
+    assertEquals("COS", shuffleServerConf.getString(ShuffleServerConf.RSS_UPLOAD_STORAGE_TYPE));
+    assertEquals(10L, shuffleServerConf.getLong(ShuffleServerConf.RSS_REFERENCE_UPLOAD_SPEED_MBS));
 
     thrown.expect(NullPointerException.class);
     shuffleServerConf.getInteger(ShuffleServerConf.SERVER_PARTITION_BUFFER_SIZE);

@@ -1,5 +1,14 @@
 package com.tencent.rss.common.config;
 
+import com.google.common.collect.Lists;
+
+import java.lang.reflect.Field;
+import java.util.List;
+
+import static java.lang.reflect.Modifier.isFinal;
+import static java.lang.reflect.Modifier.isPublic;
+import static java.lang.reflect.Modifier.isStatic;
+
 public class ConfigUtils {
 
   // --------------------------------------------------------------------------------------------
@@ -113,5 +122,22 @@ public class ConfigUtils {
     }
 
     return Double.parseDouble(o.toString());
+  }
+
+  public static List<ConfigOption> getAllConfigOptions(Class confClass) {
+    List<ConfigOption> configOptionList = Lists.newArrayList();
+    try {
+      Field[] fields = confClass.getFields();
+      for (Field field : fields) {
+        int modifiers = field.getModifiers();
+        if (isStatic(modifiers) && isPublic(modifiers)
+            && isFinal(modifiers) && field.getType().isAssignableFrom(ConfigOption.class)) {
+          configOptionList.add((ConfigOption) field.get(null));
+        }
+      }
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Load shuffle server configuration option exception");
+    }
+    return configOptionList;
   }
 }

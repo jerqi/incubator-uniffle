@@ -1,11 +1,13 @@
 package com.tencent.rss.server;
 
 import com.tencent.rss.common.Arguments;
+import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.common.metrics.JvmMetrics;
 import com.tencent.rss.common.rpc.ServerInterface;
 import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.common.web.CommonMetricsServlet;
 import com.tencent.rss.common.web.JettyServer;
+import com.tencent.rss.storage.util.StorageType;
 import io.prometheus.client.CollectorRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,13 +95,14 @@ public class ShuffleServer {
     port = shuffleServerConf.getInteger(ShuffleServerConf.RPC_SERVER_PORT);
     id = ip + "-" + port;
     LOG.info("Start to initialize server {}", id);
-    //TODO: get conf param from shuffleServerConf and init multi storage manager
-    // multiStorageManager = new MultiStorageManager(dirs, capacity, cleanupThreshold, highWaterMark, lowWaterMark);
+    if (StorageType.LOCALFILE.toString().equals(shuffleServerConf.get(RssBaseConf.RSS_STORAGE_TYPE))) {
+      multiStorageManager = new MultiStorageManager(shuffleServerConf, id);
+    }
     registerHeartBeat = new RegisterHeartBeat(this);
-    shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id, this);
+    shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id, this, multiStorageManager);
     shuffleBufferManager = new ShuffleBufferManager(shuffleServerConf, shuffleFlushManager);
-    // TODO: trans multiStorageManager to shuffleTaskManager through constructor
-    shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, shuffleFlushManager, shuffleBufferManager);
+    shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, shuffleFlushManager,
+      shuffleBufferManager, multiStorageManager);
 
     RemoteServerFactory shuffleServerFactory = new RemoteServerFactory(this);
     server = shuffleServerFactory.getServer();

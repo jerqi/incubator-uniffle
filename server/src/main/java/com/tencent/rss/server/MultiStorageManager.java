@@ -6,16 +6,16 @@ import com.tencent.rss.storage.common.DiskItem;
 import com.tencent.rss.storage.common.ShuffleUploader;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import com.tencent.rss.storage.util.StorageType;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.List;
 
 public class MultiStorageManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(MultiStorageManager.class);
-  private final List<String> dirs;
+  private final String[] dirs;
   private final long capacity;
   private final double cleanupThreshold;
   private final double highWaterMarkOfWrite;
@@ -31,54 +31,104 @@ public class MultiStorageManager {
   private final String hdfsBathPath;
   private final String shuffleServerId;
   private final Configuration hadoopConf;
+  private final long cleanupIntervalMs;
 
   private final List<DiskItem> diskItems = Lists.newArrayList();
 
-  public MultiStorageManager(
-      List<String> dirs,
-      long capacity,
-      double cleanupThreshold,
-      double highWaterMarkOfWrite,
-      double lowWaterMarkOfWrite,
-      boolean enableUploader,
-      int uploadThreadNum,
-      long uploadIntervalMS,
-      long uploadCombineThresholdMB,
-      long referenceUploadSpeedMBS,
-      StorageType remoteStorageType,
-      String hdfsBathPath,
-      String shuffleServerId,
-      Configuration hadoopConf) {
+  public MultiStorageManager(ShuffleServerConf conf, String shuffleServerId) {
+    String dirsFromConf = conf.getString(ShuffleServerConf.RSS_STORAGE_BASE_PATH);
+    if (dirsFromConf == null) {
+      throw new IllegalArgumentException("Base path dirs must not be empty");
+    }
+    dirs = dirsFromConf.split(",");
+    long capacity = conf.get(ShuffleServerConf.RSS_DISK_CAPACITY);
     if (capacity <= 0) {
       throw new IllegalArgumentException("Capacity must be larger than zero");
     }
+
+    double cleanupThreshold = conf.get(ShuffleServerConf.RSS_CLEANUP_THRESHOLD);
     if (cleanupThreshold < 0 || cleanupThreshold > 100) {
       throw new IllegalArgumentException("cleanupThreshold must be between 0 and 100");
     }
+
+    long cleanupIntervalMs  = conf.get(ShuffleServerConf.RSS_CLEANUP_INTERVAL_MS);
+    if (cleanupIntervalMs < 0) {
+      throw new IllegalArgumentException("cleanupInterval must be larger than zero");
+    }
+
+    double highWaterMarkOfWrite = conf.get(ShuffleServerConf.RSS_HIGH_WATER_MARK_OF_WRITE);
+    double lowWaterMarkOfWrite = conf.get(ShuffleServerConf.RSS_LOW_WATER_MARK_OF_WRITE);
+
     if (highWaterMarkOfWrite < lowWaterMarkOfWrite) {
       throw new IllegalArgumentException("highWaterMarkOfWrite must be larger than lowWaterMarkOfWrite");
     }
+
     if (lowWaterMarkOfWrite < 0) {
       throw new IllegalArgumentException("lowWaterMarkOfWrite must be larger than zero");
     }
+
     if (highWaterMarkOfWrite > 100) {
       throw new IllegalArgumentException("highWaterMarkOfWrite must be smaller than 100");
     }
 
-    this.dirs = dirs;
+    // todo: implement a method in class Config like `checkValue`
+    int uploadThreadNum = conf.get(ShuffleServerConf.RSS_UPLOADER_THREAD_NUM);
+    if (uploadThreadNum <= 0) {
+      throw new IllegalArgumentException("uploadThreadNum must be larger than 0");
+    }
+
+    long uploadIntervalMS = conf.get(ShuffleServerConf.RSS_UPLOADER_INTERVAL_MS);
+    if (uploadIntervalMS <= 0) {
+      throw new IllegalArgumentException("uploadIntervalMs must be larger than 0");
+    }
+
+    long uploadCombineThresholdMB = conf.get(ShuffleServerConf.RSS_UPLOAD_COMBINE_THRESHOLD_MB);
+    if (uploadCombineThresholdMB <= 0) {
+      throw new IllegalArgumentException("uploadCombineThresholdMB must be larger than 0");
+    }
+
+    long referenceUploadSpeedMBS = conf.get(ShuffleServerConf.RSS_REFERENCE_UPLOAD_SPEED_MBS);
+    if (referenceUploadSpeedMBS <= 0) {
+      throw new IllegalArgumentException("referenceUploadSpeedMbps must be larger than 0");
+    }
+
+    // todo: better name
+    String hdfsBasePath = conf.get(ShuffleServerConf.RSS_HDFS_BASE_PATH);
+    if (StringUtils.isEmpty(hdfsBasePath)) {
+      throw new IllegalArgumentException("hdfsBasePath couldn't be empty");
+    }
+
+    StorageType remoteStorageType = StorageType.valueOf(conf.getString(ShuffleServerConf.RSS_UPLOAD_STORAGE_TYPE));
+
+    if (StorageType.LOCALFILE.equals(remoteStorageType) || StorageType.FILE.equals(remoteStorageType)) {
+      throw new IllegalArgumentException("uploadRemoteStorageType couldn't be LOCALFILE or FILE");
+    }
+
+    this.enableUploader = conf.get(ShuffleServerConf.RSS_UPLOADER_ENABLE);
+
     this.capacity = capacity;
     this.cleanupThreshold = cleanupThreshold;
+    this.cleanupIntervalMs = cleanupIntervalMs;
     this.highWaterMarkOfWrite = highWaterMarkOfWrite;
     this.lowWaterMarkOfWrite = lowWaterMarkOfWrite;
-    this.enableUploader = enableUploader;
     this.uploadThreadNum = uploadThreadNum;
     this.uploadIntervalMS = uploadIntervalMS;
     this.uploadCombineThresholdMB = uploadCombineThresholdMB;
     this.referenceUploadSpeedMBS = referenceUploadSpeedMBS;
     this.remoteStorageType = remoteStorageType;
-    this.hdfsBathPath = hdfsBathPath;
+    this.hdfsBathPath = hdfsBasePath;
     this.shuffleServerId = shuffleServerId;
-    this.hadoopConf = hadoopConf;
+    this.hadoopConf = new Configuration();
+
+    // todo: extract a method
+    for (String key : conf.getKeySet()) {
+      if (key.startsWith(ShuffleServerConf.PREFIX_HADOOP_CONF)) {
+        String value = conf.getString(key, "");
+        String hadoopKey = key.substring(ShuffleServerConf.PREFIX_HADOOP_CONF.length() + 1);
+        LOG.info("Update hadoop configuration:" + hadoopKey + "=" + value);
+        hadoopConf.set(hadoopKey, value);
+      }
+    }
     initialize();
   }
 
@@ -89,7 +139,7 @@ public class MultiStorageManager {
       // todo: if there is a disk is corrupted, we should skip. now shuffleServer will
       // crash.
       DiskItem item = new DiskItem(
-          dir, cleanupThreshold, highWaterMarkOfWrite, lowWaterMarkOfWrite, 100, 5000);
+          dir, cleanupThreshold, highWaterMarkOfWrite, lowWaterMarkOfWrite, capacity, cleanupIntervalMs);
       diskItems.add(item);
     }
 
@@ -115,8 +165,6 @@ public class MultiStorageManager {
     }
   }
 
-
-
   public boolean canWrite(ShuffleDataFlushEvent event) {
     DiskItem diskItem = getDiskItem(event);
     return diskItem.canWrite();
@@ -126,26 +174,22 @@ public class MultiStorageManager {
     DiskItem diskItem = getDiskItem(event);
     String appId = event.getAppId();
     int shuffleId = event.getShuffleId();
-    int partitionId = event.getStartPartition();
-    // TODO: use appId, shuffleId, partitionId to update metadata in diskItem
     String key = generateKey(appId, shuffleId);
     diskItem.updateWrite(key, event.getSize());
   }
 
-  public void updateReadEvent(String appId, int shuffleId, int partitionId, long size) {
+  // todo: update a timestamp for every shuffle recently read
+  public void updateReadEvent(String appId, int shuffleId, int partitionId) {
     DiskItem diskItem = getDiskItem(appId, shuffleId, partitionId);
-    // TODO: use appId, shuffleId, partitionId to update metadata in diskItem
     String key = generateKey(appId, shuffleId);
-    diskItem.updateRead(key, size);
+    diskItem.updateRead(key);
   }
 
   public DiskItem getDiskItem(ShuffleDataFlushEvent event) {
-    // TODO: add exception handling and LOG
     return getDiskItem(event.getAppId(), event.getShuffleId(), event.getStartPartition());
   }
 
   public DiskItem getDiskItem(String appId, int shuffleId, int partitionId) {
-    // TODO: add exception handling and LOG
     int dirId = getDiskItemId(appId, shuffleId, partitionId);
     return diskItems.get(dirId);
   }
@@ -171,7 +215,7 @@ public class MultiStorageManager {
     return generateDir(event.getAppId(), event.getShuffleId(), event.getStartPartition());
   }
 
-  public void removeResources(String shuffleKey) {
-    diskItems.forEach(item -> item.removeResources(shuffleKey));
+  public void removeResources(String appId, int shuffleId) {
+    diskItems.forEach(item -> item.removeResources(generateKey(appId, shuffleId)));
   }
 }
