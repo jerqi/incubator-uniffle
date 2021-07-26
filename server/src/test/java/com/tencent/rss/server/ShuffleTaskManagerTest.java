@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;

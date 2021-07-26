@@ -12,7 +12,6 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
-import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
 import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Random;
@@ -22,6 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import com.tencent.rss.storage.util.StorageType;
+import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;

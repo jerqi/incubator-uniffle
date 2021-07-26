@@ -132,6 +132,7 @@ public class MultiStorageManager {
     initialize();
   }
 
+  // remove initialize method
   void initialize() throws RuntimeException {
     // TODO: 1.adapt to heterogeneous env and config different capacity for each disk item
     //       2.each total capacity and server buffer size,

@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.Lists;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
@@ -141,6 +142,51 @@ public class HdfsFileReaderTest extends HdfsTestBase {
       thrown.expectMessage("Invalid index file "
           + path + " " + 4 + " bytes left, can't be parsed as long.");
       reader.readIndex(limit);
+    }
+  }
+
+  @Test
+  public void readUploadFileHeaderTest() {
+    try {
+      Path path = new Path(HDFS_URI, "readUploadFileHeaderTest");
+      List<Integer> partitionList = Lists.newArrayList(1, 2, 3);
+      List<Long> sizeList = Lists.newArrayList(1L, 2L, 3L);
+      try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
+        writer.writeHeader(partitionList, sizeList);
+      }
+      try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
+        ShuffleIndexHeader header = reader.readHeader();
+        assertEquals(partitionList.size(), header.getPartitionNum());
+        assertEquals(partitionList.size(), header.getIndexes().size());
+        for (int i = 0; i < header.getPartitionNum(); i++) {
+          ShuffleIndexHeader.Entry entry = header.getIndexes().poll();
+          assertEquals(partitionList.get(i), entry.getKey());
+          assertEquals(sizeList.get(i), entry.getValue());
+        }
+      }
+
+      Path failPath = new Path(HDFS_URI, "readUploadFileHeaderFailTest");
+      try (HdfsFileWriter writer = new HdfsFileWriter(failPath, conf)) {
+        ByteBuffer headerContentBuf = ByteBuffer.allocate(4 + 4 + 8 + 4 + 4);
+        headerContentBuf.putInt(1);
+        headerContentBuf.putInt(1);
+        headerContentBuf.putLong(1);
+        headerContentBuf.putLong(1);
+        headerContentBuf.flip();
+        writer.writeData(headerContentBuf);
+      }
+      try (HdfsFileReader reader = new HdfsFileReader(failPath, conf)) {
+        boolean isException = false;
+        try {
+          ShuffleIndexHeader header = reader.readHeader();
+        } catch (IOException ioe) {
+          isException = true;
+        }
+        assertTrue(isException);
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail();
     }
   }
 }

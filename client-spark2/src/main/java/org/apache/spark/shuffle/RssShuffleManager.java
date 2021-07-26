@@ -82,15 +82,15 @@ public class RssShuffleManager implements ShuffleManager {
 
     private synchronized void putBlockId(
         Map<String, Set<Long>> taskToBlockIds,
-        String taskAttempId,
+        String taskAttemptId,
         Set<Long> blockIds) {
       if (blockIds == null) {
         return;
       }
-      if (taskToBlockIds.get(taskAttempId) == null) {
-        taskToBlockIds.put(taskAttempId, Sets.newConcurrentHashSet());
+      if (taskToBlockIds.get(taskAttemptId) == null) {
+        taskToBlockIds.put(taskAttemptId, Sets.newConcurrentHashSet());
       }
-      taskToBlockIds.get(taskAttempId).addAll(blockIds);
+      taskToBlockIds.get(taskAttemptId).addAll(blockIds);
     }
 
     @Override

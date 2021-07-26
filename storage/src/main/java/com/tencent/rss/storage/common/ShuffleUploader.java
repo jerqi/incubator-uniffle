@@ -268,7 +268,7 @@ public class ShuffleUploader implements Runnable {
 
     } catch (Exception e) {
       LOG.error(
-          "Failt to upload {}, {}",
+          "Fail to upload {}, {}",
           shuffleFileInfos.stream().map(ShuffleFileInfo::getKey).collect(Collectors.joining("\n")),
           ExceptionUtils.getStackTrace(e));
     }
@@ -352,9 +352,4 @@ public class ShuffleUploader implements Runnable {
     }
     return shuffleFileInfo;
   }
-
-
-
-
-
 }

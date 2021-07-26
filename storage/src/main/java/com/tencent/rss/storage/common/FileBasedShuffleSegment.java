@@ -1,5 +1,6 @@
 package com.tencent.rss.storage.common;
 
+import java.lang.reflect.Field;
 import java.util.Objects;
 
 public class FileBasedShuffleSegment extends ShuffleSegment implements Comparable<FileBasedShuffleSegment> {
@@ -29,6 +30,10 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
 
   public long getOffset() {
     return offset;
+  }
+
+  public void setOffset(long offset) {
+    this.offset = offset;
   }
 
   public int getLength() {
@@ -97,5 +102,4 @@ public class FileBasedShuffleSegment extends ShuffleSegment implements Comparabl
         + "], uncompressLength[" + uncompressLength + "], crc[" + crc
         + "], blockId[" + blockId + "], taskAttemptId[" + taskAttemptId + "]}";
   }
-
 }

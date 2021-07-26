@@ -1,9 +1,13 @@
 package com.tencent.rss.storage.handler.impl;
 
+import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.List;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -55,6 +59,18 @@ public class HdfsFileWriter implements Closeable {
     }
   }
 
+  public void writeData(ByteBuffer byteBuffer) throws IOException {
+    if (byteBuffer.hasArray()) {
+      fsDataOutputStream.write(
+          byteBuffer.array(), byteBuffer.arrayOffset() + byteBuffer.position(), byteBuffer.remaining());
+    } else {
+      byte[] byteArray = new byte[byteBuffer.remaining()];
+      byteBuffer.get(byteArray);
+      fsDataOutputStream.write(byteArray);
+    }
+    nextOffset = fsDataOutputStream.getPos();
+  }
+
   public void writeIndex(FileBasedShuffleSegment segment) throws IOException {
     fsDataOutputStream.writeLong(segment.getOffset());
     fsDataOutputStream.writeInt(segment.getLength());
@@ -62,6 +78,20 @@ public class HdfsFileWriter implements Closeable {
     fsDataOutputStream.writeLong(segment.getCrc());
     fsDataOutputStream.writeLong(segment.getBlockId());
     fsDataOutputStream.writeLong(segment.getTaskAttemptId());
+  }
+
+  public void writeHeader(List<Integer> partitionList, List<Long> sizeList) throws IOException {
+    ByteBuffer headerContentBuf = ByteBuffer.allocate(4 + partitionList.size() * 12);
+    fsDataOutputStream.writeInt(partitionList.size());
+    headerContentBuf.putInt(partitionList.size());
+    for (int i = 0; i < partitionList.size(); i++) {
+        fsDataOutputStream.writeInt(partitionList.get(i));
+        fsDataOutputStream.writeLong(sizeList.get(i));
+        headerContentBuf.putInt(partitionList.get(i));
+        headerContentBuf.putLong(sizeList.get(i));
+    }
+    headerContentBuf.flip();
+    fsDataOutputStream.writeLong(ChecksumUtils.getCrc32(headerContentBuf));
   }
 
   public long nextOffset() {

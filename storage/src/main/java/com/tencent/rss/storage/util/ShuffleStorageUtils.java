@@ -118,6 +118,22 @@ public class ShuffleStorageUtils {
         String.join(HDFS_DIRNAME_SEPARATOR, String.valueOf(start), String.valueOf(end)));
   }
 
+  public static String getUploadShuffleDataPath(String appId, int shuffleId, int partitionId) {
+    return String.join(
+        HDFS_PATH_SEPARATOR,
+        appId,
+        String.valueOf(shuffleId),
+        String.valueOf(partitionId));
+  }
+
+  public static String getCombineDataPath(String appId, int shuffleId) {
+    return String.join(
+        HDFS_PATH_SEPARATOR,
+        appId,
+        String.valueOf(shuffleId),
+        "combine");
+  }
+
   public static String getFullShuffleDataFolder(String basePath, String subPath) {
     return String.join(HDFS_PATH_SEPARATOR, basePath, subPath);
   }

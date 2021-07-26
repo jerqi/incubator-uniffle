@@ -68,7 +68,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       String appId,
       int shuffleId,
       String taskId,
-      long taskAttempId,
+      long taskAttemptId,
       WriteBufferManager bufferManager,
       ShuffleWriteMetrics shuffleWriteMetrics,
       RssShuffleManager shuffleManager,
@@ -79,7 +79,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.bufferManager = bufferManager;
     this.shuffleId = shuffleId;
     this.taskId = taskId;
-    this.taskAttemptId = taskAttempId;
+    this.taskAttemptId = taskAttemptId;
     this.numMaps = rssHandle.getNumMaps();
     this.shuffleDependency = rssHandle.getDependency();
     this.shuffleWriteMetrics = shuffleWriteMetrics;

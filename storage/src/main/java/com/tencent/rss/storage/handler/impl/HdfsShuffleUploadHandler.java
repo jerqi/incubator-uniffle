@@ -251,7 +251,7 @@ public class HdfsShuffleUploadHandler implements ShuffleUploadHandler {
     }
   }
 
-  // index file header is PartitionNum | [(PartitionId | PartitionFilexLength), ] | CRC
+  // index file header is PartitionNum | [(PartitionId | PartitionFileLength), ] | CRC
   @VisibleForTesting
   void writeIndexHeader(
       int partitionNum,
@@ -265,7 +265,6 @@ public class HdfsShuffleUploadHandler implements ShuffleUploadHandler {
       buf.putInt(partitions.get(i));
       buf.putLong(files.get(i).length());
     }
-
 
     buf.flip();
     long crc = ChecksumUtils.getCrc32(buf);

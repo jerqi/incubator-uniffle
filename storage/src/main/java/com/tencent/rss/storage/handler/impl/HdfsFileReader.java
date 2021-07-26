@@ -1,5 +1,6 @@
 package com.tencent.rss.storage.handler.impl;
 
+import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.api.ShuffleReader;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
@@ -88,6 +89,33 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
     long taskAttemptId = getLongFromStream(longBuf);
 
     return new FileBasedShuffleSegment(blockId, offset, length, uncompressLength, crc, taskAttemptId);
+  }
+
+  public ShuffleIndexHeader readHeader() throws IOException, IllegalStateException {
+    ShuffleIndexHeader header = new ShuffleIndexHeader();
+    header.setPartitionNum(fsDataInputStream.readInt());
+    ByteBuffer headerContentBuf = ByteBuffer.allocate(4 + header.getPartitionNum() * 12);
+    headerContentBuf.putInt(header.getPartitionNum());
+    for (int i = 0; i < header.getPartitionNum(); i++) {
+      int partitionId = fsDataInputStream.readInt();
+      long partitionLength = fsDataInputStream.readLong();
+      headerContentBuf.putInt(partitionId);
+      headerContentBuf.putLong(partitionLength);
+      ShuffleIndexHeader.Entry entry
+          = new ShuffleIndexHeader.Entry(partitionId, partitionLength);
+      boolean enQueueResult = header.getIndexes().offer(entry);
+      if (!enQueueResult) {
+        throw new IOException("read header exception: index meta is full..");
+      }
+    }
+    headerContentBuf.flip();
+    header.setCrc(fsDataInputStream.readLong());
+    long actualCrc = ChecksumUtils.getCrc32(headerContentBuf);
+    if (actualCrc != header.getCrc()) {
+      throw new IOException("read header exception: crc error expect: "
+          + header.getCrc() + " actualCrc " + actualCrc);
+    }
+    return header;
   }
 
   private long getLongFromStream(ByteBuffer buf) throws IOException, IllegalStateException {

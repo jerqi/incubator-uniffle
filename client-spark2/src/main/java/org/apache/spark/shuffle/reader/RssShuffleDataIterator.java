@@ -35,14 +35,16 @@ public class RssShuffleDataIterator<K, C> extends AbstractIterator<Product2<K, C
   private DeserializationStream deserializationStream = null;
   private ByteBufInputStream byteBufInputStream = null;
   private long unCompressionLength = 0;
+  private ShuffleReadClient fallbackShuffleReadClient;
 
   public RssShuffleDataIterator(
       Serializer serializer,
       ShuffleReadClient shuffleReadClient,
-      ShuffleReadMetrics shuffleReadMetrics) {
+      ShuffleReadMetrics shuffleReadMetrics, ShuffleReadClient fallbackReadClient) {
     this.serializerInstance = serializer.newInstance();
     this.shuffleReadClient = shuffleReadClient;
     this.shuffleReadMetrics = shuffleReadMetrics;
+    this.fallbackShuffleReadClient = fallbackReadClient;
   }
 
   public Iterator<Tuple2<Object, Object>> createKVIterator(ByteBuffer data) {
@@ -77,6 +79,13 @@ public class RssShuffleDataIterator<K, C> extends AbstractIterator<Product2<K, C
       // read next segment
       long startFetch = System.currentTimeMillis();
       CompressedShuffleBlock compressedBlock = shuffleReadClient.readShuffleBlockData();
+      // If ShuffleServer delete
+
+      if (recordsIterator == null && compressedBlock == null
+        && fallbackShuffleReadClient != null) {
+        shuffleReadClient = fallbackShuffleReadClient;
+        compressedBlock = shuffleReadClient.readShuffleBlockData();
+      }
       ByteBuffer compressedData = null;
       if (compressedBlock != null) {
         compressedData = compressedBlock.getByteBuffer();
