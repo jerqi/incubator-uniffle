@@ -34,7 +34,13 @@ public class DiskItemTest {
   @Test
   public void cleanTest() {
     try {
-      DiskItem item = new DiskItem(testBaseDir.getAbsolutePath(), 50, 100, 100, 100, 5000);
+      DiskItem item = DiskItem.newBuilder().basePath(testBaseDir.getAbsolutePath())
+          .cleanupThreshold(50)
+          .highWaterMarkOfWrite(100)
+          .lowWaterMarkOfWrite(100)
+          .capacity(100)
+          .cleanIntervalMs(5000)
+          .build();
       File baseDir = tmpDir.newFolder(testBaseDir.getName(),"app-1");
       assertTrue(baseDir.exists());
       File dir1 = tmpDir.newFolder(testBaseDir.getName(), "app-1", "1");
@@ -72,7 +78,14 @@ public class DiskItemTest {
   @Test
   public void canWriteTest() {
     try {
-      DiskItem item = new DiskItem(testBaseDir.getAbsolutePath(), 50, 95, 80, 100, 5000);
+      DiskItem item = DiskItem.newBuilder().basePath(testBaseDir.getAbsolutePath())
+          .cleanupThreshold(50)
+          .highWaterMarkOfWrite(95)
+          .lowWaterMarkOfWrite(80)
+          .capacity(100)
+          .cleanIntervalMs(5000)
+          .build();
+
       item.getDiskMetaData().updateDiskSize(20);
       assertTrue(item.canWrite());
       item.getDiskMetaData().updateDiskSize(65);
@@ -92,7 +105,13 @@ public class DiskItemTest {
   @Test
   public void removeResourcesTest() {
     try {
-      DiskItem item = new DiskItem(testBaseDir.getAbsolutePath(), 50, 95, 80, 100, 5000);
+      DiskItem item = DiskItem.newBuilder().basePath(testBaseDir.getAbsolutePath())
+          .cleanupThreshold(50)
+          .highWaterMarkOfWrite(95)
+          .lowWaterMarkOfWrite(80)
+          .capacity(100)
+          .cleanIntervalMs(5000)
+          .build();
       item.updateWrite("1/1", 100);
       item.updateWrite("1/2", 50);
       assertEquals(150L, item.getDiskMetaData().getDiskSize().get());

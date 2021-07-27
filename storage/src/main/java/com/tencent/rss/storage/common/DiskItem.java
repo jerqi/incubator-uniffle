@@ -23,24 +23,17 @@ public class DiskItem {
   private DiskMetaData diskMetaData = new DiskMetaData();
   private boolean canRead = true;
 
-  // todo: refactor this construct method by builder pattern
-  public DiskItem(
-      String basePath,
-      double cleanupThreshold,
-      double highWaterMarkOfWrite,
-      double lowWaterMarkOfWrite,
-      long capacity,
-      long cleanIntervalMs) {
+  private DiskItem(Builder builder) {
+    this.basePath = builder.basePath;
+    this.cleanupThreshold = builder.cleanupThreshold;
+    this.highWaterMarkOfWrite = builder.highWaterMarkOfWrite;
+    this.lowWaterMarkOfWrite = builder.lowWaterMarkOfWrite;
+    this.capacity = builder.capacity;
 
-    this.basePath = basePath;
-    this.cleanupThreshold = cleanupThreshold;
-    this.highWaterMarkOfWrite = highWaterMarkOfWrite;
-    this.lowWaterMarkOfWrite = lowWaterMarkOfWrite;
-    this.capacity = capacity;
     File baseFolder = new File(basePath);
     try {
-        FileUtils.deleteDirectory(baseFolder);
-        baseFolder.mkdirs();
+      FileUtils.deleteDirectory(baseFolder);
+      baseFolder.mkdirs();
     } catch (IOException ioe) {
       LOG.warn("Init base directory " + basePath + " fail, the disk should be corrupted", ioe);
       throw new RuntimeException(ioe);
@@ -50,6 +43,7 @@ public class DiskItem {
       throw new IllegalArgumentException("Disk Available Capacity " + freeSpace
           + " is smaller than configuration");
     }
+
     // todo: extract a class named Service, and support stop method. Now
     // we assume that it's enough for one thread per disk. If in testing mode
     // the thread won't be started. cleanInterval should minus the execute time
@@ -59,9 +53,9 @@ public class DiskItem {
       public void run() {
         for (;;) {
           try {
-              clean();
-              // todo: get sleepInterval from configuration
-              Uninterruptibles.sleepUninterruptibly(cleanIntervalMs, TimeUnit.MILLISECONDS);
+            clean();
+            // todo: get sleepInterval from configuration
+            Uninterruptibles.sleepUninterruptibly(builder.cleanIntervalMs, TimeUnit.MILLISECONDS);
           } catch (Exception e) {
             LOG.error(getName() + " happened exception: ", e);
           }
@@ -123,6 +117,56 @@ public class DiskItem {
 
   private void upload() {
 
+  }
+
+  public static class Builder {
+    private long capacity;
+    private double lowWaterMarkOfWrite;
+    private double highWaterMarkOfWrite;
+    private double cleanupThreshold;
+    private String basePath;
+    private long cleanIntervalMs;
+
+    private Builder() {
+    }
+
+    public Builder capacity(long capacity) {
+      this.capacity = capacity;
+      return this;
+    }
+
+    public Builder lowWaterMarkOfWrite(double lowWaterMarkOfWrite) {
+      this.lowWaterMarkOfWrite = lowWaterMarkOfWrite;
+      return this;
+    }
+
+    public Builder basePath(String basePath) {
+      this.basePath = basePath;
+      return this;
+    }
+
+    public Builder cleanupThreshold(double cleanupThreshold) {
+      this.cleanupThreshold = cleanupThreshold;
+      return this;
+    }
+
+    public Builder highWaterMarkOfWrite(double highWaterMarkOfWrite) {
+      this.highWaterMarkOfWrite = highWaterMarkOfWrite;
+      return this;
+    }
+
+    public Builder cleanIntervalMs(long cleanIntervalMs) {
+      this.cleanIntervalMs = cleanIntervalMs;
+      return this;
+    }
+
+    public DiskItem build() {
+      return new DiskItem(this);
+    }
+  }
+
+  public static Builder newBuilder() {
+    return new Builder();
   }
 
   @VisibleForTesting
