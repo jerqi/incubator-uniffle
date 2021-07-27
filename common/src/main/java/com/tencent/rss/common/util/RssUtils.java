@@ -73,6 +73,7 @@ public class RssUtils {
   // will choose the first IP.
   public static String getHostIp() throws Exception {
     Enumeration<NetworkInterface> nif = NetworkInterface.getNetworkInterfaces();
+    String siteLocalAddress = null;
     while (nif.hasMoreElements()) {
       NetworkInterface ni = nif.nextElement();
       if (!ni.isUp() || ni.isLoopback() || ni.isPointToPoint() || ni.isVirtual()) {
@@ -81,13 +82,17 @@ public class RssUtils {
       Enumeration<InetAddress> ad = ni.getInetAddresses();
       while (ad.hasMoreElements()) {
         InetAddress ia = ad.nextElement();
-        if (!ia.isLinkLocalAddress() && !ia.isLoopbackAddress()
+        if (!ia.isLinkLocalAddress() && !ia.isAnyLocalAddress() && !ia.isLoopbackAddress()
             && ia instanceof InetAddress && ia.isReachable(5000)) {
-          return ia.getHostAddress();
+          if (!ia.isSiteLocalAddress()) {
+            return ia.getHostAddress();
+          } else if (siteLocalAddress == null) {
+            siteLocalAddress = ia.getHostAddress();
+          }
         }
       }
     }
-    return null;
+    return siteLocalAddress;
   }
 
   public static byte[] serializeBitMap(Roaring64NavigableMap bitmap) throws IOException {
