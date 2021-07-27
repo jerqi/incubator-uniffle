@@ -276,10 +276,10 @@ public class ShuffleUploader implements Runnable {
 
   @VisibleForTesting
   long calculateUploadTime(long size) {
-    long uploadTimeoutMS = 1L;
+    long uploadTimeoutS = 1L;
     long cur = size / (1024 * 1024) / referenceUploadSpeedMBS;
     if (cur == 0) {
-      return uploadTimeoutMS * 2;
+      return uploadTimeoutS * 2;
     } else {
       return cur * 2;
     }

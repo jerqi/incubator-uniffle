@@ -183,13 +183,13 @@ public class ShuffleServerConf extends RssBaseConf {
   public static final ConfigOption<Integer> RSS_UPLOADER_THREAD_NUM = ConfigOptions
       .key("rss.server.uploader.thread.number")
       .intType()
-      .defaultValue(1)
+      .defaultValue(4)
       .withDescription("The thread number of the uploader");
 
   public static final ConfigOption<Long> RSS_UPLOADER_INTERVAL_MS = ConfigOptions
       .key("rss.server.uploader.interval.ms")
       .longType()
-      .defaultValue(1000L)
+      .defaultValue(3000L)
       .withDescription("The interval for the uploader");
 
   public static final ConfigOption<Long> RSS_UPLOAD_COMBINE_THRESHOLD_MB = ConfigOptions
@@ -213,7 +213,7 @@ public class ShuffleServerConf extends RssBaseConf {
   public static final ConfigOption<Long> RSS_REFERENCE_UPLOAD_SPEED_MBS = ConfigOptions
       .key("rss.server.uploader.references.speed.mbps")
       .longType()
-      .defaultValue(2L)
+      .defaultValue(32L)
       .withDescription("The speed for the uploader");
 
   public static final ConfigOption<Long> RSS_DISK_CAPACITY = ConfigOptions
