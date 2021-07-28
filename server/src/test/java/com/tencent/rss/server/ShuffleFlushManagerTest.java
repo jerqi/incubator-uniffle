@@ -1,9 +1,5 @@
 package com.tencent.rss.server;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.BufferSegment;
@@ -12,6 +8,18 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
+import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
+import com.tencent.rss.storage.util.StorageType;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Level;
+import org.apache.log4j.LogManager;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
+
 import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Random;
@@ -20,18 +28,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-import com.tencent.rss.storage.util.StorageType;
-import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.roaringbitmap.longlong.Roaring64NavigableMap;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class ShuffleFlushManagerTest extends HdfsTestBase {
 
@@ -239,27 +238,25 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
       ShuffleFlushManager manager =
           new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null, storageManager);
       ShuffleDataFlushEvent event = new ShuffleDataFlushEvent(1, "1", 1, 1,1, 100, null);
-      Assert.assertEquals(0, manager.getPendingEventsSize());
+      assertEquals(0, manager.getPendingEventsSize());
       manager.addPendingEvents(event);
-      Assert.assertEquals(1, manager.getPendingEventsSize());
-      manager.processPendingEvents();
-      Assert.assertEquals(0, manager.getPendingEventsSize());
+      Thread.sleep(1000);
+      assertEquals(0, manager.getPendingEventsSize());
       do {
         Thread.sleep(1 * 1000);
       } while(manager.getEventNumInFlush() != 0);
       storageManager.updateWriteEvent(event);
       manager.addPendingEvents(event);
       manager.addPendingEvents(event);
-      manager.processPendingEvents();
-      Assert.assertEquals(2, manager.getPendingEventsSize());
+      manager.addPendingEvents(event);
+      Thread.sleep(1000);
+      assertTrue(2 <= manager.getPendingEventsSize());
       Thread.sleep(6 * 1000);
-      manager.processPendingEvents();
-      manager.processPendingEvents();
-      Assert.assertEquals(0, manager.getPendingEventsSize());
+      assertEquals(0, manager.getPendingEventsSize());
       processEventsTmpdir.delete();
     } catch (Exception e) {
       e.printStackTrace();
-      Assert.fail();
+      fail();
     }
   }
 }

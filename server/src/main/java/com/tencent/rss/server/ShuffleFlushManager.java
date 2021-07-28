@@ -97,10 +97,9 @@ public class ShuffleFlushManager {
     new Thread(processEventThread).start();
     // todo: extract a class named Service, and support stop method
     if (multiStorageManager != null) {
-      new Thread("PendingEventProcessThread") {
+      Thread thread = new Thread("PendingEventProcessThread") {
         @Override
         public void run() {
-          setDaemon(true);
           for (;;) {
             try {
               processPendingEvents();
@@ -114,7 +113,9 @@ public class ShuffleFlushManager {
             }
           }
         }
-      }.start();
+      };
+      thread.setDaemon(true);
+      thread.start();
     }
   }
 

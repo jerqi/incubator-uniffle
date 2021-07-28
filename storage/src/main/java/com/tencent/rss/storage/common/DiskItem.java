@@ -54,10 +54,9 @@ public class DiskItem {
     // we assume that it's enough for one thread per disk. If in testing mode
     // the thread won't be started. cleanInterval should minus the execute time
     // of the method clean.
-    new Thread(basePath + "-Cleaner") {
+    Thread thread = new Thread(basePath + "-Cleaner") {
       @Override
       public void run() {
-        setDaemon(true);
         for (;;) {
           try {
               clean();
@@ -68,7 +67,9 @@ public class DiskItem {
           }
         }
       }
-    }.start();
+    };
+    thread.setDaemon(true);
+    thread.start();
   }
 
   public boolean canWrite() {
