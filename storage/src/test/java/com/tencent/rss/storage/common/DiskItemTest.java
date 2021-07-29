@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.Lists;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -13,6 +14,8 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
 
 
 public class DiskItemTest {
@@ -112,13 +115,20 @@ public class DiskItemTest {
           .capacity(100)
           .cleanIntervalMs(5000)
           .build();
-      item.updateWrite("1/1", 100);
-      item.updateWrite("1/2", 50);
+      List<Integer> partitionList = Lists.newArrayList();
+      partitionList.add(1);
+      partitionList.add(2);
+      partitionList.add(1);
+      item.updateWrite("1/1", 100, partitionList);
+      item.updateWrite("1/2", 50, Lists.newArrayList());
       assertEquals(150L, item.getDiskMetaData().getDiskSize().get());
+      assertEquals(2, item.getDiskMetaData().getNotUploadedPartitions("1/1").size());
+      assertTrue(new HashSet(partitionList).containsAll(item.getDiskMetaData().getNotUploadedPartitions("1/1")));
       item.removeResources("1/1");
       assertEquals(50L, item.getDiskMetaData().getDiskSize().get());
       assertEquals(0L, item.getDiskMetaData().getShuffleSize("1/1"));
       assertEquals(50L, item.getDiskMetaData().getShuffleSize("1/2"));
+      assertEquals(0, item.getDiskMetaData().getNotUploadedPartitions("1/1").size());
     } catch (Exception e) {
       e.printStackTrace();
       fail();

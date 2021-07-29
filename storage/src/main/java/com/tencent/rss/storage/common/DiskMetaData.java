@@ -87,28 +87,32 @@ public class DiskMetaData {
     return getShuffleMeta(shuffleId).getSize().addAndGet(delta);
   }
 
-  public long updateUploadedShuffleSize(String shuffleId, long delta) {
-    return getShuffleMeta(shuffleId).uploadedSize.addAndGet(delta);
+  public long updateUploadedShuffleSize(String shuffleKey, long delta) {
+    return getShuffleMeta(shuffleKey).uploadedSize.addAndGet(delta);
   }
 
-  public void updateUploadedShufflePartitionList(String shuffleId, List<Integer> partitions) {
-    getShuffleMeta(shuffleId).uploadedPartitionSet.addAll(partitions);
+  public void updateShufflePartitionList(String shuffleKey, List<Integer> partitions) {
+    getShuffleMeta(shuffleKey).getPartitionSet().addAll(partitions);
+  }
+
+  public void updateUploadedShufflePartitionList(String shuffleKey, List<Integer> partitions) {
+    getShuffleMeta(shuffleKey).uploadedPartitionSet.addAll(partitions);
   }
 
   public void setHasRead(String shuffleId) {
     getShuffleMeta(shuffleId).getHasRead().set(true);
   }
 
-  public void removeShufflePartitionList(String shuffleId, List<Integer> partitions) {
-    getShuffleMeta(shuffleId).getPartitionSet().removeAll(partitions);
+  public void removeShufflePartitionList(String shuffleKey, List<Integer> partitions) {
+    getShuffleMeta(shuffleKey).getPartitionSet().removeAll(partitions);
   }
 
-  public void removeUploadedShufflePartitionList(String shuffleId, List<Integer> partitions) {
-    getShuffleMeta(shuffleId).getUploadedPartitionSet().removeAll(partitions);
+  public void removeUploadedShufflePartitionList(String shuffleKey, List<Integer> partitions) {
+    getShuffleMeta(shuffleKey).getUploadedPartitionSet().removeAll(partitions);
   }
 
-  public void remoteShuffle(String shuffleId) {
-    shuffleMetaMap.remove(shuffleId);
+  public void remoteShuffle(String shuffleKey) {
+    shuffleMetaMap.remove(shuffleKey);
   }
 
   public AtomicLong getDiskSize() {

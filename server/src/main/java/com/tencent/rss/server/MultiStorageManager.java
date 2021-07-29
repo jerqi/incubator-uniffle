@@ -183,7 +183,11 @@ public class MultiStorageManager {
     String appId = event.getAppId();
     int shuffleId = event.getShuffleId();
     String key = generateKey(appId, shuffleId);
-    diskItem.updateWrite(key, event.getSize());
+    List partitionList = Lists.newArrayList();
+    for (int i = event.getStartPartition(); i <= event.getEndPartition(); i++) {
+      partitionList.add(i);
+    }
+    diskItem.updateWrite(key, event.getSize(), partitionList);
   }
 
   // todo: update a timestamp for every shuffle recently read

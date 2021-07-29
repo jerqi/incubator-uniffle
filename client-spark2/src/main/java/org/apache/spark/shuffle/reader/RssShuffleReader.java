@@ -99,7 +99,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     try {
       fallbackReadClient = ShuffleClientFactory.getInstance().createShuffleReadClient(fallbackRequest);
     } catch (RuntimeException re) {
-      LOG.error("Init fallbackReadClient fail", re);
+      LOG.warn("Init fallbackReadClient fail {}", re.getMessage());
     }
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator<K, C>(
         shuffleDependency.serializer(), shuffleReadClient,

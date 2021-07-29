@@ -1,6 +1,7 @@
 package com.tencent.rss.storage.common;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import org.apache.commons.io.FileUtils;
@@ -8,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class DiskItem {
@@ -80,8 +82,13 @@ public class DiskItem {
   }
 
   public void updateWrite(String shuffleKey, long delta) {
+    updateWrite(shuffleKey, delta, Lists.newArrayList());
+  }
+
+  public void updateWrite(String shuffleKey, long delta, List<Integer> partitionList) {
     diskMetaData.updateDiskSize(delta);
     diskMetaData.updateShuffleSize(shuffleKey, delta);
+    diskMetaData.updateShufflePartitionList(shuffleKey, partitionList);
   }
 
   public void updateRead(String key) {

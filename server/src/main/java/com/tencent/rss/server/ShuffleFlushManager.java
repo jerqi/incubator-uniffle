@@ -292,6 +292,8 @@ public class ShuffleFlushManager {
     PendingShuffleFlushEvent event = pendingEvents.take();
     DiskItem item = multiStorageManager.getDiskItem(event.getEvent());
     if (System.currentTimeMillis() - event.getCreateTimeStamp() > pendingEventTimeoutSec * 1000L) {
+      LOG.error("Flush event cannot be flushed for {} sec, the event {} is dropped",
+          pendingEventTimeoutSec, event.getEvent());
       return;
     }
     if (item.canWrite()) {
