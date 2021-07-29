@@ -99,7 +99,8 @@ public class CoordinatorServer {
     CollectorRegistry coordinatorCollectorRegistry = new CollectorRegistry(true);
     CollectorRegistry jvmCollectorRegistry = new CollectorRegistry(true);
     CoordinatorMetrics.register(coordinatorCollectorRegistry);
-    JvmMetrics.register(jvmCollectorRegistry);
+    boolean verbose = coordinatorConf.getBoolean(CoordinatorConf.RSS_JVM_METRICS_VERBOSE_ENABLE);
+    JvmMetrics.register(jvmCollectorRegistry, verbose);
   }
 
   private void addServlet(JettyServer jettyServer) {

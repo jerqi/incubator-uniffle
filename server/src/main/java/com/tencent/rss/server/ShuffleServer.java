@@ -131,7 +131,8 @@ public class ShuffleServer {
     CollectorRegistry shuffleServerCollectorRegistry = new CollectorRegistry(true);
     ShuffleServerMetrics.register(shuffleServerCollectorRegistry);
     CollectorRegistry jvmCollectorRegistry = new CollectorRegistry(true);
-    JvmMetrics.register(jvmCollectorRegistry);
+    boolean verbose = shuffleServerConf.getBoolean(ShuffleServerConf.RSS_JVM_METRICS_VERBOSE_ENABLE);
+    JvmMetrics.register(jvmCollectorRegistry, verbose);
   }
 
   private void addServlet(JettyServer jettyServer) {

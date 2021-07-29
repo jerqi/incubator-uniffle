@@ -167,6 +167,11 @@ public class RssBaseConf extends RssConf {
       .defaultValue(1000)
       .withDescription("Thread number for grpc to process request");
 
+  public static final ConfigOption<Boolean> RSS_JVM_METRICS_VERBOSE_ENABLE = ConfigOptions
+      .key("rss.jvm.metrics.verbose.enable")
+      .booleanType()
+      .defaultValue(true)
+      .withDescription("The switch for jvm metrics verbose");
 
   public boolean loadCommonConf(Map<String, String> properties) {
     if (properties == null) {
