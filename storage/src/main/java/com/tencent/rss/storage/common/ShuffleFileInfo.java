@@ -3,6 +3,8 @@ package com.tencent.rss.storage.common;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.util.List;
+
+import com.tencent.rss.common.util.ByteUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +77,7 @@ public class ShuffleFileInfo {
   }
 
   public boolean shouldCombine(long uploadCombineThresholdMB) {
-    return size / dataFiles.size() / 1024 / 1024 < uploadCombineThresholdMB;
+    return ByteUnit.BYTE.toMiB(size / dataFiles.size()) < uploadCombineThresholdMB;
   }
 
   public boolean isEmpty() {
