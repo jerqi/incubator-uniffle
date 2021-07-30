@@ -90,7 +90,7 @@ public class ShuffleUploaderTest {
             .uploadCombineThresholdMB(300)
             .referenceUploadSpeedMBS(1)
             .hdfsBathPath("hdfs://base")
-            .hdfsFilePrefix("")
+            .serverId("")
             .hadoopConf(new Configuration())
             .build());
 
@@ -102,7 +102,7 @@ public class ShuffleUploaderTest {
         .referenceUploadSpeedMBS(1)
         .remoteStorageType(StorageType.HDFS)
         .hdfsBathPath("hdfs://base")
-        .hdfsFilePrefix("prefix")
+        .serverId("prefix")
         .hadoopConf(new Configuration())
         .build();
   }
@@ -113,21 +113,21 @@ public class ShuffleUploaderTest {
       String app1 = "app-1";
       String shuffle1 = "1";
       String shuffleKey1 = String.join("/", app1, shuffle1);
-      File partitionDir1 = tmpDir.newFolder(base.getName(), app1, shuffle1, "1");
-      File partitionDir2 = tmpDir.newFolder(base.getName(), app1, shuffle1, "2");
-      File partitionDir3 = tmpDir.newFolder(base.getName(), app1, shuffle1, "3");
-      File partitionDir4 = tmpDir.newFolder(base.getName(), app1, shuffle1, "4");
-      File partitionDir5 = tmpDir.newFolder(base.getName(), app1, shuffle1, "5");
+      File partitionDir1 = tmpDir.newFolder(base.getName(), app1, shuffle1, "1-1");
+      File partitionDir2 = tmpDir.newFolder(base.getName(), app1, shuffle1, "2-2");
+      File partitionDir3 = tmpDir.newFolder(base.getName(), app1, shuffle1, "3-3");
+      File partitionDir4 = tmpDir.newFolder(base.getName(), app1, shuffle1, "4-4");
+      File partitionDir5 = tmpDir.newFolder(base.getName(), app1, shuffle1, "5-5");
 
-      File dataFile1 = new File(partitionDir1.getAbsolutePath() + "/1.data");
-      File dataFile2 = new File(partitionDir2.getAbsolutePath() + "/2.data");
-      File dataFile3 = new File(partitionDir3.getAbsolutePath() + "/3.data");
-      File dataFile4 = new File(partitionDir5.getAbsolutePath() + "/4.data");
+      File dataFile1 = new File(partitionDir1.getAbsolutePath() + "/127.0.0.1-8080.data");
+      File dataFile2 = new File(partitionDir2.getAbsolutePath() + "/127.0.0.1-8080.data");
+      File dataFile3 = new File(partitionDir3.getAbsolutePath() + "/127.0.0.1-8080.data");
+      File dataFile4 = new File(partitionDir5.getAbsolutePath() + "/127.0.0.1-8080.data");
 
-      File indexFile1 = new File(partitionDir1.getAbsolutePath() + "/1.index");
-      File indexFile2 = new File(partitionDir2.getAbsolutePath() + "/2.index");
-      File indexFile3 = new File(partitionDir3.getAbsolutePath() + "/3.index");
-      File indexFile5 = new File(partitionDir4.getAbsolutePath() + "/5.index");
+      File indexFile1 = new File(partitionDir1.getAbsolutePath() + "/127.0.0.1-8080.index");
+      File indexFile2 = new File(partitionDir2.getAbsolutePath() + "/127.0.0.1-8080.index");
+      File indexFile3 = new File(partitionDir3.getAbsolutePath() + "/127.0.0.1-8080.index");
+      File indexFile5 = new File(partitionDir4.getAbsolutePath() + "/127.0.0.1-8080.index");
 
       List<File> dataFiles = Lists.newArrayList(dataFile1, dataFile2, dataFile3, dataFile4);
       dataFiles.forEach(f -> {
@@ -161,7 +161,7 @@ public class ShuffleUploaderTest {
           .referenceUploadSpeedMBS(1)
           .remoteStorageType(StorageType.HDFS)
           .hdfsBathPath("hdfs://base")
-          .hdfsFilePrefix("prefix")
+          .serverId("127.0.0.1-8080")
           .hadoopConf(new Configuration())
           .build();
 
@@ -208,7 +208,7 @@ public class ShuffleUploaderTest {
         .referenceUploadSpeedMBS(128)
         .remoteStorageType(StorageType.HDFS)
         .hdfsBathPath("hdfs://base")
-        .hdfsFilePrefix("prefix")
+        .serverId("prefix")
         .hadoopConf(new Configuration())
         .build();
     assertEquals(2, shuffleUploader.calculateUploadTime(0));

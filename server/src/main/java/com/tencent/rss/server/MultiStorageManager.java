@@ -161,7 +161,7 @@ public class MultiStorageManager {
             .referenceUploadSpeedMBS(referenceUploadSpeedMBS)
             .remoteStorageType(remoteStorageType)
             .hdfsBathPath(hdfsBathPath)
-            .hdfsFilePrefix(shuffleServerId)
+            .serverId(shuffleServerId)
             .hadoopConf(hadoopConf)
             .build();
         new ThreadFactoryBuilder()

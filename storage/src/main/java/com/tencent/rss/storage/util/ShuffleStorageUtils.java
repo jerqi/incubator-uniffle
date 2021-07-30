@@ -26,6 +26,9 @@ public class ShuffleStorageUtils {
   static final String HDFS_DIRNAME_SEPARATOR = "-";
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleStorageUtils.class);
 
+  private ShuffleStorageUtils() {
+  }
+
   public static FileSystem getFileSystemForPath(Path path, Configuration conf) throws IOException {
     // For local file systems, return the raw local file system, such calls to flush()
     // actually flushes the stream.
@@ -50,8 +53,13 @@ public class ShuffleStorageUtils {
     return fileNamePrefix + Constants.SHUFFLE_INDEX_FILE_SUFFIX;
   }
 
-  public static String generateAbsoluteFilePrefix(String base, String key, int partition) {
-    return String.join(HDFS_PATH_SEPARATOR, base, key, String.valueOf(partition), String.valueOf(partition));
+  public static String generateAbsoluteFilePrefix(String base, String key, int partition, String id) {
+    return String.join(
+        HDFS_PATH_SEPARATOR,
+        base,
+        key,
+        String.join(HDFS_DIRNAME_SEPARATOR, String.valueOf(partition), String.valueOf(partition)),
+        id);
   }
 
   public static List<DataFileSegment> mergeSegments(

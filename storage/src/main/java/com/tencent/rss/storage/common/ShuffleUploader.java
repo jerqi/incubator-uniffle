@@ -18,6 +18,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
@@ -46,7 +47,7 @@ public class ShuffleUploader implements Runnable {
   private final long referenceUploadSpeedMBS;
   private final StorageType remoteStorageType;
   private final String hdfsBathPath;
-  private final String hdfsFilePrefix;
+  private final String serverId;
   private final Configuration hadoopConf;
 
   private final ExecutorService executorService;
@@ -62,7 +63,7 @@ public class ShuffleUploader implements Runnable {
     this.forceUpload = builder.forceUpload;
     // HDFS related parameters
     this.hdfsBathPath = builder.hdfsBathPath;
-    this.hdfsFilePrefix = builder.hdfsFilePrefix;
+    this.serverId = builder.serverId;
     this.hadoopConf = builder.hadoopConf;
 
     executorService = Executors.newFixedThreadPool(
@@ -81,7 +82,7 @@ public class ShuffleUploader implements Runnable {
     private long referenceUploadSpeedMBS;
     private StorageType remoteStorageType;
     private String hdfsBathPath;
-    private String hdfsFilePrefix;
+    private String serverId;
     private Configuration hadoopConf;
     private boolean forceUpload;
 
@@ -126,8 +127,8 @@ public class ShuffleUploader implements Runnable {
       return this;
     }
 
-    public Builder hdfsFilePrefix(String hdfsFilePrefix) {
-      this.hdfsFilePrefix = hdfsFilePrefix;
+    public Builder serverId(String serverId) {
+      this.serverId = serverId;
       return this;
     }
 
@@ -140,6 +141,7 @@ public class ShuffleUploader implements Runnable {
       this.forceUpload = forceUpload;
       return this;
     }
+
 
     public ShuffleUploader build() throws IllegalArgumentException {
       validate();
@@ -170,12 +172,12 @@ public class ShuffleUploader implements Runnable {
 
       // check remote storage related parameters
       if (remoteStorageType == StorageType.HDFS) {
-        if (hdfsBathPath == null || hdfsBathPath.isEmpty()) {
+        if (StringUtils.isEmpty(hdfsBathPath)) {
           throw new IllegalArgumentException("HDFS base path is not set");
         }
 
-        if (hdfsFilePrefix == null || hdfsFilePrefix.isEmpty()) {
-          throw new IllegalArgumentException("HDFS file prefix is not set");
+        if (StringUtils.isEmpty(serverId)) {
+          throw new IllegalArgumentException("Server id of file prefix is not set");
         }
 
         if (hadoopConf == null) {
@@ -230,7 +232,7 @@ public class ShuffleUploader implements Runnable {
                   .remoteStorageBasePath(
                       ShuffleStorageUtils.getFullShuffleDataFolder(hdfsBathPath, shuffleFileInfo.getKey()))
                   .hadoopConf(hadoopConf)
-                  .hdfsFilePrefix(hdfsFilePrefix)
+                  .hdfsFilePrefix(serverId)
                   .combineUpload(shuffleFileInfo.shouldCombine(uploadCombineThresholdMB))
                   .build();
 
@@ -250,6 +252,7 @@ public class ShuffleUploader implements Runnable {
     }
 
     long uploadTimeoutS = calculateUploadTime(maxSize);
+    LOG.info("Start to upload {} shuffle info and timeout is {} Secnond", callableList.size(), uploadTimeoutS);
     try {
       List<Future<ShuffleUploadResult>> futures =
           executorService.invokeAll(callableList, uploadTimeoutS, TimeUnit.SECONDS);
@@ -297,17 +300,22 @@ public class ShuffleUploader implements Runnable {
   List<ShuffleFileInfo> selectShuffleFiles(int num) {
     List<ShuffleFileInfo> shuffleFileInfoList = Lists.newLinkedList();
     List<String> shuffleKeys = diskItem.getDiskMetaData().getSortedShuffleKeys(!forceUpload, num);
+    LOG.info("Get {} candidate shuffles {}", shuffleKeys.size(), shuffleKeys);
 
     for (String shuffleKey : shuffleKeys) {
       List<Integer> partitions = getNotUploadedPartitions(shuffleKey);
       long sz = getNotUploadedSize(shuffleKey);
       if (partitions.isEmpty() || sz <= 0) {
+        LOG.warn("{} size {} partitions {}", shuffleKey, sz, partitions);
         continue;
       }
 
       ShuffleInfo shuffleInfo = new ShuffleInfo(shuffleKey, sz);
       ShuffleFileInfo shuffleFileInfo = generateShuffleFileInfos(shuffleInfo, partitions);
       if (!shuffleFileInfo.isEmpty()) {
+        LOG.info(
+            "Add shuffle file info key is {} partitions are {}",
+            shuffleFileInfo.getKey(), shuffleFileInfo.getPartitions());
         shuffleFileInfoList.add(shuffleFileInfo);
       }
     }
@@ -328,7 +336,7 @@ public class ShuffleUploader implements Runnable {
     ShuffleFileInfo shuffleFileInfo = new ShuffleFileInfo();
     for (int partition : partitions) {
       String filePrefix = ShuffleStorageUtils.generateAbsoluteFilePrefix(
-          diskItem.getBasePath(), shuffleInfo.key, partition);
+          diskItem.getBasePath(), shuffleInfo.key, partition, serverId);
       String dataFileName = ShuffleStorageUtils.generateDataFileName(filePrefix);
       String indexFileName = ShuffleStorageUtils.generateIndexFileName(filePrefix);
 

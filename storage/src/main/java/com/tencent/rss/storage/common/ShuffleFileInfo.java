@@ -68,12 +68,14 @@ public class ShuffleFileInfo {
     return partitions;
   }
 
+
+
   public long getSize() {
     return size;
   }
 
   public boolean shouldCombine(long uploadCombineThresholdMB) {
-    return size / dataFiles.size() / 1024 / 1024 >= uploadCombineThresholdMB;
+    return size / dataFiles.size() / 1024 / 1024 < uploadCombineThresholdMB;
   }
 
   public boolean isEmpty() {
