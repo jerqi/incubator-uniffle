@@ -73,13 +73,13 @@ public class ShuffleTaskManager {
         appExpiredWithoutHB / 2, TimeUnit.MILLISECONDS);
     // the thread for clear expired resources
     clearResourceThread = () -> {
-      try {
-        while (true) {
+      while (true) {
+        try {
           String appId = expiredAppIdQueue.take();
           removeResources(appId);
+        } catch (Exception e) {
+          LOG.error("Exception happened when clear resource for expired application", e);
         }
-      } catch (Exception e) {
-        LOG.error("Exception happened when clear resource for expired application", e);
       }
     };
     new Thread(clearResourceThread).start();
@@ -232,14 +232,18 @@ public class ShuffleTaskManager {
   }
 
   public void checkResourceStatus() {
-    Set<String> removed = Sets.newHashSet(appIds.keySet());
-    // remove applications not in coordinator's list and timeout according to rss.server.app.expired.withoutHeartbeat
-    for (String appId : removed) {
-      if (System.currentTimeMillis() - appIds.get(appId) > appExpiredWithoutHB) {
-        LOG.info("Detect expired appId[" + appId + "] according "
-            + "to rss.server.app.expired.withoutHeartbeat");
-        expiredAppIdQueue.add(appId);
+    try {
+      Set<String> removed = Sets.newHashSet(appIds.keySet());
+      // remove applications not in coordinator's list and timeout according to rss.server.app.expired.withoutHeartbeat
+      for (String appId : removed) {
+        if (System.currentTimeMillis() - appIds.get(appId) > appExpiredWithoutHB) {
+          LOG.info("Detect expired appId[" + appId + "] according "
+              + "to rss.server.app.expired.withoutHeartbeat");
+          expiredAppIdQueue.add(appId);
+        }
       }
+    } catch (Exception e) {
+      LOG.warn("Error happened in checkResourceStatus", e);
     }
   }
 
@@ -260,17 +264,21 @@ public class ShuffleTaskManager {
 
   // check pre allocated buffer, release the memory if it expired
   private void preAllocatedBufferCheck() {
-    long current = System.currentTimeMillis();
-    List<Long> removeIds = Lists.newArrayList();
-    for (PreAllocatedBufferInfo info : requireBufferIds.values()) {
-      if (current - info.getTimestamp() > preAllocationExpired) {
-        removeIds.add(info.getRequireId());
-        shuffleBufferManager.releaseMemory(info.getRequireSize(), false, true);
+    try {
+      long current = System.currentTimeMillis();
+      List<Long> removeIds = Lists.newArrayList();
+      for (PreAllocatedBufferInfo info : requireBufferIds.values()) {
+        if (current - info.getTimestamp() > preAllocationExpired) {
+          removeIds.add(info.getRequireId());
+          shuffleBufferManager.releaseMemory(info.getRequireSize(), false, true);
+        }
       }
-    }
-    for (Long requireId : removeIds) {
-      requireBufferIds.remove(requireId);
-      LOG.info("Remove expired requireId " + requireId);
+      for (Long requireId : removeIds) {
+        requireBufferIds.remove(requireId);
+        LOG.info("Remove expired requireId " + requireId);
+      }
+    } catch (Exception e) {
+      LOG.warn("Error happened in preAllocatedBufferCheck", e);
     }
   }
 

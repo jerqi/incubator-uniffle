@@ -24,11 +24,11 @@ public class RegisterHeartBeat {
   private final long heartBeatInitialDelay;
   private final long heartBeatInterval;
   private final ShuffleServer shuffleServer;
-  private long heartBeatTimeout;
   private final String coordinatorQuorum;
   private final List<CoordinatorClient> coordinatorClients;
   private final ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
   private final ExecutorService heartBeatExecutorService;
+  private long heartBeatTimeout;
 
 
   public RegisterHeartBeat(ShuffleServer shuffleServer) {
@@ -53,14 +53,20 @@ public class RegisterHeartBeat {
   public void startHeartBeat() {
     LOG.info("Start heartbeat to coordinator {} after {}ms and interval is {}ms",
         coordinatorQuorum, heartBeatInitialDelay, heartBeatInterval);
-    Runnable runnable = () -> sendHeartBeat(
-        shuffleServer.getId(),
-        shuffleServer.getIp(),
-        shuffleServer.getPort(),
-        shuffleServer.getUsedMemory(),
-        shuffleServer.getPreAllocatedMemory(),
-        shuffleServer.getAvailableMemory(),
-        shuffleServer.getEventNumInFlush());
+    Runnable runnable = () -> {
+      try {
+        sendHeartBeat(
+            shuffleServer.getId(),
+            shuffleServer.getIp(),
+            shuffleServer.getPort(),
+            shuffleServer.getUsedMemory(),
+            shuffleServer.getPreAllocatedMemory(),
+            shuffleServer.getAvailableMemory(),
+            shuffleServer.getEventNumInFlush());
+      } catch (Exception e) {
+        LOG.warn("Error happened when send heart beat to coordinator");
+      }
+    };
     service.scheduleAtFixedRate(runnable, heartBeatInitialDelay, heartBeatInterval, TimeUnit.MILLISECONDS);
   }
 

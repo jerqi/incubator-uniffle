@@ -32,19 +32,23 @@ public class SimpleClusterManager implements ClusterManager {
   }
 
   private void nodesCheck() {
-    long timestamp = System.currentTimeMillis();
-    Set<String> deleteIds = Sets.newHashSet();
-    for (ServerNode sn : servers.values()) {
-      if (timestamp - sn.getTimestamp() > heartbeatTimeout) {
-        LOG.warn("Heartbeat timeout detect, " + sn + " will be removed from node list.");
-        deleteIds.add(sn.getId());
+    try {
+      long timestamp = System.currentTimeMillis();
+      Set<String> deleteIds = Sets.newHashSet();
+      for (ServerNode sn : servers.values()) {
+        if (timestamp - sn.getTimestamp() > heartbeatTimeout) {
+          LOG.warn("Heartbeat timeout detect, " + sn + " will be removed from node list.");
+          deleteIds.add(sn.getId());
+        }
       }
-    }
-    for (String serverId : deleteIds) {
-      servers.remove(serverId);
-    }
+      for (String serverId : deleteIds) {
+        servers.remove(serverId);
+      }
 
-    CoordinatorMetrics.gaugeTotalServerNum.set(servers.size());
+      CoordinatorMetrics.gaugeTotalServerNum.set(servers.size());
+    } catch (Exception e) {
+      LOG.warn("Error happened in nodesCheck", e);
+    }
   }
 
   @Override

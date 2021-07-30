@@ -37,19 +37,23 @@ public class ApplicationManager {
   }
 
   private void statusCheck() {
-    LOG.info("Start to check application status for " + appIds);
-    long current = System.currentTimeMillis();
-    Set<String> expiredAppIds = Sets.newHashSet();
-    for (Map.Entry<String, Long> entry : appIds.entrySet()) {
-      long lastReport = entry.getValue();
-      if (current - lastReport > expired) {
-        expiredAppIds.add(entry.getKey());
+    try {
+      LOG.info("Start to check application status for " + appIds);
+      long current = System.currentTimeMillis();
+      Set<String> expiredAppIds = Sets.newHashSet();
+      for (Map.Entry<String, Long> entry : appIds.entrySet()) {
+        long lastReport = entry.getValue();
+        if (current - lastReport > expired) {
+          expiredAppIds.add(entry.getKey());
+        }
       }
+      for (String appId : expiredAppIds) {
+        LOG.info("Remove expired application:" + appId);
+        appIds.remove(appId);
+      }
+      CoordinatorMetrics.gaugeRunningAppNum.set(appIds.size());
+    } catch (Exception e) {
+      LOG.warn("Error happened in statusCheck", e);
     }
-    for (String appId : expiredAppIds) {
-      LOG.info("Remove expired application:" + appId);
-      appIds.remove(appId);
-    }
-    CoordinatorMetrics.gaugeRunningAppNum.set(appIds.size());
   }
 }
