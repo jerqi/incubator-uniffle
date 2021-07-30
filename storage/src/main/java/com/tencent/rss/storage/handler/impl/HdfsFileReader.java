@@ -54,6 +54,10 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
     return null;
   }
 
+  public void seek(long offset) throws Exception {
+    fsDataInputStream.seek(offset);
+  }
+
   public List<FileBasedShuffleSegment> readIndex(int limit) throws IOException, IllegalStateException {
     List<FileBasedShuffleSegment> ret = new LinkedList<>();
 
@@ -68,7 +72,7 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
     return ret;
   }
 
-  private FileBasedShuffleSegment readIndex() throws IOException, IllegalStateException {
+  public FileBasedShuffleSegment readIndex() throws IOException, IllegalStateException {
     ByteBuffer longBuf = ByteBuffer.allocate(8);
     ByteBuffer intBuf = ByteBuffer.allocate(4);
 

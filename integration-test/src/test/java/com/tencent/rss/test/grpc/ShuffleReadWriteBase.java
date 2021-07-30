@@ -12,7 +12,7 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
-public class ShuffleReadWriteBase extends IntegrationTestBase {
+public abstract class ShuffleReadWriteBase extends IntegrationTestBase {
 
   private static AtomicLong ATOMIC_LONG = new AtomicLong(0L);
 

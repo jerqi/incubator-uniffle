@@ -111,22 +111,22 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
     shuffleServerClient.finishShuffle(rfsr);
 
     RssGetShuffleDataRequest rgsdr = new RssGetShuffleDataRequest(
-        testAppId, 0, 0, 2, 10, 1000, expectedBlockIds1);
+        testAppId, 0, 0, 2, 10, 1000, 0);
     ShuffleDataResult sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
     validateResult(sdr, expectedBlockIds1, expectedData, 0);
 
     rgsdr = new RssGetShuffleDataRequest(
-        testAppId, 0, 1, 2, 10, 1000, expectedBlockIds2);
+        testAppId, 0, 1, 2, 10, 1000, 0);
     sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
     validateResult(sdr, expectedBlockIds2, expectedData, 1);
 
     rgsdr = new RssGetShuffleDataRequest(
-        testAppId, 0, 2, 2, 10, 1000, expectedBlockIds3);
+        testAppId, 0, 2, 2, 10, 1000, 0);
     sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
     validateResult(sdr, expectedBlockIds3, expectedData, 2);
 
     rgsdr = new RssGetShuffleDataRequest(
-        testAppId, 0, 3, 2, 10, 1000, expectedBlockIds4);
+        testAppId, 0, 3, 2, 10, 1000, 0);
     sdr = shuffleServerClient.getShuffleData(rgsdr).getShuffleDataResult();
     validateResult(sdr, expectedBlockIds4, expectedData, 3);
 

@@ -5,7 +5,6 @@ import com.tencent.rss.client.request.RssGetShuffleDataRequest;
 import com.tencent.rss.client.response.RssGetShuffleDataResponse;
 import com.tencent.rss.common.ShuffleDataResult;
 import java.util.List;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,11 +36,11 @@ public class LocalFileClientReadHandler extends AbstractFileClientReadHandler {
   }
 
   @Override
-  public ShuffleDataResult readShuffleData(Set<Long> expectedBlockIds) {
+  public ShuffleDataResult readShuffleData(int segmentIndex) {
     boolean readSuccessful = false;
     ShuffleDataResult result = null;
     RssGetShuffleDataRequest request = new RssGetShuffleDataRequest(
-        appId, shuffleId, partitionId, partitionNumPerRange, partitionNum, readBufferSize, expectedBlockIds);
+        appId, shuffleId, partitionId, partitionNumPerRange, partitionNum, readBufferSize, segmentIndex);
     for (ShuffleServerClient shuffleServerClient : shuffleServerClients) {
       try {
         RssGetShuffleDataResponse response = shuffleServerClient.getShuffleData(request);

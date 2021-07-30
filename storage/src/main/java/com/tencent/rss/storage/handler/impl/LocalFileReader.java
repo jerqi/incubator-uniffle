@@ -48,7 +48,7 @@ public class LocalFileReader implements ShuffleReader, Closeable {
     return ret;
   }
 
-  private FileBasedShuffleSegment readIndex() throws IOException, IllegalStateException {
+  public FileBasedShuffleSegment readIndex() throws IOException, IllegalStateException {
     if (dataInputStream.available() <= 0) {
       return null;
     }
@@ -60,6 +60,10 @@ public class LocalFileReader implements ShuffleReader, Closeable {
     long blockId = dataInputStream.readLong();
     long taskAttemptId = dataInputStream.readLong();
     return new FileBasedShuffleSegment(blockId, offset, length, uncompressLength, crc, taskAttemptId);
+  }
+
+  public void skip(long offset) throws IOException {
+    dataInputStream.skip(offset);
   }
 
   @Override

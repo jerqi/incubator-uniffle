@@ -12,7 +12,6 @@ public class CreateShuffleReadClientRequest {
   private int partitionId;
   private String storageType;
   private String basePath;
-  private Configuration hadoopConf;
   private int indexReadLimit;
   private int readBufferSize;
   private int partitionNumPerRange;
@@ -20,17 +19,17 @@ public class CreateShuffleReadClientRequest {
   private Roaring64NavigableMap blockIdBitmap;
   private Roaring64NavigableMap taskIdBitmap;
   private List<ShuffleServerInfo> shuffleServerInfoList;
+  private Configuration hadoopConf;
 
   public CreateShuffleReadClientRequest(String appId, int shuffleId, int partitionId, String storageType,
-      String basePath, Configuration hadoopConf, int indexReadLimit, int readBufferSize, int partitionNumPerRange,
+      String basePath, int indexReadLimit, int readBufferSize, int partitionNumPerRange,
       int partitionNum, Roaring64NavigableMap blockIdBitmap, Roaring64NavigableMap taskIdBitmap,
-      List<ShuffleServerInfo> shuffleServerInfoList) {
+      List<ShuffleServerInfo> shuffleServerInfoList, Configuration hadoopConf) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.partitionId = partitionId;
     this.storageType = storageType;
     this.basePath = basePath;
-    this.hadoopConf = hadoopConf;
     this.indexReadLimit = indexReadLimit;
     this.readBufferSize = readBufferSize;
     this.partitionNumPerRange = partitionNumPerRange;
@@ -38,6 +37,7 @@ public class CreateShuffleReadClientRequest {
     this.blockIdBitmap = blockIdBitmap;
     this.taskIdBitmap = taskIdBitmap;
     this.shuffleServerInfoList = shuffleServerInfoList;
+    this.hadoopConf = hadoopConf;
   }
 
   public String getAppId() {
@@ -68,10 +68,6 @@ public class CreateShuffleReadClientRequest {
     return basePath;
   }
 
-  public Configuration getHadoopConf() {
-    return hadoopConf;
-  }
-
   public int getIndexReadLimit() {
     return indexReadLimit;
   }
@@ -90,5 +86,9 @@ public class CreateShuffleReadClientRequest {
 
   public List<ShuffleServerInfo> getShuffleServerInfoList() {
     return shuffleServerInfoList;
+  }
+
+  public Configuration getHadoopConf() {
+    return hadoopConf;
   }
 }

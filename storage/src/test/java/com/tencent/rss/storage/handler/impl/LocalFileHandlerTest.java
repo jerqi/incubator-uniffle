@@ -64,9 +64,9 @@ public class LocalFileHandlerTest {
     RssBaseConf conf = new RssBaseConf();
     conf.setString("rss.storage.basePath", dataDir1.getAbsolutePath() + "," + dataDir2.getAbsolutePath());
     LocalFileServerReadHandler readHandler1 = new LocalFileServerReadHandler(
-        "appId", 0, 1, 1, 10, 1000, expectedBlockIds1, conf);
+        "appId", 0, 1, 1, 10, 1000, conf);
     LocalFileServerReadHandler readHandler2 = new LocalFileServerReadHandler(
-        "appId", 0, 2, 1, 10, 1000, expectedBlockIds2, conf);
+        "appId", 0, 2, 1, 10, 1000, conf);
 
     validateResult(readHandler1, expectedBlockIds1, expectedData);
     validateResult(readHandler2, expectedBlockIds2, expectedData);
@@ -93,7 +93,7 @@ public class LocalFileHandlerTest {
 
   protected void validateResult(ServerReadHandler readHandler, Set<Long> expectedBlockIds,
       Map<Long, byte[]> expectedData) {
-    ShuffleDataResult sdr = readHandler.getShuffleData(expectedBlockIds);
+    ShuffleDataResult sdr = readHandler.getShuffleData(0);
     byte[] buffer = sdr.getData();
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     for (BufferSegment bs : bufferSegments) {

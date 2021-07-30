@@ -4,7 +4,7 @@ import com.google.common.collect.Lists;
 import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
-import com.tencent.rss.storage.handler.impl.FileReadSegment;
+import com.tencent.rss.storage.handler.impl.DataFileSegment;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -45,16 +45,16 @@ public class ShuffleStorageUtils {
     return fileNamePrefix + Constants.SHUFFLE_INDEX_FILE_SUFFIX;
   }
 
-  public static List<FileReadSegment> mergeSegments(
+  public static List<DataFileSegment> mergeSegments(
       String path, List<FileBasedShuffleSegment> segments, int readBufferSize) {
-    List<FileReadSegment> fileReadSegments = Lists.newArrayList();
+    List<DataFileSegment> dataFileSegments = Lists.newArrayList();
     if (segments != null && !segments.isEmpty()) {
       if (segments.size() == 1) {
         List<BufferSegment> bufferSegments = Lists.newArrayList();
         bufferSegments.add(new BufferSegment(segments.get(0).getBlockId(), 0,
             segments.get(0).getLength(), segments.get(0).getUncompressLength(), segments.get(0).getCrc(),
             segments.get(0).getTaskAttemptId()));
-        fileReadSegments.add(new FileReadSegment(
+        dataFileSegments.add(new DataFileSegment(
             path, segments.get(0).getOffset(), segments.get(0).getLength(), bufferSegments));
       } else {
         Collections.sort(segments);
@@ -66,7 +66,7 @@ public class ShuffleStorageUtils {
         for (FileBasedShuffleSegment segment : segments) {
           // check if there has expected skip range, eg, [20, 100], [1000, 1001] and the skip range is [101, 999]
           if (start > -1 && segment.getOffset() - lastPosition > skipThreshold) {
-            fileReadSegments.add(new FileReadSegment(
+            dataFileSegments.add(new DataFileSegment(
                 path, start, (int) (lastPosition - start), bufferSegments));
             start = -1;
           }
@@ -80,18 +80,18 @@ public class ShuffleStorageUtils {
               segment.getOffset() - start, segment.getLength(),
               segment.getUncompressLength(), segment.getCrc(), segment.getTaskAttemptId()));
           if (lastestPosition - start >= readBufferSize) {
-            fileReadSegments.add(new FileReadSegment(
+            dataFileSegments.add(new DataFileSegment(
                 path, start, (int) (lastestPosition - start), bufferSegments));
             start = -1;
           }
           lastPosition = lastestPosition;
         }
         if (start > -1) {
-          fileReadSegments.add(new FileReadSegment(path, start, (int) (lastPosition - start), bufferSegments));
+          dataFileSegments.add(new DataFileSegment(path, start, (int) (lastPosition - start), bufferSegments));
         }
       }
     }
-    return fileReadSegments;
+    return dataFileSegments;
   }
 
   public static String getShuffleDataPath(String appId, int shuffleId, int start, int end) {

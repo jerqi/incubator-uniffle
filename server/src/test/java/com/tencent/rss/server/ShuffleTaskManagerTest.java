@@ -276,9 +276,9 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
       remainIds.add(spb.getBlockId());
     }
     HdfsClientReadHandler handler = new HdfsClientReadHandler(appId, shuffleId, partitionId,
-        100, 1, 10, 1000, basePath, blockIdBitmap, new Configuration());
+        100, 1, 10, 1000, basePath, new Configuration());
 
-    ShuffleDataResult sdr = handler.readShuffleData(remainIds);
+    ShuffleDataResult sdr = handler.readShuffleData(0);
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     int matchNum = 0;
     for (ShufflePartitionedBlock block : blocks) {

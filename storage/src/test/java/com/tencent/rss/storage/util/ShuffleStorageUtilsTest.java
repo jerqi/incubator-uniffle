@@ -8,7 +8,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
-import com.tencent.rss.storage.handler.impl.FileReadSegment;
+import com.tencent.rss.storage.handler.impl.DataFileSegment;
 import java.util.List;
 import java.util.Set;
 import org.junit.Test;
@@ -19,9 +19,9 @@ public class ShuffleStorageUtilsTest {
   public void mergeSegmentsTest() {
     List<FileBasedShuffleSegment> segments = Lists.newArrayList(
         new FileBasedShuffleSegment(1, 0, 40, 0, 0, 0));
-    List<FileReadSegment> fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
+    List<DataFileSegment> fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(1, fileSegments.size());
-    for (FileReadSegment seg : fileSegments) {
+    for (DataFileSegment seg : fileSegments) {
       assertEquals(0, seg.getOffset());
       assertEquals(40, seg.getLength());
       assertEquals("path", seg.getPath());
@@ -36,7 +36,7 @@ public class ShuffleStorageUtilsTest {
         new FileBasedShuffleSegment(3, 80, 20, 0, 0, 0));
     fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(1, fileSegments.size());
-    for (FileReadSegment seg : fileSegments) {
+    for (DataFileSegment seg : fileSegments) {
       assertEquals(0, seg.getOffset());
       assertEquals(100, seg.getLength());
       assertEquals("path", seg.getPath());
@@ -66,7 +66,7 @@ public class ShuffleStorageUtilsTest {
     fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(2, fileSegments.size());
     boolean tested = false;
-    for (FileReadSegment seg : fileSegments) {
+    for (DataFileSegment seg : fileSegments) {
       if (seg.getOffset() == 100) {
         tested = true;
         assertEquals(20, seg.getLength());
@@ -87,7 +87,7 @@ public class ShuffleStorageUtilsTest {
     fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(2, fileSegments.size());
     tested = false;
-    for (FileReadSegment seg : fileSegments) {
+    for (DataFileSegment seg : fileSegments) {
       if (seg.getOffset() == 100) {
         tested = true;
         assertEquals(120, seg.getLength());
@@ -117,7 +117,7 @@ public class ShuffleStorageUtilsTest {
     fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(3, fileSegments.size());
     Set<Long> expectedOffset = Sets.newHashSet(10L, 500L, 700L);
-    for (FileReadSegment seg : fileSegments) {
+    for (DataFileSegment seg : fileSegments) {
       if (seg.getOffset() == 10) {
         assertEquals(90, seg.getLength());
         List<BufferSegment> bufferSegments = seg.getBufferSegments();
@@ -162,7 +162,7 @@ public class ShuffleStorageUtilsTest {
     fileSegments = ShuffleStorageUtils.mergeSegments("path", segments, 100);
     assertEquals(4, fileSegments.size());
     expectedOffset = Sets.newHashSet(10L, 500L, 630L, 700L);
-    for (FileReadSegment seg : fileSegments) {
+    for (DataFileSegment seg : fileSegments) {
       if (seg.getOffset() == 10) {
         assertEquals(90, seg.getLength());
         List<BufferSegment> bufferSegments = seg.getBufferSegments();

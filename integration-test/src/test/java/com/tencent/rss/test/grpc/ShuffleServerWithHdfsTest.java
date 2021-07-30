@@ -1,8 +1,8 @@
 package com.tencent.rss.test.grpc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -88,15 +88,10 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
     RssSendCommitRequest rscr = new RssSendCommitRequest(appId, 0);
     shuffleServerClient.sendCommit(rscr);
     RssFinishShuffleRequest rfsr = new RssFinishShuffleRequest(appId, 0);
-    try {
-      // before call finishShuffle(), the data won't be flushed to hdfs
-      new ShuffleReadClientImpl(StorageType.HDFS.name(),
-          appId, 0, 0, 100, 2, 10, 1000,
-          dataBasePath, blockIdBitmap1, Roaring64NavigableMap.bitmapOf(0), Lists.newArrayList(), new Configuration());
-      fail("Expected exception");
-    } catch (Exception e) {
-      // ignore
-    }
+    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
+        appId, 0, 0, 100, 2, 10, 1000,
+        dataBasePath, blockIdBitmap1, Roaring64NavigableMap.bitmapOf(0), Lists.newArrayList(), new Configuration());
+    assertNull(readClient.readShuffleBlockData());
     shuffleServerClient.finishShuffle(rfsr);
 
     partitionToBlocks.clear();
@@ -122,7 +117,7 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
     rfsr = new RssFinishShuffleRequest(appId, 0);
     shuffleServerClient.finishShuffle(rfsr);
 
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
+    readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
         appId, 0, 0, 100, 2, 10, 1000,
         dataBasePath, blockIdBitmap1, Roaring64NavigableMap.bitmapOf(0), Lists.newArrayList(), new Configuration());
     validateResult(readClient, expectedData, blockIdBitmap1);
@@ -147,7 +142,7 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
       Roaring64NavigableMap blockIdBitmap) {
     CompressedShuffleBlock csb = readClient.readShuffleBlockData();
     Roaring64NavigableMap matched = Roaring64NavigableMap.bitmapOf();
-    while (csb.getByteBuffer() != null) {
+    while (csb != null && csb.getByteBuffer() != null) {
       for (Entry<Long, byte[]> entry : expectedData.entrySet()) {
         if (compareByte(entry.getValue(), csb.getByteBuffer())) {
           matched.addLong(entry.getKey());

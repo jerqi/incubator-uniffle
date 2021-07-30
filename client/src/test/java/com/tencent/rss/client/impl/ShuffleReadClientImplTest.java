@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.tencent.rss.client.api.ShuffleReadClient;
+import com.tencent.rss.client.response.CompressedShuffleBlock;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
@@ -57,13 +58,15 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
     readClient.close();
 
     blockIdBitmap.addLong(-1L);
+    readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 100, 1,
+        10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
+    validateResult(readClient, expectedData);
     try {
       // can't find all expected block id, data loss
-      readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 100, 1,
-          10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
+      readClient.checkProcessedBlockIds();
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
-      assertTrue(e.getMessage().contains("BlockId is incorrect"));
+      assertTrue(e.getMessage().contains("Blocks read inconsistent:"));
     } finally {
       readClient.close();
     }
@@ -179,48 +182,9 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
     // index file is deleted after iterator initialization, it should be ok, all index infos are read already
     Path indexFile = new Path(basePath + "/appId/0/0-1/test.index");
     fs.delete(indexFile, true);
-    // sleep to wait delete operation
-    Thread.sleep(10000);
-    try {
-      fs.listStatus(indexFile);
-      fail("Index file should be deleted");
-    } catch (Exception e) {
-    }
-
-    validateResult(readClient, expectedData);
-    readClient.checkProcessedBlockIds();
     readClient.close();
-  }
 
-  @Test
-  public void readTest6() throws Exception {
-    String basePath = HDFS_URI + "clientReadTest6";
-    HdfsShuffleWriteHandler writeHandler =
-        new HdfsShuffleWriteHandler("appId", 0, 0, 1, basePath, "test", conf);
-
-    Map<Long, byte[]> expectedData = Maps.newHashMap();
-    Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
-    Roaring64NavigableMap taskIdBitmap = Roaring64NavigableMap.bitmapOf(0);
-    writeTestData(writeHandler, 2, 30, 0, expectedData, blockIdBitmap);
-    Path indexFile = new Path(basePath + "/appId/0/0-1/test_0.index");
-    // index file is deleted before iterator initialization
-    fs.delete(indexFile, true);
-    // sleep to wait delete operation
-    Thread.sleep(10000);
-    try {
-      fs.listStatus(indexFile);
-      fail("Index file should be deleted");
-    } catch (Exception e) {
-    }
-
-    try {
-      new ShuffleReadClientImpl(StorageType.HDFS.name(),
-          "appId", 0, 1, 100, 2, 10, 1000,
-          basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
-      fail(EXPECTED_EXCEPTION_MESSAGE);
-    } catch (Exception e) {
-      assertTrue(e.getMessage().startsWith("Can't list index"));
-    }
+    assertNull(readClient.readShuffleBlockData());
   }
 
   @Test
@@ -230,11 +194,11 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
         new HdfsShuffleWriteHandler("appId", 0, 0, 1, basePath, "test", conf);
 
     Map<Long, byte[]> expectedData1 = Maps.newHashMap();
+    Map<Long, byte[]> expectedData2 = Maps.newHashMap();
     Roaring64NavigableMap blockIdBitmap1 = Roaring64NavigableMap.bitmapOf();
     Roaring64NavigableMap taskIdBitmap = Roaring64NavigableMap.bitmapOf(0);
     writeTestData(writeHandler, 10, 30, 0, expectedData1, blockIdBitmap1);
 
-    Map<Long, byte[]> expectedData2 = Maps.newHashMap();
     Roaring64NavigableMap blockIdBitmap2 = Roaring64NavigableMap.bitmapOf();
     writeTestData(writeHandler, 10, 30, 0, expectedData2, blockIdBitmap2);
 
@@ -287,11 +251,13 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
 
   @Test
   public void readTest9() {
+    // empty data
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
         "appId", 0, 1, 100, 2, 10, 1000,
         "basePath", Roaring64NavigableMap.bitmapOf(), Roaring64NavigableMap.bitmapOf(),
         Lists.newArrayList(), new Configuration());
-    assertNull(readClient.readShuffleBlockData().getByteBuffer());
+    assertNull(readClient.readShuffleBlockData());
+    readClient.checkProcessedBlockIds();
   }
 
   @Test
@@ -310,13 +276,15 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
       wrongBlockIdBitmap.addLong(iter.next() + 1000);
     }
 
+    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
+        "appId", 0, 0, 100, 2, 10, 100,
+        basePath, wrongBlockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
+    assertNull(readClient.readShuffleBlockData());
     try {
-      new ShuffleReadClientImpl(StorageType.HDFS.name(),
-          "appId", 0, 0, 100, 2, 10, 100,
-          basePath, wrongBlockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
+      readClient.checkProcessedBlockIds();
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
-      assertTrue(e.getMessage().startsWith("BlockId is incorrect"));
+      assertTrue(e.getMessage().contains("Blocks read inconsistent:"));
     }
   }
 
@@ -471,7 +439,12 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
         }
       }
       assertTrue(match);
-      data = readClient.readShuffleBlockData().getByteBuffer();
+      CompressedShuffleBlock csb = readClient.readShuffleBlockData();
+      if (csb == null) {
+        data = null;
+      } else {
+        data = csb.getByteBuffer();
+      }
     }
     assertEquals(expectedData.size(), blockNum);
   }

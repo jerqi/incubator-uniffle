@@ -96,7 +96,7 @@ public class HdfsHandlerTest extends HdfsTestBase {
     // read directly and compare
     HdfsClientReadHandler readHandler = new HdfsClientReadHandler(
         appId, shuffleId, partitionId, 100, 1, 10,
-        10000, basePath, blockIdBitmap, new Configuration());
+        10000, basePath, new Configuration());
     try {
       List<ByteBuffer> actual = readData(readHandler, Sets.newHashSet(expectedBlockId));
       compareBytes(expectedData, actual);
@@ -106,7 +106,7 @@ public class HdfsHandlerTest extends HdfsTestBase {
   }
 
   private List<ByteBuffer> readData(HdfsClientReadHandler handler, Set<Long> blockIds) throws IllegalStateException {
-    ShuffleDataResult sdr = handler.readShuffleData(blockIds);
+    ShuffleDataResult sdr = handler.readShuffleData(0);
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     List<ByteBuffer> result = Lists.newArrayList();
     for (BufferSegment bs : bufferSegments) {

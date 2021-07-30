@@ -2,7 +2,6 @@ package com.tencent.rss.server;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
 import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.PartitionRange;
@@ -40,7 +39,6 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -355,8 +353,8 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     int partitionNumPerRange = request.getPartitionNumPerRange();
     int partitionNum = request.getPartitionNum();
     int readBufferSize = request.getReadBufferSize();
+    int segmentIndex = request.getSegmentIndex();
     String storageType = shuffleServer.getShuffleServerConf().get(RssBaseConf.RSS_STORAGE_TYPE);
-    Set<Long> blockIds = Sets.newHashSet(request.getBlockIdsList());
     StatusCode status = StatusCode.SUCCESS;
     String msg = "OK";
     GetShuffleDataResponse reply = null;
@@ -368,7 +366,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
       try {
         long start = System.currentTimeMillis();
         sdr = shuffleServer.getShuffleTaskManager().getShuffleData(appId, shuffleId, partitionId,
-            partitionNumPerRange, partitionNum, readBufferSize, storageType, blockIds);
+            partitionNumPerRange, partitionNum, readBufferSize, storageType, segmentIndex);
         long readTime = System.currentTimeMillis() - start;
         ShuffleServerMetrics.counterTotalReadTime.inc(readTime);
         ShuffleServerMetrics.counterTotalReadDataSize.inc(sdr.getData().length);
@@ -381,8 +379,8 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
             .build();
       } catch (Exception e) {
         status = StatusCode.INTERNAL_ERROR;
-        msg = e.getMessage();
-        LOG.error("Error happened when get shuffle data for " + requestInfo, e);
+        msg = "Error happened when get shuffle data for " + requestInfo + ", " + e.getMessage();
+        LOG.error(msg, e);
         reply = GetShuffleDataResponse.newBuilder()
             .setStatus(valueOf(status))
             .setRetMsg(msg)

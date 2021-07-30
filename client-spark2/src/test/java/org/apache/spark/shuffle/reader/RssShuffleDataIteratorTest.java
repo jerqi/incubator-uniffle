@@ -1,7 +1,6 @@
 package org.apache.spark.shuffle.reader;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -53,15 +52,23 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
     validateResult(rssShuffleDataIterator, expectedData, 10);
 
     blockIdBitmap.add(-1L);
+    readClient = new ShuffleReadClientImpl(
+        StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
+        10, 10000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
+    rssShuffleDataIterator = new RssShuffleDataIterator(KRYO_SERIALIZER, readClient,
+        new ShuffleReadMetrics());
+    int recNum = 0;
     try {
       // can't find all expected block id, data loss
-      new ShuffleReadClientImpl(
-          StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
-          10, 10000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
+      while (rssShuffleDataIterator.hasNext()) {
+        rssShuffleDataIterator.next();
+        recNum++;
+      }
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
-      assertTrue(e.getMessage().startsWith("BlockId is incorrect"));
+      assertTrue(e.getMessage().startsWith("Blocks read inconsistent:"));
     }
+    assertEquals(10, recNum);
   }
 
   @Test
@@ -193,40 +200,7 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
       fail("Index file should be deleted");
     } catch (Exception e) {
     }
-
     validateResult(rssShuffleDataIterator, expectedData, 10);
-  }
-
-  @Test
-  public void readTest6() throws Exception {
-    String basePath = HDFS_URI + "readTest6";
-    HdfsShuffleWriteHandler writeHandler =
-        new HdfsShuffleWriteHandler("appId", 0, 0, 1, basePath, "test", conf);
-
-    Map<String, String> expectedData = Maps.newHashMap();
-    Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
-    Roaring64NavigableMap taskIdBitmap = Roaring64NavigableMap.bitmapOf(0);
-    writeTestData(writeHandler, 2, 5, expectedData,
-        blockIdBitmap, "key", KRYO_SERIALIZER);
-    // index file is deleted before iterator initialization
-    Path indexFile = new Path(basePath + "/appId/0/0-1/test_0.index");
-    fs.delete(indexFile, true);
-    // sleep to wait delete operation
-    Thread.sleep(10000);
-    try {
-      fs.listStatus(indexFile);
-      fail("Index file should be deleted");
-    } catch (Exception e) {
-    }
-
-    try {
-      new ShuffleReadClientImpl(
-          StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
-          10, 10000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
-      fail(EXPECTED_EXCEPTION_MESSAGE);
-    } catch (Exception e) {
-      assertTrue(e.getMessage().startsWith("Can't list index"));
-    }
   }
 
   @Test
@@ -259,19 +233,5 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
         assertTrue(e.getMessage().startsWith("Unexpected crc value"));
       }
     }
-  }
-
-  @Test
-  public void readTest8() {
-    String basePath = HDFS_URI + "readTest8";
-    Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
-    Roaring64NavigableMap taskIdBitmap = Roaring64NavigableMap.bitmapOf(0);
-    // there is no data for basePath
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(
-        StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
-        10, 10000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
-    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
-        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics());
-    assertFalse(rssShuffleDataIterator.hasNext());
   }
 }

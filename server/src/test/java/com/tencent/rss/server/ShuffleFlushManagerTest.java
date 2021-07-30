@@ -200,11 +200,10 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
         10,
         blocks.size() * 32,
         basePath,
-        blockIdBitmap,
         new Configuration());
     ShuffleDataResult sdr = null;
     int matchNum = 0;
-    sdr = handler.readShuffleData(remainIds);
+    sdr = handler.readShuffleData(0);
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
     for (ShufflePartitionedBlock block : blocks) {
       for (BufferSegment bs : bufferSegments) {

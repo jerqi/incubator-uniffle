@@ -1,7 +1,5 @@
 package com.tencent.rss.client.request;
 
-import java.util.Set;
-
 public class RssGetShuffleDataRequest {
 
   private String appId;
@@ -10,18 +8,17 @@ public class RssGetShuffleDataRequest {
   private int partitionNumPerRange;
   private int partitionNum;
   private int readBufferSize;
-  private Set<Long> blockIds;
+  private int segmentIndex;
 
   public RssGetShuffleDataRequest(String appId, int shuffleId, int partitionId, int partitionNumPerRange,
-      int partitionNum,
-      int readBufferSize, Set<Long> blockIds) {
+      int partitionNum, int readBufferSize, int segmentIndex) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.partitionId = partitionId;
     this.partitionNumPerRange = partitionNumPerRange;
     this.partitionNum = partitionNum;
     this.readBufferSize = readBufferSize;
-    this.blockIds = blockIds;
+    this.segmentIndex = segmentIndex;
   }
 
   public String getAppId() {
@@ -48,7 +45,7 @@ public class RssGetShuffleDataRequest {
     return readBufferSize;
   }
 
-  public Set<Long> getBlockIds() {
-    return blockIds;
+  public int getSegmentIndex() {
+    return segmentIndex;
   }
 }

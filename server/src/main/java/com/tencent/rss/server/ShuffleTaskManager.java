@@ -211,7 +211,7 @@ public class ShuffleTaskManager {
 
   public ShuffleDataResult getShuffleData(
       String appId, Integer shuffleId, Integer partitionId, int partitionNumPerRange,
-      int partitionNum, int readBufferSize, String storageType, Set<Long> expectedBlockIds) {
+      int partitionNum, int readBufferSize, String storageType, int segmentIndex) {
     refreshAppId(appId);
     CreateShuffleReadHandlerRequest request = new CreateShuffleReadHandlerRequest();
     request.setAppId(appId);
@@ -220,7 +220,6 @@ public class ShuffleTaskManager {
     request.setPartitionNumPerRange(partitionNumPerRange);
     request.setPartitionNum(partitionNum);
     request.setReadBufferSize(readBufferSize);
-    request.setExpectedBlockIds(expectedBlockIds);
     request.setStorageType(storageType);
     request.setRssBaseConf(conf);
 
@@ -229,7 +228,7 @@ public class ShuffleTaskManager {
     String key = "" + request.getShuffleId() + "_" + partitionId;
     handlerMap.putIfAbsent(key, ShuffleHandlerFactory.getInstance().createServerReadHandler(request));
 
-    return handlerMap.get(key).getShuffleData(expectedBlockIds);
+    return handlerMap.get(key).getShuffleData(segmentIndex);
   }
 
   public void checkResourceStatus() {

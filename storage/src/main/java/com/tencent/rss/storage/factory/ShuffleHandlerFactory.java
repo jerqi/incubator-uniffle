@@ -47,7 +47,6 @@ public class ShuffleHandlerFactory {
           request.getPartitionNum(),
           request.getReadBufferSize(),
           request.getStorageBasePath(),
-          request.getBlockIdBitmap(),
           request.getHadoopConf());
     } else if (StorageType.LOCALFILE.name().equals(request.getStorageType())) {
       List<ShuffleServerInfo> shuffleServerInfoList = request.getShuffleServerInfoList();
@@ -67,7 +66,7 @@ public class ShuffleHandlerFactory {
     if (StorageType.LOCALFILE.name().equals(request.getStorageType())) {
       return new LocalFileServerReadHandler(request.getAppId(), request.getShuffleId(),
           request.getPartitionId(), request.getPartitionNumPerRange(), request.getPartitionNum(),
-          request.getReadBufferSize(), request.getExpectedBlockIds(), request.getRssBaseConf());
+          request.getReadBufferSize(), request.getRssBaseConf());
     } else {
       throw new UnsupportedOperationException(
           "Doesn't support storage type for server read handler:" + request.getStorageType());

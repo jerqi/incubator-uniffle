@@ -352,13 +352,14 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         .setPartitionNumPerRange(request.getPartitionNumPerRange())
         .setPartitionNum(request.getPartitionNum())
         .setReadBufferSize(request.getReadBufferSize())
-        .addAllBlockIds(request.getBlockIds())
+        .setSegmentIndex(request.getSegmentIndex())
         .build();
     long start = System.currentTimeMillis();
     GetShuffleDataResponse rpcResponse = blockingStub.getShuffleData(rpcRequest);
     String requestInfo = "appId[" + request.getAppId() + "], shuffleId["
         + request.getShuffleId() + "], partitionId[" + request.getPartitionId() + "]";
     LOG.info("GetShuffleData for " + requestInfo + " cost " + (System.currentTimeMillis() - start) + " ms");
+
     StatusCode statusCode = rpcResponse.getStatus();
 
     RssGetShuffleDataResponse response;

@@ -3,9 +3,7 @@ package com.tencent.rss.storage.request;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.common.config.RssBaseConf;
 import java.util.List;
-import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
-import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 public class CreateShuffleReadHandlerRequest {
 
@@ -18,13 +16,9 @@ public class CreateShuffleReadHandlerRequest {
   private int partitionNum;
   private int readBufferSize;
   private String storageBasePath;
-  // it's for action path client -> storage
-  private Roaring64NavigableMap blockIdBitmap;
-  // it's for action path client -> shuffle server -> storage
-  private Set<Long> expectedBlockIds;
   private RssBaseConf rssBaseConf;
-  private List<ShuffleServerInfo> shuffleServerInfoList;
   private Configuration hadoopConf;
+  private List<ShuffleServerInfo> shuffleServerInfoList;
 
   public CreateShuffleReadHandlerRequest() {
   }
@@ -109,28 +103,12 @@ public class CreateShuffleReadHandlerRequest {
     this.storageBasePath = storageBasePath;
   }
 
-  public Roaring64NavigableMap getBlockIdBitmap() {
-    return blockIdBitmap;
-  }
-
-  public void setBlockIdBitmap(Roaring64NavigableMap blockIdBitmap) {
-    this.blockIdBitmap = blockIdBitmap;
-  }
-
   public List<ShuffleServerInfo> getShuffleServerInfoList() {
     return shuffleServerInfoList;
   }
 
   public void setShuffleServerInfoList(List<ShuffleServerInfo> shuffleServerInfoList) {
     this.shuffleServerInfoList = shuffleServerInfoList;
-  }
-
-  public Set<Long> getExpectedBlockIds() {
-    return expectedBlockIds;
-  }
-
-  public void setExpectedBlockIds(Set<Long> expectedBlockIds) {
-    this.expectedBlockIds = expectedBlockIds;
   }
 
   public Configuration getHadoopConf() {

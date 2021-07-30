@@ -38,7 +38,6 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   private ShuffleDependency<K, C, ?> shuffleDependency;
   private Serializer serializer;
   private String taskId;
-  private Configuration hadoopConf;
   private String basePath;
   private int indexReadLimit;
   private int readBufferSize;
@@ -48,6 +47,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
   private Roaring64NavigableMap blockIdBitmap;
   private Roaring64NavigableMap taskIdBitmap;
   private List<ShuffleServerInfo> shuffleServerInfoList;
+  private Configuration hadoopConf;
 
   public RssShuffleReader(
       int startPartition,
@@ -67,7 +67,6 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     this.startPartition = startPartition;
     this.endPartition = endPartition;
     this.context = context;
-    this.hadoopConf = hadoopConf;
     this.shuffleDependency = rssShuffleHandle.getDependency();
     this.shuffleId = shuffleDependency.shuffleId();
     this.serializer = rssShuffleHandle.getDependency().serializer();
@@ -80,6 +79,7 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     this.partitionNum = partitionNum;
     this.blockIdBitmap = blockIdBitmap;
     this.taskIdBitmap = taskIdBitmap;
+    this.hadoopConf = hadoopConf;
     this.shuffleServerInfoList =
         (List<ShuffleServerInfo>) (rssShuffleHandle.getPartitionToServers().get(startPartition));
   }
@@ -89,8 +89,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
     LOG.info("Shuffle read started:" + getReadInfo());
 
     CreateShuffleReadClientRequest request = new CreateShuffleReadClientRequest(
-        appId, shuffleId, startPartition, storageType, basePath, hadoopConf, indexReadLimit,
-        readBufferSize, partitionNumPerRange, partitionNum, blockIdBitmap, taskIdBitmap, shuffleServerInfoList);
+        appId, shuffleId, startPartition, storageType, basePath, indexReadLimit, readBufferSize,
+        partitionNumPerRange, partitionNum, blockIdBitmap, taskIdBitmap, shuffleServerInfoList, hadoopConf);
     ShuffleReadClient shuffleReadClient = ShuffleClientFactory.getInstance().createShuffleReadClient(request);
 
     RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator<K, C>(

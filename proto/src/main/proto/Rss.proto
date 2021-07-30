@@ -53,7 +53,7 @@ message GetShuffleDataRequest {
   int32 partitionNumPerRange = 4;
   int32 partitionNum = 5;
   int32 readBufferSize = 6;
-  repeated int64 blockIds = 7;
+  int32 segmentIndex = 7;
 }
 
 message GetShuffleDataResponse {
