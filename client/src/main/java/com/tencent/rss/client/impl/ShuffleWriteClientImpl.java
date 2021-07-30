@@ -286,8 +286,6 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
             RssAppHeartBeatResponse response = client.sendHeartBeat(request);
             if (response.getStatusCode() != ResponseStatusCode.SUCCESS) {
               LOG.warn("Failed to send heartbeat to " + shuffleServerInfo);
-            } else {
-              LOG.info("Successfully send heartbeat to " + shuffleServerInfo);
             }
           } catch (Exception e) {
             LOG.warn("Error happened when send heartbeat to " + shuffleServerInfo, e);

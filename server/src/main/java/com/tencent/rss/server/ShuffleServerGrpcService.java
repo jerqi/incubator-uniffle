@@ -184,7 +184,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
 
     try {
       commitCount = shuffleServer.getShuffleTaskManager().updateAndGetCommitCount(appId, shuffleId);
-      LOG.info("Get commitShuffleTask request for appId[" + appId + "], shuffleId["
+      LOG.debug("Get commitShuffleTask request for appId[" + appId + "], shuffleId["
           + shuffleId + "], currentCommitted[" + commitCount + "]");
     } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
@@ -370,7 +370,8 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
         long readTime = System.currentTimeMillis() - start;
         ShuffleServerMetrics.counterTotalReadTime.inc(readTime);
         ShuffleServerMetrics.counterTotalReadDataSize.inc(sdr.getData().length);
-        LOG.info("Successfully getShuffleData cost " + readTime + " ms for " + requestInfo);
+        LOG.info("Successfully getShuffleData cost " + readTime + " ms for "
+            + requestInfo + " with " + sdr.getData().length + " bytes");
         reply = GetShuffleDataResponse.newBuilder()
             .setStatus(valueOf(status))
             .setRetMsg(msg)
