@@ -88,6 +88,7 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
     RssSendCommitRequest rscr = new RssSendCommitRequest(appId, 0);
     shuffleServerClient.sendCommit(rscr);
     RssFinishShuffleRequest rfsr = new RssFinishShuffleRequest(appId, 0);
+
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
         appId, 0, 0, 100, 2, 10, 1000,
         dataBasePath, blockIdBitmap1, Roaring64NavigableMap.bitmapOf(0), Lists.newArrayList(), new Configuration());

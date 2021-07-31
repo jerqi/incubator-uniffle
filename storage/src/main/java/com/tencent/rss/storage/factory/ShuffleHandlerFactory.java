@@ -59,16 +59,15 @@ public class ShuffleHandlerFactory {
           request.getReadBufferSize(), shuffleServerClients);
     } else  if ("HDFS_BACKUP".equals(request.getStorageType())) {
       return new MultiStorageHdfsClientReadHandler(
-        request.getAppId(),
-        request.getShuffleId(),
-        request.getPartitionId(),
-        request.getIndexReadLimit(),
-        request.getPartitionNumPerRange(),
-        request.getPartitionNum(),
-        request.getReadBufferSize(),
-        request.getStorageBasePath(),
-        request.getExpectedBlockIds(),
-        request.getHadoopConf());
+          request.getAppId(),
+          request.getShuffleId(),
+          request.getPartitionId(),
+          request.getIndexReadLimit(),
+          request.getPartitionNumPerRange(),
+          request.getPartitionNum(),
+          request.getReadBufferSize(),
+          request.getStorageBasePath(),
+          request.getHadoopConf());
     } else {
       throw new UnsupportedOperationException(
           "Doesn't support storage type for client read handler:" + request.getStorageType());

@@ -5,6 +5,7 @@ import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.handler.impl.DataFileSegment;
+import com.tencent.rss.storage.handler.impl.FileSegment;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;

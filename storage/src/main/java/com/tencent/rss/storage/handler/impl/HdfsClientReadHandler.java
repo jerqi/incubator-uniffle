@@ -20,20 +20,9 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
+public class HdfsClientReadHandler extends AbstractHdfsClientReadHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(HdfsClientReadHandler.class);
-  private final int indexReadLimit;
-  private Map<String, HdfsFileReader> dataReaderMap = Maps.newHashMap();
-  private Map<String, HdfsFileReader> indexReaderMap = Maps.newHashMap();
-  private List<FileSegment> indexSegments = Lists.newArrayList();
-  private int partitionNumPerRange;
-  private int partitionNum;
-  private int readBufferSize;
-  private String storageBasePath;
-  private AtomicLong readIndexTime = new AtomicLong(0);
-  private AtomicLong readDataTime = new AtomicLong(0);
-  private Configuration hadoopConf;
 
   public HdfsClientReadHandler(
       String appId,
@@ -54,192 +43,11 @@ public class HdfsClientReadHandler extends AbstractFileClientReadHandler {
     this.readBufferSize = readBufferSize;
     this.storageBasePath = storageBasePath;
     this.hadoopConf = hadoopConf;
-    init();
-  }
-
-  private void init() {
     String fullShufflePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
         ShuffleStorageUtils.getShuffleDataPathWithRange(appId,
             shuffleId, partitionId, partitionNumPerRange, partitionNum));
-
-    FileSystem fs;
-    Path baseFolder = new Path(fullShufflePath);
-    try {
-      fs = ShuffleStorageUtils.getFileSystemForPath(baseFolder, hadoopConf);
-    } catch (IOException ioe) {
-      throw new RuntimeException("Can't get FileSystem for " + baseFolder);
-    }
-
-    FileStatus[] indexFiles;
-    String failedGetIndexFileMsg = "Can't list index file in  " + baseFolder;
-
-    try {
-      // get all index files
-      indexFiles = fs.listStatus(baseFolder,
-          file -> file.getName().endsWith(Constants.SHUFFLE_INDEX_FILE_SUFFIX));
-    } catch (Exception e) {
-      LOG.error(failedGetIndexFileMsg, e);
-      return;
-    }
-
-    if (indexFiles != null) {
-      for (FileStatus status : indexFiles) {
-        LOG.info("Find index file for shuffleId[" + shuffleId + "], partitionId["
-            + partitionId + "] " + status.getPath());
-        String fileNamePrefix = getFileNamePrefix(status.getPath().getName());
-        try {
-          dataReaderMap.put(fileNamePrefix,
-              createHdfsReader(fullShufflePath, ShuffleStorageUtils.generateDataFileName(fileNamePrefix), hadoopConf));
-          indexReaderMap.put(fileNamePrefix,
-              createHdfsReader(fullShufflePath, ShuffleStorageUtils.generateIndexFileName(fileNamePrefix), hadoopConf));
-        } catch (Exception e) {
-          LOG.warn("Can't create ShuffleReaderHandler for " + fileNamePrefix, e);
-        }
-      }
-    }
-
+    init(fullShufflePath);
     readAllIndexSegments();
   }
 
-  private String getFileNamePrefix(String fileName) {
-    int point = fileName.lastIndexOf(".");
-    return fileName.substring(0, point);
-  }
-
-  private void readAllIndexSegments() {
-    for (Entry<String, HdfsFileReader> entry : indexReaderMap.entrySet()) {
-      String path = entry.getKey();
-      try {
-        LOG.info("Read index file for shuffleId[" + shuffleId + "], partitionId[" + partitionId + "] with " + path);
-        ShuffleReader reader = entry.getValue();
-        long start = System.currentTimeMillis();
-        List<FileBasedShuffleSegment> segments = reader.readIndex(indexReadLimit);
-        int dataSize = 0;
-        int segmentSize = 0;
-        long offset = 0;
-        while (!segments.isEmpty()) {
-          for (FileBasedShuffleSegment segment : segments) {
-            dataSize += segment.getLength();
-            segmentSize += FileBasedShuffleSegment.SEGMENT_SIZE;
-            if (dataSize > readBufferSize) {
-              indexSegments.add(new FileSegment(path, offset, segmentSize));
-              offset += segmentSize;
-              dataSize = 0;
-              segmentSize = 0;
-            }
-          }
-          segments = reader.readIndex(indexReadLimit);
-        }
-        if (dataSize > 0) {
-          indexSegments.add(new FileSegment(path, offset, segmentSize));
-        }
-        readIndexTime.addAndGet((System.currentTimeMillis() - start));
-      } catch (Exception e) {
-        LOG.warn("Can't read index segments for " + path, e);
-      }
-    }
-  }
-
-  @Override
-  public ShuffleDataResult readShuffleData(int segmentIndex) {
-    ShuffleDataResult result = null;
-    try {
-      DataFileSegment fileSegment = getDataFileSegment(segmentIndex);
-      if (fileSegment != null) {
-        final long start = System.currentTimeMillis();
-        byte[] readBuffer;
-        List<BufferSegment> bufferSegments;
-        HdfsFileReader reader = dataReaderMap.get(fileSegment.getPath());
-        readBuffer = reader.readData(fileSegment.getOffset(), fileSegment.getLength());
-        bufferSegments = fileSegment.getBufferSegments();
-        result = new ShuffleDataResult(readBuffer, bufferSegments);
-        LOG.debug("Read File segment: " + fileSegment.getPath() + ", offset["
-            + fileSegment.getOffset() + "], length[" + fileSegment.getLength()
-            + "], cost:" + (System.currentTimeMillis() - start) + " ms, for appId[" + appId
-            + "], shuffleId[" + shuffleId + "], partitionId[" + partitionId + "]");
-      }
-    } catch (Exception e) {
-      LOG.warn("Can't read data for shuffleId[" + shuffleId + "], partitionId[" + partitionId + "]");
-    }
-    return result;
-  }
-
-  @Override
-  public synchronized void close() {
-    for (Map.Entry<String, HdfsFileReader> entry : dataReaderMap.entrySet()) {
-      try {
-        entry.getValue().close();
-      } catch (IOException ioe) {
-        String message = "Error happened when close FileBasedShuffleReader for " + entry.getKey() + ".data";
-        LOG.warn(message, ioe);
-      }
-    }
-
-    for (Map.Entry<String, HdfsFileReader> entry : indexReaderMap.entrySet()) {
-      try {
-        entry.getValue().close();
-      } catch (IOException ioe) {
-        String message = "Error happened when close FileBasedShuffleReader for " + entry.getKey() + ".index";
-        LOG.warn(message, ioe);
-      }
-    }
-    LOG.info("HdfsClientReadHandler for appId[" + appId + "], shuffleId[" + shuffleId + "], partitionId["
-        + partitionId + "] cost " + readIndexTime.get() + " ms for read index and "
-        + readDataTime.get() + " ms for read data");
-  }
-
-  private HdfsFileReader createHdfsReader(
-      String folder, String fileName, Configuration hadoopConf) throws IOException, IllegalStateException {
-    Path path = new Path(folder, fileName);
-    HdfsFileReader reader = new HdfsFileReader(path, hadoopConf);
-    return reader;
-  }
-
-  private DataFileSegment getDataFileSegment(int segmentIndex) {
-    List<FileBasedShuffleSegment> dataSegments = getDataSegments(segmentIndex);
-    if (dataSegments.isEmpty()) {
-      return null;
-    }
-
-    List<BufferSegment> bufferSegments = Lists.newArrayList();
-    long fileOffset = dataSegments.get(0).getOffset();
-    int bufferOffset = 0;
-    for (FileBasedShuffleSegment segment : dataSegments) {
-      bufferSegments.add(new BufferSegment(segment.getBlockId(), bufferOffset, segment.getLength(),
-          segment.getUncompressLength(), segment.getCrc(), segment.getTaskAttemptId()));
-      bufferOffset += segment.getLength();
-    }
-
-    return new DataFileSegment(indexSegments.get(segmentIndex).getPath(),
-        fileOffset, bufferOffset, bufferSegments);
-  }
-
-  private List<FileBasedShuffleSegment> getDataSegments(int dataSegmentIndex) {
-    List<FileBasedShuffleSegment> segments = Lists.newArrayList();
-    String path = "";
-    if (indexSegments.size() > dataSegmentIndex) {
-      try {
-        int size = 0;
-        FileSegment indexSegment = indexSegments.get(dataSegmentIndex);
-        path = indexSegment.getPath();
-        HdfsFileReader reader = indexReaderMap.get(path);
-        reader.seek(indexSegment.getOffset());
-        FileBasedShuffleSegment segment = reader.readIndex();
-        while (segment != null) {
-          segments.add(segment);
-          size += FileBasedShuffleSegment.SEGMENT_SIZE;
-          if (size >= indexSegment.getLength()) {
-            break;
-          } else {
-            segment = reader.readIndex();
-          }
-        }
-      } catch (Exception e) {
-        String msg = "Can't read index segments for " + path;
-        LOG.warn(msg);
-        throw new RuntimeException(msg, e);
-      }
-    }
-    return segments;
-  }
 }

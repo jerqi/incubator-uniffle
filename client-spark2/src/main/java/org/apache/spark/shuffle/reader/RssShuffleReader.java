@@ -93,8 +93,8 @@ public class RssShuffleReader<K, C> implements ShuffleReader<K, C> {
         partitionNumPerRange, partitionNum, blockIdBitmap, taskIdBitmap, shuffleServerInfoList, hadoopConf);
     ShuffleReadClient shuffleReadClient = ShuffleClientFactory.getInstance().createShuffleReadClient(request);
     CreateShuffleReadClientRequest fallbackRequest = new CreateShuffleReadClientRequest(
-        appId, shuffleId, startPartition, "HDFS_BACKUP", basePath, hadoopConf, indexReadLimit,
-        readBufferSize, partitionNumPerRange, partitionNum, expectedBlockIds, shuffleServerInfoList);
+        appId, shuffleId, startPartition, "HDFS_BACKUP", basePath, indexReadLimit, readBufferSize,
+        partitionNumPerRange, partitionNum, blockIdBitmap, taskIdBitmap, shuffleServerInfoList, hadoopConf);
     ShuffleReadClient fallbackReadClient = null;
     try {
       fallbackReadClient = ShuffleClientFactory.getInstance().createShuffleReadClient(fallbackRequest);
