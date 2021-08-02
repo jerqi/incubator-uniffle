@@ -1,6 +1,6 @@
 package com.tencent.rss.common.util;
 
-// copy from org.apache.spark.network.util
+// copy from org.apache.spark.network.util.ByteUnit
 public enum ByteUnit {
   BYTE(1),
   KiB(1024L),

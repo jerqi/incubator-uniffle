@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.nio.charset.StandardCharsets;
@@ -16,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +85,7 @@ public class RssUtils {
       while (ad.hasMoreElements()) {
         InetAddress ia = ad.nextElement();
         if (!ia.isLinkLocalAddress() && !ia.isAnyLocalAddress() && !ia.isLoopbackAddress()
-            && ia instanceof InetAddress && ia.isReachable(5000)) {
+            && ia instanceof Inet4Address && ia.isReachable(5000)) {
           if (!ia.isSiteLocalAddress()) {
             return ia.getHostAddress();
           } else if (siteLocalAddress == null) {

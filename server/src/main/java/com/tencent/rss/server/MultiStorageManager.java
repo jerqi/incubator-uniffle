@@ -139,8 +139,6 @@ public class MultiStorageManager {
     for (String dir : dirs) {
       // todo: if there is a disk is corrupted, we should skip. now shuffleServer will
       // crash.
-      //DiskItem item = new DiskItem(
-      //    dir, cleanupThreshold, highWaterMarkOfWrite, lowWaterMarkOfWrite, capacity, cleanupIntervalMs);
       DiskItem item = DiskItem.newBuilder().basePath(dir)
           .cleanupThreshold(cleanupThreshold)
           .highWaterMarkOfWrite(highWaterMarkOfWrite)

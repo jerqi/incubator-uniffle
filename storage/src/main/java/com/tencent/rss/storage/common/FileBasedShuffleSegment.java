@@ -1,6 +1,5 @@
 package com.tencent.rss.storage.common;
 
-import java.lang.reflect.Field;
 import java.util.Objects;
 
 public class FileBasedShuffleSegment extends ShuffleSegment implements Comparable<FileBasedShuffleSegment> {

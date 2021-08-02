@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.common.util.concurrent.Uninterruptibles;
+import com.tencent.rss.common.util.ByteUnit;
 import com.tencent.rss.storage.factory.ShuffleUploadHandlerFactory;
 import com.tencent.rss.storage.handler.api.ShuffleUploadHandler;
 import com.tencent.rss.storage.request.CreateShuffleUploadHandlerRequest;
@@ -252,13 +253,16 @@ public class ShuffleUploader implements Runnable {
     }
 
     long uploadTimeoutS = calculateUploadTime(maxSize);
-    LOG.info("Start to upload {} shuffle info and timeout is {} Secnond", callableList.size(), uploadTimeoutS);
+    LOG.info("Start to upload {} shuffle info and timeout is {} Seconds", callableList.size(), uploadTimeoutS);
     try {
       List<Future<ShuffleUploadResult>> futures =
           executorService.invokeAll(callableList, uploadTimeoutS, TimeUnit.SECONDS);
       for (Future<ShuffleUploadResult> future : futures) {
         if (future.isDone()) {
           ShuffleUploadResult shuffleUploadResult = future.get();
+          if (shuffleUploadResult == null) {
+            continue;
+          }
           String shuffleKey = shuffleUploadResult.getShuffleKey();
           diskItem.getDiskMetaData().updateUploadedShufflePartitionList(
               shuffleKey, shuffleUploadResult.getPartitions());
@@ -280,8 +284,8 @@ public class ShuffleUploader implements Runnable {
   @VisibleForTesting
   long calculateUploadTime(long size) {
     long uploadTimeoutS = 1L;
-    long cur = size / (1024 * 1024) / referenceUploadSpeedMBS;
-    if (cur == 0) {
+    long cur = ByteUnit.BYTE.toMiB(size) / referenceUploadSpeedMBS;
+    if (cur <= uploadTimeoutS) {
       return uploadTimeoutS * 2;
     } else {
       return cur * 2;
@@ -300,8 +304,11 @@ public class ShuffleUploader implements Runnable {
   List<ShuffleFileInfo> selectShuffleFiles(int num) {
     List<ShuffleFileInfo> shuffleFileInfoList = Lists.newLinkedList();
     List<String> shuffleKeys = diskItem.getDiskMetaData().getSortedShuffleKeys(!forceUpload, num);
-    LOG.info("Get {} candidate shuffles {}", shuffleKeys.size(), shuffleKeys);
+    if (shuffleKeys.isEmpty()) {
+      return Lists.newArrayList();
+    }
 
+    LOG.info("Get {} candidate shuffles {}", shuffleKeys.size(), shuffleKeys);
     for (String shuffleKey : shuffleKeys) {
       List<Integer> partitions = getNotUploadedPartitions(shuffleKey);
       long sz = getNotUploadedSize(shuffleKey);

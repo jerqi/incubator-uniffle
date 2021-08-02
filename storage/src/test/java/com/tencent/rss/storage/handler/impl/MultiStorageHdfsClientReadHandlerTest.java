@@ -6,7 +6,6 @@ import com.tencent.rss.common.BufferSegment;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.junit.Test;
 
@@ -51,7 +50,7 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       iWriter.writeIndex(segment);
       iWriter.close();
 
-      /*Path combineDataPath = new Path(basePath + "/app1/0/combine/1.data");
+      Path combineDataPath = new Path(basePath + "/app1/0/combine/1.data");
       Path combineIndexPath = new Path(basePath + "/app1/0/combine/1.index");
       HdfsFileWriter combineWriter = new HdfsFileWriter(combineDataPath, conf);
       HdfsFileWriter combineIndexWriter = new HdfsFileWriter(combineIndexPath, conf);
@@ -84,13 +83,13 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
           3, 256, 256, 256, 1, 1);
       combineIndexWriter.writeIndex(segment2);
       combineIndexWriter.close();
-      combineWriter.close();*/
+      combineWriter.close();
 
       Set<Long> expects = Sets.newHashSet();
       expects.add(1L);
       List<byte[]> expectData = Lists.newArrayList();
       expectData.add(data);
-      compareDataAndIndex("app1", 0, 1, basePath, expectData, expects);
+      compareDataAndIndex("app1", 0, 1, basePath, expectData, 2);
     } catch (Exception e) {
       e.printStackTrace();
       fail();
@@ -107,7 +106,7 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       fs.mkdirs(partitionPath);
       Path dataPath = new Path(basePath + "/app2/0/1/1.data");
 
-      /*HdfsFileWriter writer = new HdfsFileWriter(dataPath, conf);
+      HdfsFileWriter writer = new HdfsFileWriter(dataPath, conf);
       byte[] data = new byte[256];
       new Random().nextBytes(data);
       ByteBuffer buffer = ByteBuffer.allocate(data.length);
@@ -125,7 +124,7 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
           1, 0, 256, 256, 1, 1);
       iWriter.writeIndex(segment);
-      iWriter.close();*/
+      iWriter.close();
 
       Path combineDataPath = new Path(basePath + "/app2/0/combine/1.data");
       Path combineIndexPath = new Path(basePath + "/app2/0/combine/1.index");
@@ -166,7 +165,67 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       expects.add(2L);
       List<byte[]> expectData = Lists.newArrayList();
       expectData.add(data1);
-      compareDataAndIndex("app2", 0, 2, basePath, expectData, expects);
+      compareDataAndIndex("app2", 0, 2, basePath, expectData, 2);
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail();
+    }
+  }
+
+  @Test
+  public void readWithDifferentLimitTest() {
+    try {
+      List<byte[]> expectData = Lists.newArrayList();
+      String basePath = HDFS_URI + "test_limit_read";
+      Path partitionPath = new Path(basePath + "/app3/0/combine");
+      fs.mkdirs(partitionPath);
+      Path dataPath = new Path(basePath + "/app3/0/combine/1.data");
+      HdfsFileWriter writer = new HdfsFileWriter(dataPath, conf);
+
+      byte[] data = new byte[256];
+      new Random().nextBytes(data);
+      ByteBuffer buffer = ByteBuffer.allocate(data.length);
+      buffer.put(data);
+      buffer.flip();
+      writer.writeData(buffer);
+      for (int i = 0; i < 5; i++) {
+        new Random().nextBytes(data);
+        buffer = ByteBuffer.allocate(data.length);
+        buffer.put(data);
+        buffer.flip();
+        expectData.add(data.clone());
+        writer.writeData(buffer);
+      }
+      buffer = ByteBuffer.allocate(data.length);
+      new Random().nextBytes(data);
+      buffer.put(data);
+      buffer.flip();
+      writer.writeData(buffer);
+      writer.close();
+
+      Path indexPath = new Path(basePath + "/app3/0/combine/1.index");
+      HdfsFileWriter iWriter = new HdfsFileWriter(indexPath, conf);
+      List<Integer> somePartitions = Lists.newArrayList();
+      somePartitions.add(0);
+      somePartitions.add(1);
+      somePartitions.add(2);
+      List<Long> someSizes = Lists.newArrayList();
+      someSizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
+      someSizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE * 5);
+      someSizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
+      iWriter.writeHeader(somePartitions, someSizes);
+      FileBasedShuffleSegment segment = new FileBasedShuffleSegment(1, 0, 256, 256, 1, 1L);
+      iWriter.writeIndex(segment);
+      for (int i = 0; i < 5; i++) {
+        segment = new FileBasedShuffleSegment(i + 2, i * 256, 256, 256, 1, 1L);
+        iWriter.writeIndex(segment);
+      }
+      segment = new FileBasedShuffleSegment(7, 0, 256, 256, 1, 1L);
+      iWriter.writeIndex(segment);
+      iWriter.close();
+      compareDataAndIndex("app3", 0, 1, basePath, expectData, 1);
+      compareDataAndIndex("app3", 0, 1, basePath, expectData, 2);
+      compareDataAndIndex("app3", 0, 1, basePath, expectData, 3);
     } catch (Exception e) {
       e.printStackTrace();
       fail();
@@ -179,28 +238,36 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       int partitionId,
       String basePath,
       List<byte[]> expectedData,
-      Set<Long> expectedBlockId) throws IllegalStateException {
+      int limit) throws IllegalStateException {
     // read directly and compare
     MultiStorageHdfsClientReadHandler handler = new MultiStorageHdfsClientReadHandler(appId,
-        shuffleId, partitionId, 2, 1, 3, 1024,
+        shuffleId, partitionId, limit, 1, 3, 1024,
         basePath, conf);
     try {
-      List<ByteBuffer> actual = readData(handler, Sets.newHashSet(expectedBlockId));
+      List<ByteBuffer> actual = readData(handler);
       compareBytes(expectedData, actual);
     } finally {
       handler.close();
     }
   }
 
-  private List<ByteBuffer> readData(MultiStorageHdfsClientReadHandler handler, Set<Long> blockIds) throws IllegalStateException {
-    ShuffleDataResult sdr = handler.readShuffleData(0);
-    List<BufferSegment> bufferSegments = sdr.getBufferSegments();
+  private List<ByteBuffer> readData(MultiStorageHdfsClientReadHandler handler) throws IllegalStateException {
+    ShuffleDataResult sdr;
     List<ByteBuffer> result = Lists.newArrayList();
-    for (BufferSegment bs : bufferSegments) {
-      byte[] data = new byte[bs.getLength()];
-      System.arraycopy(sdr.getData(), bs.getOffset(), data, 0, bs.getLength());
-      result.add(ByteBuffer.wrap(data));
-    }
+    int index = 0;
+    do {
+      sdr = handler.readShuffleData(index);
+      if (sdr == null || sdr.getData() == null) {
+        break;
+      }
+      List<BufferSegment> bufferSegments = sdr.getBufferSegments();
+      for (BufferSegment bs : bufferSegments) {
+        byte[] data = new byte[bs.getLength()];
+        System.arraycopy(sdr.getData(), bs.getOffset(), data, 0, bs.getLength());
+        result.add(ByteBuffer.wrap(data));
+      }
+      index++;
+    } while(sdr.getData() != null);
     return result;
   }
 

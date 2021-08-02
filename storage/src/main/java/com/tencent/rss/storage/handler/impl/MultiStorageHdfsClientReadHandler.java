@@ -65,10 +65,8 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
     } catch (IOException ioe) {
       throw new RuntimeException("Can't get FileSystem for " + baseFolder);
     }
-
     FileStatus[] indexFiles;
     String failedGetIndexFileMsg = "Can't list index file in  " + baseFolder;
-
     try {
       // get all index files
       indexFiles = fs.listStatus(baseFolder,
@@ -77,7 +75,6 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
       LOG.error(failedGetIndexFileMsg, e);
       throw new RuntimeException(failedGetIndexFileMsg);
     }
-
     if (indexFiles == null || indexFiles.length == 0) {
       throw new RuntimeException(failedGetIndexFileMsg);
     }
@@ -95,8 +92,8 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
         LOG.warn("Can't create ShuffleReaderHandler for " + fileNamePrefix, e);
       }
     }
-
   }
+
 
   @Override
   protected void readAllIndexSegments() {
@@ -104,83 +101,70 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
       String path = entry.getKey();
       try {
         LOG.info("Read index file for shuffleId[" + shuffleId + "], partitionId[" + partitionId + "] with " + path);
-        //int limit = indexReadLimit;
         HdfsFileReader reader = entry.getValue();
         ShuffleIndexHeader header = reader.readHeader();
         long start = System.currentTimeMillis();
         Queue<ShuffleIndexHeader.Entry> indexes = header.getIndexes();
+        int limit = indexReadLimit;
+        int offset = header.getHeaderLen();
         long lastPos = 0;
-
         while (!indexes.isEmpty()) {
           ShuffleIndexHeader.Entry indexEntry = indexes.poll();
-
-          if (indexEntry.getKey() != partitionId) {
-            lastPos = indexEntry.getValue();
-            continue;
-          }
-
-          int length = (int) (indexEntry.getValue() / FileBasedShuffleSegment.SEGMENT_SIZE);
-          if (length <= 0) {
-            break;
-          }
-
-          long  payloadOffset = header.getHeaderLen() + lastPos;
-          reader.seek(payloadOffset);
-          int limit = Math.min(length, indexReadLimit);
-          List<FileBasedShuffleSegment> segments = reader.readIndex(limit);
-
+          long length = indexEntry.getValue() / FileBasedShuffleSegment.SEGMENT_SIZE;
           int dataSize = 0;
-          int segmentSize = 0;
-          long offset = payloadOffset;
-          int sz = segments.size();
-          while (!segments.isEmpty()) {
+          int fullSize = 0;
+          while (length > 0) {
+            if (limit > length) {
+              limit = (int) length;
+              length = 0;
+            } else {
+              length = length - limit;
+            }
+            int segmentSize = 0;
+            List<FileBasedShuffleSegment> segments = reader.readIndex(limit);
             for (FileBasedShuffleSegment segment : segments) {
               dataSize += segment.getLength();
+              fullSize += segment.getLength();
               segmentSize += FileBasedShuffleSegment.SEGMENT_SIZE;
               if (dataSize > readBufferSize) {
-                indexSegments.add(new FileSegment(path, offset, segmentSize));
+                if (partitionId == indexEntry.getKey()) {
+                  indexSegments.add(new MultiStorageFileSegment(path, offset, segmentSize, lastPos));
+                }
                 offset += segmentSize;
                 dataSize = 0;
                 segmentSize = 0;
               }
             }
-            limit = Math.min(length - sz, indexReadLimit);
-
-            if (limit > 0) {
-              segments = reader.readIndex(limit);
-            } else {
-              break;
+            if (dataSize > 0) {
+              if (partitionId == indexEntry.getKey()) {
+                indexSegments.add(new MultiStorageFileSegment(path, offset, segmentSize, lastPos));
+              }
+              offset += segmentSize;
             }
           }
-
-          if (dataSize > 0) {
-            indexSegments.add(new FileSegment(path, offset, segmentSize));
-          }
-
-          break;
+          lastPos += fullSize;
         }
-
-
         readIndexTime.addAndGet((System.currentTimeMillis() - start));
-
       } catch (Exception e) {
         LOG.warn("Can't read index segments for " + path, e);
       }
     }
   }
 
+  @Override
   protected List<FileBasedShuffleSegment> getDataSegments(int dataSegmentIndex) {
     List<FileBasedShuffleSegment> segments = Lists.newArrayList();
     String path = "";
     if (indexSegments.size() > dataSegmentIndex) {
       try {
         int size = 0;
-        FileSegment indexSegment = indexSegments.get(dataSegmentIndex);
+        MultiStorageFileSegment indexSegment = (MultiStorageFileSegment)indexSegments.get(dataSegmentIndex);
         path = indexSegment.getPath();
         HdfsFileReader reader = indexReaderMap.get(path);
         reader.seek(indexSegment.getOffset());
         FileBasedShuffleSegment segment = reader.readIndex();
         while (segment != null) {
+          segment.setOffset(segment.getOffset() + indexSegment.getLastPos());
           segments.add(segment);
           size += FileBasedShuffleSegment.SEGMENT_SIZE;
           if (size >= indexSegment.getLength()) {
@@ -196,5 +180,18 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
       }
     }
     return segments;
+  }
+
+  class MultiStorageFileSegment extends FileSegment {
+    private final long lastPos;
+
+    MultiStorageFileSegment(String path, long offset, int length, long lastPos) {
+      super(path, offset, length);
+      this.lastPos = lastPos;
+    }
+
+    public long getLastPos() {
+      return lastPos;
+    }
   }
 }

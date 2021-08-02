@@ -103,9 +103,9 @@ public class DiskItem {
     }
     diskMetaData.getShuffleMetaSet().forEach((shuffleKey) -> {
       // If shuffle data is started to read, shuffle data won't be appended. When shuffle is
-      // uploaded totally, `uploadSize` will equal `Size`
+      // uploaded totally, the partitions which is not uploaded is empty.
       if (diskMetaData.getShuffleHasRead(shuffleKey)
-          && diskMetaData.getShuffleSize(shuffleKey) == diskMetaData.getShuffleUploadedSize(shuffleKey)) {
+          && diskMetaData.getNotUploadedPartitions(shuffleKey).isEmpty()) {
         String shufflePath = ShuffleStorageUtils.getFullShuffleDataFolder(basePath, shuffleKey);
         long start = System.currentTimeMillis();
         try {
@@ -119,10 +119,6 @@ public class DiskItem {
         }
       }
     });
-
-  }
-
-  private void upload() {
 
   }
 

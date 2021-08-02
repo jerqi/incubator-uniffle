@@ -123,7 +123,7 @@ public class DiskItemTest {
       item.updateWrite("1/2", 50, Lists.newArrayList());
       assertEquals(150L, item.getDiskMetaData().getDiskSize().get());
       assertEquals(2, item.getDiskMetaData().getNotUploadedPartitions("1/1").size());
-      assertTrue(new HashSet(partitionList).containsAll(item.getDiskMetaData().getNotUploadedPartitions("1/1")));
+      assertTrue(new HashSet<Integer>(partitionList).containsAll(item.getDiskMetaData().getNotUploadedPartitions("1/1")));
       item.removeResources("1/1");
       assertEquals(50L, item.getDiskMetaData().getDiskSize().get());
       assertEquals(0L, item.getDiskMetaData().getShuffleSize("1/1"));

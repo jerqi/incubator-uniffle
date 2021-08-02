@@ -233,6 +233,9 @@ public class ShuffleTaskManager {
   public byte[] getFinishedBlockIds(
       String appId, Integer shuffleId, Integer partitionId) throws IOException {
     refreshAppId(appId);
+    if (multiStorageManager != null) {
+      multiStorageManager.updateReadEvent(appId, shuffleId, partitionId);
+    }
     Map<Integer, Roaring64NavigableMap[]> shuffleIdToPartitions = partitionsToBlockIds.get(appId);
     if (shuffleIdToPartitions == null) {
       return null;
