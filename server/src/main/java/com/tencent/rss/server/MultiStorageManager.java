@@ -34,6 +34,7 @@ public class MultiStorageManager {
   private final long cleanupIntervalMs;
 
   private final List<DiskItem> diskItems = Lists.newArrayList();
+  private final long shuffleExpiredTimeoutMs;
 
   public MultiStorageManager(ShuffleServerConf conf, String shuffleServerId) {
     String dirsFromConf = conf.getString(ShuffleServerConf.RSS_STORAGE_BASE_PATH);
@@ -104,8 +105,12 @@ public class MultiStorageManager {
       throw new IllegalArgumentException("uploadRemoteStorageType couldn't be LOCALFILE or FILE");
     }
 
-    this.enableUploader = conf.get(ShuffleServerConf.RSS_UPLOADER_ENABLE);
+    long shuffleExpiredTimeoutMs = conf.get(ShuffleServerConf.RSS_SHUFFLE_EXPIRED_TIMEOUT_MS);
+    if (shuffleExpiredTimeoutMs <= 0) {
+      throw new IllegalArgumentException("The value of shuffleExpiredTimeMs must be positive");
+    }
 
+    this.enableUploader = conf.get(ShuffleServerConf.RSS_UPLOADER_ENABLE);
     this.capacity = capacity;
     this.cleanupThreshold = cleanupThreshold;
     this.cleanupIntervalMs = cleanupIntervalMs;
@@ -119,6 +124,7 @@ public class MultiStorageManager {
     this.hdfsBathPath = hdfsBasePath;
     this.shuffleServerId = shuffleServerId;
     this.hadoopConf = new Configuration();
+    this.shuffleExpiredTimeoutMs = shuffleExpiredTimeoutMs;
 
     // todo: extract a method
     for (String key : conf.getKeySet()) {
@@ -145,6 +151,7 @@ public class MultiStorageManager {
           .lowWaterMarkOfWrite(lowWaterMarkOfWrite)
           .capacity(capacity)
           .cleanIntervalMs(cleanupIntervalMs)
+          .shuffleExpiredTimeoutMs(shuffleExpiredTimeoutMs)
           .build();
       diskItems.add(item);
     }
@@ -188,11 +195,16 @@ public class MultiStorageManager {
     diskItem.updateWrite(key, event.getSize(), partitionList);
   }
 
-  // todo: update a timestamp for every shuffle recently read
   public void updateReadEvent(String appId, int shuffleId, int partitionId) {
     DiskItem diskItem = getDiskItem(appId, shuffleId, partitionId);
     String key = generateKey(appId, shuffleId);
     diskItem.updateRead(key);
+  }
+
+  public void updateLastReadTs(String appId, int shuffleId, int partitionId) {
+    DiskItem diskItem = getDiskItem(appId, shuffleId, partitionId);
+    String key = generateKey(appId, shuffleId);
+    diskItem.updateShuffleLastReadTs(key);
   }
 
   public DiskItem getDiskItem(ShuffleDataFlushEvent event) {

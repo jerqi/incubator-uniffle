@@ -34,6 +34,7 @@ import com.tencent.rss.proto.RssProtos.ShufflePartitionRange;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerImplBase;
+import com.tencent.rss.storage.common.DiskItem;
 import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -359,6 +360,10 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     ShuffleDataResult sdr;
     String requestInfo = "appId[" + appId + "], shuffleId[" + shuffleId + "], partitionId["
         + partitionId + "]";
+
+    if (shuffleServer.getMultiStorageManager() != null) {
+      shuffleServer.getMultiStorageManager().updateLastReadTs(appId, shuffleId, partitionId);
+    }
 
     if (shuffleServer.getShuffleBufferManager().requireReadMemoryWithRetry(readBufferSize)) {
       try {

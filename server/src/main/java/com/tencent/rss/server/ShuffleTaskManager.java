@@ -295,11 +295,6 @@ public class ShuffleTaskManager {
     Map<String, ServerReadHandler> handlerMap = serverReadHandlers.get(appId);
     String key = "" + request.getShuffleId() + "_" + partitionId;
     handlerMap.putIfAbsent(key, ShuffleHandlerFactory.getInstance().createServerReadHandler(request));
-
-    if (multiStorageManager != null) {
-      multiStorageManager.updateReadEvent(appId, shuffleId, partitionId);
-    }
-
     ShuffleDataResult shuffleDataResult = handlerMap.get(key).getShuffleData(segmentIndex);
     return shuffleDataResult;
   }

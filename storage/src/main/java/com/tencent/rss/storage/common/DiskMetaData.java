@@ -165,6 +165,14 @@ public class DiskMetaData {
     return (oldMeta == null) ? meta : oldMeta;
   }
 
+  public long getShuffleLastReadTs(String shuffleKey) {
+    return getShuffleMeta(shuffleKey).getShuffleLastReadTs();
+  }
+
+  public void updateShuffleLastReadTs(String shuffleKey) {
+    getShuffleMeta(shuffleKey).updateLastReadTs();
+  }
+
   // Consider that ShuffleMeta is a simple class, we keep the class ShuffleMeta as an inner class.
   private class ShuffleMeta {
     private final AtomicLong size = new AtomicLong(0);
@@ -172,6 +180,7 @@ public class DiskMetaData {
     private final Set<Integer> uploadedPartitionSet = Sets.newConcurrentHashSet();
     private final AtomicLong uploadedSize = new AtomicLong(0);
     private final AtomicBoolean hasRead = new AtomicBoolean(false);
+    private AtomicLong lastReadTs = new AtomicLong(-1L);
 
     public AtomicLong getSize() {
       return size;
@@ -195,6 +204,15 @@ public class DiskMetaData {
 
     public AtomicBoolean getHasRead() {
       return hasRead;
+    }
+
+    public void updateLastReadTs() {
+      lastReadTs.set(System.currentTimeMillis());
+    }
+
+
+    public long getShuffleLastReadTs() {
+      return lastReadTs.get();
     }
   }
 

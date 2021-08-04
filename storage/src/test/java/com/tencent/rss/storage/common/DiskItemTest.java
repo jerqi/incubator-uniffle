@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -16,6 +17,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 
 public class DiskItemTest {
@@ -43,6 +45,7 @@ public class DiskItemTest {
           .lowWaterMarkOfWrite(100)
           .capacity(100)
           .cleanIntervalMs(5000)
+          .shuffleExpiredTimeoutMs(1)
           .build();
       File baseDir = tmpDir.newFolder(testBaseDir.getName(),"app-1");
       assertTrue(baseDir.exists());
@@ -65,6 +68,10 @@ public class DiskItemTest {
       assertTrue(dir1.exists());
       assertTrue(dir2.exists());
       item.getDiskMetaData().setHasRead("app-1/1");
+      item.clean();
+      assertTrue(dir1.exists());
+      item.getDiskMetaData().updateShuffleLastReadTs("app-1/1");
+      Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
       item.clean();
       assertFalse(dir1.exists());
       assertTrue(dir2.exists());

@@ -228,6 +228,13 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(3000L)
       .withDescription("The interval for cleanup");
 
+  public static final ConfigOption<Long> RSS_SHUFFLE_EXPIRED_TIMEOUT_MS = ConfigOptions
+      .key("rss.server.shuffle.expired.timeout.ms")
+      .longType()
+      .defaultValue(60L * 1000 * 5)
+      .withDescription("If the shuffle is not read for the long time, and shuffle is uploaded totally,"
+          + " , we can delete the shuffle");
+
   public ShuffleServerConf() {
   }
 

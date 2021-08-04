@@ -148,13 +148,7 @@ public class SparkClientWithLocalTest extends ShuffleReadWriteBase {
     FileUtils.deleteDirectory(new File(DATA_DIR2.getAbsolutePath() + "/" + testAppId + "/0/0-0"));
     // sleep to wait delete operation
     Thread.sleep(2000);
-
-    try {
-      readClient.readShuffleBlockData();
-      fail(EXPECTED_EXCEPTION_MESSAGE);
-    } catch (Exception e) {
-      assertTrue(e.getMessage().contains("Failed to read shuffle data"));
-    }
+    assertNull(readClient.readShuffleBlockData());
     readClient.close();
   }
 

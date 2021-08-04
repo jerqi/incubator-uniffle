@@ -84,6 +84,7 @@ public class RssShuffleDataIterator<K, C> extends AbstractIterator<Product2<K, C
       if (recordsIterator == null && compressedBlock == null
         && fallbackShuffleReadClient != null) {
         shuffleReadClient = fallbackShuffleReadClient;
+        fallbackShuffleReadClient = null;
         compressedBlock = shuffleReadClient.readShuffleBlockData();
       }
       ByteBuffer compressedData = null;

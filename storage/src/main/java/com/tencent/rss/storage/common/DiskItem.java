@@ -21,6 +21,7 @@ public class DiskItem {
   private final double cleanupThreshold;
   private final double highWaterMarkOfWrite;
   private final double lowWaterMarkOfWrite;
+  private final long shuffleExpiredTimeoutMs;
 
   private DiskMetaData diskMetaData = new DiskMetaData();
   private boolean canRead = true;
@@ -31,6 +32,7 @@ public class DiskItem {
     this.highWaterMarkOfWrite = builder.highWaterMarkOfWrite;
     this.lowWaterMarkOfWrite = builder.lowWaterMarkOfWrite;
     this.capacity = builder.capacity;
+    this.shuffleExpiredTimeoutMs = builder.shuffleExpiredTimeoutMs;
 
     File baseFolder = new File(basePath);
     try {
@@ -105,7 +107,8 @@ public class DiskItem {
       // If shuffle data is started to read, shuffle data won't be appended. When shuffle is
       // uploaded totally, the partitions which is not uploaded is empty.
       if (diskMetaData.getShuffleHasRead(shuffleKey)
-          && diskMetaData.getNotUploadedPartitions(shuffleKey).isEmpty()) {
+          && diskMetaData.getNotUploadedPartitions(shuffleKey).isEmpty()
+          && isShuffleLongTimeNotRead(shuffleKey)) {
         String shufflePath = ShuffleStorageUtils.getFullShuffleDataFolder(basePath, shuffleKey);
         long start = System.currentTimeMillis();
         try {
@@ -122,6 +125,20 @@ public class DiskItem {
 
   }
 
+  private boolean isShuffleLongTimeNotRead(String shuffleKey) {
+    if (diskMetaData.getShuffleLastReadTs(shuffleKey) == -1) {
+      return false;
+    }
+    if (System.currentTimeMillis() - diskMetaData.getShuffleLastReadTs(shuffleKey) > shuffleExpiredTimeoutMs) {
+      return true;
+    }
+    return false;
+  }
+
+  public void updateShuffleLastReadTs(String shuffleKey) {
+    diskMetaData.updateShuffleLastReadTs(shuffleKey);
+  }
+
   public static class Builder {
     private long capacity;
     private double lowWaterMarkOfWrite;
@@ -129,6 +146,7 @@ public class DiskItem {
     private double cleanupThreshold;
     private String basePath;
     private long cleanIntervalMs;
+    private long shuffleExpiredTimeoutMs;
 
     private Builder() {
     }
@@ -160,6 +178,11 @@ public class DiskItem {
 
     public Builder cleanIntervalMs(long cleanIntervalMs) {
       this.cleanIntervalMs = cleanIntervalMs;
+      return this;
+    }
+
+    public Builder shuffleExpiredTimeoutMs(long shuffleExpiredTimeoutMs) {
+      this.shuffleExpiredTimeoutMs = shuffleExpiredTimeoutMs;
       return this;
     }
 
