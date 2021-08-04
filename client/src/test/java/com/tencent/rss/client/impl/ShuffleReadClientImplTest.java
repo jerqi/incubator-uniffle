@@ -394,7 +394,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
     Map<Long, byte[]> expectedData = Maps.newHashMap();
     Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
     Roaring64NavigableMap taskIdBitmap = Roaring64NavigableMap.bitmapOf(0, 2);
-    writeTestData(writeHandler, 5, 30, 0, expectedData, blockIdBitmap);
+    writeDuplicatedData(writeHandler, 5, 30, 0, expectedData, blockIdBitmap);
     writeTestData(writeHandler, 5, 30, 1, Maps.newHashMap(), Roaring64NavigableMap.bitmapOf());
     writeTestData(writeHandler, 5, 30, 2, expectedData, blockIdBitmap);
 
@@ -420,6 +420,26 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
       long blockId = ATOMIC_LONG.incrementAndGet();
       blocks.add(new ShufflePartitionedBlock(
           length, length, ChecksumUtils.getCrc32(buf), blockId, taskAttemptId, buf));
+      expectedData.put(blockId, buf);
+      blockIdBitmap.addLong(blockId);
+    }
+    writeHandler.write(blocks);
+  }
+
+  private void writeDuplicatedData(
+      HdfsShuffleWriteHandler writeHandler,
+      int num, int length, long taskAttemptId,
+      Map<Long, byte[]> expectedData,
+      Roaring64NavigableMap blockIdBitmap) throws Exception {
+    List<ShufflePartitionedBlock> blocks = Lists.newArrayList();
+    for (int i = 0; i < num; i++) {
+      byte[] buf = new byte[length];
+      new Random().nextBytes(buf);
+      long blockId = ATOMIC_LONG.incrementAndGet();
+      ShufflePartitionedBlock spb = new ShufflePartitionedBlock(
+          length, length, ChecksumUtils.getCrc32(buf), blockId, taskAttemptId, buf);
+      blocks.add(spb);
+      blocks.add(spb);
       expectedData.put(blockId, buf);
       blockIdBitmap.addLong(blockId);
     }
