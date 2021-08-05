@@ -2,6 +2,7 @@ package com.tencent.rss.test.spark;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.Maps;
 import com.tencent.rss.test.IntegrationTestBase;
 import java.util.Map;
 import org.apache.spark.SparkConf;
@@ -29,6 +30,7 @@ abstract public class SparkIntegrationTestBase extends IntegrationTestBase {
     SparkConf sparkConf = createSparkConf();
 
     long start = System.currentTimeMillis();
+    updateCommonSparkConf(sparkConf);
     Map resultWithoutRss = runSparkApp(sparkConf, fileName);
     long durationWithoutRss = System.currentTimeMillis() - start;
 
@@ -42,6 +44,10 @@ abstract public class SparkIntegrationTestBase extends IntegrationTestBase {
 
     LOG.info("Test: durationWithoutRss[" + durationWithoutRss
         + "], durationWithRss[" + durationWithRss + "]");
+  }
+
+  public void updateCommonSparkConf(SparkConf sparkConf) {
+
   }
 
   protected Map runSparkApp(SparkConf sparkConf, String testFileName) throws Exception {

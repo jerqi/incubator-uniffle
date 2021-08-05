@@ -72,7 +72,6 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
       indexFiles = fs.listStatus(baseFolder,
           file -> file.getName().endsWith(Constants.SHUFFLE_INDEX_FILE_SUFFIX));
     } catch (Exception e) {
-      LOG.error(failedGetIndexFileMsg, e);
       throw new RuntimeException(failedGetIndexFileMsg);
     }
     if (indexFiles == null || indexFiles.length == 0) {

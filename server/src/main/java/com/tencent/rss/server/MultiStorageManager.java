@@ -4,13 +4,19 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tencent.rss.storage.common.DiskItem;
 import com.tencent.rss.storage.common.ShuffleUploader;
+import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
+import com.tencent.rss.storage.handler.api.ShuffleDeleteHandler;
+import com.tencent.rss.storage.request.CreateShuffleDeleteHandlerRequest;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import com.tencent.rss.storage.util.StorageType;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 public class MultiStorageManager {
 
@@ -237,7 +243,12 @@ public class MultiStorageManager {
     return generateDir(event.getAppId(), event.getShuffleId(), event.getStartPartition());
   }
 
-  public void removeResources(String appId, int shuffleId) {
-    diskItems.forEach(item -> item.removeResources(generateKey(appId, shuffleId)));
+  public void removeResources(String appId, Set<Integer> shuffleSet) {
+    ShuffleDeleteHandler deleteHandler = ShuffleHandlerFactory.getInstance()
+        .createShuffleDeleteHandler(new CreateShuffleDeleteHandlerRequest("HDFS", hadoopConf));
+    deleteHandler.delete(new String[] {hdfsBathPath}, appId);
+    for (Integer shuffleId : shuffleSet) {
+      diskItems.forEach(item -> item.removeResources(generateKey(appId, shuffleId)));
+    }
   }
 }

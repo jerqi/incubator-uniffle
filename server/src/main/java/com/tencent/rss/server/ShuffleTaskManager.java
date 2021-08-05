@@ -326,9 +326,7 @@ public class ShuffleTaskManager {
     shuffleFlushManager.removeResources(appId);
     Map<Integer, Roaring64NavigableMap[]> shuffleToPartitions = partitionsToBlockIds.get(appId);
     if (shuffleToPartitions != null) {
-      shuffleToPartitions.keySet().forEach((shuffleId) -> {
-        multiStorageManager.removeResources(appId, shuffleId);
-      });
+      multiStorageManager.removeResources(appId, shuffleToPartitions.keySet());
     }
     LOG.info("Finish remove resource for appId[" + appId + "] cost " + (System.currentTimeMillis() - start) + " ms");
   }
