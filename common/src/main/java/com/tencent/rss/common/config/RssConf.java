@@ -482,14 +482,8 @@ public class RssConf {
   public <T> Optional<T> getOptional(ConfigOption<T> option) {
     Optional<Object> rawValue = getRawValueFromOption(option);
     Class<?> clazz = option.getClazz();
-    try {
-      return rawValue.map(v -> ConfigUtils.convertValue(v, clazz));
-    } catch (Exception e) {
-      throw new IllegalArgumentException(String.format(
-          "Could not parse value '%s' for key '%s'.",
-          rawValue.map(Object::toString).orElse(""),
-          option.key()), e);
-    }
+    Optional<T> value = rawValue.map(v -> option.convertValue(v, clazz));
+    return value;
   }
 
   public <T> RssConf set(ConfigOption<T> option, T value) {

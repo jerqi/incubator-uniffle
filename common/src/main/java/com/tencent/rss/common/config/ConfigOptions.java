@@ -25,6 +25,14 @@ import java.util.function.Function;
  *     .key("user.name")
  *     .stringType()
  *     .noDefaultValue();
+ *
+ * // simple positive-integer-valued option with a default value
+ * ConfigOption<Integer> threadNum = ConfigOptions
+ *     .key("thread.num")
+ *     .intType()
+ *     .checkValue("The value of 'thread.num' must be positive")
+ *     .defaultValue(10);
+ *
  * }</pre>
  */
 public class ConfigOptions {
@@ -119,10 +127,37 @@ public class ConfigOptions {
   public static class TypedConfigOptionBuilder<T> {
     private final String key;
     private final Class<T> clazz;
+    private final Function<Object, T> converter;
 
     TypedConfigOptionBuilder(String key, Class<T> clazz) {
       this.key = key;
       this.clazz = clazz;
+      this.converter = (v) -> {
+        try {
+          return ConfigUtils.convertValue(v, clazz);
+        } catch (Exception e) {
+          throw new IllegalArgumentException(String.format(
+              "Could not parse value '%s' for key '%s'.", v.toString(),
+              key), e);
+        }
+      };
+    }
+
+    TypedConfigOptionBuilder(String key, Class<T> clazz, Function<Object, T> converter) {
+      this.key = key;
+      this.clazz = clazz;
+      this.converter = converter;
+    }
+
+    public TypedConfigOptionBuilder checkValue(Function<T, Boolean> checkValue, String errMsg) {
+      Function<Object, T> newConverter = (v) -> {
+        T newValue = this.converter.apply(v);
+        if (!checkValue.apply(newValue)) {
+          throw new IllegalArgumentException(errMsg);
+        }
+        return newValue;
+      };
+      return new TypedConfigOptionBuilder(key, clazz, newConverter);
     }
 
     /**
@@ -136,7 +171,8 @@ public class ConfigOptions {
         key,
         clazz,
         ConfigOption.EMPTY_DESCRIPTION,
-        value);
+        value,
+        converter);
     }
 
     /**
@@ -149,7 +185,8 @@ public class ConfigOptions {
         key,
         clazz,
         ConfigOption.EMPTY_DESCRIPTION,
-        null);
+        null,
+        converter);
     }
   }
 }

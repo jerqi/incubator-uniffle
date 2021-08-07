@@ -2,10 +2,7 @@ package com.tencent.rss.common.config;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class ConfigOptionTest {
 
@@ -41,5 +38,28 @@ public class ConfigOptionTest {
         .withDescription("Boolean config key");
     assertFalse(booleanConfig.defaultValue());
     assertEquals("Boolean config key", booleanConfig.description());
+
+    final ConfigOption<Integer> positiveInt = ConfigOptions
+        .key("key5")
+        .intType()
+        .checkValue((v) -> {return v > 0;}, "The value of key5 must be positive")
+        .defaultValue(1)
+        .withDescription("Positive integer key");
+    RssBaseConf conf = new RssBaseConf();
+    conf.set(positiveInt, -1);
+    boolean isException = false;
+    try {
+      conf.get(positiveInt);
+    } catch (IllegalArgumentException ie) {
+      isException = true;
+      assertTrue(ie.getMessage().contains("The value of key5 must be positive"));
+    }
+    assertTrue(isException);
+    conf.set(positiveInt, 1);
+    try {
+      conf.get(positiveInt);
+    } catch (IllegalArgumentException ie) {
+      fail();
+    }
   }
 }

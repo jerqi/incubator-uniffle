@@ -1,6 +1,7 @@
 package com.tencent.rss.common.config;
 
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * A {@code ConfigOption} describes a configuration parameter. It encapsulates
@@ -36,18 +37,30 @@ public class ConfigOption<T> {
   private final Class<?> clazz;
 
   /**
+   * The function which convert the input data to desired type
+   */
+  private final Function<Object, T> converter;
+
+  /**
    * Creates a new config option with fallback keys.
    *
    * @param key          The current key for that config option
    * @param clazz        describes type of the ConfigOption, see description of the clazz field
    * @param description  Description for that option
    * @param defaultValue The default value for this option
+   * @param converter    The method which convert the input data to desired type
    */
-  ConfigOption(String key, Class<?> clazz, String description, T defaultValue) {
+  ConfigOption(
+      String key,
+      Class<?> clazz,
+      String description,
+      T defaultValue,
+      Function<Object, T> converter) {
     this.key = Objects.requireNonNull(key);
     this.description = description;
     this.defaultValue = defaultValue;
     this.clazz = Objects.requireNonNull(clazz);
+    this.converter = Objects.requireNonNull(converter);
   }
 
   /**
@@ -58,7 +71,7 @@ public class ConfigOption<T> {
    * @return A new config option, with given description.
    */
   public ConfigOption<T> withDescription(final String description) {
-    return new ConfigOption<>(key, clazz, description, defaultValue);
+    return new ConfigOption<>(key, clazz, description, defaultValue, converter);
   }
 
   // ------------------------------------------------------------------------
@@ -106,6 +119,16 @@ public class ConfigOption<T> {
    */
   public String description() {
     return description;
+  }
+
+  /**
+   * The method which convert the input data to desired type
+   * @param v      the input value
+   * @param clazz  the desired type
+   * @return   the value for desired type
+   */
+  public T convertValue(Object v, Class<?> clazz) {
+    return converter.apply(v);
   }
 
   @Override
