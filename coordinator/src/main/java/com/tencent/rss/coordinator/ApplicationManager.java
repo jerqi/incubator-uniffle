@@ -7,6 +7,8 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +22,8 @@ public class ApplicationManager {
   public ApplicationManager(CoordinatorConf conf) {
     expired = conf.getLong(CoordinatorConf.COORDINATOR_APP_EXPIRED);
     // the thread for checking application status
-    scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+    scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+        new ThreadFactoryBuilder().setDaemon(true).setNameFormat("ApplicationManager-%d").build());
     scheduledExecutorService.scheduleAtFixedRate(
         () -> statusCheck(), expired / 2, expired / 2, TimeUnit.MILLISECONDS);
   }

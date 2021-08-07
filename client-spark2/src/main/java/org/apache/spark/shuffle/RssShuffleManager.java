@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tencent.rss.client.api.ShuffleWriteClient;
 import com.tencent.rss.client.factory.ShuffleClientFactory;
 import com.tencent.rss.client.response.SendShuffleDataResult;
@@ -129,7 +130,8 @@ public class RssShuffleManager implements ShuffleManager {
       int keepAliveTime = sparkConf.getInt(RssClientConfig.RSS_CLIENT_SEND_THREAD_POOL_KEEPALIVE,
           RssClientConfig.RSS_CLIENT_SEND_THREAD_POOL_KEEPALIVE_DEFAULT_VALUE);
       threadPoolExecutor = new ThreadPoolExecutor(poolSize, poolSize * 2, keepAliveTime, TimeUnit.SECONDS,
-          Queues.newLinkedBlockingQueue(Integer.MAX_VALUE));
+          Queues.newLinkedBlockingQueue(Integer.MAX_VALUE),
+          new ThreadFactoryBuilder().setDaemon(true).setNameFormat("SendData").build());
     }
   }
 

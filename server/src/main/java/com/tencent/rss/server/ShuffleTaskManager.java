@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedBlock;
@@ -72,11 +73,13 @@ public class ShuffleTaskManager {
     this.commitCheckIntervalMax = conf.getLong(ShuffleServerConf.SERVER_COMMIT_CHECK_INTERVAL_MAX);
     this.preAllocationExpired = conf.getLong(ShuffleServerConf.SERVER_PRE_ALLOCATION_EXPIRED);
     // the thread for checking application status
-    this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+    this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+        new ThreadFactoryBuilder().setDaemon(true).setNameFormat("checkResource-%d").build());
     scheduledExecutorService.scheduleAtFixedRate(
         () -> preAllocatedBufferCheck(), preAllocationExpired / 2,
         preAllocationExpired / 2, TimeUnit.MILLISECONDS);
-    this.expiredAppCleanupExecutorService = Executors.newSingleThreadScheduledExecutor();
+    this.expiredAppCleanupExecutorService = Executors.newSingleThreadScheduledExecutor(
+        new ThreadFactoryBuilder().setDaemon(true).setNameFormat("expiredAppCleaner").build());
     expiredAppCleanupExecutorService.scheduleAtFixedRate(
         () -> checkResourceStatus(), appExpiredWithoutHB / 2,
         appExpiredWithoutHB / 2, TimeUnit.MILLISECONDS);
@@ -91,7 +94,9 @@ public class ShuffleTaskManager {
         }
       }
     };
-    new Thread(clearResourceThread).start();
+    Thread thread = new Thread(clearResourceThread);
+    thread.setName("clearResourceThread");
+    thread.start();
   }
 
   public StatusCode registerShuffle(String appId, int shuffleId, List<PartitionRange> partitionRanges) {

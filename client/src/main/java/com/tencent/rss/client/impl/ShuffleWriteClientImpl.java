@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tencent.rss.client.api.CoordinatorClient;
 import com.tencent.rss.client.api.ShuffleServerClient;
 import com.tencent.rss.client.api.ShuffleWriteClient;
@@ -58,7 +59,8 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
     this.retryMax = retryMax;
     this.retryIntervalMax = retryIntervalMax;
     coordinatorClientFactory = new CoordinatorClientFactory(clientType);
-    heartBeatExecutorService = Executors.newFixedThreadPool(heartBeatThreadNum);
+    heartBeatExecutorService = Executors.newFixedThreadPool(heartBeatThreadNum,
+        new ThreadFactoryBuilder().setDaemon(true).setNameFormat("client-heartbeat-%d").build());
   }
 
   private void sendShuffleDataAsync(

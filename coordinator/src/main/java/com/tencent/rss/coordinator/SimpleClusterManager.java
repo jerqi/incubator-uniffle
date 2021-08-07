@@ -11,6 +11,8 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +27,8 @@ public class SimpleClusterManager implements ClusterManager {
   public SimpleClusterManager(long heartbeatTimeout) {
     this.heartbeatTimeout = heartbeatTimeout;
     // the thread for checking if shuffle server report heartbeat in time
-    scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+    scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
+        new ThreadFactoryBuilder().setDaemon(true).setNameFormat("SimpleClusterManager-%d").build());
     scheduledExecutorService.scheduleAtFixedRate(
         () -> nodesCheck(), heartbeatTimeout / 3,
         heartbeatTimeout / 3, TimeUnit.MILLISECONDS);

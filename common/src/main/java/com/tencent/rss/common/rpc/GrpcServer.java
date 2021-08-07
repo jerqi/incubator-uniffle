@@ -1,6 +1,7 @@
 package com.tencent.rss.common.rpc;
 
 import com.google.common.collect.Queues;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tencent.rss.common.config.RssBaseConf;
 import io.grpc.BindableService;
 import io.grpc.Server;
@@ -28,7 +29,8 @@ public class GrpcServer implements ServerInterface {
         rpcExecutorSize * 2,
         10,
         TimeUnit.MINUTES,
-        Queues.newLinkedBlockingQueue(Integer.MAX_VALUE)
+        Queues.newLinkedBlockingQueue(Integer.MAX_VALUE),
+        new ThreadFactoryBuilder().setDaemon(true).setNameFormat("Grpc-%d").build()
     );
 
     this.server = ServerBuilder

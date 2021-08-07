@@ -49,6 +49,7 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
     CoordinatorConf coordinatorConf = new CoordinatorConf();
     coordinatorConf.setInteger("rss.rpc.server.port", COORDINATOR_PORT_1);
     coordinatorConf.setInteger("rss.jetty.http.port", JETTY_PORT_1);
+    coordinatorConf.setInteger("rss.rpc.executor.size", 10);
     return coordinatorConf;
   }
 

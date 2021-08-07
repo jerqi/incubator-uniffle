@@ -1,11 +1,14 @@
 package com.tencent.rss.common.web;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tencent.rss.common.config.RssBaseConf;
 import java.io.FileNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import javax.servlet.Servlet;
 import org.eclipse.jetty.http.HttpVersion;
@@ -65,7 +68,9 @@ public class JettyServer {
     int corePoolSize = conf.getInteger(RssBaseConf.JETTY_CORE_POOL_SIZE);
     int maxPoolSize = conf.getInteger(RssBaseConf.JETTY_MAX_POOL_SIZE);
     ExecutorThreadPool pool = new ExecutorThreadPool(
-        corePoolSize, maxPoolSize, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+        new ThreadPoolExecutor(corePoolSize, maxPoolSize, 60L, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(), new ThreadFactoryBuilder().setDaemon(true)
+            .setNameFormat("Jetty-%d").build()));
     return pool;
   }
 
