@@ -12,6 +12,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,15 +45,12 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
     this.storageBasePath = storageBasePath;
     this.hadoopConf = hadoopConf;
 
-    try {
-      String fullShufflePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
-          ShuffleStorageUtils.getUploadShuffleDataPath(appId, shuffleId, partitionId));
-      init(fullShufflePath);
-    } catch (RuntimeException e) {
-      String combinePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
-          ShuffleStorageUtils.getCombineDataPath(appId, shuffleId));
-      init(combinePath);
-    }
+    String fullShufflePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
+        ShuffleStorageUtils.getUploadShuffleDataPath(appId, shuffleId, partitionId));
+    init(fullShufflePath);
+    String combinePath = ShuffleStorageUtils.getFullShuffleDataFolder(storageBasePath,
+        ShuffleStorageUtils.getCombineDataPath(appId, shuffleId));
+    init(combinePath);
     readAllIndexSegments();
   }
 
@@ -63,19 +61,23 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
     try {
       fs = ShuffleStorageUtils.getFileSystemForPath(baseFolder, hadoopConf);
     } catch (IOException ioe) {
-      throw new RuntimeException("Can't get FileSystem for " + baseFolder);
+      LOG.warn("Can't get FileSystem for " + baseFolder);
+      return;
     }
     FileStatus[] indexFiles;
     String failedGetIndexFileMsg = "Can't list index file in  " + baseFolder;
+
     try {
-      // get all index files
       indexFiles = fs.listStatus(baseFolder,
           file -> file.getName().endsWith(Constants.SHUFFLE_INDEX_FILE_SUFFIX));
     } catch (Exception e) {
-      throw new RuntimeException(failedGetIndexFileMsg);
+      LOG.warn(failedGetIndexFileMsg, e);
+      return;
     }
+
     if (indexFiles == null || indexFiles.length == 0) {
-      throw new RuntimeException(failedGetIndexFileMsg);
+      LOG.warn(failedGetIndexFileMsg);
+      return;
     }
 
     for (FileStatus status : indexFiles) {

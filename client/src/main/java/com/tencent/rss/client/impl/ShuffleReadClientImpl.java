@@ -17,6 +17,9 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicLong;
+
+import com.tencent.rss.storage.util.StorageType;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
@@ -37,6 +40,7 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
   private AtomicLong copyTime = new AtomicLong(0);
   private AtomicLong crcCheckTime = new AtomicLong(0);
   private ClientReadHandler clientReadHandler;
+  private CreateShuffleReadHandlerRequest fallbackClientRequest;
   private int segmentIndex = 0;
 
   public ShuffleReadClientImpl(
@@ -70,6 +74,11 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
     request.setShuffleServerInfoList(shuffleServerInfoList);
     request.setHadoopConf(hadoopConf);
     clientReadHandler = ShuffleHandlerFactory.getInstance().createShuffleReadHandler(request);
+    if (request.getStorageType().equals(StorageType.LOCALFILE.toString())
+      && !StringUtils.isEmpty(request.getStorageBasePath())) {
+      fallbackClientRequest = request;
+      fallbackClientRequest.setStorageType("HDFS_BACKUP");
+    }
   }
 
   @Override
@@ -81,20 +90,26 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
 
     // if need request new data from shuffle server
     if (bufferSegmentQueue.isEmpty()) {
-      long start = System.currentTimeMillis();
-      ShuffleDataResult sdr = clientReadHandler.readShuffleData(segmentIndex);
-      segmentIndex++;
-      readDataTime.addAndGet(System.currentTimeMillis() - start);
-      if (sdr == null) {
-        // there is no data, return
-        return null;
+      try {
+        if (!read()) {
+          if (fallbackClientRequest != null) {
+            checkProcessedBlockIds();
+          }
+          return null;
+        }
+      } catch (RuntimeException re) {
+        LOG.info("start mix read", re);
+        clientReadHandler.close();
+        if (fallbackClientRequest == null) {
+          throw re;
+        }
+        clientReadHandler = ShuffleHandlerFactory.getInstance().createShuffleReadHandler(fallbackClientRequest);
+        fallbackClientRequest = null;
+        segmentIndex = 0;
+        if (!read()) {
+          return null;
+        }
       }
-      readBuffer = sdr.getData();
-      if (readBuffer == null || readBuffer.length == 0) {
-        // there is no data, return
-        return null;
-      }
-      bufferSegmentQueue.addAll(sdr.getBufferSegments());
     }
     // get next buffer segment
     BufferSegment bs = null;
@@ -149,6 +164,22 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
   @VisibleForTesting
   protected Roaring64NavigableMap getProcessedBlockIds() {
     return processedBlockIds;
+  }
+
+  private boolean read() {
+    long start = System.currentTimeMillis();
+    ShuffleDataResult sdr = clientReadHandler.readShuffleData(segmentIndex);
+    segmentIndex++;
+    readDataTime.addAndGet(System.currentTimeMillis() - start);
+    if (sdr == null) {
+      return false;
+    }
+    readBuffer = sdr.getData();
+    if (readBuffer == null || readBuffer.length == 0) {
+      return false;
+    }
+    bufferSegmentQueue.addAll(sdr.getBufferSegments());
+    return true;
   }
 
   @Override

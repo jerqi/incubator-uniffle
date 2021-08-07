@@ -28,7 +28,7 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       Path partitionPath = new Path(basePath + "/app1/0/1");
       fs.mkdirs(partitionPath);
 
-      Path dataPath = new Path(basePath + "/app1/0/1/1.data");
+      Path dataPath = new Path(basePath + "/app1/0/1/2.data");
       HdfsFileWriter writer = new HdfsFileWriter(dataPath, conf);
       byte[] data = new byte[256];
       new Random().nextBytes(data);
@@ -38,7 +38,7 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       writer.writeData(buffer);
       writer.close();
 
-      Path indexPath = new Path(basePath + "/app1/0/1/1.index");
+      Path indexPath = new Path(basePath + "/app1/0/1/2.index");
       HdfsFileWriter iWriter = new HdfsFileWriter(indexPath, conf);
       List<Integer> somePartitions = Lists.newArrayList();
       somePartitions.add(1);
