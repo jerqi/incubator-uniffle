@@ -19,7 +19,7 @@ public interface ShuffleWriteClient {
   void registerShuffle(ShuffleServerInfo shuffleServerInfo,
       String appId, int shuffleId, List<PartitionRange> partitionRanges);
 
-  void sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId, int numMaps);
+  boolean sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId, int numMaps);
 
   void registerCoordinators(String coordinators);
 

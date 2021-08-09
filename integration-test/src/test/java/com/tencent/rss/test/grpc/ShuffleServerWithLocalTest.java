@@ -81,13 +81,13 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
     Roaring64NavigableMap blockIdBitmap4 = Roaring64NavigableMap.bitmapOf();
 
     List<ShuffleBlockInfo> blocks1 = createShuffleBlockList(
-        0, 0, 0, 3, 25, blockIdBitmap1, expectedData);
+        0, 0, 0, 3, 25, blockIdBitmap1, expectedData, mockSSI);
     List<ShuffleBlockInfo> blocks2 = createShuffleBlockList(
-        0, 1, 1, 5, 25, blockIdBitmap2, expectedData);
+        0, 1, 1, 5, 25, blockIdBitmap2, expectedData, mockSSI);
     List<ShuffleBlockInfo> blocks3 = createShuffleBlockList(
-        0, 2, 2, 4, 25, blockIdBitmap3, expectedData);
+        0, 2, 2, 4, 25, blockIdBitmap3, expectedData, mockSSI);
     List<ShuffleBlockInfo> blocks4 = createShuffleBlockList(
-        0, 3, 3, 1, 25, blockIdBitmap4, expectedData);
+        0, 3, 3, 1, 25, blockIdBitmap4, expectedData, mockSSI);
     Map<Integer, List<ShuffleBlockInfo>> partitionToBlocks = Maps.newHashMap();
     partitionToBlocks.put(0, blocks1);
     partitionToBlocks.put(1, blocks2);

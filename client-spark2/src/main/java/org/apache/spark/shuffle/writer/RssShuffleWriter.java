@@ -192,10 +192,8 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   @VisibleForTesting
   protected void sendCommit() {
     ExecutorService executor = Executors.newSingleThreadExecutor();
-    Future<Void> future = executor.submit(() -> {
-      shuffleWriteClient.sendCommit(shuffleServersForData, appId, shuffleId, numMaps);
-      return null;
-    });
+    Future<Boolean> future = executor.submit(
+        () -> shuffleWriteClient.sendCommit(shuffleServersForData, appId, shuffleId, numMaps));
     long start = System.currentTimeMillis();
     int currentWait = 200;
     int maxWait = 5000;
@@ -208,6 +206,14 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       } catch (Exception e) {
         LOG.error("Exception happened when thread.sleep", e);
       }
+    }
+    try {
+      // check if commit/finish rpc is successful
+      if (!future.get()) {
+        throw new RuntimeException("Failed to commit task to shuffle server");
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Exception happened when get commit status", e);
     }
   }
 

@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -143,7 +144,8 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   }
 
   @Override
-  public void sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId, int numMaps) {
+  public boolean sendCommit(Set<ShuffleServerInfo> shuffleServerInfoSet, String appId, int shuffleId, int numMaps) {
+    AtomicInteger successfulCommit = new AtomicInteger(0);
     shuffleServerInfoSet.parallelStream().forEach(ssi -> {
       RssSendCommitRequest request = new RssSendCommitRequest(appId, shuffleId);
       String errorMsg = "Failed to commit shuffle data to " + ssi + " for shuffleId[" + shuffleId + "]";
@@ -160,19 +162,26 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
             RssFinishShuffleResponse rfsResponse =
                 getShuffleServerClient(ssi).finishShuffle(new RssFinishShuffleRequest(appId, shuffleId));
             if (rfsResponse.getStatusCode() != ResponseStatusCode.SUCCESS) {
-              LOG.error("Failed to finish shuffle to " + ssi + " for shuffleId[" + shuffleId
-                  + "] with statusCode " + rfsResponse.getStatusCode());
+              String msg = "Failed to finish shuffle to " + ssi + " for shuffleId[" + shuffleId
+                  + "] with statusCode " + rfsResponse.getStatusCode();
+              LOG.error(msg);
+              throw new Exception(msg);
             } else {
               LOG.info("Successfully finish shuffle to " + ssi + " for shuffleId[" + shuffleId + "]");
             }
           }
         } else {
-          LOG.error(errorMsg + " with statusCode " + response.getStatusCode());
+          String msg = errorMsg + " with statusCode " + response.getStatusCode();
+          LOG.error(msg);
+          throw new Exception(msg);
         }
+        successfulCommit.incrementAndGet();
       } catch (Exception e) {
         LOG.error(errorMsg, e);
       }
     });
+    // check if every commit/finish call is successful
+    return successfulCommit.get() == shuffleServerInfoSet.size();
   }
 
   @Override

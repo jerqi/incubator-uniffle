@@ -15,11 +15,12 @@ import org.roaringbitmap.longlong.Roaring64NavigableMap;
 public abstract class ShuffleReadWriteBase extends IntegrationTestBase {
 
   private static AtomicLong ATOMIC_LONG = new AtomicLong(0L);
+  protected List<ShuffleServerInfo> mockSSI =
+      Lists.newArrayList(new ShuffleServerInfo("id", "host", 0));
 
   protected List<ShuffleBlockInfo> createShuffleBlockList(int shuffleId, int partitionId, long taskAttemptId,
-      int blockNum, int length, Roaring64NavigableMap blockIdBitmap, Map<Long, byte[]> dataMap) {
-    List<ShuffleServerInfo> shuffleServerInfoList =
-        Lists.newArrayList(new ShuffleServerInfo("id", "host", 0));
+      int blockNum, int length, Roaring64NavigableMap blockIdBitmap, Map<Long, byte[]> dataMap,
+      List<ShuffleServerInfo> shuffleServerInfoList) {
     List<ShuffleBlockInfo> shuffleBlockInfoList = Lists.newArrayList();
     for (int i = 0; i < blockNum; i++) {
       byte[] buf = new byte[length];
