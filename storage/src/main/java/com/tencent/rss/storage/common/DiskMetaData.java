@@ -10,6 +10,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +22,6 @@ import org.slf4j.LoggerFactory;
  *  Disk status data contains writable flag, Shuffle status data contains stable, uploading, deleting flag.
  *  Disk indicator data contains size, fileNum, shuffleNum, Shuffle indicator contains size, partition list,
  *  uploaded partition list and uploaded size.
- *
  */
 public class DiskMetaData {
 
@@ -31,6 +32,7 @@ public class DiskMetaData {
   private final AtomicLong shuffleNum = new AtomicLong(0L);
   private final Map<String, ShuffleMeta> shuffleMetaMap = Maps.newConcurrentMap();
 
+  // todo: add ut
   public List<String> getSortedShuffleKeys(boolean checkRead, int hint) {
     // Filter the unread shuffle is checkRead is true
     // Filter the remain size is 0
@@ -40,18 +42,11 @@ public class DiskMetaData {
         .filter(e -> (!checkRead || e.getValue().hasRead.get()) && e.getValue().getNotUploadedSize() > 0)
         .collect(Collectors.toList());
 
-    // reverse sort by the not uploadedSize size
-    shuffleMetaList.sort((Entry<String, ShuffleMeta> o1, Entry<String, ShuffleMeta> o2) -> {
-      long sz1 = o1.getValue().getSize().longValue();
-      long sz2 = o2.getValue().getSize().longValue();
-      if (sz1 > sz2) {
-        return -1;
-      } else if (sz1 < sz2) {
-        return 1;
-      } else {
-        return 0;
-      }
-    });
+      shuffleMetaList.sort((Entry<String, ShuffleMeta> o1, Entry<String, ShuffleMeta> o2) -> {
+        long sz1 = o1.getValue().getSize().longValue();
+        long sz2 = o2.getValue().getSize().longValue();
+        return -Long.compare(sz1, sz2);
+      });
 
     return shuffleMetaList
         .subList(0, Math.min(shuffleMetaList.size(), hint))
@@ -173,6 +168,11 @@ public class DiskMetaData {
     getShuffleMeta(shuffleKey).updateLastReadTs();
   }
 
+  public ReadWriteLock getLock(String shuffleKey) {
+    return getShuffleMeta(shuffleKey).getLock();
+  }
+
+
   // Consider that ShuffleMeta is a simple class, we keep the class ShuffleMeta as an inner class.
   private class ShuffleMeta {
     private final AtomicLong size = new AtomicLong(0);
@@ -180,6 +180,7 @@ public class DiskMetaData {
     private final Set<Integer> uploadedPartitionSet = Sets.newConcurrentHashSet();
     private final AtomicLong uploadedSize = new AtomicLong(0);
     private final AtomicBoolean hasRead = new AtomicBoolean(false);
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private AtomicLong lastReadTs = new AtomicLong(-1L);
 
     public AtomicLong getSize() {
@@ -213,6 +214,10 @@ public class DiskMetaData {
 
     public long getShuffleLastReadTs() {
       return lastReadTs.get();
+    }
+
+    public ReadWriteLock getLock() {
+      return lock;
     }
   }
 

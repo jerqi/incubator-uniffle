@@ -136,7 +136,7 @@ public class ConfigUtils {
         }
       }
     } catch (Exception e) {
-      throw new IllegalArgumentException("Load shuffle server configuration option exception");
+      throw new IllegalArgumentException("Load Configuration option exception");
     }
     return configOptionList;
   }

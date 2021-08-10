@@ -84,6 +84,9 @@ public class ShuffleServer {
     if (registerHeartBeat != null) {
       registerHeartBeat.shutdown();
     }
+    if (multiStorageManager != null) {
+      multiStorageManager.stop();
+    }
     server.stop();
   }
 
@@ -97,6 +100,7 @@ public class ShuffleServer {
     LOG.info("Start to initialize server {}", id);
     if (StorageType.LOCALFILE.toString().equals(shuffleServerConf.get(RssBaseConf.RSS_STORAGE_TYPE))) {
       multiStorageManager = new MultiStorageManager(shuffleServerConf, id);
+      multiStorageManager.start();
     }
     registerHeartBeat = new RegisterHeartBeat(this);
     shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id, this, multiStorageManager);

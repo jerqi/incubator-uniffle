@@ -3,6 +3,7 @@ package com.tencent.rss.server;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.BufferSegment;
+import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.config.RssBaseConf;
@@ -245,7 +246,9 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
       do {
         Thread.sleep(1 * 1000);
       } while(manager.getEventNumInFlush() != 0);
-      storageManager.updateWriteEvent(event);
+      List<ShufflePartitionedBlock> blocks = Lists.newArrayList(new ShufflePartitionedBlock(100, 1000, 1, 1, 1L, null));
+      ShuffleDataFlushEvent bigEvent = new ShuffleDataFlushEvent(1, "1", 1, 1, 1, 100, blocks);
+      storageManager.updateWriteEvent(bigEvent);
       manager.addPendingEvents(event);
       manager.addPendingEvents(event);
       manager.addPendingEvents(event);

@@ -18,6 +18,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReadWriteLock;
 import java.util.stream.Collectors;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
@@ -37,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * so ShuffleUploader use Joshua Bloch builder pattern to construct and validate the parameters.
  *
  */
-public class ShuffleUploader implements Runnable {
+public class ShuffleUploader {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleUploader.class);
 
@@ -50,9 +51,11 @@ public class ShuffleUploader implements Runnable {
   private final String hdfsBathPath;
   private final String serverId;
   private final Configuration hadoopConf;
+  private final Thread daemonThread;
 
   private final ExecutorService executorService;
   private boolean forceUpload;
+  private volatile boolean isStopped;
 
   public ShuffleUploader(Builder builder) {
     this.diskItem = builder.diskItem;
@@ -66,6 +69,16 @@ public class ShuffleUploader implements Runnable {
     this.hdfsBathPath = builder.hdfsBathPath;
     this.serverId = builder.serverId;
     this.hadoopConf = builder.hadoopConf;
+
+    Runnable runnable = () -> {
+      run();
+    };
+
+    daemonThread = new ThreadFactoryBuilder()
+        .setDaemon(true)
+        .setNameFormat(diskItem.getBasePath() + " - ShuffleUploader-%d")
+        .build()
+        .newThread(runnable);
 
     executorService = Executors.newFixedThreadPool(
         uploadThreadNum,
@@ -192,7 +205,7 @@ public class ShuffleUploader implements Runnable {
   }
 
   public void run() {
-    for (;;) {
+    while (!isStopped) {
       try {
         long start = System.currentTimeMillis();
         upload();
@@ -208,8 +221,19 @@ public class ShuffleUploader implements Runnable {
     }
   }
 
+  public void start() {
+    daemonThread.start();
+  }
+
+  public void stop() {
+    isStopped = true;
+    Uninterruptibles.joinUninterruptibly(daemonThread);
+    executorService.shutdownNow();
+  }
+
   // upload is a blocked until uploading success or timeout exception
   private void upload() {
+
     checkDiskStatus();
 
     List<ShuffleFileInfo> shuffleFileInfos = selectShuffleFiles(uploadThreadNum);
@@ -223,7 +247,14 @@ public class ShuffleUploader implements Runnable {
       if (!shuffleFileInfo.isValid()) {
         continue;
       }
-
+      ReadWriteLock lock = diskItem.getLock(shuffleFileInfo.getKey());
+      if (forceUpload) {
+        boolean locked = lock.writeLock().tryLock();
+        if (!locked) {
+          continue;
+        }
+      }
+      boolean force = forceUpload;
       maxSize = Math.max(maxSize, shuffleFileInfo.getSize());
       Callable<ShuffleUploadResult> callable = () -> {
         try {
@@ -242,11 +273,30 @@ public class ShuffleUploader implements Runnable {
               shuffleFileInfo.getDataFiles(),
               shuffleFileInfo.getIndexFiles(),
               shuffleFileInfo.getPartitions());
+          if (shuffleUploadResult == null) {
+            return null;
+          }
           shuffleUploadResult.setShuffleKey(shuffleFileInfo.getKey());
+          if (force) {
+            for (File file : shuffleFileInfo.getDataFiles()) {
+              file.delete();
+            }
+            for (File file : shuffleFileInfo.getIndexFiles()) {
+              file.delete();
+            }
+            diskItem.getDiskMetaData().removeShufflePartitionList(shuffleFileInfo.getKey(),
+                shuffleUploadResult.getPartitions());
+            diskItem.getDiskMetaData().updateDiskSize(-shuffleUploadResult.getSize());
+            diskItem.getDiskMetaData().updateShuffleSize(shuffleFileInfo.getKey(), - shuffleUploadResult.getSize());
+          }
           return shuffleUploadResult;
         } catch (Exception e) {
           LOG.error("Fail to construct upload callable list {}", ExceptionUtils.getStackTrace(e));
           return null;
+        } finally {
+          if (force) {
+            lock.writeLock().unlock();
+          }
         }
       };
       callableList.add(callable);
@@ -260,7 +310,7 @@ public class ShuffleUploader implements Runnable {
       for (Future<ShuffleUploadResult> future : futures) {
         if (future.isDone()) {
           ShuffleUploadResult shuffleUploadResult = future.get();
-          if (shuffleUploadResult == null) {
+          if (shuffleUploadResult == null || forceUpload) {
             continue;
           }
           String shuffleKey = shuffleUploadResult.getShuffleKey();

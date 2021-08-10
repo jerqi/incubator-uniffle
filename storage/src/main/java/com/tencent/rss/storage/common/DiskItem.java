@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReadWriteLock;
 
 public class DiskItem {
 
@@ -22,9 +23,11 @@ public class DiskItem {
   private final double highWaterMarkOfWrite;
   private final double lowWaterMarkOfWrite;
   private final long shuffleExpiredTimeoutMs;
+  private final Thread cleaner;
 
   private DiskMetaData diskMetaData = new DiskMetaData();
-  private boolean canRead = true;
+  private boolean canWrite = true;
+  private volatile boolean isStopped = false;
 
   private DiskItem(Builder builder) {
     this.basePath = builder.basePath;
@@ -52,10 +55,10 @@ public class DiskItem {
     // we assume that it's enough for one thread per disk. If in testing mode
     // the thread won't be started. cleanInterval should minus the execute time
     // of the method clean.
-    Thread thread = new Thread(basePath + "-Cleaner") {
+    cleaner = new Thread(basePath + "-Cleaner") {
       @Override
       public void run() {
-        for (;;) {
+        while (!isStopped) {
           try {
             clean();
             // todo: get sleepInterval from configuration
@@ -66,17 +69,25 @@ public class DiskItem {
         }
       }
     };
-    thread.setDaemon(true);
-    thread.start();
+    cleaner.setDaemon(true);
+  }
+
+  public void start() {
+    cleaner.start();
+  }
+
+  public void stop() {
+    isStopped = true;
+    Uninterruptibles.joinUninterruptibly(cleaner);
   }
 
   public boolean canWrite() {
-    if (canRead) {
-      canRead = diskMetaData.getDiskSize().doubleValue() * 100 / capacity < highWaterMarkOfWrite;
+    if (canWrite) {
+      canWrite = diskMetaData.getDiskSize().doubleValue() * 100 / capacity < highWaterMarkOfWrite;
     } else {
-      canRead = diskMetaData.getDiskSize().doubleValue() * 100 / capacity < lowWaterMarkOfWrite;
+      canWrite = diskMetaData.getDiskSize().doubleValue() * 100 / capacity < lowWaterMarkOfWrite;
     }
-    return canRead;
+    return canWrite;
   }
 
   public String getBasePath() {
@@ -203,5 +214,9 @@ public class DiskItem {
   public void removeResources(String shuffleKey) {
     diskMetaData.updateDiskSize(-diskMetaData.getShuffleSize(shuffleKey));
     diskMetaData.remoteShuffle(shuffleKey);
+  }
+
+  public ReadWriteLock getLock(String shuffleKey) {
+    return diskMetaData.getLock(shuffleKey);
   }
 }

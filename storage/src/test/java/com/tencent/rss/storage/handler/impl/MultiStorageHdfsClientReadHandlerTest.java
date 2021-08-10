@@ -119,7 +119,7 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       List<Integer> somePartitions = Lists.newArrayList();
       somePartitions.add(1);
       List<Long> someSizes = Lists.newArrayList();
-      someSizes.add(32L);
+      someSizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
       iWriter.writeHeader(somePartitions, someSizes);
       FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
           1, 0, 256, 256, 1, 1);
@@ -166,6 +166,83 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       List<byte[]> expectData = Lists.newArrayList();
       expectData.add(data1);
       compareDataAndIndex("app2", 0, 2, basePath, expectData, 2);
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail();
+    }
+  }
+
+  @Test
+  public void handlerReadTwoKindsDataTest() {
+    try {
+      String basePath = HDFS_URI + "test_backup_read";
+      Path combinePath = new Path(basePath + "/app4/0/combine");
+      fs.mkdirs(combinePath);
+      Path partitionPath = new Path(basePath + "/app4/0/2");
+      fs.mkdirs(partitionPath);
+      Path dataPath = new Path(basePath + "/app4/0/2/2.data");
+
+      HdfsFileWriter writer = new HdfsFileWriter(dataPath, conf);
+      byte[] data = new byte[256];
+      new Random().nextBytes(data);
+      ByteBuffer buffer = ByteBuffer.allocate(data.length);
+      buffer.put(data);
+      buffer.flip();
+      writer.writeData(buffer);
+      writer.close();
+      Path indexPath = new Path(basePath + "/app4/0/2/2.index");
+      HdfsFileWriter iWriter = new HdfsFileWriter(indexPath, conf);
+      List<Integer> somePartitions = Lists.newArrayList();
+      somePartitions.add(2);
+      List<Long> someSizes = Lists.newArrayList();
+      someSizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
+      iWriter.writeHeader(somePartitions, someSizes);
+      FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
+          1, 0, 256, 256, 1, 1);
+      iWriter.writeIndex(segment);
+      iWriter.close();
+
+      Path combineDataPath = new Path(basePath + "/app4/0/combine/1.data");
+      Path combineIndexPath = new Path(basePath + "/app4/0/combine/1.index");
+      HdfsFileWriter combineWriter = new HdfsFileWriter(combineDataPath, conf);
+      HdfsFileWriter combineIndexWriter = new HdfsFileWriter(combineIndexPath, conf);
+
+      byte[] data1 = new byte[256];
+      new Random().nextBytes(data1);
+      ByteBuffer buffer1 = ByteBuffer.allocate(data1.length);
+      buffer1.put(data1);
+      buffer1.flip();
+      combineWriter.writeData(buffer1);
+
+      byte[] data2 = new byte[256];
+      new Random().nextBytes(data2);
+      ByteBuffer buffer2 = ByteBuffer.allocate(data2.length);
+      buffer2.put(data2);
+      buffer2.flip();
+      combineWriter.writeData(buffer2);
+
+      List<Integer> partitions = Lists.newArrayList();
+      partitions.add(2);
+      partitions.add(3);
+      List<Long> sizes = Lists.newArrayList();
+      sizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
+      sizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
+      combineIndexWriter.writeHeader(partitions, sizes);
+      FileBasedShuffleSegment segment1 = new FileBasedShuffleSegment(
+          2, 0, 256, 256, 2, 1);
+      combineIndexWriter.writeIndex(segment1);
+      FileBasedShuffleSegment segment2 = new FileBasedShuffleSegment(
+          3, 256, 256, 256, 3, 1);
+      combineIndexWriter.writeIndex(segment2);
+      combineIndexWriter.close();
+      combineWriter.close();
+
+      Set<Long> expects = Sets.newHashSet();
+      expects.add(2L);
+      List<byte[]> expectData = Lists.newArrayList();
+      expectData.add(data1);
+      expectData.add(data);
+      compareDataAndIndex("app4", 0, 2, basePath, expectData, 2);
     } catch (Exception e) {
       e.printStackTrace();
       fail();

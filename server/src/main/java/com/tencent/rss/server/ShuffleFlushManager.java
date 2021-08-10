@@ -21,6 +21,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReadWriteLock;
 
 import org.apache.hadoop.conf.Configuration;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
@@ -144,9 +145,13 @@ public class ShuffleFlushManager {
             LOG.error("Failed to write data for " + event + " in " + retryMax + " times, shuffle data will be lost");
             break;
           }
+          ReadWriteLock lock = null;
+          if (multiStorageManager != null) {
+             lock = multiStorageManager.getForceUploadLock(event);
+            lock.readLock().lock();
+          }
           try {
             long startWrite = System.currentTimeMillis();
-
             handler.write(blocks);
             if (multiStorageManager != null) {
               multiStorageManager.updateWriteEvent(event);
@@ -175,6 +180,10 @@ public class ShuffleFlushManager {
             LOG.warn("Exception happened when write data for " + event + ", try again", e);
             ShuffleServerMetrics.counterWriteException.inc();
             Thread.sleep(1000);
+          } finally {
+            if (lock != null) {
+              lock.readLock().unlock();
+            }
           }
           retry++;
         }

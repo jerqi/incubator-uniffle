@@ -1,7 +1,7 @@
 package com.tencent.rss.server;
 
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.storage.common.DiskItem;
 import com.tencent.rss.storage.common.ShuffleUploader;
 import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
@@ -14,9 +14,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.locks.ReadWriteLock;
 
 public class MultiStorageManager {
 
@@ -40,6 +40,7 @@ public class MultiStorageManager {
   private final long cleanupIntervalMs;
 
   private final List<DiskItem> diskItems = Lists.newArrayList();
+  private final List<ShuffleUploader> uploaders = Lists.newArrayList();
   private final long shuffleExpiredTimeoutMs;
 
   public MultiStorageManager(ShuffleServerConf conf, String shuffleServerId) {
@@ -175,13 +176,27 @@ public class MultiStorageManager {
             .serverId(shuffleServerId)
             .hadoopConf(hadoopConf)
             .build();
-        new ThreadFactoryBuilder()
-            .setDaemon(true)
-            .setNameFormat(item.getBasePath() + " - ShuffleUploader-%d")
-            .build()
-            .newThread(shuffleUploader).start();
+        uploaders.add(shuffleUploader);
       }
     }
+  }
+
+  public void start() {
+    for (DiskItem item : diskItems) {
+      item.start();
+    }
+    for (ShuffleUploader uploader : uploaders) {
+      uploader.start();
+    }
+  }
+
+  public void stop() {
+     for (DiskItem item : diskItems) {
+       item.stop();
+     }
+     for (ShuffleUploader uploader : uploaders) {
+       uploader.stop();
+     }
   }
 
   public boolean canWrite(ShuffleDataFlushEvent event) {
@@ -198,7 +213,11 @@ public class MultiStorageManager {
     for (int i = event.getStartPartition(); i <= event.getEndPartition(); i++) {
       partitionList.add(i);
     }
-    diskItem.updateWrite(key, event.getSize(), partitionList);
+    long size = 0;
+    for (ShufflePartitionedBlock block : event.getShuffleBlocks()) {
+      size += block.getLength();
+    }
+    diskItem.updateWrite(key, size, partitionList);
   }
 
   public void updateReadEvent(String appId, int shuffleId, int partitionId) {
@@ -250,5 +269,13 @@ public class MultiStorageManager {
     for (Integer shuffleId : shuffleSet) {
       diskItems.forEach(item -> item.removeResources(generateKey(appId, shuffleId)));
     }
+  }
+
+  public ReadWriteLock getForceUploadLock(ShuffleDataFlushEvent event) {
+    DiskItem diskItem = getDiskItem(event);
+    String appId = event.getAppId();
+    int shuffleId = event.getShuffleId();
+    String key = generateKey(appId, shuffleId);
+    return diskItem.getLock(key);
   }
 }
