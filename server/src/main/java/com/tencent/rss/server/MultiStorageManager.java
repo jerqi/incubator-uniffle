@@ -3,7 +3,6 @@ package com.tencent.rss.server;
 import com.google.common.collect.Lists;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.storage.common.DiskItem;
-import com.tencent.rss.storage.common.ShuffleUploader;
 import com.tencent.rss.storage.factory.ShuffleHandlerFactory;
 import com.tencent.rss.storage.handler.api.ShuffleDeleteHandler;
 import com.tencent.rss.storage.request.CreateShuffleDeleteHandlerRequest;
@@ -220,10 +219,10 @@ public class MultiStorageManager {
     diskItem.updateWrite(key, size, partitionList);
   }
 
-  public void updateReadEvent(String appId, int shuffleId, int partitionId) {
+  public void prepareStartRead(String appId, int shuffleId, int partitionId) {
     DiskItem diskItem = getDiskItem(appId, shuffleId, partitionId);
     String key = generateKey(appId, shuffleId);
-    diskItem.updateRead(key);
+    diskItem.prepareStartRead(key);
   }
 
   public void updateLastReadTs(String appId, int shuffleId, int partitionId) {
@@ -245,21 +244,8 @@ public class MultiStorageManager {
     return String.join("/", appId, String.valueOf(shuffleId));
   }
 
-  public String generateKey(ShuffleDataFlushEvent event) {
-    return generateKey(event.getAppId(), (event.getShuffleId()));
-  }
-
   public int getDiskItemId(String appId, int shuffleId, int partitionId) {
     return ShuffleStorageUtils.getStorageIndex(diskItems.size(), appId, shuffleId, partitionId);
-  }
-
-  public String generateDir(String appId, int shuffleId, int partitionId) {
-    return String.join(
-        "/", appId, String.valueOf(shuffleId), String.valueOf(partitionId));
-  }
-
-  public String generateDir(ShuffleDataFlushEvent event) {
-    return generateDir(event.getAppId(), event.getShuffleId(), event.getStartPartition());
   }
 
   public void removeResources(String appId, Set<Integer> shuffleSet) {

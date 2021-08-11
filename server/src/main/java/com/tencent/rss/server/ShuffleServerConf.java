@@ -235,6 +235,12 @@ public class ShuffleServerConf extends RssBaseConf {
       .withDescription("If the shuffle is not read for the long time, and shuffle is uploaded totally,"
           + " , we can delete the shuffle");
 
+  public static final ConfigOption<Boolean> RSS_USE_MULTI_STORAGE = ConfigOptions
+      .key("rss.server.use.multistorage")
+      .booleanType()
+      .defaultValue(false)
+      .withDescription("The function switch for multiStorage");
+
   public ShuffleServerConf() {
   }
 

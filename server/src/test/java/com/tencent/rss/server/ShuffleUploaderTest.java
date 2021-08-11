@@ -1,6 +1,9 @@
-package com.tencent.rss.storage.common;
+package com.tencent.rss.server;
 
 import com.google.common.collect.Lists;
+import com.tencent.rss.storage.common.DiskItem;
+import com.tencent.rss.storage.common.DiskMetaData;
+import com.tencent.rss.storage.common.ShuffleFileInfo;
 import com.tencent.rss.storage.util.StorageType;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -16,6 +19,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.roaringbitmap.RoaringBitmap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -165,25 +169,24 @@ public class ShuffleUploaderTest {
           .hadoopConf(new Configuration())
           .build();
 
-      DiskMetaData mockDiskMetaData = mock(DiskMetaData.class);
-      when(mockDiskItem.getDiskMetaData())
-          .thenReturn(mockDiskMetaData);
-      when(mockDiskMetaData.getSortedShuffleKeys(true, 4))
-          .thenReturn(Lists.newArrayList(shuffleKey1, "zeroParitionShuffleKey", "zeroSizeShuffleKey"));
-      when(mockDiskMetaData.getNotUploadedSize("zeroSizeShuffleKey"))
+      when(mockDiskItem.getSortedShuffleKeys(true, 4))
+          .thenReturn(Lists.newArrayList(shuffleKey1, "zeroPartitionShuffleKey", "zeroSizeShuffleKey"));
+      when(mockDiskItem.getNotUploadedSize("zeroSizeShuffleKey"))
           .thenReturn(10L);
-      when(mockDiskMetaData.getNotUploadedPartitions("zeroSizeShuffleKey"))
-          .thenReturn(Lists.newLinkedList());
-      when(mockDiskMetaData.getNotUploadedSize("zeroSizeShuffleKey"))
+      when(mockDiskItem.getNotUploadedPartitions("zeroSizeShuffleKey"))
+          .thenReturn(RoaringBitmap.bitmapOf());
+      when(mockDiskItem.getNotUploadedSize("zeroSizeShuffleKey"))
           .thenReturn(0L);
-      when(mockDiskMetaData.getNotUploadedPartitions("zeroSizeShuffleKey"))
-          .thenReturn(Lists.newArrayList(1));
-      when(mockDiskMetaData.getNotUploadedSize(shuffleKey1))
+      when(mockDiskItem.getNotUploadedPartitions("zeroSizeShuffleKey"))
+          .thenReturn(RoaringBitmap.bitmapOf(1));
+      when(mockDiskItem.getNotUploadedSize(shuffleKey1))
           .thenReturn(30L);
-      when(mockDiskMetaData.getNotUploadedPartitions(shuffleKey1))
-          .thenReturn(Lists.newArrayList(1, 2, 3));
+      when(mockDiskItem.getNotUploadedPartitions(shuffleKey1))
+          .thenReturn(RoaringBitmap.bitmapOf(1, 2, 3));
+      when(mockDiskItem.getNotUploadedPartitions("zeroPartitionShuffleKey"))
+          .thenReturn(RoaringBitmap.bitmapOf());
 
-      List<ShuffleFileInfo> shuffleFileInfos = shuffleUploader.selectShuffleFiles(4);
+      List<ShuffleFileInfo> shuffleFileInfos = shuffleUploader.selectShuffleFiles(4, false);
       assertEquals(1, shuffleFileInfos.size());
       ShuffleFileInfo shuffleFileInfo = shuffleFileInfos.get(0);
       for (int i = 0; i < 3; ++i) {

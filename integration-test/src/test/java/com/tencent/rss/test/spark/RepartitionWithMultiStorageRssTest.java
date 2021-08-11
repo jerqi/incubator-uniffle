@@ -24,6 +24,7 @@ public class RepartitionWithMultiStorageRssTest extends RepartitionTest {
     String basePath = dataDir1.getAbsolutePath() + "," + dataDir2.getAbsolutePath();
     shuffleServerConf.setString("rss.storage.type", StorageType.LOCALFILE.name());
     shuffleServerConf.setString("rss.storage.basePath", basePath);
+    shuffleServerConf.setBoolean(ShuffleServerConf.RSS_USE_MULTI_STORAGE, true);
 
     // uploader and remote storage config
     shuffleServerConf.setBoolean("rss.server.uploader.enable", true);

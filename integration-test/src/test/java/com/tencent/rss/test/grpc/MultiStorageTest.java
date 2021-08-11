@@ -59,6 +59,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     shuffleServerConf.setLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT, 60L * 1000L * 60L);
     shuffleServerConf.setLong(ShuffleServerConf.SERVER_COMMIT_TIMEOUT, 20L * 1000L);
     shuffleServerConf.setLong(ShuffleServerConf.RSS_PENDING_EVENT_TIMEOUT_SEC, 15);
+    shuffleServerConf.setBoolean(ShuffleServerConf.RSS_USE_MULTI_STORAGE, true);
     createShuffleServer(shuffleServerConf);
     startServers();
   }

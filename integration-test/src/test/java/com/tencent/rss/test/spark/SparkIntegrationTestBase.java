@@ -2,7 +2,6 @@ package com.tencent.rss.test.spark;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.common.collect.Maps;
 import com.tencent.rss.test.IntegrationTestBase;
 import java.util.Map;
 import org.apache.spark.SparkConf;
@@ -11,7 +10,7 @@ import org.apache.spark.sql.SparkSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-abstract public class SparkIntegrationTestBase extends IntegrationTestBase {
+public abstract class SparkIntegrationTestBase extends IntegrationTestBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkIntegrationTestBase.class);
 

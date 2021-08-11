@@ -58,6 +58,7 @@ public class ShuffleTaskManager {
   // appId -> shuffleId -> serverReadHandler
   private Map<String, Map<String, ServerReadHandler>> serverReadHandlers = Maps.newConcurrentMap();
   private final MultiStorageManager multiStorageManager;
+  private final boolean useMultiStorage;
 
   public ShuffleTaskManager(
       ShuffleServerConf conf,
@@ -72,6 +73,7 @@ public class ShuffleTaskManager {
     this.appExpiredWithoutHB = conf.getLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT);
     this.commitCheckIntervalMax = conf.getLong(ShuffleServerConf.SERVER_COMMIT_CHECK_INTERVAL_MAX);
     this.preAllocationExpired = conf.getLong(ShuffleServerConf.SERVER_PRE_ALLOCATION_EXPIRED);
+    this.useMultiStorage = conf.getBoolean(ShuffleServerConf.RSS_USE_MULTI_STORAGE);
     // the thread for checking application status
     this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder().setDaemon(true).setNameFormat("checkResource-%d").build());
@@ -238,8 +240,8 @@ public class ShuffleTaskManager {
   public byte[] getFinishedBlockIds(
       String appId, Integer shuffleId, Integer partitionId) throws IOException {
     refreshAppId(appId);
-    if (multiStorageManager != null) {
-      multiStorageManager.updateReadEvent(appId, shuffleId, partitionId);
+    if (useMultiStorage) {
+      multiStorageManager.prepareStartRead(appId, shuffleId, partitionId);
     }
     Map<Integer, Roaring64NavigableMap[]> shuffleIdToPartitions = partitionsToBlockIds.get(appId);
     if (shuffleIdToPartitions == null) {
@@ -330,7 +332,7 @@ public class ShuffleTaskManager {
     shuffleBufferManager.removeBuffer(appId);
     shuffleFlushManager.removeResources(appId);
     Map<Integer, Roaring64NavigableMap[]> shuffleToPartitions = partitionsToBlockIds.get(appId);
-    if (shuffleToPartitions != null) {
+    if (useMultiStorage && shuffleToPartitions != null) {
       multiStorageManager.removeResources(appId, shuffleToPartitions.keySet());
     }
     LOG.info("Finish remove resource for appId[" + appId + "] cost " + (System.currentTimeMillis() - start) + " ms");

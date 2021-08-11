@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import org.apache.commons.io.FileUtils;
+import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.File;
@@ -94,18 +95,14 @@ public class DiskItem {
     return basePath;
   }
 
-  public void updateWrite(String shuffleKey, long delta) {
-    updateWrite(shuffleKey, delta, Lists.newArrayList());
-  }
-
   public void updateWrite(String shuffleKey, long delta, List<Integer> partitionList) {
     diskMetaData.updateDiskSize(delta);
     diskMetaData.updateShuffleSize(shuffleKey, delta);
-    diskMetaData.updateShufflePartitionList(shuffleKey, partitionList);
+    diskMetaData.addShufflePartitionList(shuffleKey, partitionList);
   }
 
-  public void updateRead(String key) {
-    diskMetaData.setHasRead(key);
+  public void prepareStartRead(String key) {
+    diskMetaData.prepareStartRead(key);
   }
 
   // todo: refactor DeleteHandler to support shuffleKey level deletion
@@ -117,7 +114,7 @@ public class DiskItem {
     diskMetaData.getShuffleMetaSet().forEach((shuffleKey) -> {
       // If shuffle data is started to read, shuffle data won't be appended. When shuffle is
       // uploaded totally, the partitions which is not uploaded is empty.
-      if (diskMetaData.getShuffleHasRead(shuffleKey)
+      if (diskMetaData.isShuffleStartRead(shuffleKey)
           && diskMetaData.getNotUploadedPartitions(shuffleKey).isEmpty()
           && isShuffleLongTimeNotRead(shuffleKey)) {
         String shufflePath = ShuffleStorageUtils.getFullShuffleDataFolder(basePath, shuffleKey);
@@ -148,6 +145,43 @@ public class DiskItem {
 
   public void updateShuffleLastReadTs(String shuffleKey) {
     diskMetaData.updateShuffleLastReadTs(shuffleKey);
+  }
+
+  public RoaringBitmap getNotUploadedPartitions(String key) {
+    return diskMetaData.getNotUploadedPartitions(key);
+  }
+
+  public void updateUploadedShuffle(String shuffleKey, long size, List<Integer> partitions) {
+    diskMetaData.updateUploadedShuffleSize(shuffleKey, size);
+    diskMetaData.addUploadedShufflePartitionList(shuffleKey, partitions);
+  }
+
+  @VisibleForTesting
+  DiskMetaData getDiskMetaData() {
+    return diskMetaData;
+  }
+
+  public void removeResources(String shuffleKey) {
+    diskMetaData.updateDiskSize(-diskMetaData.getShuffleSize(shuffleKey));
+    diskMetaData.remoteShuffle(shuffleKey);
+  }
+
+  public ReadWriteLock getLock(String shuffleKey) {
+    return diskMetaData.getLock(shuffleKey);
+  }
+
+  public long getNotUploadedSize(String key) {
+    return diskMetaData.getNotUploadedSize(key);
+  }
+
+  public List<String> getSortedShuffleKeys(boolean checkRead, int num) {
+    return diskMetaData.getSortedShuffleKeys(checkRead, num);
+  }
+
+  public void removeShuffle(String shuffleKey, long size, List<Integer> partitions) {
+    diskMetaData.removeShufflePartitionList(shuffleKey, partitions);
+    diskMetaData.updateDiskSize(-size);
+    diskMetaData.updateShuffleSize(shuffleKey, -size);
   }
 
   public static class Builder {
@@ -204,19 +238,5 @@ public class DiskItem {
 
   public static Builder newBuilder() {
     return new Builder();
-  }
-
-  @VisibleForTesting
-  DiskMetaData getDiskMetaData() {
-    return diskMetaData;
-  }
-
-  public void removeResources(String shuffleKey) {
-    diskMetaData.updateDiskSize(-diskMetaData.getShuffleSize(shuffleKey));
-    diskMetaData.remoteShuffle(shuffleKey);
-  }
-
-  public ReadWriteLock getLock(String shuffleKey) {
-    return diskMetaData.getLock(shuffleKey);
   }
 }

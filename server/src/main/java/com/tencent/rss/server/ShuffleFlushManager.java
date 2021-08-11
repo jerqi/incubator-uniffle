@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 
+import com.tencent.rss.storage.util.StorageType;
 import org.apache.hadoop.conf.Configuration;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
@@ -54,6 +55,7 @@ public class ShuffleFlushManager {
   private final MultiStorageManager multiStorageManager;
   private final BlockingQueue<PendingShuffleFlushEvent> pendingEvents = Queues.newLinkedBlockingQueue();
   private final long pendingEventTimeoutSec;
+  private final boolean useMultiStorage;
   private int processPendingEventIndex = 0;
 
   public ShuffleFlushManager(ShuffleServerConf shuffleServerConf, String shuffleServerId, ShuffleServer shuffleServer,
@@ -78,7 +80,7 @@ public class ShuffleFlushManager {
     threadPoolExecutor = new ThreadPoolExecutor(poolSize, poolSize, keepAliveTime, TimeUnit.SECONDS, waitQueue);
     storageBasePaths = shuffleServerConf.getString(ShuffleServerConf.RSS_STORAGE_BASE_PATH).split(",");
     pendingEventTimeoutSec = shuffleServerConf.getLong(ShuffleServerConf.RSS_PENDING_EVENT_TIMEOUT_SEC);
-
+    useMultiStorage = shuffleServerConf.getBoolean(ShuffleServerConf.RSS_USE_MULTI_STORAGE);
     // the thread for flush data
     processEventThread = () -> {
       while (true) {
@@ -97,7 +99,7 @@ public class ShuffleFlushManager {
     };
     new Thread(processEventThread).start();
     // todo: extract a class named Service, and support stop method
-    if (multiStorageManager != null) {
+    if (useMultiStorage) {
       Thread thread = new Thread("PendingEventProcessThread") {
         @Override
         public void run() {
@@ -126,7 +128,7 @@ public class ShuffleFlushManager {
 
   private void flushToFile(ShuffleDataFlushEvent event) {
 
-    if (multiStorageManager != null && !multiStorageManager.canWrite(event)) {
+    if (useMultiStorage && !multiStorageManager.canWrite(event)) {
       addPendingEvents(event);
       return;
     }
@@ -146,17 +148,16 @@ public class ShuffleFlushManager {
             break;
           }
           ReadWriteLock lock = null;
-          if (multiStorageManager != null) {
+          if (useMultiStorage) {
              lock = multiStorageManager.getForceUploadLock(event);
             lock.readLock().lock();
           }
           try {
             long startWrite = System.currentTimeMillis();
             handler.write(blocks);
-            if (multiStorageManager != null) {
+            if (useMultiStorage) {
               multiStorageManager.updateWriteEvent(event);
             }
-
             long writeTime = System.currentTimeMillis() - startWrite;
             ShuffleServerMetrics.counterTotalWriteTime.inc(writeTime);
             ShuffleServerMetrics.counterWriteTotal.inc();
@@ -181,7 +182,7 @@ public class ShuffleFlushManager {
             ShuffleServerMetrics.counterWriteException.inc();
             Thread.sleep(1000);
           } finally {
-            if (lock != null) {
+            if (useMultiStorage) {
               lock.readLock().unlock();
             }
           }
@@ -295,12 +296,16 @@ public class ShuffleFlushManager {
 
   @VisibleForTesting
   void processPendingEvents() throws Exception {
-    if (multiStorageManager == null) {
+    if (!useMultiStorage) {
       return;
     }
     PendingShuffleFlushEvent event = pendingEvents.take();
     DiskItem item = multiStorageManager.getDiskItem(event.getEvent());
     if (System.currentTimeMillis() - event.getCreateTimeStamp() > pendingEventTimeoutSec * 1000L) {
+      if (shuffleServer != null) {
+        shuffleServer.getShuffleBufferManager().releaseMemory(
+            event.getEvent().getSize(), true, false);
+      }
       LOG.error("Flush event cannot be flushed for {} sec, the event {} is dropped",
           pendingEventTimeoutSec, event.getEvent());
       return;

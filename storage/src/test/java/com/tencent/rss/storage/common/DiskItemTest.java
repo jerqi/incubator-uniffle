@@ -12,10 +12,10 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.roaringbitmap.RoaringBitmap;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -67,7 +67,7 @@ public class DiskItemTest {
       item.clean();
       assertTrue(dir1.exists());
       assertTrue(dir2.exists());
-      item.getDiskMetaData().setHasRead("app-1/1");
+      item.getDiskMetaData().prepareStartRead("app-1/1");
       item.clean();
       assertTrue(dir1.exists());
       item.getDiskMetaData().updateShuffleLastReadTs("app-1/1");
@@ -75,7 +75,7 @@ public class DiskItemTest {
       item.clean();
       assertFalse(dir1.exists());
       assertTrue(dir2.exists());
-      item.getDiskMetaData().setHasRead("app-1/2");
+      item.getDiskMetaData().prepareStartRead("app-1/2");
       item.clean();
       assertTrue(dir2.exists());
       assertEquals(35, item.getDiskMetaData().getDiskSize().get());
@@ -122,20 +122,21 @@ public class DiskItemTest {
           .capacity(100)
           .cleanIntervalMs(5000)
           .build();
-      List<Integer> partitionList = Lists.newArrayList();
-      partitionList.add(1);
-      partitionList.add(2);
-      partitionList.add(1);
+      RoaringBitmap partitionBitMap = RoaringBitmap.bitmapOf();
+      partitionBitMap.add(1);
+      partitionBitMap.add(2);
+      partitionBitMap.add(1);
+      List<Integer> partitionList = Lists.newArrayList(1, 2);
       item.updateWrite("1/1", 100, partitionList);
       item.updateWrite("1/2", 50, Lists.newArrayList());
       assertEquals(150L, item.getDiskMetaData().getDiskSize().get());
-      assertEquals(2, item.getDiskMetaData().getNotUploadedPartitions("1/1").size());
-      assertTrue(new HashSet<Integer>(partitionList).containsAll(item.getDiskMetaData().getNotUploadedPartitions("1/1")));
+      assertEquals(2, item.getDiskMetaData().getNotUploadedPartitions("1/1").getCardinality());
+      assertTrue(partitionBitMap.contains(item.getDiskMetaData().getNotUploadedPartitions("1/1")));
       item.removeResources("1/1");
       assertEquals(50L, item.getDiskMetaData().getDiskSize().get());
       assertEquals(0L, item.getDiskMetaData().getShuffleSize("1/1"));
       assertEquals(50L, item.getDiskMetaData().getShuffleSize("1/2"));
-      assertEquals(0, item.getDiskMetaData().getNotUploadedPartitions("1/1").size());
+      assertEquals(0, item.getDiskMetaData().getNotUploadedPartitions("1/1").getCardinality());
     } catch (Exception e) {
       e.printStackTrace();
       fail();

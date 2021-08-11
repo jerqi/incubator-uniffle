@@ -34,7 +34,6 @@ import com.tencent.rss.proto.RssProtos.ShufflePartitionRange;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleRegisterResponse;
 import com.tencent.rss.proto.ShuffleServerGrpc.ShuffleServerImplBase;
-import com.tencent.rss.storage.common.DiskItem;
 import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -454,7 +453,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     return ret;
   }
 
-  private Map<Integer, long[]> toPartionBlocksMap(List<PartitionToBlockIds> partitionToBlockIds) {
+  private Map<Integer, long[]> toPartitionBlocksMap(List<PartitionToBlockIds> partitionToBlockIds) {
     Map<Integer, long[]> result = Maps.newHashMap();
     for (PartitionToBlockIds ptb : partitionToBlockIds) {
       List<Long> blockIds = ptb.getBlockIdsList();

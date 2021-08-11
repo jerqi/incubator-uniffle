@@ -1,18 +1,18 @@
 package com.tencent.rss.storage.common;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
+
+import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,10 +26,7 @@ import org.slf4j.LoggerFactory;
 public class DiskMetaData {
 
   private static final Logger LOG = LoggerFactory.getLogger(DiskMetaData.class);
-
   private final AtomicLong size = new AtomicLong(0L);
-  private final AtomicLong fileNum = new AtomicLong(0L);
-  private final AtomicLong shuffleNum = new AtomicLong(0L);
   private final Map<String, ShuffleMeta> shuffleMetaMap = Maps.newConcurrentMap();
 
   // todo: add ut
@@ -39,7 +36,7 @@ public class DiskMetaData {
     List<Map.Entry<String, ShuffleMeta>> shuffleMetaList = shuffleMetaMap
         .entrySet()
         .stream()
-        .filter(e -> (!checkRead || e.getValue().hasRead.get()) && e.getValue().getNotUploadedSize() > 0)
+        .filter(e -> (!checkRead || e.getValue().isStartRead.get()) && e.getValue().getNotUploadedSize() > 0)
         .collect(Collectors.toList());
 
       shuffleMetaList.sort((Entry<String, ShuffleMeta> o1, Entry<String, ShuffleMeta> o2) -> {
@@ -54,12 +51,20 @@ public class DiskMetaData {
         .map(Entry::getKey).collect(Collectors.toList());
   }
 
-  public List<Integer> getNotUploadedPartitions(String shuffleKey) {
+  public RoaringBitmap getNotUploadedPartitions(String shuffleKey) {
     ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
-    Set<Integer> partitions = new TreeSet<>(shuffleMeta.getPartitionSet());
-    Set<Integer> uploadedPartitions = shuffleMeta.getUploadedPartitionSet();
-    partitions.removeAll(uploadedPartitions);
-    return Lists.newLinkedList(partitions);
+    RoaringBitmap partitionBitmap;
+    RoaringBitmap uploadedPartitionBitmap;
+    synchronized (shuffleMeta.partitionBitmap) {
+      partitionBitmap = shuffleMeta.partitionBitmap.clone();
+    }
+    synchronized (shuffleMeta.uploadedPartitionBitmap) {
+      uploadedPartitionBitmap = shuffleMeta.uploadedPartitionBitmap.clone();
+    }
+    for (int partition : uploadedPartitionBitmap) {
+        partitionBitmap.remove(partition);
+    }
+    return partitionBitmap;
   }
 
   public long getNotUploadedSize(String shuffleKey) {
@@ -70,14 +75,6 @@ public class DiskMetaData {
     return size.addAndGet(delta);
   }
 
-  public long updateFileNum(long delta) {
-    return fileNum.addAndGet(delta);
-  }
-
-  public long updateShuffleNum(long delta) {
-    return shuffleNum.addAndGet(delta);
-  }
-
   public long updateShuffleSize(String shuffleId, long delta) {
     return getShuffleMeta(shuffleId).getSize().addAndGet(delta);
   }
@@ -86,24 +83,29 @@ public class DiskMetaData {
     return getShuffleMeta(shuffleKey).uploadedSize.addAndGet(delta);
   }
 
-  public void updateShufflePartitionList(String shuffleKey, List<Integer> partitions) {
-    getShuffleMeta(shuffleKey).getPartitionSet().addAll(partitions);
+  public void addShufflePartitionList(String shuffleKey, List<Integer> partitions) {
+    RoaringBitmap bitmap = getShuffleMeta(shuffleKey).partitionBitmap;
+    synchronized (bitmap) {
+      partitions.forEach(p -> bitmap.add(p));
+    }
   }
 
-  public void updateUploadedShufflePartitionList(String shuffleKey, List<Integer> partitions) {
-    getShuffleMeta(shuffleKey).uploadedPartitionSet.addAll(partitions);
+  public void addUploadedShufflePartitionList(String shuffleKey, List<Integer> partitions) {
+    RoaringBitmap bitmap = getShuffleMeta(shuffleKey).uploadedPartitionBitmap;
+    synchronized (bitmap) {
+      partitions.forEach(p -> bitmap.add(p));
+    }
   }
 
-  public void setHasRead(String shuffleId) {
-    getShuffleMeta(shuffleId).getHasRead().set(true);
+  public void prepareStartRead(String shuffleId) {
+    getShuffleMeta(shuffleId).markStartRead();
   }
 
   public void removeShufflePartitionList(String shuffleKey, List<Integer> partitions) {
-    getShuffleMeta(shuffleKey).getPartitionSet().removeAll(partitions);
-  }
-
-  public void removeUploadedShufflePartitionList(String shuffleKey, List<Integer> partitions) {
-    getShuffleMeta(shuffleKey).getUploadedPartitionSet().removeAll(partitions);
+    RoaringBitmap bitmap = getShuffleMeta(shuffleKey).partitionBitmap;
+    synchronized (bitmap) {
+      partitions.forEach(p -> bitmap.remove(p));
+    }
   }
 
   public void remoteShuffle(String shuffleKey) {
@@ -114,24 +116,12 @@ public class DiskMetaData {
     return size;
   }
 
-  public AtomicLong getFileNum() {
-    return fileNum;
-  }
-
-  public AtomicLong getShuffleNum() {
-    return shuffleNum;
-  }
-
   public long getShuffleSize(String shuffleKey) {
     return getShuffleMeta(shuffleKey).getSize().get();
   }
 
-  public long getShuffleUploadedSize(String shuffleKey) {
-    return getShuffleMeta(shuffleKey).getUploadedSize().get();
-  }
-
-  public boolean getShuffleHasRead(String shuffleKey) {
-    return getShuffleMeta(shuffleKey).getHasRead().get();
+  public boolean isShuffleStartRead(String shuffleKey) {
+    return getShuffleMeta(shuffleKey).isStartRead();
   }
 
   public Set<String> getShuffleMetaSet() {
@@ -172,15 +162,14 @@ public class DiskMetaData {
     return getShuffleMeta(shuffleKey).getLock();
   }
 
-
   // Consider that ShuffleMeta is a simple class, we keep the class ShuffleMeta as an inner class.
   private class ShuffleMeta {
     private final AtomicLong size = new AtomicLong(0);
-    private final Set<Integer> partitionSet = Sets.newConcurrentHashSet();
-    private final Set<Integer> uploadedPartitionSet = Sets.newConcurrentHashSet();
+    private final RoaringBitmap partitionBitmap = RoaringBitmap.bitmapOf();
     private final AtomicLong uploadedSize = new AtomicLong(0);
-    private final AtomicBoolean hasRead = new AtomicBoolean(false);
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private final AtomicBoolean isStartRead = new AtomicBoolean(false);
+    private final RoaringBitmap uploadedPartitionBitmap = RoaringBitmap.bitmapOf();
     private AtomicLong lastReadTs = new AtomicLong(-1L);
 
     public AtomicLong getSize() {
@@ -195,16 +184,12 @@ public class DiskMetaData {
       return size.longValue() - uploadedSize.longValue();
     }
 
-    public Set<Integer> getPartitionSet() {
-      return partitionSet;
+    public boolean isStartRead() {
+      return isStartRead.get();
     }
 
-    public Set<Integer> getUploadedPartitionSet() {
-      return uploadedPartitionSet;
-    }
-
-    public AtomicBoolean getHasRead() {
-      return hasRead;
+    public void markStartRead() {
+      isStartRead.set(true);
     }
 
     public void updateLastReadTs() {
@@ -220,5 +205,4 @@ public class DiskMetaData {
       return lock;
     }
   }
-
 }
