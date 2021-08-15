@@ -18,7 +18,7 @@ public class HdfsTestBase implements Serializable {
   public static Configuration conf;
   protected static String HDFS_URI;
   protected static FileSystem fs;
-  private static MiniDFSCluster cluster;
+  protected static MiniDFSCluster cluster;
 
   @BeforeClass
   public static void setUpHdfs() throws IOException {

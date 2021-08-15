@@ -71,7 +71,6 @@ public class ShuffleUploader {
     this.hdfsBathPath = builder.hdfsBathPath;
     this.serverId = builder.serverId;
     this.hadoopConf = builder.hadoopConf;
-
     Runnable runnable = () -> {
       run();
     };
@@ -226,7 +225,8 @@ public class ShuffleUploader {
   }
 
   // upload is a blocked until uploading success or timeout exception
-  private void upload() {
+  @VisibleForTesting
+  void upload() {
 
     boolean forceUpload = !diskItem.canWrite();
 
@@ -242,15 +242,17 @@ public class ShuffleUploader {
         continue;
       }
       ReadWriteLock lock = diskItem.getLock(shuffleFileInfo.getKey());
-      if (forceUpload) {
-        boolean locked = lock.writeLock().tryLock();
-        if (!locked) {
-          continue;
-        }
-      }
+
       maxSize = Math.max(maxSize, shuffleFileInfo.getSize());
       Callable<ShuffleUploadResult> callable = () -> {
+        boolean locked = false;
         try {
+          if (forceUpload) {
+            locked = lock.writeLock().tryLock();
+            if (!locked) {
+              return null;
+            }
+          }
           CreateShuffleUploadHandlerRequest request =
               new CreateShuffleUploadHandlerRequest.Builder()
                   .remoteStorageType(remoteStorageType)
@@ -261,7 +263,7 @@ public class ShuffleUploader {
                   .combineUpload(shuffleFileInfo.shouldCombine(uploadCombineThresholdMB))
                   .build();
 
-          ShuffleUploadHandler handler = ShuffleUploadHandlerFactory.getInstance().createShuffleUploadHandler(request);
+          ShuffleUploadHandler handler = getHandlerFactory().createShuffleUploadHandler(request);
           ShuffleUploadResult shuffleUploadResult = handler.upload(
               shuffleFileInfo.getDataFiles(),
               shuffleFileInfo.getIndexFiles(),
@@ -271,11 +273,25 @@ public class ShuffleUploader {
           }
           shuffleUploadResult.setShuffleKey(shuffleFileInfo.getKey());
           if (forceUpload) {
-            for (File file : shuffleFileInfo.getDataFiles()) {
-              file.delete();
-            }
-            for (File file : shuffleFileInfo.getIndexFiles()) {
-              file.delete();
+            int failDeleteFiles = 0;
+            for (int partition : shuffleUploadResult.getPartitions()) {
+              String filePrefix = ShuffleStorageUtils.generateAbsoluteFilePrefix(
+                  diskItem.getBasePath(), shuffleFileInfo.getKey(), partition, serverId);
+              String dataFileName = ShuffleStorageUtils.generateDataFileName(filePrefix);
+              String indexFileName = ShuffleStorageUtils.generateIndexFileName(filePrefix);
+              File dataFile = new File(dataFileName);
+              boolean suc = dataFile.delete();
+              if (!suc) {
+                failDeleteFiles++;
+              }
+              File indexFile = new File(indexFileName);
+              suc = indexFile.delete();
+              if (!suc) {
+                failDeleteFiles++;
+              }
+              if (failDeleteFiles > 0) {
+                LOG.error("Force upload process delete file fail {} times", failDeleteFiles);
+              }
             }
             diskItem.removeShuffle(shuffleUploadResult.getShuffleKey(), shuffleUploadResult.getSize(),
                 shuffleUploadResult.getPartitions());
@@ -285,7 +301,7 @@ public class ShuffleUploader {
           LOG.error("Fail to construct upload callable list {}", ExceptionUtils.getStackTrace(e));
           return null;
         } finally {
-          if (forceUpload) {
+          if (locked) {
             lock.writeLock().unlock();
           }
         }
@@ -372,6 +388,11 @@ public class ShuffleUploader {
 
   private long getNotUploadedSize(String key) {
     return diskItem.getNotUploadedSize(key);
+  }
+
+  @VisibleForTesting
+  ShuffleUploadHandlerFactory getHandlerFactory() {
+    return ShuffleUploadHandlerFactory.getInstance();
   }
 
   private ShuffleFileInfo generateShuffleFileInfos(ShuffleInfo shuffleInfo, List<Integer> partitions) {

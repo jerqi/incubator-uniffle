@@ -9,7 +9,7 @@ public class ShuffleBuffer {
 
   private final int capacity;
 
-  private int size;
+  private long size;
   private List<ShufflePartitionedBlock> blocks;
 
   public ShuffleBuffer(int capacity) {
@@ -56,7 +56,7 @@ public class ShuffleBuffer {
     return blocks;
   }
 
-  public int getSize() {
+  public long getSize() {
     return size;
   }
 

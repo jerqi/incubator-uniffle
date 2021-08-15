@@ -3,7 +3,6 @@ package com.tencent.rss.server;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.BufferSegment;
-import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.config.RssBaseConf;
@@ -27,7 +26,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

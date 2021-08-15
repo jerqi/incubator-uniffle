@@ -603,7 +603,7 @@
             </systemProperties>
             <redirectTestOutputToFile>${test.redirectToFile}</redirectTestOutputToFile>
             <useFile>${test.redirectToFile}</useFile>
-            <argLine>-ea -Xmx2g</argLine>
+            <argLine>-ea -Xmx3g</argLine>
             <failIfNoTests>false</failIfNoTests>
           </configuration>
         </plugin>

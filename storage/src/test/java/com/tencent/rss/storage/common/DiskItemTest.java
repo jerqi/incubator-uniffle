@@ -142,4 +142,37 @@ public class DiskItemTest {
       fail();
     }
   }
+
+  @Test
+  public void diskMetaTest() {
+    DiskItem item = DiskItem.newBuilder().basePath(testBaseDir.getAbsolutePath())
+        .cleanupThreshold(50)
+        .highWaterMarkOfWrite(95)
+        .lowWaterMarkOfWrite(80)
+        .capacity(100)
+        .cleanIntervalMs(5000)
+        .build();
+    List<Integer> partitionList1 = Lists.newArrayList(1, 2, 3, 4, 5);
+    List<Integer> partitionList2 = Lists.newArrayList(6, 7, 8, 9, 10);
+    List<Integer> partitionList3 = Lists.newArrayList(1, 2, 3);
+    item.updateWrite("key1", 10, partitionList1);
+    item.updateWrite("key2", 30, partitionList2);
+    item.updateUploadedShuffle("key1", 5, partitionList3);
+
+    assertTrue(item.getNotUploadedPartitions("notKey").isEmpty());
+    assertEquals(2, item.getNotUploadedPartitions("key1").getCardinality());
+    assertEquals(5, item.getNotUploadedPartitions("key2").getCardinality());
+    assertEquals(0, item.getNotUploadedSize("notKey"));
+    assertEquals(5, item.getNotUploadedSize("key1"));
+    assertEquals(30, item.getNotUploadedSize("key2"));
+
+    assertTrue(item.getSortedShuffleKeys(true, 1).isEmpty());
+    assertTrue(item.getSortedShuffleKeys(true, 2).isEmpty());
+    item.prepareStartRead("key1");
+    assertEquals(1, item.getSortedShuffleKeys(true, 3).size());
+    assertEquals(1, item.getSortedShuffleKeys(false, 1).size());
+    assertEquals("key2", item.getSortedShuffleKeys(false, 1).get(0));
+    assertEquals(2, item.getSortedShuffleKeys(false, 2).size());
+    assertEquals(2, item.getSortedShuffleKeys(false, 3).size());
+  }
 }

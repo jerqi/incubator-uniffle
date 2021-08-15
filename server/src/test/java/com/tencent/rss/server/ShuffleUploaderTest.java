@@ -1,9 +1,12 @@
 package com.tencent.rss.server;
 
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.tencent.rss.storage.common.DiskItem;
-import com.tencent.rss.storage.common.DiskMetaData;
 import com.tencent.rss.storage.common.ShuffleFileInfo;
+import com.tencent.rss.storage.factory.ShuffleUploadHandlerFactory;
+import com.tencent.rss.storage.handler.api.ShuffleUploadHandler;
+import com.tencent.rss.storage.util.ShuffleUploadResult;
 import com.tencent.rss.storage.util.StorageType;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -11,6 +14,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.apache.hadoop.conf.Configuration;
@@ -19,14 +23,19 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.roaringbitmap.RoaringBitmap;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-public class ShuffleUploaderTest {
+
+public class ShuffleUploaderTest  {
 
   @ClassRule
   public static final TemporaryFolder tmpDir = new TemporaryFolder();
@@ -218,6 +227,135 @@ public class ShuffleUploaderTest {
     assertEquals(2, shuffleUploader.calculateUploadTime(128 * 1024));
     assertEquals(2, shuffleUploader.calculateUploadTime(128 * 1024 * 1024));
     assertEquals(6, shuffleUploader.calculateUploadTime(3 * 128 * 1024 * 1024));
+  }
+
+  @Test
+  public void uploadTest() {
+    try {
+      ShuffleUploader.Builder builder = new ShuffleUploader.Builder();
+      DiskItem diskItem = DiskItem.newBuilder()
+          .capacity(100)
+          .basePath(base.getAbsolutePath())
+          .highWaterMarkOfWrite(50)
+          .lowWaterMarkOfWrite(45)
+          .shuffleExpiredTimeoutMs(1000)
+          .build();
+      builder.diskItem(diskItem);
+      builder.hadoopConf(new Configuration());
+      builder.hdfsBathPath("hdfs://test");
+      builder.referenceUploadSpeedMBS(2);
+      builder.remoteStorageType(StorageType.HDFS);
+      builder.serverId("test");
+      builder.uploadCombineThresholdMB(1);
+      builder.uploadThreadNum(1);
+      builder.uploadIntervalMS(1000);
+      ShuffleUploadHandlerFactory mockFactory = mock(ShuffleUploadHandlerFactory.class);
+      ShuffleUploadHandler mockHandler = mock(ShuffleUploadHandler.class);
+      when(mockFactory.createShuffleUploadHandler(any())).thenReturn(mockHandler);
+      ShuffleUploadResult result0 = new ShuffleUploadResult(50, Lists.newArrayList(1, 2));
+      ShuffleUploadResult result1 = new ShuffleUploadResult(90, Lists.newArrayList(1, 2, 3));
+      ShuffleUploadResult result2 = new ShuffleUploadResult(10, Lists.newArrayList(1, 2));
+      ShuffleUploadResult result3 = new ShuffleUploadResult(40, Lists.newArrayList(1, 3, 2, 4));
+      when(mockHandler.upload(any(),any(), any())).thenReturn(result0).thenReturn(result1)
+          .thenReturn(result2).thenReturn(result3);
+
+      ShuffleUploader uploader = spy(builder.build());
+      when(uploader.getHandlerFactory()).thenReturn(mockFactory);
+      diskItem.updateWrite("key", 70, Lists.newArrayList(1, 2, 3));
+      File dir1 = new File(base.getAbsolutePath() + "/key/1-1/");
+      dir1.mkdirs();
+      File file1d = new File(base.getAbsolutePath() + "/key/1-1/test.data");
+      file1d.createNewFile();
+      File file1i = new File(base.getAbsolutePath() + "/key/1-1/test.index");
+      file1i.createNewFile();
+      File dir2 = new File(base.getAbsolutePath() + "/key/2-2/");
+      dir2.mkdirs();
+      File file2d = new File(base.getAbsolutePath() + "/key/2-2/test.data");
+      file2d.createNewFile();
+      File file2i = new File(base.getAbsolutePath() + "/key/2-2/test.index");
+      file2i.createNewFile();
+      File dir3 = new File(base.getAbsolutePath() + "/key/3-3/");
+      dir3.mkdirs();
+      File file3d = new File(base.getAbsolutePath() + "/key/3-3/test.data");
+      file3d.createNewFile();
+      File file3i = new File(base.getAbsolutePath() + "/key/3-3/test.index");
+      file3i.createNewFile();
+      uploader.upload();
+      assertEquals(20, diskItem.getNotUploadedSize("key"));
+      assertEquals(1, diskItem.getNotUploadedPartitions("key").getCardinality());
+      assertTrue(diskItem.getNotUploadedPartitions("key").contains(3));
+      assertFalse(file1d.exists());
+      assertFalse(file1i.exists());
+      assertFalse(file2d.exists());
+      assertFalse(file2i.exists());
+      assertTrue(file3d.exists());
+      assertTrue(file3i.exists());
+
+      diskItem.updateWrite("key", 70, Lists.newArrayList(1, 2));
+      file1d.createNewFile();
+      file1i.createNewFile();
+      file2d.createNewFile();
+      file2i.createNewFile();
+      uploader.upload();
+      assertEquals(0, diskItem.getNotUploadedSize("key"));
+      assertTrue(diskItem.getNotUploadedPartitions("key").isEmpty());
+      assertFalse(file1d.exists());
+      assertFalse(file1i.exists());
+      assertFalse(file2d.exists());
+      assertFalse(file2i.exists());
+      assertFalse(file3d.exists());
+      assertFalse(file3i.exists());
+
+      diskItem.updateWrite("key", 30, Lists.newArrayList(1, 2, 3));
+      file1d.createNewFile();
+      file1i.createNewFile();
+      file2d.createNewFile();
+      file2i.createNewFile();
+      file3i.createNewFile();
+      file3d.createNewFile();
+      uploader.upload();
+      assertEquals(30, diskItem.getNotUploadedSize("key"));
+      assertEquals(3, diskItem.getNotUploadedPartitions("key").getCardinality());
+
+      diskItem.prepareStartRead("key");
+      uploader.upload();
+      assertEquals(20, diskItem.getNotUploadedSize("key"));
+      assertEquals(1, diskItem.getNotUploadedPartitions("key").getCardinality());
+      assertTrue(file1d.exists());
+      assertTrue(file1i.exists());
+      assertTrue(file2d.exists());
+      assertTrue(file2i.exists());
+      assertTrue(file3d.exists());
+      assertTrue(file3i.exists());
+
+      diskItem.updateShuffleLastReadTs("key");
+      diskItem.start();
+      Uninterruptibles.sleepUninterruptibly(2, TimeUnit.SECONDS);
+      assertTrue(file1d.exists());
+      assertTrue(file1i.exists());
+      assertTrue(file2d.exists());
+      assertTrue(file2i.exists());
+      assertTrue(file3d.exists());
+      assertTrue(file3i.exists());
+
+      diskItem.updateShuffleLastReadTs("key");
+      diskItem.updateWrite("key", 20, Lists.newArrayList(1, 2, 4));
+      uploader.upload();
+      assertEquals(0, diskItem.getNotUploadedSize("key"));
+      assertTrue(diskItem.getNotUploadedPartitions("key").isEmpty());
+      Uninterruptibles.sleepUninterruptibly(2, TimeUnit.SECONDS);
+
+      assertFalse(file1d.exists());
+      assertFalse(file1i.exists());
+      assertFalse(file2d.exists());
+      assertFalse(file2i.exists());
+      assertFalse(file3d.exists());
+      assertFalse(file3i.exists());
+      diskItem.stop();
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail();
+    }
   }
 
   private void assertException(Class<?> c, Consumer<Void> f) {

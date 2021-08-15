@@ -7,10 +7,21 @@ import com.google.common.io.Files;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.tencent.rss.client.impl.ShuffleReadClientImpl;
 import com.tencent.rss.client.impl.grpc.ShuffleServerGrpcClient;
-import com.tencent.rss.client.request.*;
+import com.tencent.rss.client.request.RssAppHeartBeatRequest;
+import com.tencent.rss.client.request.RssFinishShuffleRequest;
+import com.tencent.rss.client.request.RssGetShuffleDataRequest;
+import com.tencent.rss.client.request.RssGetShuffleResultRequest;
+import com.tencent.rss.client.request.RssRegisterShuffleRequest;
+import com.tencent.rss.client.request.RssReportShuffleResultRequest;
+import com.tencent.rss.client.request.RssSendCommitRequest;
+import com.tencent.rss.client.request.RssSendShuffleDataRequest;
 import com.tencent.rss.client.response.CompressedShuffleBlock;
 import com.tencent.rss.client.response.RssGetShuffleDataResponse;
-import com.tencent.rss.common.*;
+import com.tencent.rss.common.BufferSegment;
+import com.tencent.rss.common.PartitionRange;
+import com.tencent.rss.common.ShuffleBlockInfo;
+import com.tencent.rss.common.ShuffleDataResult;
+import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.server.ShuffleServerConf;
@@ -31,7 +42,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class MultiStorageTest extends ShuffleReadWriteBase {
   private ShuffleServerGrpcClient shuffleServerClient;
@@ -58,7 +73,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     shuffleServerConf.setLong(ShuffleServerConf.RSS_SHUFFLE_EXPIRED_TIMEOUT_MS, 5000L);
     shuffleServerConf.setLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT, 60L * 1000L * 60L);
     shuffleServerConf.setLong(ShuffleServerConf.SERVER_COMMIT_TIMEOUT, 20L * 1000L);
-    shuffleServerConf.setLong(ShuffleServerConf.RSS_PENDING_EVENT_TIMEOUT_SEC, 15);
+    shuffleServerConf.setLong(ShuffleServerConf.RSS_PENDING_EVENT_TIMEOUT_SEC, 1);
     shuffleServerConf.setBoolean(ShuffleServerConf.RSS_USE_MULTI_STORAGE, true);
     createShuffleServer(shuffleServerConf);
     startServers();
@@ -73,6 +88,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
   public void closeClient() {
     shuffleServerClient.close();
   }
+
   @Test
   public void readUploadedDataTest() {
     String appId = "app_read_uploaded_data";
@@ -128,8 +144,24 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     RssReportShuffleResultRequest rrp1 = new RssReportShuffleResultRequest(appId, 0, 1L, partitionToBlockIds);
     shuffleServerClient.reportShuffleResult(rrp1);
 
+    DiskItem item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 0);
+    assertTrue(item.canWrite());
+    assertEquals(3 * 25, item.getNotUploadedSize(appId + "/" + 0));
+    item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 1);
+    assertTrue(item.canWrite());
+    assertEquals(5 * 1024 * 1024, item.getNotUploadedSize(appId + "/" + 0));
+
     sendSinglePartitionToShuffleServer(appId, 0,2, 2L, blocks3);
     sendSinglePartitionToShuffleServer(appId, 0, 3, 3L, blocks4);
+
+    item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 2);
+    assertTrue(item.canWrite());
+    assertEquals(3 * 25 + 4 * 25, item.getNotUploadedSize(appId + "/" + 0));
+
+    item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 3);
+    assertTrue(item.canWrite());
+    assertEquals(5 * 1024 * 1024 + 1024 * 1024, item.getNotUploadedSize(appId + "/" + 0));
+
 
     RssGetShuffleResultRequest rg1 = new RssGetShuffleResultRequest(appId, 0, 0);
     shuffleServerClient.getShuffleResult(rg1);
@@ -169,6 +201,14 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
         fail();
       }
     } while(true);
+
+    item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 0);
+    assertTrue(item.canWrite());
+    assertEquals(0, item.getNotUploadedSize(appId + "/" + 0));
+
+    item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 1);
+    assertTrue(item.canWrite());
+    assertEquals(0, item.getNotUploadedSize(appId + "/" + 0));
 
     RssGetShuffleDataRequest req = new RssGetShuffleDataRequest(appId, 0, 0,
         1, 10, 1000,  0);
@@ -374,6 +414,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
   @Test
   public void diskUsageTest() {
     String appId = "app_read_diskusage_data";
+    long originSize = shuffleServers.get(0).getShuffleBufferManager().getCapacity();
     Map<Long, byte[]> expectedData = Maps.newHashMap();
 
     RssRegisterShuffleRequest rr1 =  new RssRegisterShuffleRequest(appId, 2,
@@ -392,9 +433,8 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     Roaring64NavigableMap blockIdBitmap2 = Roaring64NavigableMap.bitmapOf();
     Roaring64NavigableMap blockIdBitmap3 = Roaring64NavigableMap.bitmapOf();
 
-
     List<ShuffleBlockInfo> blocks1 = createShuffleBlockList(
-        2, 0, 1,11, 10 * 1024 * 1024, blockIdBitmap1, expectedData);
+        2, 0, 1,40, 10 * 1024 * 1024, blockIdBitmap1, expectedData);
 
     List<ShuffleBlockInfo> blocks2 = createShuffleBlockList(
         3, 1, 2,9, 10 * 1024 * 1024, blockIdBitmap2, expectedData);
@@ -402,6 +442,10 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     List<ShuffleBlockInfo> blocks3 = createShuffleBlockList(
         2, 2, 2,9, 10 * 1024 * 1024, blockIdBitmap3, expectedData);
     sendSinglePartitionToShuffleServer(appId, 2, 0, 1, blocks1);
+    DiskItem item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 2, 0);
+    assertFalse(item.canWrite());
+    assertEquals(40 * 1024 * 1024 * 10, item.getNotUploadedSize(appId + "/" + 2));
+    assertEquals(1, item.getNotUploadedPartitions(appId + "/" + 2).getCardinality());
     boolean isException = false;
     try {
       sendSinglePartitionToShuffleServer(appId, 2, 2, 2, blocks3);
@@ -409,6 +453,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
       isException = true;
       assertTrue(re.getMessage().contains("Can't finish shuffle process"));
     }
+    assertEquals(originSize, shuffleServers.get(0).getShuffleBufferManager().getCapacity());
     assertTrue(isException);
     RssGetShuffleResultRequest rg1 = new RssGetShuffleResultRequest(appId, 2, 0);
     shuffleServerClient.getShuffleResult(rg1);
