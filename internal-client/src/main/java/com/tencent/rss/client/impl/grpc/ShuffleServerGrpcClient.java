@@ -61,6 +61,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
 
   private static final Logger LOG = LoggerFactory.getLogger(ShuffleServerGrpcClient.class);
   private static final long FAILED_REQUIRE_ID = -1;
+  private static final long RPC_TIMEOUT_DEFAULT_MS = 60000;
   private ShuffleServerBlockingStub blockingStub;
 
   public ShuffleServerGrpcClient(String host, int port) {
@@ -90,7 +91,19 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
   private ShuffleCommitResponse doSendCommit(String appId, int shuffleId) {
     ShuffleCommitRequest request = ShuffleCommitRequest.newBuilder()
         .setAppId(appId).setShuffleId(shuffleId).build();
-    return blockingStub.commitShuffleTask(request);
+    int retryNum = 0;
+    while (retryNum <= maxRetryAttempts) {
+      try {
+        ShuffleCommitResponse response = blockingStub.withDeadlineAfter(
+            RPC_TIMEOUT_DEFAULT_MS, TimeUnit.MILLISECONDS).commitShuffleTask(request);
+        return response;
+      } catch (Exception e) {
+        retryNum++;
+        LOG.warn("Send commit to host[" + host + "], port[" + port
+            + "] failed, try again, retryNum[" + retryNum + "]", e);
+      }
+    }
+    throw new RuntimeException("Send commit to host[" + host + "], port[" + port + "] failed");
   }
 
   private AppHeartBeatResponse doSendHeartBeat(String appId, long timeout) {
@@ -193,7 +206,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
             .addAllShuffleData(shuffleData)
             .build();
         long start = System.currentTimeMillis();
-        SendShuffleDataResponse response = blockingStub.sendShuffleData(rpcRequest);
+        SendShuffleDataResponse response = doSendData(rpcRequest);
         LOG.info("Do sendShuffleData rpc cost:" + (System.currentTimeMillis() - start)
             + " ms for " + size + " bytes with " + blockNum + " blocks");
 
@@ -219,6 +232,22 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
       response = new RssSendShuffleDataResponse(ResponseStatusCode.INTERNAL_ERROR);
     }
     return response;
+  }
+
+  private SendShuffleDataResponse doSendData(SendShuffleDataRequest rpcRequest) {
+    int retryNum = 0;
+    while (retryNum < maxRetryAttempts) {
+      try {
+        SendShuffleDataResponse response = blockingStub.withDeadlineAfter(
+            RPC_TIMEOUT_DEFAULT_MS, TimeUnit.MILLISECONDS).sendShuffleData(rpcRequest);
+        return response;
+      } catch (Exception e) {
+        retryNum++;
+        LOG.warn("Send data to host[" + host + "], port[" + port
+            + "] failed, try again, retryNum[" + retryNum + "]", e);
+      }
+    }
+    throw new RuntimeException("Send data to host[" + host + "], port[" + port + "] failed");
   }
 
   @Override
@@ -291,7 +320,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         .setTaskAttemptId(request.getTaskAttemptId())
         .addAllPartitionToBlockIds(partitionToBlockIds)
         .build();
-    ReportShuffleResultResponse rpcResponse = blockingStub.reportShuffleResult(recRequest);
+    ReportShuffleResultResponse rpcResponse = doReportShuffleResult(recRequest);
 
     StatusCode statusCode = rpcResponse.getStatus();
     RssReportShuffleResultResponse response;
@@ -308,6 +337,22 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
     }
 
     return response;
+  }
+
+  private ReportShuffleResultResponse doReportShuffleResult(ReportShuffleResultRequest rpcRequest) {
+    int retryNum = 0;
+    while (retryNum < maxRetryAttempts) {
+      try {
+        ReportShuffleResultResponse response = blockingStub.withDeadlineAfter(
+            RPC_TIMEOUT_DEFAULT_MS, TimeUnit.MILLISECONDS).reportShuffleResult(rpcRequest);
+        return response;
+      } catch (Exception e) {
+        retryNum++;
+        LOG.warn("Report shuffle result to host[" + host + "], port[" + port
+            + "] failed, try again, retryNum[" + retryNum + "]", e);
+      }
+    }
+    throw new RuntimeException("Report shuffle result to host[" + host + "], port[" + port + "] failed");
   }
 
   @Override

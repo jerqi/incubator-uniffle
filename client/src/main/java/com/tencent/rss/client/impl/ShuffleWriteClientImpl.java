@@ -84,11 +84,11 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
           } else {
             tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
             LOG.error("Send: " + serverToBlockIds.get(ssi).size() + " blocks to [" + ssi.getId()
-                + "] temp failed with statusCode[" + response.getStatusCode() + "], ");
+                + "] failed with statusCode[" + response.getStatusCode() + "], ");
           }
         } catch (Exception e) {
           tempFailedBlockIds.addAll(serverToBlockIds.get(ssi));
-          LOG.error("Send: " + serverToBlockIds.get(ssi).size() + " blocks to [" + ssi.getId() + "] temp failed.", e);
+          LOG.error("Send: " + serverToBlockIds.get(ssi).size() + " blocks to [" + ssi.getId() + "] failed.", e);
         }
       });
     }
@@ -129,18 +129,13 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
       }
     }
 
-    Set<Long> tempFailedBlockIds = Sets.newConcurrentHashSet();
+    Set<Long> failedBlockIds = Sets.newConcurrentHashSet();
     Set<Long> successBlockIds = Sets.newConcurrentHashSet();
-    sendShuffleDataAsync(appId, serverToBlocks, serverToBlockIds, successBlockIds, tempFailedBlockIds);
-    if (!successBlockIds.containsAll(tempFailedBlockIds)) {
-      tempFailedBlockIds.removeAll(successBlockIds);
-      // send data failed, task will be notified and throw exception
-      LOG.error("Send: " + tempFailedBlockIds.size() + " blocks failed.");
-    } else {
-      tempFailedBlockIds.clear();
-    }
+    // if send block failed, the task will fail
+    // todo: better to have fallback solution when send to multiple servers
+    sendShuffleDataAsync(appId, serverToBlocks, serverToBlockIds, successBlockIds, failedBlockIds);
 
-    return new SendShuffleDataResult(successBlockIds, tempFailedBlockIds);
+    return new SendShuffleDataResult(successBlockIds, failedBlockIds);
   }
 
   @Override
@@ -234,21 +229,24 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
       String appId, int shuffleId, long taskAttemptId, Map<Integer, List<Long>> partitionToBlockIds) {
     RssReportShuffleResultRequest request = new RssReportShuffleResultRequest(
         appId, shuffleId, taskAttemptId, partitionToBlockIds);
-    boolean isSuccessful = false;
+    boolean isSuccessful = true;
     for (ShuffleServerInfo ssi : shuffleServerInfoSet) {
       try {
         RssReportShuffleResultResponse response = getShuffleServerClient(ssi).reportShuffleResult(request);
         if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {
-          isSuccessful = true;
           LOG.info("Report shuffle result to " + ssi + " for appId[" + appId
               + "], shuffleId[" + shuffleId + "] successfully");
         } else {
+          isSuccessful = false;
           LOG.warn("Report shuffle result to " + ssi + " for appId[" + appId
               + "], shuffleId[" + shuffleId + "] failed with " + response.getStatusCode());
+          break;
         }
       } catch (Exception e) {
+        isSuccessful = false;
         LOG.warn("Report shuffle result is failed to " + ssi
             + " for appId[" + appId + "], shuffleId[" + shuffleId + "]");
+        break;
       }
     }
     if (!isSuccessful) {
