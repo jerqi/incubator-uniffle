@@ -371,7 +371,8 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
         ShuffleServerMetrics.counterTotalReadTime.inc(readTime);
         ShuffleServerMetrics.counterTotalReadDataSize.inc(sdr.getData().length);
         LOG.info("Successfully getShuffleData cost " + readTime + " ms for "
-            + requestInfo + " with " + sdr.getData().length + " bytes");
+            + requestInfo + " with " + sdr.getData().length + " bytes and "
+            + sdr.getBufferSegments().size() + " blocks");
         reply = GetShuffleDataResponse.newBuilder()
             .setStatus(valueOf(status))
             .setRetMsg(msg)

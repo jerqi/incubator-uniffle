@@ -155,9 +155,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         blockIds.add(blockId);
         // update [partition, blockIds], it will be sent to shuffle server
         int partitionId = sbi.getPartitionId();
-        if (partitionToBlockIds.get(partitionId) == null) {
-          partitionToBlockIds.put(partitionId, Sets.newConcurrentHashSet());
-        }
+        partitionToBlockIds.putIfAbsent(partitionId, Sets.newConcurrentHashSet());
         partitionToBlockIds.get(partitionId).add(blockId);
       });
       postBlockEvent(shuffleBlockInfoList);

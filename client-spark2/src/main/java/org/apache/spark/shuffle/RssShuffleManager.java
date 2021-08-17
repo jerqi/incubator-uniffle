@@ -247,14 +247,14 @@ public class RssShuffleManager implements ShuffleManager {
       int startPartition, int endPartition, TaskContext context) {
     if (handle instanceof RssShuffleHandle) {
       // spark.rss.base.path is not necessary for every storage type, eg, hdfs need but localfile doesn't
-      String shuffleDataBasePath = sparkConf.get(RssClientConfig.RSS_BASE_PATH, "");
-      String storageType = sparkConf.get(RssClientConfig.RSS_STORAGE_TYPE);
-      int indexReadLimit = sparkConf.getInt(RssClientConfig.RSS_INDEX_READ_LIMIT,
+      final String shuffleDataBasePath = sparkConf.get(RssClientConfig.RSS_BASE_PATH, "");
+      final String storageType = sparkConf.get(RssClientConfig.RSS_STORAGE_TYPE);
+      final int indexReadLimit = sparkConf.getInt(RssClientConfig.RSS_INDEX_READ_LIMIT,
           RssClientConfig.RSS_INDEX_READ_LIMIT_DEFAULT_VALUE);
       RssShuffleHandle rssShuffleHandle = (RssShuffleHandle) handle;
-      int partitionNumPerRange = sparkConf.getInt(RssClientConfig.RSS_PARTITION_NUM_PER_RANGE,
+      final int partitionNumPerRange = sparkConf.getInt(RssClientConfig.RSS_PARTITION_NUM_PER_RANGE,
           RssClientConfig.RSS_PARTITION_NUM_PER_RANGE_DEFAULT_VALUE);
-      int partitionNum = rssShuffleHandle.getDependency().partitioner().numPartitions();
+      final int partitionNum = rssShuffleHandle.getDependency().partitioner().numPartitions();
       long readBufferSize = sparkConf.getSizeAsBytes(RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE,
           RssClientConfig.RSS_CLIENT_READ_BUFFER_SIZE_DEFAULT_VALUE);
       if (readBufferSize > Integer.MAX_VALUE) {
@@ -265,10 +265,15 @@ public class RssShuffleManager implements ShuffleManager {
       long start = System.currentTimeMillis();
       Roaring64NavigableMap taskIdBitmap = getExpectedTasks(shuffleId, startPartition, endPartition);
       LOG.info("Get taskId cost " + (System.currentTimeMillis() - start) + " ms, and request expected blockIds from "
-          + taskIdBitmap.getLongCardinality() + " tasks for shuffleId[" + shuffleId + "]");
+          + taskIdBitmap.getLongCardinality() + " tasks for shuffleId[" + shuffleId + "], partitionId["
+          + startPartition + "]");
+      start = System.currentTimeMillis();
       Roaring64NavigableMap blockIdBitmap = shuffleWriteClient.getShuffleResult(
           clientType, rssShuffleHandle.getShuffleServersForResult(),
           rssShuffleHandle.getAppId(), shuffleId, startPartition);
+      LOG.info("Get shuffle blockId cost " + (System.currentTimeMillis() - start) + " ms, and get "
+          + blockIdBitmap.getLongCardinality() + " blockIds for shuffleId[" + shuffleId + "], partitionId["
+          + startPartition + "]");
 
       return new RssShuffleReader<K, C>(startPartition, endPartition, context,
           rssShuffleHandle, shuffleDataBasePath, indexReadLimit,
