@@ -223,22 +223,22 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     }
     assertTrue(isException);
 
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl("HDFS_BACKUP",
+    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl("LOCALFILE",
         appId, 0, 0, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap1, Roaring64NavigableMap.bitmapOf(1), Lists.newArrayList(), conf);
     validateResult(readClient, expectedData, blockIdBitmap1);
 
-    readClient = new ShuffleReadClientImpl("HDFS_BACKUP",
+    readClient = new ShuffleReadClientImpl("LOCALFILE",
         appId, 0, 1, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap2, Roaring64NavigableMap.bitmapOf(1), Lists.newArrayList(), conf);
     validateResult(readClient, expectedData, blockIdBitmap2);
 
-    readClient = new ShuffleReadClientImpl("HDFS_BACKUP",
+    readClient = new ShuffleReadClientImpl("LOCALFILE",
         appId, 0, 2, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap3, Roaring64NavigableMap.bitmapOf(2), Lists.newArrayList(), conf);
     validateResult(readClient, expectedData, blockIdBitmap3);
 
-    readClient = new ShuffleReadClientImpl("HDFS_BACKUP",
+    readClient = new ShuffleReadClientImpl("LOCALFILE",
         appId, 0, 3, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap4, Roaring64NavigableMap.bitmapOf(3), Lists.newArrayList(), conf);
     validateResult(readClient, expectedData, blockIdBitmap4);

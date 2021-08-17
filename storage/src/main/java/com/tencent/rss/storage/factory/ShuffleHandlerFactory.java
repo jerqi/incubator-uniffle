@@ -20,6 +20,8 @@ import com.tencent.rss.storage.request.CreateShuffleDeleteHandlerRequest;
 import com.tencent.rss.storage.request.CreateShuffleReadHandlerRequest;
 import com.tencent.rss.storage.request.CreateShuffleWriteHandlerRequest;
 import com.tencent.rss.storage.util.StorageType;
+import org.apache.commons.lang.StringUtils;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -57,7 +59,14 @@ public class ShuffleHandlerFactory {
       return new LocalFileClientReadHandler(request.getAppId(), request.getShuffleId(), request.getPartitionId(),
           request.getIndexReadLimit(), request.getPartitionNumPerRange(), request.getPartitionNum(),
           request.getReadBufferSize(), shuffleServerClients);
-    } else  if ("HDFS_BACKUP".equals(request.getStorageType())) {
+    } else {
+      throw new UnsupportedOperationException(
+          "Doesn't support storage type for client read handler:" + request.getStorageType());
+    }
+  }
+
+  public ClientReadHandler createShuffleMultiStorageReadHandler(CreateShuffleReadHandlerRequest request) {
+    if (StorageType.HDFS.name().equals(request.getStorageType())) {
       return new MultiStorageHdfsClientReadHandler(
           request.getAppId(),
           request.getShuffleId(),
@@ -70,7 +79,7 @@ public class ShuffleHandlerFactory {
           request.getHadoopConf());
     } else {
       throw new UnsupportedOperationException(
-          "Doesn't support storage type for client read handler:" + request.getStorageType());
+          "Doesn't support storage type for client multistorage read handler:" + request.getStorageType());
     }
   }
 

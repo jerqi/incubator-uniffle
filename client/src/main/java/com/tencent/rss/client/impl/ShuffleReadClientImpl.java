@@ -75,9 +75,9 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
     request.setHadoopConf(hadoopConf);
     clientReadHandler = ShuffleHandlerFactory.getInstance().createShuffleReadHandler(request);
     if (request.getStorageType().equals(StorageType.LOCALFILE.toString())
-      && !StringUtils.isEmpty(request.getStorageBasePath())) {
+      && !StringUtils.isEmpty(storageBasePath)) {
       fallbackClientRequest = request;
-      fallbackClientRequest.setStorageType("HDFS_BACKUP");
+      fallbackClientRequest.setStorageType(StorageType.HDFS.name());
     }
   }
 
@@ -103,7 +103,8 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
         if (fallbackClientRequest == null) {
           throw re;
         }
-        clientReadHandler = ShuffleHandlerFactory.getInstance().createShuffleReadHandler(fallbackClientRequest);
+        clientReadHandler = ShuffleHandlerFactory.getInstance()
+            .createShuffleMultiStorageReadHandler(fallbackClientRequest);
         fallbackClientRequest = null;
         segmentIndex = 0;
         if (!read()) {
