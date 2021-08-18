@@ -11,6 +11,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+
+import com.tencent.rss.storage.handler.impl.HdfsFileWriter;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -206,12 +208,14 @@ public class ShuffleStorageUtils {
     }
   }
 
-  public static long uploadFile(
-      File file, FSDataOutputStream fsDataOutputStream, int bufferSize) throws IOException {
-    long start = fsDataOutputStream.getPos();
+  // index file header is $PartitionNum | [($PartitionId | $PartitionFilexLength), ] | $CRC
+  public static long getIndexFileHeaderLen(int partitionNum) {
+    return 4 + (4 + 8) * partitionNum + 8;
+  }
+
+  public static long uploadFile(File file, HdfsFileWriter writer, int bufferSize) throws IOException {
     try (FileInputStream inputStream = new FileInputStream(file)) {
-      IOUtils.copyBytes(inputStream, fsDataOutputStream, bufferSize);
-      return fsDataOutputStream.getPos() - start;
+      return writer.copy(inputStream, bufferSize);
     } catch (IOException e) {
       LOG.error("Fail to upload file {}, {}", file.getAbsolutePath(), e);
       throw new IOException(e);

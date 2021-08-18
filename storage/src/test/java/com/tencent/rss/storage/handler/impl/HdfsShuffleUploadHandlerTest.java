@@ -23,6 +23,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -85,7 +86,6 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
         basePath,"combine/uploadTestCombine-" + ts + "-1.data");
     Path indexPath = new Path(
         basePath,"combine/uploadTestCombine-" + ts + "-1.index");
-
     assertTrue(fs.isFile(dataPath));
     assertTrue(fs.isFile(indexPath));
 
@@ -94,7 +94,7 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
 
     // check data file and index file length
     assertEquals(40, dataFileStatus.getLen());
-    assertEquals(HdfsShuffleUploadHandler.getIndexFileHeaderLen(2) + 20, indexFileStatus.getLen());
+    assertEquals(ShuffleStorageUtils.getIndexFileHeaderLen(2) + 20, indexFileStatus.getLen());
 
     // check index file header
     try (FSDataInputStream indexStream = fs.open(indexFileStatus.getPath())) {
@@ -176,9 +176,9 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
 
     // check data file and index file length
     assertEquals(10, dataFileStatus1.getLen());
-    assertEquals(HdfsShuffleUploadHandler.getIndexFileHeaderLen(1) + 5, indexFileStatus1.getLen());
+    assertEquals(ShuffleStorageUtils.getIndexFileHeaderLen(1) + 5, indexFileStatus1.getLen());
     assertEquals(30, dataFileStatus2.getLen());
-    assertEquals(HdfsShuffleUploadHandler.getIndexFileHeaderLen(1) + 15, indexFileStatus2.getLen());
+    assertEquals(ShuffleStorageUtils.getIndexFileHeaderLen(1) + 15, indexFileStatus2.getLen());
 
     // check index file header
     try (FSDataInputStream indexStream = fs.open(indexFileStatus1.getPath())) {
@@ -259,7 +259,7 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
 
     // check data file and index file length
     assertEquals(40, dataFileStatus.getLen());
-    assertEquals(HdfsShuffleUploadHandler.getIndexFileHeaderLen(2) + 5, indexFileStatus.getLen());
+    assertEquals(ShuffleStorageUtils.getIndexFileHeaderLen(2) + 5, indexFileStatus.getLen());
 
     // check data file content
     try (FSDataInputStream dataStream = fs.open(dataFileStatus.getPath())) {
@@ -280,7 +280,7 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
       assertEquals(2, indexStream.readInt());
       assertEquals(0L, indexStream.readLong());
 
-      indexStream.seek(HdfsShuffleUploadHandler.getIndexFileHeaderLen(2) + 5);
+      indexStream.seek(ShuffleStorageUtils.getIndexFileHeaderLen(2) + 5);
       thrown.expect(EOFException.class);
       indexStream.readByte();
 
@@ -344,7 +344,7 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
 
     // check data file and index file length
     assertEquals(10, dataFileStatus1.getLen());
-    assertEquals(HdfsShuffleUploadHandler.getIndexFileHeaderLen(1) + 5, indexFileStatus1.getLen());
+    assertEquals(ShuffleStorageUtils.getIndexFileHeaderLen(1) + 5, indexFileStatus1.getLen());
     assertEquals(0, fs.getFileStatus(dataPath2).getLen());
     assertEquals(30, fs.getFileStatus(dataPath3).getLen());
 
@@ -364,7 +364,7 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
       assertEquals(5L, indexStream.readLong());
 
       thrown.expect(EOFException.class);
-      indexStream.seek(HdfsShuffleUploadHandler.getIndexFileHeaderLen(1) + 5 + 1);
+      indexStream.seek(ShuffleStorageUtils.getIndexFileHeaderLen(1) + 5 + 1);
 
     }
 
@@ -393,15 +393,12 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
         out.write(new byte[25]);
       }
 
-      FSDataOutputStream writeStream = fs.create(
-          new Path(handler.getBaseHdfsPath() + "/writeHeaderTest.index"));
-      handler.writeIndexHeader(
-          3,
+      HdfsFileWriter writer = new HdfsFileWriter(new Path(handler.getBaseHdfsPath() + "/writeHeaderTest.index"), conf);
+      writer.writeHeader(
           Lists.newArrayList(1, 2, 3),
-          Lists.newArrayList(indexFile1, indexFile2, indexFile3),
-          writeStream);
-      writeStream.close();
-      byte[] buf = new byte[HdfsShuffleUploadHandler.getIndexFileHeaderLen(3) - 8];
+          Lists.newArrayList(indexFile1.length(), indexFile2.length(), indexFile3.length()));
+      writer.close();
+      byte[] buf = new byte[(int)ShuffleStorageUtils.getIndexFileHeaderLen(3) - 8];
 
       FSDataInputStream readStream1 = fs.open(
           new Path(handler.getBaseHdfsPath() + "/writeHeaderTest.index"));
@@ -426,7 +423,5 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
       e.printStackTrace();
       fail(e.getMessage());
     }
-
   }
-
 }

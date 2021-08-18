@@ -434,17 +434,19 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     Roaring64NavigableMap blockIdBitmap3 = Roaring64NavigableMap.bitmapOf();
 
     List<ShuffleBlockInfo> blocks1 = createShuffleBlockList(
-        2, 0, 1,40, 10 * 1024 * 1024, blockIdBitmap1, expectedData);
+        2, 0, 1,30, 10 * 1024 * 1024, blockIdBitmap1, expectedData);
 
     List<ShuffleBlockInfo> blocks2 = createShuffleBlockList(
         3, 1, 2,9, 10 * 1024 * 1024, blockIdBitmap2, expectedData);
 
     List<ShuffleBlockInfo> blocks3 = createShuffleBlockList(
         2, 2, 2,9, 10 * 1024 * 1024, blockIdBitmap3, expectedData);
-    sendSinglePartitionToShuffleServer(appId, 2, 0, 1, blocks1);
+
     DiskItem item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 2, 0);
+    item.getLock(appId + "/" + 2).readLock().lock();
+    sendSinglePartitionToShuffleServer(appId, 2, 0, 1, blocks1);
     assertFalse(item.canWrite());
-    assertEquals(40 * 1024 * 1024 * 10, item.getNotUploadedSize(appId + "/" + 2));
+    assertEquals(30 * 1024 * 1024 * 10, item.getNotUploadedSize(appId + "/" + 2));
     assertEquals(1, item.getNotUploadedPartitions(appId + "/" + 2).getCardinality());
     boolean isException = false;
     try {
@@ -453,6 +455,8 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
       isException = true;
       assertTrue(re.getMessage().contains("Can't finish shuffle process"));
     }
+    item.getLock(appId + "/" + 2).readLock().unlock();
+    Uninterruptibles.sleepUninterruptibly(3, TimeUnit.SECONDS);
     assertEquals(originSize, shuffleServers.get(0).getShuffleBufferManager().getCapacity());
     assertTrue(isException);
     RssGetShuffleResultRequest rg1 = new RssGetShuffleResultRequest(appId, 2, 0);

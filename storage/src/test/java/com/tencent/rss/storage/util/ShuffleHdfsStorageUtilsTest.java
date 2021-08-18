@@ -1,8 +1,7 @@
 package com.tencent.rss.storage.util;
 
 import com.tencent.rss.storage.HdfsTestBase;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
+import com.tencent.rss.storage.handler.impl.HdfsFileWriter;
 import org.apache.hadoop.fs.Path;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -19,7 +18,6 @@ public class ShuffleHdfsStorageUtilsTest extends HdfsTestBase {
 
   @Test
   public void testUploadFile() {
-    FSDataOutputStream out = null;
     FileOutputStream fileOut = null;
     DataOutputStream dataOut = null;
     try {
@@ -34,12 +32,12 @@ public class ShuffleHdfsStorageUtilsTest extends HdfsTestBase {
       dataOut.close();
       fileOut.close();
       String path = HDFS_URI + "test";
-      FileSystem fs = FileSystem.get(conf);
-      out = fs.create(new Path(path));
-      long size = ShuffleStorageUtils.uploadFile(file, out, 1024);
+      HdfsFileWriter writer = new HdfsFileWriter(new Path(path), conf);
+      long size = ShuffleStorageUtils.uploadFile(file, writer, 1024);
       assertEquals(2096, size);
-      size = ShuffleStorageUtils.uploadFile(file, out, 100);
+      size = ShuffleStorageUtils.uploadFile(file, writer, 100);
       assertEquals(2096, size);
+      writer.close();
       tmpDir.delete();
     } catch (Exception e) {
       e.printStackTrace();

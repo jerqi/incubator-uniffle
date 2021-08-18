@@ -2,17 +2,14 @@ package com.tencent.rss.storage.handler.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.handler.api.ShuffleUploadHandler;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import com.tencent.rss.storage.util.ShuffleUploadResult;
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -106,7 +103,7 @@ public class HdfsShuffleUploadHandler implements ShuffleUploadHandler {
     List<Long> fileSize = Lists.newLinkedList();
 
     String dataFileName = generateDataFileName(partitions.get(0));
-    try (FSDataOutputStream dataStream = createOutputStream(dataFileName)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(new Path(baseHdfsPath, dataFileName), hadoopConf)) {
       for (File file : dataFiles) {
         if (!file.exists() || file.length() == 0) {
           LOG.error("Fail to upload data file {}, for it do not exist or length is 0", file.getAbsolutePath());
@@ -114,7 +111,7 @@ public class HdfsShuffleUploadHandler implements ShuffleUploadHandler {
         }
 
         try {
-          long sz = ShuffleStorageUtils.uploadFile(file, dataStream, buffSize);
+          long sz = ShuffleStorageUtils.uploadFile(file, writer, buffSize);
           if (sz == 0) {
             LOG.error("Fail to upload data file {} upload size is 0", file.getAbsolutePath());
             break;
@@ -138,9 +135,12 @@ public class HdfsShuffleUploadHandler implements ShuffleUploadHandler {
       return null;
     }
 
-    try (FSDataOutputStream indexStream = createOutputStream(indexFileName)) {
+    try (HdfsFileWriter writer = new HdfsFileWriter(new Path(baseHdfsPath, indexFileName), hadoopConf)) {
       try {
-        writeIndexHeader(fileSize.size(), partitions, indexFiles, indexStream);
+        List<Long> sizes = Lists.newArrayList();
+        indexFiles.subList(0, fileSize.size()).forEach(f -> sizes.add(f.length()));
+        List<Integer> effectivePartitions = partitions.subList(0, fileSize.size());
+        writer.writeHeader(effectivePartitions, sizes);
       } catch (IOException e) {
         LOG.error("Fail to write header to index output stream {}, {}", indexFileName, ExceptionUtils.getStackTrace(e));
         return null;
@@ -153,7 +153,7 @@ public class HdfsShuffleUploadHandler implements ShuffleUploadHandler {
         }
 
         try {
-          ShuffleStorageUtils.uploadFile(file, indexStream, buffSize);
+          ShuffleStorageUtils.uploadFile(file, writer, buffSize);
           ++num;
         } catch (IOException e) {
           LOG.error("Fail to upload index file {}, for {}", file.getAbsolutePath(), ExceptionUtils.getStackTrace(e));
@@ -236,57 +236,8 @@ public class HdfsShuffleUploadHandler implements ShuffleUploadHandler {
     return fileSystem;
   }
 
-  private FSDataOutputStream createOutputStream(String fileName) throws IOException, IllegalStateException {
-    Path path = new Path(baseHdfsPath, fileName);
-    if (fileSystem.isFile(path)) {
-      String msg = path + " exists!";
-      LOG.error(msg);
-      throw new IllegalStateException(msg);
-    } else if (fileSystem.isDirectory(path)) {
-      String msg = path + " is a directory!";
-      LOG.error(msg);
-      throw new IllegalStateException(msg);
-    } else {
-      return fileSystem.create(path);
-    }
-  }
-
-  // index file header is PartitionNum | [(PartitionId | PartitionFileLength), ] | CRC
-  @VisibleForTesting
-  void writeIndexHeader(
-      int partitionNum,
-      List<Integer> partitions,
-      List<File> files,
-      FSDataOutputStream stream) throws IOException {
-    int len = getIndexFileHeaderLen(partitionNum);
-    ByteBuffer buf = ByteBuffer.allocate(len);
-    buf.putInt(partitionNum);
-    for (int i = 0; i < partitionNum; ++i) {
-      buf.putInt(partitions.get(i));
-      buf.putLong(files.get(i).length());
-    }
-
-    buf.flip();
-    long crc = ChecksumUtils.getCrc32(buf);
-    // continue to write crc
-    buf.position(buf.limit());
-    buf.limit(buf.capacity());
-    buf.putLong(crc);
-
-    buf.flip();
-    stream.write(buf.array(), buf.arrayOffset() + buf.position(), buf.remaining());
-    if (stream.getPos() != (long) len) {
-      throw new IOException("Fail to write index header");
-    }
-  }
-
   public String getHdfsFilePrefixBase() {
     return hdfsFilePrefixBase;
-  }
-
-  // index file header is $PartitionNum | [($PartitionId | $PartitionFilexLength), ] | $CRC
-  public static int getIndexFileHeaderLen(int partitionNum) {
-    return 4 + (4 + 8) * partitionNum + 8;
   }
 
   public String getBaseHdfsPath() {

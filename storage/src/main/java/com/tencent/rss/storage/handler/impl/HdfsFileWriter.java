@@ -4,7 +4,10 @@ import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -12,6 +15,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +84,7 @@ public class HdfsFileWriter implements Closeable {
     fsDataOutputStream.writeLong(segment.getTaskAttemptId());
   }
 
+  // index file header is PartitionNum | [(PartitionId | PartitionFileLength), ] | CRC
   public void writeHeader(List<Integer> partitionList, List<Long> sizeList) throws IOException {
     ByteBuffer headerContentBuf = ByteBuffer.allocate(4 + partitionList.size() * 12);
     fsDataOutputStream.writeInt(partitionList.size());
@@ -92,6 +97,10 @@ public class HdfsFileWriter implements Closeable {
     }
     headerContentBuf.flip();
     fsDataOutputStream.writeLong(ChecksumUtils.getCrc32(headerContentBuf));
+    long len = ShuffleStorageUtils.getIndexFileHeaderLen(partitionList.size());
+    if (fsDataOutputStream.getPos() != (long) len) {
+      throw new IOException("Fail to write index header");
+    }
   }
 
   public long nextOffset() {
@@ -109,6 +118,12 @@ public class HdfsFileWriter implements Closeable {
     if (fsDataOutputStream != null) {
       fsDataOutputStream.close();
     }
+  }
+
+  public long copy(FileInputStream inputStream, int bufferSize) throws IOException {
+    long start = fsDataOutputStream.getPos();
+    IOUtils.copyBytes(inputStream, fsDataOutputStream, bufferSize);
+    return fsDataOutputStream.getPos() - start;
   }
 
 //  private void flush() throws IOException {

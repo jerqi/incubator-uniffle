@@ -23,8 +23,6 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.roaringbitmap.RoaringBitmap;
 
 import static org.junit.Assert.assertEquals;
