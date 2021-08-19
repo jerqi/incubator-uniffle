@@ -24,6 +24,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
   private String appId;
   private int shuffleId;
   private int partitionId;
+  private long lastIndexFileSize = 0;
 
   public LocalFileServerReadHandler(
       String appId,
@@ -58,11 +59,8 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
     } else {
       throw new RuntimeException("Can't get base path, please check rss.storage.localFile.basePaths.");
     }
-    long prepareCost = System.currentTimeMillis() - start;
-    start = System.currentTimeMillis();
-    initIndexReadSegment();
     LOG.debug("Prepare for appId[" + appId + "], shuffleId[" + shuffleId + "], partitionId[" + partitionId
-        + "] cost " + prepareCost + " ms, read index cost " + (System.currentTimeMillis() - start) + " ms");
+        + "] cost " + (System.currentTimeMillis() - start) + " ms");
   }
 
   private void prepareFilePath(
@@ -77,13 +75,9 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
             appId, shuffleId, partitionId, partitionNumPerRange, partitionNum));
 
     File baseFolder = new File(fullShufflePath);
-    try {
-      if (!baseFolder.exists()) {
-        // the partition doesn't exist in this base folder, skip
-        throw new RuntimeException("Can't find folder " + fullShufflePath);
-      }
-    } catch (Exception e) {
-      LOG.warn("Unexpected error when prepareFilePath", e);
+    if (!baseFolder.exists()) {
+      // the partition doesn't exist in this base folder, skip
+      throw new RuntimeException("Can't find folder " + fullShufflePath);
     }
     File[] indexFiles;
     String failedGetIndexFileMsg = "No index file found in  " + storageBasePath;
@@ -114,6 +108,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
       int dataSize = 0;
       int segmentSize = 0;
       long offset = 0;
+      indexSegments = Lists.newArrayList();
       try (LocalFileReader reader = createFileReader(indexFileName)) {
         FileBasedShuffleSegment segment = reader.readIndex();
         while (segment != null) {
@@ -138,7 +133,7 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
     }
   }
 
-  private List<FileBasedShuffleSegment> getDataSegments(int dataSegmentIndex) {
+  private synchronized List<FileBasedShuffleSegment> getDataSegments(int dataSegmentIndex) {
     List<FileBasedShuffleSegment> segments = Lists.newArrayList();
     if (indexSegments.size() > dataSegmentIndex) {
       try {
@@ -193,8 +188,26 @@ public class LocalFileServerReadHandler implements ServerReadHandler {
     return new LocalFileReader(path);
   }
 
+  // index maybe change after first read, check index file size before read and update segments if necessary
+  private synchronized void updateIndexSegments() {
+    try {
+      File indexFile = new File(indexFileName);
+      long latestSize = indexFile.length();
+      if (latestSize > lastIndexFileSize) {
+        long start = System.currentTimeMillis();
+        initIndexReadSegment();
+        LOG.debug("Init index segments for " + indexFileName + " cost "
+            + (System.currentTimeMillis() - start) + " ms");
+        lastIndexFileSize = latestSize;
+      }
+    } catch (Exception e) {
+      LOG.error("Error happened when update index segments", e);
+    }
+  }
+
   @Override
   public ShuffleDataResult getShuffleData(int segmentIndex) {
+    updateIndexSegments();
     byte[] readBuffer = new byte[]{};
     DataFileSegment fileSegment = getDataFileSegment(segmentIndex);
     List<BufferSegment> bufferSegments = Lists.newArrayList();

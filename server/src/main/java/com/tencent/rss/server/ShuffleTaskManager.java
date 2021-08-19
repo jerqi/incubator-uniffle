@@ -112,9 +112,11 @@ public class ShuffleTaskManager {
     shuffleBufferManager.commitShuffleTask(appId, shuffleId);
     long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
     int expectedCommitted = getCachedBlockCount(appId, shuffleId);
+    int actualCommitted = 0;
     while (true) {
       int committedBlockCount = shuffleFlushManager.getCommittedBlockCount(appId, shuffleId);
       if (committedBlockCount >= expectedCommitted) {
+        actualCommitted = committedBlockCount;
         break;
       }
       Thread.sleep(commitCheckInterval);
@@ -124,8 +126,9 @@ public class ShuffleTaskManager {
       LOG.info("Checking commit result for appId[" + appId + "], shuffleId[" + shuffleId
           + "], expect committed[" + expectedCommitted + "], actual committed[" + committedBlockCount + "]");
     }
-    LOG.info("Finish commit " + expectedCommitted + " blocks for appId[" + appId
-        + "], shuffleId[" + shuffleId + "] cost " + (System.currentTimeMillis() - start) + " ms to check");
+    LOG.info("Finish commit for appId[" + appId + "], shuffleId[" + shuffleId
+        + "] with expectedCommitted[" + expectedCommitted + "], actualCommitted["
+        + actualCommitted + "], cost " + (System.currentTimeMillis() - start) + " ms to check");
 
     return StatusCode.SUCCESS;
   }

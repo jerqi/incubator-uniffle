@@ -70,6 +70,11 @@ public class LocalFileHandlerTest {
 
     validateResult(readHandler1, expectedBlockIds1, expectedData);
     validateResult(readHandler2, expectedBlockIds2, expectedData);
+
+    // after first read, write more data
+    writeTestData(writeHandler1, 1, 32, expectedData, expectedBlockIds1);
+    // new data should be read
+    validateResult(readHandler1, expectedBlockIds1, expectedData);
   }
 
 
@@ -96,11 +101,14 @@ public class LocalFileHandlerTest {
     ShuffleDataResult sdr = readHandler.getShuffleData(0);
     byte[] buffer = sdr.getData();
     List<BufferSegment> bufferSegments = sdr.getBufferSegments();
+    Set<Long> actualBlockIds = Sets.newHashSet();
     for (BufferSegment bs : bufferSegments) {
       byte[] data = new byte[bs.getLength()];
       System.arraycopy(buffer, bs.getOffset(), data, 0, bs.getLength());
       assertEquals(bs.getCrc(), ChecksumUtils.getCrc32(data));
       assertTrue(Arrays.equals(data, expectedData.get(bs.getBlockId())));
+      actualBlockIds.add(bs.getBlockId());
     }
+    assertEquals(expectedBlockIds, actualBlockIds);
   }
 }

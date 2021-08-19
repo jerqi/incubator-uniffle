@@ -19,6 +19,7 @@ import com.tencent.rss.client.response.CompressedShuffleBlock;
 import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
+import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.storage.util.StorageType;
@@ -294,6 +295,49 @@ public class SparkClientWithLocalTest extends ShuffleReadWriteBase {
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.LOCALFILE.name(), testAppId, 0, 0, 100, 1,
         10, 1000, "", blockIdBitmap, taskIdBitmap, shuffleServerInfo, null);
 
+    validateResult(readClient, expectedData);
+    readClient.checkProcessedBlockIds();
+    readClient.close();
+  }
+
+  @Test
+  public void readTest9() throws Exception {
+    String testAppId = "localReadTest9";
+    registerApp(testAppId, Lists.newArrayList(new PartitionRange(0, 0)));
+    Map<Long, byte[]> expectedData = Maps.newHashMap();
+    Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
+    Roaring64NavigableMap taskIdBitmap = Roaring64NavigableMap.bitmapOf(0);
+
+    List<ShuffleBlockInfo> blocks = createShuffleBlockList(
+        0, 0, 0, 3, 25, blockIdBitmap, expectedData, mockSSI);
+    sendTestData(testAppId, blocks);
+
+    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.LOCALFILE.name(), testAppId, 0, 0, 100, 1,
+        10, 1000, "", blockIdBitmap, taskIdBitmap,
+        shuffleServerInfo, null);
+
+    // do the first read, shuffle server will create cache for index file
+    validateResult(readClient, expectedData);
+    readClient.checkProcessedBlockIds();
+    readClient.close();
+
+    Roaring64NavigableMap beforeAdded = RssUtils.deserializeBitMap(RssUtils.serializeBitMap(blockIdBitmap));
+    // write data by another task, read data again, the cache for index file should be updated
+    blocks = createShuffleBlockList(
+        0, 0, 1, 3, 25, blockIdBitmap, Maps.newHashMap(), mockSSI);
+    sendTestData(testAppId, blocks);
+    // test with un-changed expected blockId
+    readClient = new ShuffleReadClientImpl(StorageType.LOCALFILE.name(), testAppId, 0, 0, 100, 1,
+        10, 1000, "", beforeAdded, taskIdBitmap,
+        shuffleServerInfo, null);
+    validateResult(readClient, expectedData);
+    readClient.checkProcessedBlockIds();
+    readClient.close();
+
+    // test with changed expected blockId
+    readClient = new ShuffleReadClientImpl(StorageType.LOCALFILE.name(), testAppId, 0, 0, 100, 1,
+        10, 1000, "", blockIdBitmap, taskIdBitmap,
+        shuffleServerInfo, null);
     validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
     readClient.close();
