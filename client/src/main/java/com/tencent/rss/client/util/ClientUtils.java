@@ -1,79 +1,64 @@
 package com.tencent.rss.client.util;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.tencent.rss.common.ShuffleBlockInfo;
-import com.tencent.rss.common.ShuffleServerInfo;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import com.tencent.rss.common.util.Constants;
 
 public class ClientUtils {
 
-  private static AtomicInteger ATOMIC_INT = new AtomicInteger(0);
-
-  // BlockId is long and composed by executorId and AtomicInteger
-  // executorId is high-32 bit and AtomicInteger is low-32 bit
-  public static Long getBlockId(long executorId, int atomicInt) {
-    if (atomicInt < 0) {
-      throw new RuntimeException("Block size is out of scope which is " + Integer.MAX_VALUE);
+  // BlockId is long and composed by partitionId, executorId and AtomicInteger
+  // partitionId is first 19 bit, max value is 2^19 - 1 = 524287
+  // taskAttemptId is next 25 bit, max value is 2^25 - 1 = 33554431
+  // AtomicInteger is rest of 19 bit, max value is 2^19 - 1 = 524287
+  public static Long getBlockId(long partitionId, long taskAttemptId, int atomicInt) {
+    if (atomicInt < 0 || atomicInt > Constants.MAX_BLOCK_ID) {
+      throw new RuntimeException("Can't support blockId[" + atomicInt
+          + "], the max value should be " + Constants.MAX_BLOCK_ID);
     }
-    return (executorId << 32) + atomicInt;
-  }
-
-  public static int getAtomicInteger() {
-    return ATOMIC_INT.getAndIncrement();
-  }
-
-  public static String transBlockIdsToJson(Map<Integer, Set<Long>> partitionToBlockIds)
-      throws JsonProcessingException {
-    ObjectMapper mapper = new ObjectMapper();
-    return mapper.writeValueAsString(partitionToBlockIds);
-  }
-
-  public static Map<Integer, Set<Long>> getBlockIdsFromJson(String jsonStr) throws IOException {
-    ObjectMapper mapper = new ObjectMapper();
-    TypeReference<HashMap<Integer, Set<Long>>> typeRef
-        = new TypeReference<HashMap<Integer, Set<Long>>>() {
-    };
-    return mapper.readValue(jsonStr, typeRef);
-  }
-
-  // send shuffle block to shuffle server
-  // for all ShuffleBlockInfo, create the data structure as shuffleServer -> shuffleId -> partitionId -> blocks
-  // it will be helpful to send rpc request to shuffleServer
-  public static void getServerToBlocks(List<ShuffleBlockInfo> shuffleBlockInfoList) {
-    Map<ShuffleServerInfo, Map<Integer, Map<Integer, List<ShuffleBlockInfo>>>> serverToBlocks = Maps.newHashMap();
-    Map<ShuffleServerInfo, List<Long>> serverToBlockIds = Maps.newHashMap();
-    for (ShuffleBlockInfo sbi : shuffleBlockInfoList) {
-      int partitionId = sbi.getPartitionId();
-      int shuffleId = sbi.getShuffleId();
-      for (ShuffleServerInfo ssi : sbi.getShuffleServerInfos()) {
-        if (!serverToBlockIds.containsKey(ssi)) {
-          serverToBlockIds.put(ssi, Lists.newArrayList());
-        }
-        serverToBlockIds.get(ssi).add(sbi.getBlockId());
-
-        if (!serverToBlocks.containsKey(ssi)) {
-          serverToBlocks.put(ssi, Maps.newHashMap());
-        }
-        Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleIdToBlocks = serverToBlocks.get(ssi);
-        if (!shuffleIdToBlocks.containsKey(shuffleId)) {
-          shuffleIdToBlocks.put(shuffleId, Maps.newHashMap());
-        }
-
-        Map<Integer, List<ShuffleBlockInfo>> partitionToBlocks = shuffleIdToBlocks.get(shuffleId);
-        if (!partitionToBlocks.containsKey(partitionId)) {
-          partitionToBlocks.put(partitionId, Lists.newArrayList());
-        }
-        partitionToBlocks.get(partitionId).add(sbi);
-      }
+    if (partitionId < 0 || partitionId > Constants.MAX_PARTITION_ID) {
+      throw new RuntimeException("Can't support partitionId["
+          + partitionId + "], the max value should be " + Constants.MAX_PARTITION_ID);
     }
+    if (taskAttemptId < 0 || taskAttemptId > Constants.MAX_TASK_ATTEMPT_ID) {
+      throw new RuntimeException("Can't support taskAttemptId["
+          + taskAttemptId + "], the max value should be " + Constants.MAX_TASK_ATTEMPT_ID);
+    }
+    return (partitionId << (Constants.ATOMIC_INT_MAX_LENGTH + Constants.TASK_ATTEMPT_ID_MAX_LENGTH))
+        + (taskAttemptId << Constants.ATOMIC_INT_MAX_LENGTH) + atomicInt;
+  }
+
+  // blockId will be stored in bitmap in shuffle server, more bitmap will cost more memory
+  // to reduce memory cost, merge blockId of different partition in one bitmap
+  public static int getBitmapNum(
+      int taskNum,
+      int partitionNum,
+      int blockNumPerTaskPerPartition,
+      long blockNumPerBitmap) {
+    // depend on performance test, spark.rss.block.per.bitmap should be great than 20000000
+    if (blockNumPerBitmap < 20000000) {
+      throw new IllegalArgumentException("blockNumPerBitmap should be greater than 20000000");
+    }
+    // depend on actual job, spark.rss.block.per.task.partition should be less than 1000000
+    // which maybe generate about 1T shuffle data/per task per partition
+    if (blockNumPerTaskPerPartition < 0 || blockNumPerTaskPerPartition > 1000000) {
+      throw new IllegalArgumentException("blockNumPerTaskPerPartition should be less than 1000000");
+    }
+    // to avoid overflow when do the calculation, reduce the data if possible
+    // it's ok the result is not accuracy
+    int processedTaskNum = taskNum;
+    int processedPartitionNum = partitionNum;
+    long processedBlockNumPerBitmap = blockNumPerBitmap;
+    if (taskNum > 1000) {
+      processedTaskNum = taskNum / 1000;
+      processedBlockNumPerBitmap = processedBlockNumPerBitmap / 1000;
+    }
+    if (partitionNum > 1000) {
+      processedPartitionNum = partitionNum / 1000;
+      processedBlockNumPerBitmap = processedBlockNumPerBitmap / 1000;
+    }
+    long bitmapNum = 1L * blockNumPerTaskPerPartition * processedTaskNum
+        * processedPartitionNum / processedBlockNumPerBitmap + 1;
+    if (bitmapNum > partitionNum || bitmapNum < 0) {
+      bitmapNum = partitionNum;
+    }
+    return (int) bitmapNum;
   }
 }

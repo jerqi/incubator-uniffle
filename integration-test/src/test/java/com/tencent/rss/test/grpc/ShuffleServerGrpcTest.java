@@ -17,14 +17,18 @@ import com.tencent.rss.client.request.RssSendShuffleDataRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
 import com.tencent.rss.client.response.RssGetShuffleResultResponse;
 import com.tencent.rss.client.response.RssReportShuffleResultResponse;
+import com.tencent.rss.client.util.ClientUtils;
 import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
+import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.test.IntegrationTestBase;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -33,6 +37,7 @@ import org.roaringbitmap.longlong.Roaring64NavigableMap;
 public class ShuffleServerGrpcTest extends IntegrationTestBase {
 
   private ShuffleServerGrpcClient shuffleServerClient;
+  private AtomicInteger atomicInteger = new AtomicInteger(0);
 
   @BeforeClass
   public static void setupServers() throws Exception {
@@ -40,7 +45,6 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     coordinatorConf.setLong("rss.coordinator.app.expired", 2000);
     createCoordinatorServer(coordinatorConf);
     ShuffleServerConf shuffleServerConf = getShuffleServerConf();
-    shuffleServerConf.setLong("rss.server.app.expired.withHeartbeat", 10000L);
     shuffleServerConf.setLong("rss.server.app.expired.withoutHeartbeat", 2000L);
     shuffleServerConf.setLong("rss.server.preAllocation.expired", 5000L);
     createShuffleServer(shuffleServerConf);
@@ -112,12 +116,15 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
   @Test
   public void shuffleResultTest() throws Exception {
     Map<Integer, List<Long>> partitionToBlockIds = Maps.newHashMap();
-    partitionToBlockIds.put(1, Lists.newArrayList(1L, 2L, 3L));
-    partitionToBlockIds.put(2, Lists.newArrayList(4L, 5L));
-    partitionToBlockIds.put(3, Lists.newArrayList(6L));
+    List<Long> blockIds1 = getBlockIdList(1, 3);
+    List<Long> blockIds2 = getBlockIdList(2, 2);
+    List<Long> blockIds3 = getBlockIdList(3, 1);
+    partitionToBlockIds.put(1, blockIds1);
+    partitionToBlockIds.put(2, blockIds2);
+    partitionToBlockIds.put(3, blockIds3);
 
     RssReportShuffleResultRequest request =
-        new RssReportShuffleResultRequest("shuffleResultTest", 0, 0L, partitionToBlockIds);
+        new RssReportShuffleResultRequest("shuffleResultTest", 0, 0L, partitionToBlockIds, 1);
     try {
       shuffleServerClient.reportShuffleResult(request);
       fail("Exception should be thrown");
@@ -143,61 +150,137 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     assertEquals(Roaring64NavigableMap.bitmapOf(), blockIdBitmap);
 
     request =
-        new RssReportShuffleResultRequest("shuffleResultTest", 0, 0L, partitionToBlockIds);
+        new RssReportShuffleResultRequest("shuffleResultTest", 0, 0L, partitionToBlockIds, 1);
     RssReportShuffleResultResponse response = shuffleServerClient.reportShuffleResult(request);
     assertEquals(ResponseStatusCode.SUCCESS, response.getStatusCode());
     req = new RssGetShuffleResultRequest("shuffleResultTest", 0, 1);
     result = shuffleServerClient.getShuffleResult(req);
     blockIdBitmap = result.getBlockIdBitmap();
-    assertEquals(Roaring64NavigableMap.bitmapOf(1L, 2L, 3L), blockIdBitmap);
+    Roaring64NavigableMap expectedP1 = Roaring64NavigableMap.bitmapOf();
+    addExpectedBlockIds(expectedP1, blockIds1);
+    assertEquals(expectedP1, blockIdBitmap);
 
     req = new RssGetShuffleResultRequest("shuffleResultTest", 0, 2);
     result = shuffleServerClient.getShuffleResult(req);
     blockIdBitmap = result.getBlockIdBitmap();
-    assertEquals(Roaring64NavigableMap.bitmapOf(4L, 5L), blockIdBitmap);
+    Roaring64NavigableMap expectedP2 = Roaring64NavigableMap.bitmapOf();
+    addExpectedBlockIds(expectedP2, blockIds2);
+    assertEquals(expectedP2, blockIdBitmap);
 
     req = new RssGetShuffleResultRequest("shuffleResultTest", 0, 3);
     result = shuffleServerClient.getShuffleResult(req);
     blockIdBitmap = result.getBlockIdBitmap();
-    assertEquals(Roaring64NavigableMap.bitmapOf(6L), blockIdBitmap);
+    Roaring64NavigableMap expectedP3 = Roaring64NavigableMap.bitmapOf();
+    addExpectedBlockIds(expectedP3, blockIds3);
+    assertEquals(expectedP3, blockIdBitmap);
 
     partitionToBlockIds = Maps.newHashMap();
-    partitionToBlockIds.put(1, Lists.newArrayList(11L, 12L, 13L));
-    partitionToBlockIds.put(2, Lists.newArrayList(14L, 15L));
-    partitionToBlockIds.put(3, Lists.newArrayList(16L));
+    blockIds1 = getBlockIdList(1, 3);
+    blockIds2 = getBlockIdList(2, 2);
+    blockIds3 = getBlockIdList(3, 1);
+    partitionToBlockIds.put(1, blockIds1);
+    partitionToBlockIds.put(2, blockIds2);
+    partitionToBlockIds.put(3, blockIds3);
 
     request =
-        new RssReportShuffleResultRequest("shuffleResultTest", 0, 1L, partitionToBlockIds);
+        new RssReportShuffleResultRequest("shuffleResultTest", 0, 1L, partitionToBlockIds, 1);
     shuffleServerClient.reportShuffleResult(request);
 
     req = new RssGetShuffleResultRequest("shuffleResultTest", 0, 1);
     result = shuffleServerClient.getShuffleResult(req);
     blockIdBitmap = result.getBlockIdBitmap();
-    assertEquals(Roaring64NavigableMap.bitmapOf(1L, 2L, 3L, 11L, 12L, 13L), blockIdBitmap);
+    addExpectedBlockIds(expectedP1, blockIds1);
+    assertEquals(expectedP1, blockIdBitmap);
 
     req = new RssGetShuffleResultRequest("shuffleResultTest", 0, 2);
     result = shuffleServerClient.getShuffleResult(req);
     blockIdBitmap = result.getBlockIdBitmap();
-    assertEquals(Roaring64NavigableMap.bitmapOf(4L, 5L, 14L, 15L), blockIdBitmap);
+    addExpectedBlockIds(expectedP2, blockIds2);
+    assertEquals(expectedP2, blockIdBitmap);
 
     req = new RssGetShuffleResultRequest("shuffleResultTest", 0, 3);
     result = shuffleServerClient.getShuffleResult(req);
     blockIdBitmap = result.getBlockIdBitmap();
-    assertEquals(Roaring64NavigableMap.bitmapOf(6L, 16L), blockIdBitmap);
-
-    partitionToBlockIds = Maps.newHashMap();
-    partitionToBlockIds.put(1, Lists.newArrayList(7L, 8L));
-    request = new RssReportShuffleResultRequest("shuffleResultTest",
-        0, 2L, partitionToBlockIds);
-    shuffleServerClient.reportShuffleResult(request);
+    addExpectedBlockIds(expectedP3, blockIds3);
+    assertEquals(expectedP3, blockIdBitmap);
 
     request =
-        new RssReportShuffleResultRequest("shuffleResultTest", 1, 1L, Maps.newHashMap());
+        new RssReportShuffleResultRequest("shuffleResultTest", 1, 1L, Maps.newHashMap(), 1);
     shuffleServerClient.reportShuffleResult(request);
     req = new RssGetShuffleResultRequest("shuffleResultTest", 1, 1);
     result = shuffleServerClient.getShuffleResult(req);
     blockIdBitmap = result.getBlockIdBitmap();
     assertEquals(Roaring64NavigableMap.bitmapOf(), blockIdBitmap);
+
+    // test with bitmapNum > 1
+    partitionToBlockIds = Maps.newHashMap();
+    blockIds1 = getBlockIdList(1, 3);
+    blockIds2 = getBlockIdList(2, 2);
+    blockIds3 = getBlockIdList(3, 1);
+    partitionToBlockIds.put(1, blockIds1);
+    partitionToBlockIds.put(2, blockIds2);
+    partitionToBlockIds.put(3, blockIds3);
+    request =
+        new RssReportShuffleResultRequest("shuffleResultTest", 2, 1L, partitionToBlockIds, 3);
+    shuffleServerClient.reportShuffleResult(request);
+    // validate bitmap in shuffleTaskManager
+    Roaring64NavigableMap[] bitmaps = shuffleServers.get(0).getShuffleTaskManager()
+        .getPartitionsToBlockIds().get("shuffleResultTest").get(2);
+    assertEquals(3, bitmaps.length);
+
+    req = new RssGetShuffleResultRequest("shuffleResultTest", 2, 1);
+    result = shuffleServerClient.getShuffleResult(req);
+    blockIdBitmap = result.getBlockIdBitmap();
+    expectedP1 = Roaring64NavigableMap.bitmapOf();
+    addExpectedBlockIds(expectedP1, blockIds1);
+    assertEquals(expectedP1, blockIdBitmap);
+
+    req = new RssGetShuffleResultRequest("shuffleResultTest", 2, 2);
+    result = shuffleServerClient.getShuffleResult(req);
+    blockIdBitmap = result.getBlockIdBitmap();
+    expectedP2 = Roaring64NavigableMap.bitmapOf();
+    addExpectedBlockIds(expectedP2, blockIds2);
+    assertEquals(expectedP2, blockIdBitmap);
+
+    req = new RssGetShuffleResultRequest("shuffleResultTest", 2, 3);
+    result = shuffleServerClient.getShuffleResult(req);
+    blockIdBitmap = result.getBlockIdBitmap();
+    expectedP3 = Roaring64NavigableMap.bitmapOf();
+    addExpectedBlockIds(expectedP3, blockIds3);
+    assertEquals(expectedP3, blockIdBitmap);
+
+    partitionToBlockIds = Maps.newHashMap();
+    blockIds1 = getBlockIdList((int) Constants.MAX_PARTITION_ID, 3);
+    blockIds2 = getBlockIdList(2, 2);
+    blockIds3 = getBlockIdList(3, 1);
+    partitionToBlockIds.put((int) Constants.MAX_PARTITION_ID, blockIds1);
+    partitionToBlockIds.put(2, blockIds2);
+    partitionToBlockIds.put(3, blockIds3);
+    // bimapNum = 2
+    request =
+        new RssReportShuffleResultRequest("shuffleResultTest", 4, 1L, partitionToBlockIds, 2);
+    shuffleServerClient.reportShuffleResult(request);
+
+    req = new RssGetShuffleResultRequest("shuffleResultTest", 4, (int) Constants.MAX_PARTITION_ID);
+    result = shuffleServerClient.getShuffleResult(req);
+    blockIdBitmap = result.getBlockIdBitmap();
+    expectedP1 = Roaring64NavigableMap.bitmapOf();
+    addExpectedBlockIds(expectedP1, blockIds1);
+    assertEquals(expectedP1, blockIdBitmap);
+
+    req = new RssGetShuffleResultRequest("shuffleResultTest", 4, 2);
+    result = shuffleServerClient.getShuffleResult(req);
+    blockIdBitmap = result.getBlockIdBitmap();
+    expectedP2 = Roaring64NavigableMap.bitmapOf();
+    addExpectedBlockIds(expectedP2, blockIds2);
+    assertEquals(expectedP2, blockIdBitmap);
+
+    req = new RssGetShuffleResultRequest("shuffleResultTest", 4, 3);
+    result = shuffleServerClient.getShuffleResult(req);
+    blockIdBitmap = result.getBlockIdBitmap();
+    expectedP3 = Roaring64NavigableMap.bitmapOf();
+    addExpectedBlockIds(expectedP3, blockIds3);
+    assertEquals(expectedP3, blockIdBitmap);
 
     // wait resources are deleted
     Thread.sleep(12000);
@@ -248,40 +331,47 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
 
   @Test
   public void multipleShuffleResultTest() throws Exception {
+    Set<Long> expectedBlockIds = Sets.newConcurrentHashSet();
     RssRegisterShuffleRequest rrsr = new RssRegisterShuffleRequest("multipleShuffleResultTest", 100,
         Lists.newArrayList(new PartitionRange(0, 1)));
     shuffleServerClient.registerShuffle(rrsr);
 
     Runnable r1 = () -> {
-      for (long i = 0; i < 100; i++) {
+      for (int i = 0; i < 100; i++) {
         Map<Integer, List<Long>> ptbs = Maps.newHashMap();
         List<Long> blockIds = Lists.newArrayList();
-        blockIds.add(i);
+        Long blockId = ClientUtils.getBlockId(1, 0, i);
+        expectedBlockIds.add(blockId);
+        blockIds.add(blockId);
         ptbs.put(1, blockIds);
         RssReportShuffleResultRequest req1 =
-            new RssReportShuffleResultRequest("multipleShuffleResultTest", 1, 0, ptbs);
+            new RssReportShuffleResultRequest("multipleShuffleResultTest", 1, 0, ptbs, 1);
         shuffleServerClient.reportShuffleResult(req1);
       }
     };
     Runnable r2 = () -> {
-      for (long i = 100; i < 200; i++) {
+      for (int i = 100; i < 200; i++) {
         Map<Integer, List<Long>> ptbs = Maps.newHashMap();
         List<Long> blockIds = Lists.newArrayList();
-        blockIds.add(i);
+        Long blockId = ClientUtils.getBlockId(1, 1, i);
+        expectedBlockIds.add(blockId);
+        blockIds.add(blockId);
         ptbs.put(1, blockIds);
         RssReportShuffleResultRequest req1 =
-            new RssReportShuffleResultRequest("multipleShuffleResultTest", 1, 1, ptbs);
+            new RssReportShuffleResultRequest("multipleShuffleResultTest", 1, 1, ptbs, 1);
         shuffleServerClient.reportShuffleResult(req1);
       }
     };
     Runnable r3 = () -> {
-      for (long i = 200; i < 300; i++) {
+      for (int i = 200; i < 300; i++) {
         Map<Integer, List<Long>> ptbs = Maps.newHashMap();
         List<Long> blockIds = Lists.newArrayList();
-        blockIds.add(i);
+        Long blockId = ClientUtils.getBlockId(1, 2, i);
+        expectedBlockIds.add(blockId);
+        blockIds.add(blockId);
         ptbs.put(1, blockIds);
         RssReportShuffleResultRequest req1 =
-            new RssReportShuffleResultRequest("multipleShuffleResultTest", 1, 2, ptbs);
+            new RssReportShuffleResultRequest("multipleShuffleResultTest", 1, 2, ptbs, 1);
         shuffleServerClient.reportShuffleResult(req1);
       }
     };
@@ -296,9 +386,8 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     t3.join();
 
     Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
-    List<Long> expectedBlockIds = Lists.newArrayList();
-    for (long i = 0; i < 300; i++) {
-      blockIdBitmap.addLong(i);
+    for (Long blockId : expectedBlockIds) {
+      blockIdBitmap.addLong(blockId);
     }
 
     RssGetShuffleResultRequest req = new RssGetShuffleResultRequest(
@@ -306,5 +395,19 @@ public class ShuffleServerGrpcTest extends IntegrationTestBase {
     RssGetShuffleResultResponse result = shuffleServerClient.getShuffleResult(req);
     Roaring64NavigableMap actualBlockIdBitmap = result.getBlockIdBitmap();
     assertEquals(blockIdBitmap, actualBlockIdBitmap);
+  }
+
+  private List<Long> getBlockIdList(int partitionId, int blockNum) {
+    List<Long> blockIds = Lists.newArrayList();
+    for (int i = 0; i < blockNum; i++) {
+      blockIds.add(ClientUtils.getBlockId(partitionId, 0, atomicInteger.getAndIncrement()));
+    }
+    return blockIds;
+  }
+
+  private void addExpectedBlockIds(Roaring64NavigableMap bitmap, List<Long> blockIds) {
+    for (int i = 0; i < blockIds.size(); i++) {
+      bitmap.addLong(blockIds.get(i));
+    }
   }
 }

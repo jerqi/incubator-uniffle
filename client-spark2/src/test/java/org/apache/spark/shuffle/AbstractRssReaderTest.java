@@ -13,6 +13,7 @@ import com.tencent.rss.storage.handler.api.ShuffleWriteHandler;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.spark.serializer.SerializationStream;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.serializer.SerializerInstance;
@@ -22,6 +23,8 @@ import scala.collection.Iterator;
 import scala.reflect.ClassTag$;
 
 public abstract class AbstractRssReaderTest extends HdfsTestBase {
+
+  private AtomicInteger atomicInteger = new AtomicInteger(0);
 
   protected void validateResult(Iterator iterator,
       Map<String, String> expectedData, int recordNum) {
@@ -51,7 +54,7 @@ public abstract class AbstractRssReaderTest extends HdfsTestBase {
         expectedData.put(key, value);
         writeData(serializeStream, key, value);
       }
-      long blockId = ClientUtils.getBlockId(1, ClientUtils.getAtomicInteger());
+      long blockId = ClientUtils.getBlockId(0, 1, atomicInteger.getAndIncrement());
       blockIdBitmap.add(blockId);
       blocks.add(createShuffleBlock(output.toBytes(), blockId));
       serializeStream.close();

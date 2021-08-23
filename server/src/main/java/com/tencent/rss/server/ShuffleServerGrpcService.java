@@ -282,6 +282,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     String appId = request.getAppId();
     int shuffleId = request.getShuffleId();
     long taskAttemptId = request.getTaskAttemptId();
+    int bitmapNum = request.getBitmapNum();
     Map<Integer, long[]> partitionToBlockIds = toPartionBlocksMap(request.getPartitionToBlockIdsList());
     StatusCode status = StatusCode.SUCCESS;
     String msg = "OK";
@@ -290,8 +291,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
 
     try {
       LOG.info("Report " + partitionToBlockIds.size() + " blocks as shuffle result for the task of " + requestInfo);
-      shuffleServer.getShuffleTaskManager().addFinishedBlockIds(
-          appId, shuffleId, partitionToBlockIds);
+      shuffleServer.getShuffleTaskManager().addFinishedBlockIds(appId, shuffleId, partitionToBlockIds, bitmapNum);
     } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
       msg = "error happened when report shuffle result, check shuffle server for detail";
@@ -323,14 +323,14 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     } catch (Exception e) {
       status = StatusCode.INTERNAL_ERROR;
       msg = e.getMessage();
-      LOG.error("Error happened when report shuffle result for " + requestInfo, e);
+      LOG.error("Error happened when get shuffle result for " + requestInfo, e);
     }
 
     if (serializedBlockIds == null) {
       serializedBlockIds = new byte[]{};
       status = StatusCode.INTERNAL_ERROR;
       msg = "can't find shuffle data";
-      LOG.error("Error happened when report shuffle result for " + requestInfo + " because " + msg);
+      LOG.error("Error happened when get shuffle result for " + requestInfo + " because " + msg);
     }
 
     reply = GetShuffleResultResponse.newBuilder()

@@ -318,6 +318,7 @@ public class ShuffleServerGrpcClient extends GrpcClient implements ShuffleServer
         .setAppId(request.getAppId())
         .setShuffleId(request.getShuffleId())
         .setTaskAttemptId(request.getTaskAttemptId())
+        .setBitmapNum(request.getBitmapNum())
         .addAllPartitionToBlockIds(partitionToBlockIds)
         .build();
     ReportShuffleResultResponse rpcResponse = doReportShuffleResult(recRequest);

@@ -226,9 +226,9 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
 
   @Override
   public void reportShuffleResult(Set<ShuffleServerInfo> shuffleServerInfoSet,
-      String appId, int shuffleId, long taskAttemptId, Map<Integer, List<Long>> partitionToBlockIds) {
+      String appId, int shuffleId, long taskAttemptId, Map<Integer, List<Long>> partitionToBlockIds, int bitmapNum) {
     RssReportShuffleResultRequest request = new RssReportShuffleResultRequest(
-        appId, shuffleId, taskAttemptId, partitionToBlockIds);
+        appId, shuffleId, taskAttemptId, partitionToBlockIds, bitmapNum);
     boolean isSuccessful = true;
     for (ShuffleServerInfo ssi : shuffleServerInfoSet) {
       try {

@@ -109,7 +109,7 @@ public class ShuffleWithRssClientTest extends ShuffleReadWriteBase {
     ptb.put(1, Lists.newArrayList(1L));
     try {
       shuffleWriteClientImpl.reportShuffleResult(Sets.newHashSet(
-          shuffleServerInfo1, fakeShuffleServerInfo), testAppId, 0, 0, ptb);
+          shuffleServerInfo1, fakeShuffleServerInfo), testAppId, 0, 0, ptb, 2);
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
       assertTrue(e.getMessage().contains("Report shuffle result is failed for"));

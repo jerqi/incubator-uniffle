@@ -10,6 +10,7 @@ import com.tencent.rss.common.util.ChecksumUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.memory.MemoryConsumer;
@@ -33,6 +34,8 @@ public class WriteBufferManager extends MemoryConsumer {
   private AtomicLong usedBytes = new AtomicLong(0);
   // bytes of shuffle data which is in send list
   private AtomicLong inSendListBytes = new AtomicLong(0);
+  // it's part of blockId
+  private AtomicInteger atomicInteger = new AtomicInteger(0);
   private long askExecutorMemory;
   private int executorId;
   private int shuffleId;
@@ -157,7 +160,7 @@ public class WriteBufferManager extends MemoryConsumer {
     final byte[] compressed = RssShuffleUtils.compressData(data);
     final long crc32 = ChecksumUtils.getCrc32(compressed);
     compressTime += System.currentTimeMillis() - start;
-    final long blockId = ClientUtils.getBlockId(executorId, ClientUtils.getAtomicInteger());
+    final long blockId = ClientUtils.getBlockId(partitionId, taskAttemptId, atomicInteger.getAndIncrement());
     uncompressedDataLen += data.length;
     shuffleWriteMetrics.incBytesWritten(compressed.length);
     // add memory to indicate bytes which will be sent to shuffle server

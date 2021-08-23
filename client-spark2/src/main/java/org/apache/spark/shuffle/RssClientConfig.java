@@ -55,4 +55,8 @@ public class RssClientConfig {
   public static String RSS_OZONE_FS_HDFS_IMPL_DEFAULT_VALUE = "org.apache.hadoop.odfs.HdfsOdfsFilesystem";
   public static String RSS_OZONE_FS_ABSTRACT_FILE_SYSTEM_HDFS_IMPL = "spark.rss.ozone.fs.AbstractFileSystem.hdfs.impl";
   public static String RSS_OZONE_FS_ABSTRACT_FILE_SYSTEM_HDFS_IMPL_DEFAULT_VALUE = "org.apache.hadoop.odfs.HdfsOdfs";
+  public static String RSS_CLIENT_BLOCK_NUM_PER_TASK_PARTITION = "spark.rss.block.per.task.partition";
+  public static int RSS_CLIENT_BLOCK_NUM_PER_TASK_PARTITION_DEFAULT_VALUE = 20;
+  public static String RSS_CLIENT_BLOCK_NUM_PER_BITMAP = "spark.rss.block.per.bitmap";
+  public static long RSS_CLIENT_BLOCK_NUM_PER_BITMAP_DEFAULT_VALUE = 100000000;
 }
