@@ -10,6 +10,9 @@ import com.google.common.collect.Lists;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
+
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -139,8 +142,7 @@ public class HdfsFileReaderTest extends HdfsTestBase {
       // test limit
       int limit = 10;
       thrown.expect(IllegalStateException.class);
-      thrown.expectMessage("Invalid index file "
-          + path + " " + 4 + " bytes left, can't be parsed as long.");
+      thrown.expectMessage("Invalid index file");
       reader.readIndex(limit);
     }
   }
@@ -189,4 +191,47 @@ public class HdfsFileReaderTest extends HdfsTestBase {
       fail();
     }
   }
-}
+
+  @Test
+  public void bigIndexDataTest() {
+    try {
+      String basePath = HDFS_URI + "test_big_data/";
+      HdfsFileWriter writer = new HdfsFileWriter(new Path(basePath + "1.index"), conf);
+      List<Integer> indexes = Lists.newArrayList();
+      List<Long> sizes = Lists.newArrayList();
+      for (int i = 0; i < 1024; i++) {
+        indexes.add(i);
+        sizes.add(10240L);
+      }
+      writer.writeHeader(indexes, sizes);
+      long z = 0;
+      for (int i = 0; i < 1024; i++) {
+        for (int j = 0; j < 1024; j++) {
+          FileBasedShuffleSegment segment = new FileBasedShuffleSegment(z, 1L, 1, 1, 1L, 1L);
+          writer.writeIndex(segment);
+          z++;
+        }
+      }
+      writer.close();
+      HdfsFileReader fileReader = new HdfsFileReader(new Path(basePath + "1.index"), conf);
+      ShuffleIndexHeader header = fileReader.readHeader();
+      sizes = Lists.newArrayList();
+      List<Integer> partitions = Lists.newArrayList();
+      for (ShuffleIndexHeader.Entry entry : header.getIndexes()) {
+        partitions.add(entry.getKey());
+        sizes.add(entry.getValue());
+      }
+      long totalSize = header.getHeaderLen();
+      long count = 0;
+      for (long size : sizes) {
+        long actualSize = fileReader.readIndex((int) size).size();
+        totalSize = totalSize + actualSize * FileBasedShuffleSegment.SEGMENT_SIZE;
+        count++;
+      }
+      fileReader.close();
+      assertEquals(sizes.size(), count);
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail();
+    }
+  }}

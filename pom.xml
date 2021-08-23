@@ -629,7 +629,6 @@
             <windowtitle>Remove Shuffle Service ${project.version} JavaDoc</windowtitle>
           </configuration>
         </plugin>
-
       </plugins>
     </pluginManagement>
 

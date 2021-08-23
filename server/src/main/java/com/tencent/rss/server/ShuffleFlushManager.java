@@ -149,7 +149,7 @@ public class ShuffleFlushManager {
           }
           ReadWriteLock lock = null;
           if (useMultiStorage) {
-             lock = multiStorageManager.getForceUploadLock(event);
+            lock = multiStorageManager.getForceUploadLock(event);
             lock.readLock().lock();
           }
           try {

@@ -74,21 +74,23 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
   }
 
   public FileBasedShuffleSegment readIndex() throws IOException, IllegalStateException {
-    ByteBuffer longBuf = ByteBuffer.allocate(8);
-    ByteBuffer intBuf = ByteBuffer.allocate(4);
-
-    long offset = getLongFromStream(longBuf, true);
-    if (offset == -1) { // EOF
+    long offset;
+    long pos = fsDataInputStream.getPos();
+    try {
+      offset = fsDataInputStream.readLong();
+      int length = fsDataInputStream.readInt();
+      int uncompressLength = fsDataInputStream.readInt();
+      long crc = fsDataInputStream.readLong();
+      long blockId = fsDataInputStream.readLong();
+      long taskAttemptId = fsDataInputStream.readLong();
+      return new FileBasedShuffleSegment(blockId, offset, length, uncompressLength, crc, taskAttemptId);
+    } catch (Exception eof) {
+      if (fsDataInputStream.getPos() != pos) {
+        throw new IllegalStateException("Invalid index file " + path  + " start pos " + pos
+        + " end pos " + fsDataInputStream.getPos());
+      }
       return null;
     }
-
-    int length = getIntegerFromStream(intBuf);
-    int uncompressLength = getIntegerFromStream(intBuf);
-    long crc = getLongFromStream(longBuf);
-    long blockId = getLongFromStream(longBuf);
-    long taskAttemptId = getLongFromStream(longBuf);
-
-    return new FileBasedShuffleSegment(blockId, offset, length, uncompressLength, crc, taskAttemptId);
   }
 
   public ShuffleIndexHeader readHeader() throws IOException, IllegalStateException {
@@ -116,52 +118,6 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
           + header.getCrc() + " actualCrc " + actualCrc);
     }
     return header;
-  }
-
-  private long getLongFromStream(ByteBuffer buf) throws IOException, IllegalStateException {
-    return getLongFromStream(buf, false);
-  }
-
-  /**
-   * The segment in the index file must be strictly aligned, either reach EOF when read the first
-   * param (offset) of the segment or succeed to readLong.
-   */
-  private long getLongFromStream(ByteBuffer buf, boolean isFirst) throws IOException, IllegalStateException {
-    int len = fsDataInputStream.read(buf);
-    if (isFirst && (len == 0 || len == -1)) { // EOF
-      return -1;
-    }
-
-    long ret = 0L;
-    try {
-      buf.flip();
-      ret = buf.getLong();
-      buf.clear();
-    } catch (BufferUnderflowException e) {
-      String msg = "Invalid index file " + path + " " + len + " bytes left, can't be parsed as long.";
-      throw new IllegalStateException(msg);
-    }
-
-    return ret;
-  }
-
-  private int getIntegerFromStream(ByteBuffer buf) throws IOException, IllegalStateException {
-    int len = fsDataInputStream.read(buf);
-    if (len == -1) { // EOF
-      return -1;
-    }
-
-    int ret = 0;
-    try {
-      buf.flip();
-      ret = buf.getInt();
-      buf.clear();
-    } catch (BufferUnderflowException e) {
-      String msg = "Invalid index file " + path + " " + len + " bytes left, can't be parsed as int.";
-      throw new IllegalStateException(msg);
-    }
-
-    return ret;
   }
 
   public long getOffset() throws IOException {
