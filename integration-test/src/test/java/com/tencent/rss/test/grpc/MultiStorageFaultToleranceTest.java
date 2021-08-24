@@ -47,7 +47,7 @@ public class MultiStorageFaultToleranceTest extends ShuffleReadWriteBase {
     File dataDir2 = new File(tmpDir, "data2");
     tmpDir.deleteOnExit();
     String basePath = dataDir1.getAbsolutePath() + "," + dataDir2.getAbsolutePath();
-    shuffleServerConf.setString("rss.storage.type", StorageType.LOCALFILE.name());
+    shuffleServerConf.setString("rss.storage.type", StorageType.LOCALFILE_AND_HDFS.name());
     shuffleServerConf.setString("rss.storage.basePath", basePath);
     shuffleServerConf.setString(ShuffleServerConf.RSS_HDFS_BASE_PATH,  HDFS_URI + "rss/multi_storage_fault");
     shuffleServerConf.setDouble(ShuffleServerConf.RSS_CLEANUP_THRESHOLD, 0.0);
@@ -203,7 +203,7 @@ public class MultiStorageFaultToleranceTest extends ShuffleReadWriteBase {
 
   protected void validateResult(String appId, int shuffleId, int partitionId, Roaring64NavigableMap blockBitmap,
                                 Roaring64NavigableMap taskBitmap, Map<Long, byte[]> expectedData) {
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl("LOCALFILE",
+    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl("LOCALFILE_AND_HDFS",
         appId, shuffleId, partitionId, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage_fault",
         blockBitmap, taskBitmap, Lists.newArrayList(new ShuffleServerInfo("test", LOCALHOST, SHUFFLE_SERVER_PORT)), conf);
     CompressedShuffleBlock csb = readClient.readShuffleBlockData();

@@ -61,7 +61,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     File dataDir2 = new File(tmpDir, "data2");
     tmpDir.deleteOnExit();
     String basePath = dataDir1.getAbsolutePath() + "," + dataDir2.getAbsolutePath();
-    shuffleServerConf.setString("rss.storage.type", StorageType.LOCALFILE.name());
+    shuffleServerConf.setString("rss.storage.type", StorageType.LOCALFILE_AND_HDFS.name());
     shuffleServerConf.setString("rss.storage.basePath", basePath);
     shuffleServerConf.setString(ShuffleServerConf.RSS_HDFS_BASE_PATH,  HDFS_URI + "rss/multi_storage");
     shuffleServerConf.setDouble(ShuffleServerConf.RSS_CLEANUP_THRESHOLD, 0.0);
@@ -223,22 +223,22 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     }
     assertTrue(isException);
 
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl("LOCALFILE",
+    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl("LOCALFILE_AND_HDFS",
         appId, 0, 0, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap1, Roaring64NavigableMap.bitmapOf(1), Lists.newArrayList(), conf);
     validateResult(readClient, expectedData, blockIdBitmap1);
 
-    readClient = new ShuffleReadClientImpl("LOCALFILE",
+    readClient = new ShuffleReadClientImpl("LOCALFILE_AND_HDFS",
         appId, 0, 1, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap2, Roaring64NavigableMap.bitmapOf(1), Lists.newArrayList(), conf);
     validateResult(readClient, expectedData, blockIdBitmap2);
 
-    readClient = new ShuffleReadClientImpl("LOCALFILE",
+    readClient = new ShuffleReadClientImpl("LOCALFILE_AND_HDFS",
         appId, 0, 2, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap3, Roaring64NavigableMap.bitmapOf(2), Lists.newArrayList(), conf);
     validateResult(readClient, expectedData, blockIdBitmap3);
 
-    readClient = new ShuffleReadClientImpl("LOCALFILE",
+    readClient = new ShuffleReadClientImpl("LOCALFILE_AND_HDFS",
         appId, 0, 3, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap4, Roaring64NavigableMap.bitmapOf(3), Lists.newArrayList(), conf);
     validateResult(readClient, expectedData, blockIdBitmap4);
@@ -347,7 +347,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     RssGetShuffleResultRequest rg1 = new RssGetShuffleResultRequest(appId, 0, 0);
     shuffleServerClient.getShuffleResult(rg1);
 
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl("LOCALFILE",
+    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl("LOCALFILE_AND_HDFS",
         appId, 0, 0, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap1, Roaring64NavigableMap.bitmapOf(1), Lists.newArrayList(new ShuffleServerInfo("test", LOCALHOST, SHUFFLE_SERVER_PORT)), conf);
 
@@ -468,7 +468,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
       isException = true;
     }
     assertTrue(isException);
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl("LOCALFILE",
+    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl("LOCALFILE_AND_HDFS",
         appId, 2, 0, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap1, Roaring64NavigableMap.bitmapOf(1), Lists.newArrayList(new ShuffleServerInfo("test", LOCALHOST, SHUFFLE_SERVER_PORT)), conf);
     validateResult(readClient, expectedData, blockIdBitmap1);

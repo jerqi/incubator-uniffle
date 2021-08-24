@@ -98,10 +98,17 @@ public class ShuffleServer {
     port = shuffleServerConf.getInteger(ShuffleServerConf.RPC_SERVER_PORT);
     id = ip + "-" + port;
     LOG.info("Start to initialize server {}", id);
-    if (shuffleServerConf.getBoolean(ShuffleServerConf.RSS_USE_MULTI_STORAGE)) {
-      if (!StorageType.LOCALFILE.toString().equals(shuffleServerConf.get(RssBaseConf.RSS_STORAGE_TYPE))) {
-        throw new IllegalArgumentException("Only StorageType LOCALFILE support multiStorage function");
-      }
+    boolean useMultiStorage = shuffleServerConf.getBoolean(ShuffleServerConf.RSS_USE_MULTI_STORAGE);
+    String storageType = shuffleServerConf.getString(RssBaseConf.RSS_STORAGE_TYPE);
+    if (StorageType.LOCALFILE_AND_HDFS.name().equals(storageType)) {
+      useMultiStorage = true;
+      shuffleServerConf.setBoolean(ShuffleServerConf.RSS_USE_MULTI_STORAGE, true);
+      LOG.warn("StorageType LOCALFILE_HDFS will enable multistorage function");
+    }
+    if (useMultiStorage && !StorageType.LOCALFILE_AND_HDFS.name().equals(storageType)) {
+        throw new IllegalArgumentException("Only StorageType LOCALFILE_AND_HDFS support multiStorage function");
+    }
+    if (useMultiStorage) {
       multiStorageManager = new MultiStorageManager(shuffleServerConf, id);
       multiStorageManager.start();
     }

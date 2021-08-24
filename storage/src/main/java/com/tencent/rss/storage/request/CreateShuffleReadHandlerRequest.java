@@ -4,6 +4,7 @@ import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.common.config.RssBaseConf;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 public class CreateShuffleReadHandlerRequest {
 
@@ -19,6 +20,8 @@ public class CreateShuffleReadHandlerRequest {
   private RssBaseConf rssBaseConf;
   private Configuration hadoopConf;
   private List<ShuffleServerInfo> shuffleServerInfoList;
+  private Roaring64NavigableMap expectBlockIds;
+  private Roaring64NavigableMap processBlockIds;
 
   public CreateShuffleReadHandlerRequest() {
   }
@@ -117,5 +120,21 @@ public class CreateShuffleReadHandlerRequest {
 
   public void setHadoopConf(Configuration hadoopConf) {
     this.hadoopConf = hadoopConf;
+  }
+
+  public void setExpectBlockIds(Roaring64NavigableMap expectBlockIds) {
+    this.expectBlockIds = expectBlockIds;
+  }
+
+  public Roaring64NavigableMap getExpectBlockIds() {
+    return expectBlockIds;
+  }
+
+  public void setProcessBlockIds(Roaring64NavigableMap processBlockIds) {
+    this.processBlockIds = processBlockIds;
+  }
+
+  public Roaring64NavigableMap getProcessBlockIds() {
+    return processBlockIds;
   }
 }

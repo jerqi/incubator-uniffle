@@ -40,7 +40,6 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
   private AtomicLong copyTime = new AtomicLong(0);
   private AtomicLong crcCheckTime = new AtomicLong(0);
   private ClientReadHandler clientReadHandler;
-  private CreateShuffleReadHandlerRequest fallbackClientRequest;
   private int segmentIndex = 0;
 
   public ShuffleReadClientImpl(
@@ -73,12 +72,9 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
     request.setStorageBasePath(storageBasePath);
     request.setShuffleServerInfoList(shuffleServerInfoList);
     request.setHadoopConf(hadoopConf);
+    request.setExpectBlockIds(blockIdBitmap);
+    request.setProcessBlockIds(processedBlockIds);
     clientReadHandler = ShuffleHandlerFactory.getInstance().createShuffleReadHandler(request);
-    if (request.getStorageType().equals(StorageType.LOCALFILE.toString())
-      && !StringUtils.isEmpty(storageBasePath)) {
-      fallbackClientRequest = request;
-      fallbackClientRequest.setStorageType(StorageType.HDFS.name());
-    }
   }
 
   @Override
@@ -90,26 +86,8 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
 
     // if need request new data from shuffle server
     if (bufferSegmentQueue.isEmpty()) {
-      try {
-        if (!read()) {
-          if (fallbackClientRequest != null) {
-            checkProcessedBlockIds();
-          }
-          return null;
-        }
-      } catch (RuntimeException re) {
-        LOG.info("start mix read", re);
-        clientReadHandler.close();
-        if (fallbackClientRequest == null) {
-          throw re;
-        }
-        clientReadHandler = ShuffleHandlerFactory.getInstance()
-            .createShuffleMultiStorageReadHandler(fallbackClientRequest);
-        fallbackClientRequest = null;
-        segmentIndex = 0;
-        if (!read()) {
-          return null;
-        }
+      if (read() <= 0) {
+        return null;
       }
     }
     // get next buffer segment
@@ -167,20 +145,20 @@ public class ShuffleReadClientImpl implements ShuffleReadClient {
     return processedBlockIds;
   }
 
-  private boolean read() {
+  private int read() {
     long start = System.currentTimeMillis();
     ShuffleDataResult sdr = clientReadHandler.readShuffleData(segmentIndex);
     segmentIndex++;
     readDataTime.addAndGet(System.currentTimeMillis() - start);
     if (sdr == null) {
-      return false;
+      return 0;
     }
     readBuffer = sdr.getData();
     if (readBuffer == null || readBuffer.length == 0) {
-      return false;
+      return 0;
     }
     bufferSegmentQueue.addAll(sdr.getBufferSegments());
-    return true;
+    return sdr.getBufferSegments().size();
   }
 
   @Override

@@ -25,6 +25,7 @@ public class RepartitionWithMultiStorageRssTest extends RepartitionTest {
     shuffleServerConf.setString("rss.storage.type", StorageType.LOCALFILE.name());
     shuffleServerConf.setString("rss.storage.basePath", basePath);
     shuffleServerConf.setBoolean(ShuffleServerConf.RSS_USE_MULTI_STORAGE, true);
+    shuffleServerConf.set(ShuffleServerConf.RSS_STORAGE_TYPE, "LOCALFILE_AND_HDFS");
 
     // uploader and remote storage config
     shuffleServerConf.setBoolean("rss.server.uploader.enable", true);
@@ -41,6 +42,6 @@ public class RepartitionWithMultiStorageRssTest extends RepartitionTest {
 
   @Override
   public void updateRssStorage(SparkConf sparkConf) {
-    sparkConf.set(RssClientConfig.RSS_STORAGE_TYPE, StorageType.LOCALFILE.name());
+    sparkConf.set(RssClientConfig.RSS_STORAGE_TYPE, StorageType.LOCALFILE_AND_HDFS.name());
   }
 }

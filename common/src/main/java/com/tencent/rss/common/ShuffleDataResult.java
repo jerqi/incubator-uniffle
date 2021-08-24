@@ -25,7 +25,7 @@ public class ShuffleDataResult {
   }
 
   public boolean isEmpty() {
-    return bufferSegments == null || bufferSegments.isEmpty();
+    return bufferSegments == null || bufferSegments.isEmpty() || data == null || data.length == 0;
   }
 
 }

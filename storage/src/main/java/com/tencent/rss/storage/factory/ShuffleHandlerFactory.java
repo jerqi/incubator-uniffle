@@ -16,11 +16,12 @@ import com.tencent.rss.storage.handler.impl.LocalFileClientReadHandler;
 import com.tencent.rss.storage.handler.impl.LocalFileDeleteHandler;
 import com.tencent.rss.storage.handler.impl.LocalFileServerReadHandler;
 import com.tencent.rss.storage.handler.impl.LocalFileWriteHandler;
+import com.tencent.rss.storage.handler.impl.MultiStorageReadHandler;
 import com.tencent.rss.storage.request.CreateShuffleDeleteHandlerRequest;
 import com.tencent.rss.storage.request.CreateShuffleReadHandlerRequest;
 import com.tencent.rss.storage.request.CreateShuffleWriteHandlerRequest;
 import com.tencent.rss.storage.util.StorageType;
-import org.apache.commons.lang.StringUtils;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -59,32 +60,22 @@ public class ShuffleHandlerFactory {
       return new LocalFileClientReadHandler(request.getAppId(), request.getShuffleId(), request.getPartitionId(),
           request.getIndexReadLimit(), request.getPartitionNumPerRange(), request.getPartitionNum(),
           request.getReadBufferSize(), shuffleServerClients);
+    } else if (StorageType.LOCALFILE_AND_HDFS.name().equals(request.getStorageType())) {
+      return new MultiStorageReadHandler(
+          StorageType.LOCALFILE,
+          StorageType.HDFS,
+          request,
+          request.getExpectBlockIds(),
+          request.getProcessBlockIds());
     } else {
       throw new UnsupportedOperationException(
           "Doesn't support storage type for client read handler:" + request.getStorageType());
     }
   }
 
-  public ClientReadHandler createShuffleMultiStorageReadHandler(CreateShuffleReadHandlerRequest request) {
-    if (StorageType.HDFS.name().equals(request.getStorageType())) {
-      return new MultiStorageHdfsClientReadHandler(
-          request.getAppId(),
-          request.getShuffleId(),
-          request.getPartitionId(),
-          request.getIndexReadLimit(),
-          request.getPartitionNumPerRange(),
-          request.getPartitionNum(),
-          request.getReadBufferSize(),
-          request.getStorageBasePath(),
-          request.getHadoopConf());
-    } else {
-      throw new UnsupportedOperationException(
-          "Doesn't support storage type for client multistorage read handler:" + request.getStorageType());
-    }
-  }
-
   public ServerReadHandler createServerReadHandler(CreateShuffleReadHandlerRequest request) {
-    if (StorageType.LOCALFILE.name().equals(request.getStorageType())) {
+    if (StorageType.LOCALFILE.name().equals(request.getStorageType())
+      || StorageType.LOCALFILE_AND_HDFS.name().equals(request.getStorageType())) {
       return new LocalFileServerReadHandler(request.getAppId(), request.getShuffleId(),
           request.getPartitionId(), request.getPartitionNumPerRange(), request.getPartitionNum(),
           request.getReadBufferSize(), request.getRssBaseConf());
@@ -99,7 +90,8 @@ public class ShuffleHandlerFactory {
       return new HdfsShuffleWriteHandler(request.getAppId(), request.getShuffleId(),
           request.getStartPartition(), request.getEndPartition(), request.getStorageBasePaths()[0],
           request.getFileNamePrefix(), request.getConf());
-    } else if (StorageType.LOCALFILE.name().equals(request.getStorageType())) {
+    } else if (StorageType.LOCALFILE.name().equals(request.getStorageType())
+      || StorageType.LOCALFILE_AND_HDFS.name().equals(request.getStorageType())) {
       return new LocalFileWriteHandler(request.getAppId(), request.getShuffleId(), request.getStartPartition(),
           request.getEndPartition(), request.getStorageBasePaths(), request.getFileNamePrefix());
     } else {
@@ -111,7 +103,8 @@ public class ShuffleHandlerFactory {
   public ShuffleDeleteHandler createShuffleDeleteHandler(CreateShuffleDeleteHandlerRequest request) {
     if (StorageType.HDFS.name().equals(request.getStorageType())) {
       return new HdfsShuffleDeleteHandler(request.getConf());
-    } else if (StorageType.LOCALFILE.name().equals(request.getStorageType())) {
+    } else if (StorageType.LOCALFILE.name().equals(request.getStorageType())
+      || StorageType.LOCALFILE_AND_HDFS.name().equals(request.getStorageType())) {
       return new LocalFileDeleteHandler();
     } else {
       throw new UnsupportedOperationException("Doesn't support storage type for shuffle delete handler:"
