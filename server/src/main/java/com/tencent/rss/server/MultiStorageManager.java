@@ -37,6 +37,7 @@ public class MultiStorageManager {
   private final String shuffleServerId;
   private final Configuration hadoopConf;
   private final long cleanupIntervalMs;
+  private final long maxShuffleSize;
 
   private final List<DiskItem> diskItems = Lists.newArrayList();
   private final List<ShuffleUploader> uploaders = Lists.newArrayList();
@@ -116,6 +117,11 @@ public class MultiStorageManager {
       throw new IllegalArgumentException("The value of shuffleExpiredTimeMs must be positive");
     }
 
+    long maxShuffleSize = conf.get(ShuffleServerConf.RSS_SHUFFLE_MAX_UPLOAD_SIZE);
+    if (maxShuffleSize <= 0) {
+      throw new IllegalArgumentException("The value of maxShuffleSize must be positive");
+    }
+
     this.enableUploader = conf.get(ShuffleServerConf.RSS_UPLOADER_ENABLE);
     this.capacity = capacity;
     this.cleanupThreshold = cleanupThreshold;
@@ -131,6 +137,7 @@ public class MultiStorageManager {
     this.shuffleServerId = shuffleServerId;
     this.hadoopConf = new Configuration();
     this.shuffleExpiredTimeoutMs = shuffleExpiredTimeoutMs;
+    this.maxShuffleSize = maxShuffleSize;
 
     // todo: extract a method
     for (String key : conf.getKeySet()) {
@@ -174,6 +181,7 @@ public class MultiStorageManager {
             .hdfsBathPath(hdfsBathPath)
             .serverId(shuffleServerId)
             .hadoopConf(hadoopConf)
+            .maxShuffleSize(maxShuffleSize)
             .build();
         uploaders.add(shuffleUploader);
       }

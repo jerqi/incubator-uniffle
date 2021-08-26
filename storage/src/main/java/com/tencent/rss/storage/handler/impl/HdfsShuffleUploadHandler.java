@@ -8,6 +8,8 @@ import com.tencent.rss.storage.util.ShuffleUploadResult;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -30,6 +32,7 @@ public class HdfsShuffleUploadHandler implements ShuffleUploadHandler {
   private final FileSystem fileSystem;
   private final int buffSize;
   private final boolean combineUpload;
+  private static final AtomicLong sequenceId = new AtomicLong(0);
 
   public HdfsShuffleUploadHandler(
       String baseHdfsPath,
@@ -39,7 +42,8 @@ public class HdfsShuffleUploadHandler implements ShuffleUploadHandler {
       boolean combineUpload) throws IOException, IllegalStateException {
     this.baseHdfsPath = baseHdfsPath;
     this.hadoopConf = hadoopConf;
-    this.hdfsFilePrefixBase = hdfsFilePrefixBase + "-" + System.currentTimeMillis();
+    this.hdfsFilePrefixBase = hdfsFilePrefixBase + "-" + sequenceId.incrementAndGet()
+        + "-" + System.currentTimeMillis();
     this.fileSystem = getFileSystem();
     this.buffSize = buffSize;
     this.combineUpload = combineUpload;

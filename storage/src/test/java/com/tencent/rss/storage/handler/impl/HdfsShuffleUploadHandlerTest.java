@@ -81,11 +81,12 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
     assertEquals(Lists.newArrayList(1, 2), ret.getPartitions());
 
 
-    String ts = handler.getHdfsFilePrefixBase().split("-")[1];
+    String id = handler.getHdfsFilePrefixBase().split("-")[1];
+    String ts = handler.getHdfsFilePrefixBase().split("-")[2];
     Path dataPath = new Path(
-        basePath,"combine/uploadTestCombine-" + ts + "-1.data");
+        basePath,"combine/uploadTestCombine-" + id + "-" + ts + "-1.data");
     Path indexPath = new Path(
-        basePath,"combine/uploadTestCombine-" + ts + "-1.index");
+        basePath,"combine/uploadTestCombine-" + id + "-" + ts + "-1.index");
     assertTrue(fs.isFile(dataPath));
     assertTrue(fs.isFile(indexPath));
 
@@ -158,11 +159,12 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
     assertEquals(40L, ret.getSize());
     assertEquals(Lists.newArrayList(1, 2), ret.getPartitions());
 
-    String ts = handler.getHdfsFilePrefixBase().split("-")[1];
-    Path dataPath1 = new Path(basePath,"1/uploadTestOneByOne-" + ts + "-1.data");
-    Path indexPath1 = new Path(basePath,"1/uploadTestOneByOne-" + ts + "-1.index");
-    Path dataPath2 = new Path(basePath,"2/uploadTestOneByOne-" + ts + "-2.data");
-    Path indexPath2 = new Path(basePath,"2/uploadTestOneByOne-" + ts + "-2.index");
+    String id = handler.getHdfsFilePrefixBase().split("-")[1];
+    String ts = handler.getHdfsFilePrefixBase().split("-")[2];
+    Path dataPath1 = new Path(basePath,"1/uploadTestOneByOne-" + id + "-" + ts + "-1.data");
+    Path indexPath1 = new Path(basePath,"1/uploadTestOneByOne-" + id + "-" + ts + "-1.index");
+    Path dataPath2 = new Path(basePath,"2/uploadTestOneByOne-" + id + "-" + ts + "-2.data");
+    Path indexPath2 = new Path(basePath,"2/uploadTestOneByOne-" + id + "-" + ts + "-2.index");
 
     assertTrue(fs.isFile(dataPath1));
     assertTrue(fs.isFile(indexPath1));
@@ -247,9 +249,10 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
     assertEquals(10L, ret.getSize());
     assertEquals(Lists.newArrayList(1), ret.getPartitions());
 
-    String ts = handler.getHdfsFilePrefixBase().split("-")[1];
-    Path dataPath = new Path(basePath,"combine/uploadTestCombineBestEffort-" + ts + "-1.data");
-    Path indexPath = new Path(basePath,"combine/uploadTestCombineBestEffort-" + ts + "-1.index");
+    String id = handler.getHdfsFilePrefixBase().split("-")[1];
+    String ts = handler.getHdfsFilePrefixBase().split("-")[2];
+    Path dataPath = new Path(basePath,"combine/uploadTestCombineBestEffort-" + id + "-" + ts + "-1.data");
+    Path indexPath = new Path(basePath,"combine/uploadTestCombineBestEffort-" + id + "-" + ts + "-1.index");
 
     assertTrue(fs.isFile(dataPath));
     assertTrue(fs.isFile(indexPath));
@@ -323,13 +326,14 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
     assertEquals(10L, ret.getSize());
     assertEquals(Lists.newArrayList(1), ret.getPartitions());
 
-    String ts = handler.getHdfsFilePrefixBase().split("-")[1];
-    Path dataPath1 = new Path(basePath,"1/uploadTestOneByOneBestEffort-" + ts + "-1.data");
-    Path indexPath1 = new Path(basePath,"1/uploadTestOneByOneBestEffort-" + ts + "-1.index");
-    Path dataPath2 = new Path(basePath,"2/uploadTestOneByOneBestEffort-" + ts + "-2.data");
-    Path indexPath2 = new Path(basePath,"2/uploadTestOneByOneBestEffort-" + ts + "-2.index");
-    Path dataPath3 = new Path(basePath,"3/uploadTestOneByOneBestEffort-" + ts + "-3.data");
-    Path indexPath3 = new Path(basePath,"3/uploadTestOneByOneBestEffort-" + ts + "-3.index");
+    String id = handler.getHdfsFilePrefixBase().split("-")[1];
+    String ts = handler.getHdfsFilePrefixBase().split("-")[2];
+    Path dataPath1 = new Path(basePath,"1/uploadTestOneByOneBestEffort-" + id + "-" + ts + "-1.data");
+    Path indexPath1 = new Path(basePath,"1/uploadTestOneByOneBestEffort-" + id + "-" + ts + "-1.index");
+    Path dataPath2 = new Path(basePath,"2/uploadTestOneByOneBestEffort-" + id + "-" + ts + "-2.data");
+    Path indexPath2 = new Path(basePath,"2/uploadTestOneByOneBestEffort-" + id + "-" + ts + "-2.index");
+    Path dataPath3 = new Path(basePath,"3/uploadTestOneByOneBestEffort-" + id + "-" + ts + "-3.data");
+    Path indexPath3 = new Path(basePath,"3/uploadTestOneByOneBestEffort-" + id + "-" + ts + "-3.index");
 
     assertTrue(fs.isFile(dataPath1));
     assertTrue(fs.isFile(indexPath1));

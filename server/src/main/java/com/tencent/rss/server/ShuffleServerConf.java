@@ -241,6 +241,12 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(false)
       .withDescription("The function switch for multiStorage");
 
+  public static final ConfigOption<Long> RSS_SHUFFLE_MAX_UPLOAD_SIZE = ConfigOptions
+      .key("rss.server.shuffle.max.upload.size")
+      .longType()
+      .defaultValue(1024L * 1024L * 256)
+      .withDescription("The max value of upload shuffle size");
+
   public ShuffleServerConf() {
   }
 

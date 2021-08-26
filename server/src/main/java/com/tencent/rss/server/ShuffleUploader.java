@@ -7,7 +7,6 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import com.tencent.rss.common.util.ByteUnit;
 import com.tencent.rss.storage.common.DiskItem;
 import com.tencent.rss.storage.common.ShuffleFileInfo;
-import com.tencent.rss.storage.common.ShuffleInfo;
 import com.tencent.rss.storage.factory.ShuffleUploadHandlerFactory;
 import com.tencent.rss.storage.handler.api.ShuffleUploadHandler;
 import com.tencent.rss.storage.request.CreateShuffleUploadHandlerRequest;
@@ -56,6 +55,7 @@ public class ShuffleUploader {
   private final String serverId;
   private final Configuration hadoopConf;
   private final Thread daemonThread;
+  private final long maxShuffleSize;
 
   private final ExecutorService executorService;
   private volatile boolean isStopped;
@@ -71,6 +71,7 @@ public class ShuffleUploader {
     this.hdfsBathPath = builder.hdfsBathPath;
     this.serverId = builder.serverId;
     this.hadoopConf = builder.hadoopConf;
+    this.maxShuffleSize = builder.maxShuffleSize;
     Runnable runnable = () -> {
       run();
     };
@@ -99,6 +100,7 @@ public class ShuffleUploader {
     private String hdfsBathPath;
     private String serverId;
     private Configuration hadoopConf;
+    private long maxShuffleSize = (long) ByteUnit.MiB.toBytes(256);
 
     public Builder() {
       // use HDFS and not force upload by default
@@ -150,6 +152,11 @@ public class ShuffleUploader {
       return this;
     }
 
+    public Builder maxShuffleSize(long maxShuffleSize) {
+      this.maxShuffleSize = maxShuffleSize;
+      return this;
+    }
+
     public ShuffleUploader build() throws IllegalArgumentException {
       validate();
       return new ShuffleUploader(this);
@@ -175,6 +182,10 @@ public class ShuffleUploader {
 
       if (referenceUploadSpeedMBS <= 0) {
         throw new IllegalArgumentException("Upload reference speed must > 0");
+      }
+
+      if (maxShuffleSize <= 0) {
+        throw new IllegalArgumentException("maxShuffleSize must be positive");
       }
 
       // check remote storage related parameters
@@ -203,6 +214,7 @@ public class ShuffleUploader {
         long start = System.currentTimeMillis();
         upload();
         long uploadTime = System.currentTimeMillis() - start;
+        ShuffleServerMetrics.counterTotalUploadTimeS.inc(uploadTime / 1000.0);
         LOG.info("{} upload use {}ms", Thread.currentThread().getName(), uploadTime);
 
         if (uploadTime < uploadIntervalMS) {
@@ -236,23 +248,24 @@ public class ShuffleUploader {
     }
 
     List<Callable<ShuffleUploadResult>> callableList = Lists.newLinkedList();
-    long maxSize = 0;
+    List<ReadWriteLock> locks = Lists.newArrayList();
+    long totalSize = 0;
     for (ShuffleFileInfo shuffleFileInfo : shuffleFileInfos) {
       if (!shuffleFileInfo.isValid()) {
         continue;
       }
       ReadWriteLock lock = diskItem.getLock(shuffleFileInfo.getKey());
-
-      maxSize = Math.max(maxSize, shuffleFileInfo.getSize());
+      boolean locked = false;
+      if (forceUpload) {
+        locked = lock.writeLock().tryLock();
+        if (!locked) {
+          continue;
+        }
+        locks.add(lock);
+      }
+      totalSize = totalSize + shuffleFileInfo.getSize();
       Callable<ShuffleUploadResult> callable = () -> {
-        boolean locked = false;
         try {
-          if (forceUpload) {
-            locked = lock.writeLock().tryLock();
-            if (!locked) {
-              return null;
-            }
-          }
           CreateShuffleUploadHandlerRequest request =
               new CreateShuffleUploadHandlerRequest.Builder()
                   .remoteStorageType(remoteStorageType)
@@ -296,20 +309,19 @@ public class ShuffleUploader {
             diskItem.removeShuffle(shuffleUploadResult.getShuffleKey(), shuffleUploadResult.getSize(),
                 shuffleUploadResult.getPartitions());
           }
+          LOG.info("force mode enable {} upload shuffle {} partitions: {}", forceUpload,
+              shuffleUploadResult.getShuffleKey(), shuffleUploadResult.getPartitions().size());
+          LOG.debug("upload partitions detail: {}", shuffleUploadResult.getPartitions());
           return shuffleUploadResult;
         } catch (Exception e) {
           LOG.error("Fail to construct upload callable list {}", ExceptionUtils.getStackTrace(e));
           return null;
-        } finally {
-          if (locked) {
-            lock.writeLock().unlock();
-          }
         }
       };
       callableList.add(callable);
     }
 
-    long uploadTimeoutS = calculateUploadTime(maxSize);
+    long uploadTimeoutS = calculateUploadTime(totalSize);
     LOG.info("Start to upload {} shuffle info and timeout is {} Seconds", callableList.size(), uploadTimeoutS);
     try {
       List<Future<ShuffleUploadResult>> futures =
@@ -327,19 +339,22 @@ public class ShuffleUploader {
           future.cancel(true);
         }
       }
-
     } catch (Exception e) {
       LOG.error(
           "Fail to upload {}, {}",
           shuffleFileInfos.stream().map(ShuffleFileInfo::getKey).collect(Collectors.joining("\n")),
           ExceptionUtils.getStackTrace(e));
+    } finally {
+      for (ReadWriteLock lock : locks) {
+        lock.writeLock().unlock();
+      }
     }
   }
 
   @VisibleForTesting
   long calculateUploadTime(long size) {
     long uploadTimeoutS = 1L;
-    long cur = ByteUnit.BYTE.toMiB(size) / referenceUploadSpeedMBS;
+    long cur = ByteUnit.BYTE.toMiB(size) / (uploadThreadNum * referenceUploadSpeedMBS);
     if (cur <= uploadTimeoutS) {
       return uploadTimeoutS * 2;
     } else {
@@ -360,16 +375,21 @@ public class ShuffleUploader {
       List<Integer> partitions = getNotUploadedPartitions(shuffleKey);
       long sz = getNotUploadedSize(shuffleKey);
       if (partitions.isEmpty() || sz <= 0) {
-        LOG.warn("{} size {} partitions {}", shuffleKey, sz, partitions);
+        LOG.warn("upload shuffle data empty shuffle {} size {} partitions {}", shuffleKey, sz, partitions);
         continue;
       }
-
-      ShuffleInfo shuffleInfo = new ShuffleInfo(shuffleKey, sz);
-      ShuffleFileInfo shuffleFileInfo = generateShuffleFileInfos(shuffleInfo, partitions);
+      ShuffleFileInfo shuffleFileInfo = new ShuffleFileInfo();
+      shuffleFileInfo.setKey(shuffleKey);
+      for (int partition : partitions) {
+        long size = addPartition(shuffleFileInfo, partition);
+        shuffleFileInfo.setSize(shuffleFileInfo.getSize() + size);
+        if (shuffleFileInfo.getSize() > maxShuffleSize) {
+          shuffleFileInfoList.add(shuffleFileInfo);
+          shuffleFileInfo = new ShuffleFileInfo();
+          shuffleFileInfo.setKey(shuffleKey);
+        }
+      }
       if (!shuffleFileInfo.isEmpty()) {
-        LOG.info(
-            "Add shuffle file info key is {} partitions are {}",
-            shuffleFileInfo.getKey(), shuffleFileInfo.getPartitions());
         shuffleFileInfoList.add(shuffleFileInfo);
       }
     }
@@ -395,32 +415,28 @@ public class ShuffleUploader {
     return ShuffleUploadHandlerFactory.getInstance();
   }
 
-  private ShuffleFileInfo generateShuffleFileInfos(ShuffleInfo shuffleInfo, List<Integer> partitions) {
-    ShuffleFileInfo shuffleFileInfo = new ShuffleFileInfo();
-    for (int partition : partitions) {
+
+  private long addPartition(ShuffleFileInfo shuffleFileInfo, int partition) {
       String filePrefix = ShuffleStorageUtils.generateAbsoluteFilePrefix(
-          diskItem.getBasePath(), shuffleInfo.getKey(), partition, serverId);
+          diskItem.getBasePath(), shuffleFileInfo.getKey(), partition, serverId);
       String dataFileName = ShuffleStorageUtils.generateDataFileName(filePrefix);
       String indexFileName = ShuffleStorageUtils.generateIndexFileName(filePrefix);
 
       File dataFile = new File(dataFileName);
       if (!dataFile.exists()) {
         LOG.error("{} don't exist!", dataFileName);
-        continue;
+        return 0;
       }
 
       File indexFile = new File(indexFileName);
       if (!indexFile.exists()) {
         LOG.error("{} don't exist!", indexFileName);
-        continue;
+        return 0;
       }
 
       shuffleFileInfo.getDataFiles().add(dataFile);
       shuffleFileInfo.getIndexFiles().add(indexFile);
       shuffleFileInfo.getPartitions().add(partition);
-      shuffleFileInfo.setKey(shuffleInfo.getKey());
-      shuffleFileInfo.setSize(shuffleInfo.getSize());
-    }
-    return shuffleFileInfo;
+      return dataFile.length();
   }
 }

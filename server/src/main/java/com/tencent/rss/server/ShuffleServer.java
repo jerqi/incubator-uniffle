@@ -98,6 +98,10 @@ public class ShuffleServer {
     port = shuffleServerConf.getInteger(ShuffleServerConf.RPC_SERVER_PORT);
     id = ip + "-" + port;
     LOG.info("Start to initialize server {}", id);
+    jettyServer = new JettyServer(shuffleServerConf);
+    registerMetrics();
+    addServlet(jettyServer);
+
     boolean useMultiStorage = shuffleServerConf.getBoolean(ShuffleServerConf.RSS_USE_MULTI_STORAGE);
     String storageType = shuffleServerConf.getString(RssBaseConf.RSS_STORAGE_TYPE);
     if (StorageType.LOCALFILE_AND_HDFS.name().equals(storageType)) {
@@ -120,10 +124,6 @@ public class ShuffleServer {
 
     RemoteServerFactory shuffleServerFactory = new RemoteServerFactory(this);
     server = shuffleServerFactory.getServer();
-    jettyServer = new JettyServer(shuffleServerConf);
-
-    registerMetrics();
-    addServlet(jettyServer);
   }
 
   private void registerMetrics() {

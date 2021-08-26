@@ -185,6 +185,17 @@ public class MultiStorageManagerTest {
     assertTrue(isException);
 
     conf.set(ShuffleServerConf.RSS_CLEANUP_INTERVAL_MS, 100L);
+
+    conf.setLong(ShuffleServerConf.RSS_SHUFFLE_MAX_UPLOAD_SIZE, - 1);
+    isException = false;
+    try {
+      new MultiStorageManager(conf, "");
+    } catch (IllegalArgumentException ie) {
+      assertTrue(ie.getMessage().contains("The value of maxShuffleSize must be positive"));
+      isException = true;
+    }
+    assertTrue(isException);
+    conf.setLong(ShuffleServerConf.RSS_SHUFFLE_MAX_UPLOAD_SIZE, 100);
     try {
       new MultiStorageManager(conf, "");
     } catch (IllegalArgumentException ie) {
