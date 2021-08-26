@@ -326,10 +326,12 @@ public class ShuffleUploaderTest  {
         .serverId("prefix")
         .hadoopConf(new Configuration())
         .build();
-    assertEquals(2, shuffleUploader.calculateUploadTime(0));
-    assertEquals(2, shuffleUploader.calculateUploadTime(128 * 1024));
-    assertEquals(2, shuffleUploader.calculateUploadTime(128 * 1024 * 1024));
-    assertEquals(6, shuffleUploader.calculateUploadTime(3 * 128 * 1024 * 1024));
+    assertEquals(2, shuffleUploader.calculateUploadTime(0,0));
+    assertEquals(2, shuffleUploader.calculateUploadTime(0, 128 * 1024));
+    assertEquals(2, shuffleUploader.calculateUploadTime(0, 128 * 1024 * 1024));
+    assertEquals(6, shuffleUploader.calculateUploadTime(0,3 * 128 * 1024 * 1024));
+    assertEquals(12, shuffleUploader.calculateUploadTime(6 * 128 * 1024 * 1024,
+        3 * 128 * 1024 * 1024));
     shuffleUploader = new ShuffleUploader.Builder()
         .diskItem(mockDiskItem)
         .uploadThreadNum(2)
@@ -341,10 +343,12 @@ public class ShuffleUploaderTest  {
         .serverId("prefix")
         .hadoopConf(new Configuration())
         .build();
-    assertEquals(2, shuffleUploader.calculateUploadTime(0));
-    assertEquals(2, shuffleUploader.calculateUploadTime(128 * 1024));
-    assertEquals(2, shuffleUploader.calculateUploadTime(128 * 1024 * 1024));
-    assertEquals(6, shuffleUploader.calculateUploadTime(6 * 128 * 1024 * 1024));
+    assertEquals(2, shuffleUploader.calculateUploadTime(0,0));
+    assertEquals(2, shuffleUploader.calculateUploadTime(0,128 * 1024));
+    assertEquals(2, shuffleUploader.calculateUploadTime(0,128 * 1024 * 1024));
+    assertEquals(6, shuffleUploader.calculateUploadTime(0, 6 * 128 * 1024 * 1024));
+    assertEquals(8, shuffleUploader.calculateUploadTime(4 * 128 * 1024 * 1024,
+        6 * 128 * 1024 * 1024));
   }
 
   @Test

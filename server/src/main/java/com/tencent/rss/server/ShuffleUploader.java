@@ -250,6 +250,7 @@ public class ShuffleUploader {
     List<Callable<ShuffleUploadResult>> callableList = Lists.newLinkedList();
     List<ReadWriteLock> locks = Lists.newArrayList();
     long totalSize = 0;
+    long maxSize = 0;
     for (ShuffleFileInfo shuffleFileInfo : shuffleFileInfos) {
       if (!shuffleFileInfo.isValid()) {
         continue;
@@ -264,6 +265,7 @@ public class ShuffleUploader {
         locks.add(lock);
       }
       totalSize = totalSize + shuffleFileInfo.getSize();
+      maxSize = Math.max(maxSize, shuffleFileInfo.getSize());
       Callable<ShuffleUploadResult> callable = () -> {
         try {
           CreateShuffleUploadHandlerRequest request =
@@ -284,6 +286,7 @@ public class ShuffleUploader {
           if (shuffleUploadResult == null) {
             return null;
           }
+          ShuffleServerMetrics.counterTotalUploadSize.inc(shuffleUploadResult.getSize());
           shuffleUploadResult.setShuffleKey(shuffleFileInfo.getKey());
           if (forceUpload) {
             int failDeleteFiles = 0;
@@ -321,8 +324,9 @@ public class ShuffleUploader {
       callableList.add(callable);
     }
 
-    long uploadTimeoutS = calculateUploadTime(totalSize);
-    LOG.info("Start to upload {} shuffle info and timeout is {} Seconds", callableList.size(), uploadTimeoutS);
+    long uploadTimeoutS = calculateUploadTime(maxSize, totalSize);
+    LOG.info("Start to upload {} shuffle info maxSize {} totalSize {} and timeout is {} Seconds",
+        callableList.size(), maxSize, totalSize, uploadTimeoutS);
     try {
       List<Future<ShuffleUploadResult>> futures =
           executorService.invokeAll(callableList, uploadTimeoutS, TimeUnit.SECONDS);
@@ -352,9 +356,16 @@ public class ShuffleUploader {
   }
 
   @VisibleForTesting
-  long calculateUploadTime(long size) {
+  long calculateUploadTime(long maxSize, long totalSize) {
     long uploadTimeoutS = 1L;
-    long cur = ByteUnit.BYTE.toMiB(size) / (uploadThreadNum * referenceUploadSpeedMBS);
+    long size = 0;
+    if (maxSize > totalSize / uploadThreadNum) {
+      size = maxSize;
+    } else {
+      size = totalSize / uploadThreadNum;
+    }
+    long cur = ByteUnit.BYTE.toMiB(size) / referenceUploadSpeedMBS;
+
     if (cur <= uploadTimeoutS) {
       return uploadTimeoutS * 2;
     } else {
