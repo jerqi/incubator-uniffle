@@ -36,6 +36,7 @@ public class ShuffleServerMetrics {
   private static final String USED_BUFFER_SIZE = "used_buffer_size";
   private static final String TOTAL_UPLOAD_SIZE = "total_upload_size";
   private static final String TOTAL_UPLOAD_TIME_S = "total_upload_time_s";
+  private static final String TOTAL_DROPPED_EVENT_NUM = "total_dropped_event_num";
 
   static Counter counterTotalRequest;
   static Counter counterRegisterRequest;
@@ -56,6 +57,7 @@ public class ShuffleServerMetrics {
   static Counter counterTotalReadTime;
   static Counter counterTotalUploadSize;
   static Counter counterTotalUploadTimeS;
+  static Counter counterTotalDroppedEventNum;
 
   static Gauge gaugeRegisteredShuffle;
   static Gauge gaugeRegisteredShuffleEngine;
@@ -105,6 +107,7 @@ public class ShuffleServerMetrics {
     counterTotalReadTime = metricsManager.addCounter(TOTAL_READ_TIME);
     counterTotalUploadSize = metricsManager.addCounter(TOTAL_UPLOAD_SIZE);
     counterTotalUploadTimeS = metricsManager.addCounter(TOTAL_UPLOAD_TIME_S);
+    counterTotalDroppedEventNum = metricsManager.addCounter(TOTAL_DROPPED_EVENT_NUM);
 
     gaugeRegisteredShuffle = metricsManager.addGauge(REGISTERED_SHUFFLE);
     gaugeRegisteredShuffleEngine = metricsManager.addGauge(REGISTERED_SHUFFLE_ENGINE);

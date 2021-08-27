@@ -253,7 +253,9 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
       manager.addPendingEvents(event);
       Thread.sleep(1000);
       assertTrue(2 <= manager.getPendingEventsSize());
+      int eventNum = (int) ShuffleServerMetrics.counterTotalDroppedEventNum.get();
       Thread.sleep(6 * 1000);
+      assertEquals(eventNum + 3, (int) ShuffleServerMetrics.counterTotalDroppedEventNum.get());
       assertEquals(0, manager.getPendingEventsSize());
       processEventsTmpdir.delete();
     } catch (Exception e) {

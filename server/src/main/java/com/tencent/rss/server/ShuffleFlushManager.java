@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 
-import com.tencent.rss.storage.util.StorageType;
 import org.apache.hadoop.conf.Configuration;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
@@ -302,6 +301,7 @@ public class ShuffleFlushManager {
     PendingShuffleFlushEvent event = pendingEvents.take();
     DiskItem item = multiStorageManager.getDiskItem(event.getEvent());
     if (System.currentTimeMillis() - event.getCreateTimeStamp() > pendingEventTimeoutSec * 1000L) {
+      ShuffleServerMetrics.counterTotalDroppedEventNum.inc();
       if (shuffleServer != null) {
         shuffleServer.getShuffleBufferManager().releaseMemory(
             event.getEvent().getSize(), true, false);
