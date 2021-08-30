@@ -10,7 +10,6 @@ import com.tencent.rss.common.util.ChecksumUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.memory.MemoryConsumer;
@@ -35,9 +34,8 @@ public class WriteBufferManager extends MemoryConsumer {
   // bytes of shuffle data which is in send list
   private AtomicLong inSendListBytes = new AtomicLong(0);
   // it's part of blockId
-  private AtomicInteger atomicInteger = new AtomicInteger(0);
+  private Map<Integer, Integer> partitionToSeqNo = Maps.newHashMap();
   private long askExecutorMemory;
-  private int executorId;
   private int shuffleId;
   private long taskAttemptId;
   private SerializerInstance instance;
@@ -71,7 +69,6 @@ public class WriteBufferManager extends MemoryConsumer {
     super(taskMemoryManager);
     this.bufferSize = bufferManagerOptions.getBufferSize();
     this.spillSize = bufferManagerOptions.getBufferSpillThreshold();
-    this.executorId = executorId;
     this.instance = serializer.newInstance();
     this.buffers = Maps.newHashMap();
     this.shuffleId = shuffleId;
@@ -153,20 +150,28 @@ public class WriteBufferManager extends MemoryConsumer {
   }
 
   // transform records to shuffleBlock
-  private ShuffleBlockInfo createShuffleBlock(int partitionId, WriterBuffer wb) {
+  protected ShuffleBlockInfo createShuffleBlock(int partitionId, WriterBuffer wb) {
     byte[] data = wb.getData();
     final int uncompressLength = data.length;
     long start = System.currentTimeMillis();
     final byte[] compressed = RssShuffleUtils.compressData(data);
     final long crc32 = ChecksumUtils.getCrc32(compressed);
     compressTime += System.currentTimeMillis() - start;
-    final long blockId = ClientUtils.getBlockId(partitionId, taskAttemptId, atomicInteger.getAndIncrement());
+    final long blockId = ClientUtils.getBlockId(partitionId, taskAttemptId, getNextSeqNo(partitionId));
     uncompressedDataLen += data.length;
     shuffleWriteMetrics.incBytesWritten(compressed.length);
     // add memory to indicate bytes which will be sent to shuffle server
     inSendListBytes.addAndGet(wb.getMemoryUsed());
     return new ShuffleBlockInfo(shuffleId, partitionId, blockId, compressed.length, crc32,
         compressed, partitionToServers.get(partitionId), uncompressLength, wb.getMemoryUsed(), taskAttemptId);
+  }
+
+  // it's run in single thread, and is not thread safe
+  private int getNextSeqNo(int partitionId) {
+    partitionToSeqNo.putIfAbsent(partitionId, new Integer(0));
+    int seqNo = partitionToSeqNo.get(partitionId);
+    partitionToSeqNo.put(partitionId, seqNo + 1);
+    return seqNo;
   }
 
   private void requestMemory(long requiredMem) {

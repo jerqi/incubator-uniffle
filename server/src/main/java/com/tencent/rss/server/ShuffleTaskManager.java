@@ -229,17 +229,19 @@ public class ShuffleTaskManager {
   }
 
   // partitionId is passed as long to calculate minValue/maxValue
-  private Roaring64NavigableMap getBlockIdsByPartitionId(long partitionId, Roaring64NavigableMap bitmap) {
+  protected Roaring64NavigableMap getBlockIdsByPartitionId(long partitionId, Roaring64NavigableMap bitmap) {
     Roaring64NavigableMap result = Roaring64NavigableMap.bitmapOf();
     LongIterator iter = bitmap.getLongIterator();
-    long minValue = partitionId << (Constants.ATOMIC_INT_MAX_LENGTH + Constants.TASK_ATTEMPT_ID_MAX_LENGTH);
+    long minValue = partitionId << Constants.TASK_ATTEMPT_ID_MAX_LENGTH;
     long maxValue = Long.MAX_VALUE;
     if (partitionId < Constants.MAX_PARTITION_ID) {
-      maxValue = (partitionId + 1) << (Constants.ATOMIC_INT_MAX_LENGTH + Constants.TASK_ATTEMPT_ID_MAX_LENGTH);
+      maxValue = (partitionId + 1) << (Constants.TASK_ATTEMPT_ID_MAX_LENGTH);
     }
+    long mask = (1L << (Constants.TASK_ATTEMPT_ID_MAX_LENGTH + Constants.PARTITION_ID_MAX_LENGTH)) - 1;
     while (iter.hasNext()) {
       long blockId = iter.next();
-      if (blockId >= minValue && blockId < maxValue) {
+      long partitionAndTask = blockId & mask;
+      if (partitionAndTask >= minValue && partitionAndTask < maxValue) {
         result.addLong(blockId);
       }
     }

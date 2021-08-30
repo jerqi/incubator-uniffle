@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Maps;
 import com.tencent.rss.common.ShuffleBlockInfo;
@@ -102,5 +103,29 @@ public class WriteBufferManagerTest {
     assertEquals(224, wbm.getAllocatedBytes());
     assertEquals(96, wbm.getUsedBytes());
     assertEquals(96, wbm.getInSendListBytes());
+  }
+
+  @Test
+  public void createBlockIdTest() {
+    SparkConf conf = getConf();
+    WriteBufferManager wbm = createManager(conf);
+    WriterBuffer mockWriterBuffer = mock(WriterBuffer.class);
+    when(mockWriterBuffer.getData()).thenReturn(new byte[]{});
+    when(mockWriterBuffer.getMemoryUsed()).thenReturn(0);
+    ShuffleBlockInfo sbi = wbm.createShuffleBlock(0, mockWriterBuffer);
+    // seqNo = 0, partitionId = 0, taskId = 0
+    assertEquals(0L, sbi.getBlockId());
+
+    // seqNo = 1, partitionId = 0, taskId = 0
+    sbi = wbm.createShuffleBlock(0, mockWriterBuffer);
+    assertEquals(17592186044416L, sbi.getBlockId());
+
+    // seqNo = 0, partitionId = 1, taskId = 0
+    sbi = wbm.createShuffleBlock(1, mockWriterBuffer);
+    assertEquals(1048576L, sbi.getBlockId());
+
+    // seqNo = 1, partitionId = 1, taskId = 0
+    sbi = wbm.createShuffleBlock(1, mockWriterBuffer);
+    assertEquals(17592187092992L, sbi.getBlockId());
   }
 }

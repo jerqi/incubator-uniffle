@@ -14,6 +14,7 @@ import com.tencent.rss.common.ShuffleDataResult;
 import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.common.util.ChecksumUtils;
+import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.handler.impl.HdfsClientReadHandler;
 import java.util.List;
@@ -233,6 +234,46 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     // wait resource delete
     Thread.sleep(3000);
     assertEquals(Sets.newHashSet(), shuffleTaskManager.getAppIds().keySet());
+  }
+
+  @Test
+  public void getBlockIdsByPartitionIdTest() {
+    ShuffleServerConf conf = new ShuffleServerConf();
+    ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf, null, null);
+
+    Roaring64NavigableMap expectedBlockIds = Roaring64NavigableMap.bitmapOf();
+    int expectedPartitionId = 5;
+    Roaring64NavigableMap bitmapBlockIds = Roaring64NavigableMap.bitmapOf();
+    for (int taskId = 1; taskId < 10; taskId++) {
+      for (int partitionId = 1; partitionId < 10; partitionId++) {
+        for (int i = 0; i < 2; i++) {
+          long blockId = getBlockId(partitionId, taskId, i);
+          bitmapBlockIds.addLong(blockId);
+          if (partitionId == expectedPartitionId) {
+            expectedBlockIds.addLong(blockId);
+          }
+        }
+      }
+    }
+    Roaring64NavigableMap resultBlockIds = shuffleTaskManager.getBlockIdsByPartitionId(
+        expectedPartitionId, bitmapBlockIds);
+    assertEquals(expectedBlockIds, resultBlockIds);
+
+    bitmapBlockIds.addLong(getBlockId(0, 0, 0));
+    resultBlockIds = shuffleTaskManager.getBlockIdsByPartitionId(0, bitmapBlockIds);
+    assertEquals(Roaring64NavigableMap.bitmapOf(0L), resultBlockIds);
+
+    long expectedBlockId = getBlockId(
+        Constants.MAX_PARTITION_ID, Constants.MAX_TASK_ATTEMPT_ID, Constants.MAX_SEQUENCE_NO);
+    bitmapBlockIds.addLong(expectedBlockId);
+    resultBlockIds = shuffleTaskManager.getBlockIdsByPartitionId(Constants.MAX_PARTITION_ID, bitmapBlockIds);
+    assertEquals(Roaring64NavigableMap.bitmapOf(expectedBlockId), resultBlockIds);
+  }
+
+  // copy from ClientUtils
+  private Long getBlockId(long partitionId, long taskAttemptId, long atomicInt) {
+    return (atomicInt << (Constants.PARTITION_ID_MAX_LENGTH + Constants.TASK_ATTEMPT_ID_MAX_LENGTH))
+        + (partitionId << Constants.TASK_ATTEMPT_ID_MAX_LENGTH) + taskAttemptId;
   }
 
   private void waitForFlush(ShuffleFlushManager shuffleFlushManager,
