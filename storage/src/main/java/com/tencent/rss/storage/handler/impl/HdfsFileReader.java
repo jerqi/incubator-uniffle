@@ -6,7 +6,6 @@ import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
@@ -96,19 +95,21 @@ public class HdfsFileReader implements ShuffleReader, Closeable {
   public ShuffleIndexHeader readHeader() throws IOException, IllegalStateException {
     ShuffleIndexHeader header = new ShuffleIndexHeader();
     header.setPartitionNum(fsDataInputStream.readInt());
-    ByteBuffer headerContentBuf = ByteBuffer.allocate(4 + header.getPartitionNum() * 12);
+    ByteBuffer headerContentBuf = ByteBuffer.allocate(
+        (int)ShuffleStorageUtils.getIndexFileHeaderLen(header.getPartitionNum())
+            - ShuffleStorageUtils.getHeaderCrcLen());
     headerContentBuf.putInt(header.getPartitionNum());
     for (int i = 0; i < header.getPartitionNum(); i++) {
       int partitionId = fsDataInputStream.readInt();
       long partitionLength = fsDataInputStream.readLong();
+      long partitionDataFileLength = fsDataInputStream.readLong();
       headerContentBuf.putInt(partitionId);
       headerContentBuf.putLong(partitionLength);
+      headerContentBuf.putLong(partitionDataFileLength);
+
       ShuffleIndexHeader.Entry entry
-          = new ShuffleIndexHeader.Entry(partitionId, partitionLength);
-      boolean enQueueResult = header.getIndexes().offer(entry);
-      if (!enQueueResult) {
-        throw new IOException("read header exception: index meta is full..");
-      }
+          = new ShuffleIndexHeader.Entry(partitionId, partitionLength, partitionDataFileLength);
+      header.getIndexes().add(entry);
     }
     headerContentBuf.flip();
     header.setCrc(fsDataInputStream.readLong());

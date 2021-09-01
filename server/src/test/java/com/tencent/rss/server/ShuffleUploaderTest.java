@@ -43,6 +43,7 @@ public class ShuffleUploaderTest  {
   @BeforeClass
   public static void setUp() throws IOException {
     base = tmpDir.newFolder("ShuffleUploaderTest");
+    ShuffleServerMetrics.register();
   }
 
   @AfterClass

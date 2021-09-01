@@ -208,9 +208,13 @@ public class ShuffleStorageUtils {
     }
   }
 
-  // index file header is $PartitionNum | [($PartitionId | $PartitionFilexLength), ] | $CRC
+  // index file header is $PartitionNum | [($PartitionId | $PartitionFileLength | $PartitionDataFileLength), ] | $CRC
   public static long getIndexFileHeaderLen(int partitionNum) {
-    return 4 + (4 + 8) * partitionNum + 8;
+    return 4 + (4 + 8 + 8) * partitionNum + 8;
+  }
+
+  public static int getHeaderCrcLen() {
+    return 8;
   }
 
   public static long uploadFile(File file, HdfsFileWriter writer, int bufferSize) throws IOException {

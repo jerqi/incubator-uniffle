@@ -11,8 +11,6 @@ import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -153,17 +151,19 @@ public class HdfsFileReaderTest extends HdfsTestBase {
       Path path = new Path(HDFS_URI, "readUploadFileHeaderTest");
       List<Integer> partitionList = Lists.newArrayList(1, 2, 3);
       List<Long> sizeList = Lists.newArrayList(1L, 2L, 3L);
+      List<Long> fileSizeList = Lists.newArrayList(1L, 2L, 3L);
       try (HdfsFileWriter writer = new HdfsFileWriter(path, conf)) {
-        writer.writeHeader(partitionList, sizeList);
+        writer.writeHeader(partitionList, sizeList, fileSizeList);
       }
       try (HdfsFileReader reader = new HdfsFileReader(path, conf)) {
         ShuffleIndexHeader header = reader.readHeader();
         assertEquals(partitionList.size(), header.getPartitionNum());
         assertEquals(partitionList.size(), header.getIndexes().size());
         for (int i = 0; i < header.getPartitionNum(); i++) {
-          ShuffleIndexHeader.Entry entry = header.getIndexes().poll();
-          assertEquals(partitionList.get(i), entry.getKey());
-          assertEquals(sizeList.get(i), entry.getValue());
+          ShuffleIndexHeader.Entry entry = header.getIndexes().get(i);
+          assertEquals(partitionList.get(i), entry.getPartitionId());
+          assertEquals(sizeList.get(i), entry.getPartitionIndexLength());
+          assertEquals(fileSizeList.get(i), entry.getPartitionDataLength());
         }
       }
 
@@ -199,11 +199,13 @@ public class HdfsFileReaderTest extends HdfsTestBase {
       HdfsFileWriter writer = new HdfsFileWriter(new Path(basePath + "1.index"), conf);
       List<Integer> indexes = Lists.newArrayList();
       List<Long> sizes = Lists.newArrayList();
+      List<Long> fileSizes = Lists.newArrayList();
       for (int i = 0; i < 1024; i++) {
         indexes.add(i);
         sizes.add(10240L);
+        fileSizes.add(1024L);
       }
-      writer.writeHeader(indexes, sizes);
+      writer.writeHeader(indexes, sizes, fileSizes);
       long z = 0;
       for (int i = 0; i < 1024; i++) {
         for (int j = 0; j < 1024; j++) {
@@ -218,8 +220,8 @@ public class HdfsFileReaderTest extends HdfsTestBase {
       sizes = Lists.newArrayList();
       List<Integer> partitions = Lists.newArrayList();
       for (ShuffleIndexHeader.Entry entry : header.getIndexes()) {
-        partitions.add(entry.getKey());
-        sizes.add(entry.getValue());
+        partitions.add(entry.getPartitionId());
+        sizes.add(entry.getPartitionIndexLength());
       }
       long totalSize = header.getHeaderLen();
       long count = 0;

@@ -44,7 +44,9 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       somePartitions.add(1);
       List<Long> someSizes = Lists.newArrayList();
       someSizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
-      iWriter.writeHeader(somePartitions, someSizes);
+      List<Long> dataSizes = Lists.newArrayList();
+      dataSizes.add(256L);
+      iWriter.writeHeader(somePartitions, someSizes, dataSizes);
       FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
           1, 0, 256, 256, 1, 1);
       iWriter.writeIndex(segment);
@@ -75,7 +77,10 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       List<Long> sizes = Lists.newArrayList();
       sizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
       sizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
-      combineIndexWriter.writeHeader(partitions, sizes);
+      dataSizes = Lists.newArrayList();
+      dataSizes.add(256L);
+      dataSizes.add(256L);
+      combineIndexWriter.writeHeader(partitions, sizes, dataSizes);
       FileBasedShuffleSegment segment1 = new FileBasedShuffleSegment(
           2, 0, 256, 256, 1, 1);
       combineIndexWriter.writeIndex(segment1);
@@ -120,7 +125,9 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       somePartitions.add(1);
       List<Long> someSizes = Lists.newArrayList();
       someSizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
-      iWriter.writeHeader(somePartitions, someSizes);
+      List<Long> dataSizes = Lists.newArrayList();
+      dataSizes.add(256L);
+      iWriter.writeHeader(somePartitions, someSizes, dataSizes);
       FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
           1, 0, 256, 256, 1, 1);
       iWriter.writeIndex(segment);
@@ -151,7 +158,9 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       List<Long> sizes = Lists.newArrayList();
       sizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
       sizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
-      combineIndexWriter.writeHeader(partitions, sizes);
+      dataSizes.add(256L);
+      dataSizes.add(256L);
+      combineIndexWriter.writeHeader(partitions, sizes, dataSizes);
       FileBasedShuffleSegment segment1 = new FileBasedShuffleSegment(
           2, 0, 256, 256, 2, 1);
       combineIndexWriter.writeIndex(segment1);
@@ -196,7 +205,9 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       somePartitions.add(2);
       List<Long> someSizes = Lists.newArrayList();
       someSizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
-      iWriter.writeHeader(somePartitions, someSizes);
+      List<Long> dataSizes = Lists.newArrayList();
+      dataSizes.add(256L);
+      iWriter.writeHeader(somePartitions, someSizes, dataSizes);
       FileBasedShuffleSegment segment = new FileBasedShuffleSegment(
           1, 0, 256, 256, 1, 1);
       iWriter.writeIndex(segment);
@@ -227,7 +238,9 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       List<Long> sizes = Lists.newArrayList();
       sizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
       sizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
-      combineIndexWriter.writeHeader(partitions, sizes);
+      dataSizes.add(256L);
+      dataSizes.add(256L);
+      combineIndexWriter.writeHeader(partitions, sizes, dataSizes);
       FileBasedShuffleSegment segment1 = new FileBasedShuffleSegment(
           2, 0, 256, 256, 2, 1);
       combineIndexWriter.writeIndex(segment1);
@@ -290,7 +303,11 @@ public class MultiStorageHdfsClientReadHandlerTest extends HdfsTestBase {
       someSizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
       someSizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE * 5);
       someSizes.add((long)FileBasedShuffleSegment.SEGMENT_SIZE);
-      iWriter.writeHeader(somePartitions, someSizes);
+      List<Long> dataSizes = Lists.newArrayList();
+      dataSizes.add(256L);
+      dataSizes.add(256L * 5);
+      dataSizes.add(256L);
+      iWriter.writeHeader(somePartitions, someSizes, dataSizes);
       FileBasedShuffleSegment segment = new FileBasedShuffleSegment(1, 0, 256, 256, 1, 1L);
       iWriter.writeIndex(segment);
       for (int i = 0; i < 5; i++) {

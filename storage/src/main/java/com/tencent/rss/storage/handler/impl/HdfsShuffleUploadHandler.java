@@ -144,7 +144,7 @@ public class HdfsShuffleUploadHandler implements ShuffleUploadHandler {
         List<Long> sizes = Lists.newArrayList();
         indexFiles.subList(0, fileSize.size()).forEach(f -> sizes.add(f.length()));
         List<Integer> effectivePartitions = partitions.subList(0, fileSize.size());
-        writer.writeHeader(effectivePartitions, sizes);
+        writer.writeHeader(effectivePartitions, sizes, fileSize);
       } catch (IOException e) {
         LOG.error("Fail to write header to index output stream {}, {}", indexFileName, ExceptionUtils.getStackTrace(e));
         return null;

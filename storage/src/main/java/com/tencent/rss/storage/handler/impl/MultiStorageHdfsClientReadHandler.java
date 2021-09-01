@@ -1,9 +1,7 @@
 package com.tencent.rss.storage.handler.impl;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.tencent.rss.common.util.Constants;
-import com.tencent.rss.storage.api.ShuffleReader;
 import com.tencent.rss.storage.common.FileBasedShuffleSegment;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import java.io.IOException;
@@ -12,14 +10,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
 
 public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHandler {
 
@@ -105,15 +99,21 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
         HdfsFileReader reader = entry.getValue();
         ShuffleIndexHeader header = reader.readHeader();
         long start = System.currentTimeMillis();
-        Queue<ShuffleIndexHeader.Entry> indexes = header.getIndexes();
+        List<ShuffleIndexHeader.Entry> indexes = header.getIndexes();
+
         int limit = indexReadLimit;
         int offset = header.getHeaderLen();
         long lastPos = 0;
-        while (!indexes.isEmpty()) {
-          ShuffleIndexHeader.Entry indexEntry = indexes.poll();
-          long length = indexEntry.getValue() / FileBasedShuffleSegment.SEGMENT_SIZE;
+        for (ShuffleIndexHeader.Entry indexEntry : indexes) {
+          long ts = reader.getOffset();
+          if (indexEntry.getPartitionId() != partitionId) {
+            lastPos += indexEntry.getPartitionDataLength();
+            offset += indexEntry.partitionIndexLength;
+            continue;
+          }
+          reader.seek(offset);
+          long length = indexEntry.getPartitionIndexLength() / FileBasedShuffleSegment.SEGMENT_SIZE;
           int dataSize = 0;
-          int fullSize = 0;
           while (length > 0) {
             if (limit > length) {
               limit = (int) length;
@@ -125,25 +125,20 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
             List<FileBasedShuffleSegment> segments = reader.readIndex(limit);
             for (FileBasedShuffleSegment segment : segments) {
               dataSize += segment.getLength();
-              fullSize += segment.getLength();
               segmentSize += FileBasedShuffleSegment.SEGMENT_SIZE;
               if (dataSize > readBufferSize) {
-                if (partitionId == indexEntry.getKey()) {
-                  indexSegments.add(new MultiStorageFileSegment(path, offset, segmentSize, lastPos));
-                }
+                indexSegments.add(new MultiStorageFileSegment(path, offset, segmentSize, lastPos));
                 offset += segmentSize;
                 dataSize = 0;
                 segmentSize = 0;
               }
             }
             if (dataSize > 0) {
-              if (partitionId == indexEntry.getKey()) {
-                indexSegments.add(new MultiStorageFileSegment(path, offset, segmentSize, lastPos));
-              }
+              indexSegments.add(new MultiStorageFileSegment(path, offset, segmentSize, lastPos));
               offset += segmentSize;
             }
           }
-          lastPos += fullSize;
+          lastPos += indexEntry.getPartitionDataLength();
         }
         readIndexTime.addAndGet((System.currentTimeMillis() - start));
       } catch (Exception e) {

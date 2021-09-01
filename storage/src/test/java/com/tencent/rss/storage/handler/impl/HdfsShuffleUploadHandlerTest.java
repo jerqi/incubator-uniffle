@@ -102,8 +102,10 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
       assertEquals(2, indexStream.readInt());
       assertEquals(1, indexStream.readInt());
       assertEquals(5L, indexStream.readLong());
+      assertEquals(10L, indexStream.readLong());
       assertEquals(2, indexStream.readInt());
       assertEquals(15L, indexStream.readLong());
+      assertEquals(30L, indexStream.readLong());
     }
 
     // check data file content
@@ -280,8 +282,10 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
       assertEquals(2, indexStream.readInt());
       assertEquals(1, indexStream.readInt());
       assertEquals(5L, indexStream.readLong());
+      assertEquals(10L, indexStream.readLong());
       assertEquals(2, indexStream.readInt());
       assertEquals(0L, indexStream.readLong());
+      assertEquals(30L, indexStream.readLong());
 
       indexStream.seek(ShuffleStorageUtils.getIndexFileHeaderLen(2) + 5);
       thrown.expect(EOFException.class);
@@ -400,19 +404,23 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
       HdfsFileWriter writer = new HdfsFileWriter(new Path(handler.getBaseHdfsPath() + "/writeHeaderTest.index"), conf);
       writer.writeHeader(
           Lists.newArrayList(1, 2, 3),
-          Lists.newArrayList(indexFile1.length(), indexFile2.length(), indexFile3.length()));
+          Lists.newArrayList(indexFile1.length(), indexFile2.length(), indexFile3.length()),
+          Lists.newArrayList(1L, 2L, 3L));
       writer.close();
-      byte[] buf = new byte[(int)ShuffleStorageUtils.getIndexFileHeaderLen(3) - 8];
+      byte[] buf = new byte[(int)ShuffleStorageUtils.getIndexFileHeaderLen(3)- ShuffleStorageUtils.getHeaderCrcLen()];
 
       FSDataInputStream readStream1 = fs.open(
           new Path(handler.getBaseHdfsPath() + "/writeHeaderTest.index"));
       assertEquals(3, readStream1.readInt());
       assertEquals(1, readStream1.readInt());
       assertEquals(5, readStream1.readLong());
+      assertEquals(1, readStream1.readLong());
       assertEquals(2, readStream1.readInt());
       assertEquals(15, readStream1.readLong());
+      assertEquals(2, readStream1.readLong());
       assertEquals(3, readStream1.readInt());
       assertEquals(25, readStream1.readLong());
+      assertEquals(3, readStream1.readLong());
 
       FSDataInputStream readStream2 = fs.open(
           new Path(handler.getBaseHdfsPath() + "/writeHeaderTest.index"));

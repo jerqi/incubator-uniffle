@@ -1,12 +1,14 @@
 package com.tencent.rss.storage.handler.impl;
 
-import com.google.common.collect.Queues;
-import java.util.Queue;
+import com.google.common.collect.Lists;
+import com.tencent.rss.storage.util.ShuffleStorageUtils;
+
+import java.util.List;
 
 public class ShuffleIndexHeader {
 
   private int partitionNum;
-  private final Queue<Entry> indexes = Queues.newArrayDeque();
+  private final List<Entry> indexes = Lists.newArrayList();
   private long crc;
 
   public void setPartitionNum(int partitionNum) {
@@ -17,7 +19,7 @@ public class ShuffleIndexHeader {
     return partitionNum;
   }
 
-  public Queue<Entry> getIndexes() {
+  public List<Entry> getIndexes() {
     return indexes;
   }
 
@@ -30,24 +32,30 @@ public class ShuffleIndexHeader {
   }
 
   public int getHeaderLen() {
-    return 4 + (4 + 8) * partitionNum + 8;
+    return (int)ShuffleStorageUtils.getIndexFileHeaderLen(partitionNum);
   }
 
   static class Entry {
-    Integer key;
-    Long value;
+    Integer partitionId;
+    Long partitionIndexLength;
+    Long partitionDataLength;
 
-    Entry(Integer key, Long value) {
-      this.key = key;
-      this.value = value;
+    Entry(Integer partitionId, Long partitionIndexLength, long partitionDataLength) {
+      this.partitionId = partitionId;
+      this.partitionIndexLength = partitionIndexLength;
+      this.partitionDataLength = partitionDataLength;
     }
 
-    public Integer getKey() {
-      return key;
+    public Integer getPartitionId() {
+      return partitionId;
     }
 
-    public Long getValue() {
-      return value;
+    public Long getPartitionIndexLength() {
+      return partitionIndexLength;
+    }
+
+    public Long getPartitionDataLength() {
+      return partitionDataLength;
     }
   }
 }

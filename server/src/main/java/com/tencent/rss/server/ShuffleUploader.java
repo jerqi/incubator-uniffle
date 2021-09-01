@@ -288,33 +288,6 @@ public class ShuffleUploader {
           }
           ShuffleServerMetrics.counterTotalUploadSize.inc(shuffleUploadResult.getSize());
           shuffleUploadResult.setShuffleKey(shuffleFileInfo.getKey());
-          if (forceUpload) {
-            int failDeleteFiles = 0;
-            for (int partition : shuffleUploadResult.getPartitions()) {
-              String filePrefix = ShuffleStorageUtils.generateAbsoluteFilePrefix(
-                  diskItem.getBasePath(), shuffleFileInfo.getKey(), partition, serverId);
-              String dataFileName = ShuffleStorageUtils.generateDataFileName(filePrefix);
-              String indexFileName = ShuffleStorageUtils.generateIndexFileName(filePrefix);
-              File dataFile = new File(dataFileName);
-              boolean suc = dataFile.delete();
-              if (!suc) {
-                failDeleteFiles++;
-              }
-              File indexFile = new File(indexFileName);
-              suc = indexFile.delete();
-              if (!suc) {
-                failDeleteFiles++;
-              }
-              if (failDeleteFiles > 0) {
-                LOG.error("Force upload process delete file fail {} times", failDeleteFiles);
-              }
-            }
-            diskItem.removeShuffle(shuffleUploadResult.getShuffleKey(), shuffleUploadResult.getSize(),
-                shuffleUploadResult.getPartitions());
-          }
-          LOG.info("force mode enable {} upload shuffle {} partitions: {}", forceUpload,
-              shuffleUploadResult.getShuffleKey(), shuffleUploadResult.getPartitions().size());
-          LOG.debug("upload partitions detail: {}", shuffleUploadResult.getPartitions());
           return shuffleUploadResult;
         } catch (Exception e) {
           LOG.error("Fail to construct upload callable list {}", ExceptionUtils.getStackTrace(e));
@@ -333,12 +306,22 @@ public class ShuffleUploader {
       for (Future<ShuffleUploadResult> future : futures) {
         if (future.isDone()) {
           ShuffleUploadResult shuffleUploadResult = future.get();
-          if (shuffleUploadResult == null || forceUpload) {
+          if (shuffleUploadResult == null) {
+            LOG.info("shuffleUploadResult is empty..");
             continue;
           }
-          String shuffleKey = shuffleUploadResult.getShuffleKey();
-          diskItem.updateUploadedShuffle(shuffleKey, shuffleUploadResult.getSize(),
-              shuffleUploadResult.getPartitions());
+          LOG.info("force mode enable {} upload shuffle {} partitions: {}", forceUpload,
+              shuffleUploadResult.getShuffleKey(), shuffleUploadResult.getPartitions().size());
+          LOG.debug("upload partitions detail: {}", shuffleUploadResult.getPartitions());
+          if (forceUpload) {
+            deleteForceUploadPartitions(shuffleUploadResult.getShuffleKey(), shuffleUploadResult.getPartitions());
+            diskItem.removeShuffle(shuffleUploadResult.getShuffleKey(), shuffleUploadResult.getSize(),
+                shuffleUploadResult.getPartitions());
+          } else {
+            String shuffleKey = shuffleUploadResult.getShuffleKey();
+            diskItem.updateUploadedShuffle(shuffleKey, shuffleUploadResult.getSize(),
+                shuffleUploadResult.getPartitions());
+          }
         } else {
           future.cancel(true);
         }
@@ -351,6 +334,29 @@ public class ShuffleUploader {
     } finally {
       for (ReadWriteLock lock : locks) {
         lock.writeLock().unlock();
+      }
+    }
+  }
+
+  private void deleteForceUploadPartitions(String shuffleKey, List<Integer> partitions) {
+    int failDeleteFiles = 0;
+    for (int partition : partitions) {
+      String filePrefix = ShuffleStorageUtils.generateAbsoluteFilePrefix(
+          diskItem.getBasePath(), shuffleKey, partition, serverId);
+      String dataFileName = ShuffleStorageUtils.generateDataFileName(filePrefix);
+      String indexFileName = ShuffleStorageUtils.generateIndexFileName(filePrefix);
+      File dataFile = new File(dataFileName);
+      boolean suc = dataFile.delete();
+      if (!suc) {
+        failDeleteFiles++;
+      }
+      File indexFile = new File(indexFileName);
+      suc = indexFile.delete();
+      if (!suc) {
+        failDeleteFiles++;
+      }
+      if (failDeleteFiles > 0) {
+        LOG.error("Force upload process delete file fail {} times", failDeleteFiles);
       }
     }
   }

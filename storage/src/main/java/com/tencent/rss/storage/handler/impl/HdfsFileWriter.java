@@ -84,16 +84,21 @@ public class HdfsFileWriter implements Closeable {
     fsDataOutputStream.writeLong(segment.getTaskAttemptId());
   }
 
-  // index file header is PartitionNum | [(PartitionId | PartitionFileLength), ] | CRC
-  public void writeHeader(List<Integer> partitionList, List<Long> sizeList) throws IOException {
-    ByteBuffer headerContentBuf = ByteBuffer.allocate(4 + partitionList.size() * 12);
+  // index file header is PartitionNum | [(PartitionId | PartitionFileLength | PartitionDataFileLength), ] | CRC
+  public void writeHeader(List<Integer> partitionList,
+      List<Long> indexFileSizeList,
+      List<Long> dataFileSizeList) throws IOException {
+    ByteBuffer headerContentBuf = ByteBuffer.allocate(
+        (int)ShuffleStorageUtils.getIndexFileHeaderLen(partitionList.size()) - ShuffleStorageUtils.getHeaderCrcLen());
     fsDataOutputStream.writeInt(partitionList.size());
     headerContentBuf.putInt(partitionList.size());
     for (int i = 0; i < partitionList.size(); i++) {
         fsDataOutputStream.writeInt(partitionList.get(i));
-        fsDataOutputStream.writeLong(sizeList.get(i));
+        fsDataOutputStream.writeLong(indexFileSizeList.get(i));
+        fsDataOutputStream.writeLong(dataFileSizeList.get(i));
         headerContentBuf.putInt(partitionList.get(i));
-        headerContentBuf.putLong(sizeList.get(i));
+        headerContentBuf.putLong(indexFileSizeList.get(i));
+        headerContentBuf.putLong(dataFileSizeList.get(i));
     }
     headerContentBuf.flip();
     fsDataOutputStream.writeLong(ChecksumUtils.getCrc32(headerContentBuf));
