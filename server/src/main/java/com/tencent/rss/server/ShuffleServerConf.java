@@ -118,11 +118,11 @@ public class ShuffleServerConf extends RssBaseConf {
       .defaultValue(10 * 1000L)
       .withDescription("Expired time (ms) for pre allocated buffer");
 
-  public static final ConfigOption<Long> SERVER_COMMIT_CHECK_INTERVAL = ConfigOptions
-      .key("rss.server.commit.check.interval")
+  public static final ConfigOption<Long> SERVER_COMMIT_CHECK_INTERVAL_MAX = ConfigOptions
+      .key("rss.server.commit.check.interval.max.ms")
       .longType()
-      .defaultValue(1000L)
-      .withDescription("Interval for check commit status");
+      .defaultValue(10000L)
+      .withDescription("Max interval(ms) for check commit status");
 
   public static final ConfigOption<Long> SERVER_WRITE_SLOW_THRESHOLD = ConfigOptions
       .key("rss.server.write.slow.threshold")
@@ -241,8 +241,8 @@ public class ShuffleServerConf extends RssBaseConf {
         set(SERVER_PRE_ALLOCATION_EXPIRED, Long.valueOf(v));
       }
 
-      if (SERVER_COMMIT_CHECK_INTERVAL.key().equalsIgnoreCase(k)) {
-        set(SERVER_COMMIT_CHECK_INTERVAL, Long.valueOf(v));
+      if (SERVER_COMMIT_CHECK_INTERVAL_MAX.key().equalsIgnoreCase(k)) {
+        set(SERVER_COMMIT_CHECK_INTERVAL_MAX, Long.valueOf(v));
       }
 
       if (SERVER_READ_BUFFER_CAPACITY.key().equalsIgnoreCase(k)) {

@@ -38,7 +38,7 @@ public class ShuffleTaskManager {
   private ShuffleServerConf conf;
   private long appExpiredWithoutHB;
   private long preAllocationExpired;
-  private long commitCheckInterval;
+  private long commitCheckIntervalMax;
   // appId -> shuffleId -> blockIds to avoid too many appId
   // store taskAttemptId info to filter speculation task
   // Roaring64NavigableMap instance will cost much memory,
@@ -66,7 +66,7 @@ public class ShuffleTaskManager {
     this.partitionsToBlockIds = Maps.newConcurrentMap();
     this.shuffleBufferManager = shuffleBufferManager;
     this.appExpiredWithoutHB = conf.getLong(ShuffleServerConf.SERVER_APP_EXPIRED_WITHOUT_HEARTBEAT);
-    this.commitCheckInterval = conf.getLong(ShuffleServerConf.SERVER_COMMIT_CHECK_INTERVAL);
+    this.commitCheckIntervalMax = conf.getLong(ShuffleServerConf.SERVER_COMMIT_CHECK_INTERVAL_MAX);
     this.preAllocationExpired = conf.getLong(ShuffleServerConf.SERVER_PRE_ALLOCATION_EXPIRED);
     // the thread for checking application status
     this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
@@ -125,8 +125,12 @@ public class ShuffleTaskManager {
     long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
     Roaring64NavigableMap committedBlockIds;
     Roaring64NavigableMap cloneCommittedBlockIds;
+    long checkInterval = 1000L;
     while (true) {
       committedBlockIds = shuffleFlushManager.getCommittedBlockIds(appId, shuffleId);
+      // synchronized here will block flushManager to update committedBlockIds
+      // if too many rpcs call on commitShuffle, the performance will be impacted
+      // current solution is to increase checkInterval to increase interval of lock
       synchronized (committedBlockIds) {
         cloneCommittedBlockIds = RssUtils.deserializeBitMap(RssUtils.serializeBitMap(committedBlockIds));
       }
@@ -134,13 +138,14 @@ public class ShuffleTaskManager {
       if (cloneBlockIds.isEmpty()) {
         break;
       }
-      Thread.sleep(commitCheckInterval);
+      Thread.sleep(checkInterval);
       if (System.currentTimeMillis() - start > commitTimeout) {
         throw new RuntimeException("Shuffle data commit timeout for " + commitTimeout + " ms");
       }
       LOG.info("Checking commit result for appId[" + appId + "], shuffleId[" + shuffleId
           + "], expect committed[" + expectedCommitted
           + "], remain[" + cloneBlockIds.getLongCardinality() + "]");
+      checkInterval = Math.min(checkInterval * 2, commitCheckIntervalMax);
     }
     LOG.info("Finish commit for appId[" + appId + "], shuffleId[" + shuffleId
         + "] with expectedCommitted[" + expectedCommitted + "], cost "
