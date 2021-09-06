@@ -325,13 +325,13 @@ public class ShuffleTaskManager {
   private void removeResources(String appId) {
     LOG.info("Start remove resource for appId[" + appId + "]");
     final long start = System.currentTimeMillis();
+    final Map<Integer, Roaring64NavigableMap[]> shuffleToPartitions = partitionsToBlockIds.get(appId);
     appIds.remove(appId);
     serverReadHandlers.remove(appId);
     partitionsToBlockIds.remove(appId);
     cachedBlockIds.remove(appId);
     shuffleBufferManager.removeBuffer(appId);
     shuffleFlushManager.removeResources(appId);
-    Map<Integer, Roaring64NavigableMap[]> shuffleToPartitions = partitionsToBlockIds.get(appId);
     if (useMultiStorage && shuffleToPartitions != null) {
       multiStorageManager.removeResources(appId, shuffleToPartitions.keySet());
     }

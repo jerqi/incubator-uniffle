@@ -37,6 +37,7 @@ public class LocalFileClientReadHandler extends AbstractFileClientReadHandler {
 
   @Override
   public ShuffleDataResult readShuffleData(int segmentIndex) {
+    boolean readSuccessful = false;
     ShuffleDataResult result = null;
     RssGetShuffleDataRequest request = new RssGetShuffleDataRequest(
         appId, shuffleId, partitionId, partitionNumPerRange, partitionNum, readBufferSize, segmentIndex);
@@ -44,10 +45,15 @@ public class LocalFileClientReadHandler extends AbstractFileClientReadHandler {
       try {
         RssGetShuffleDataResponse response = shuffleServerClient.getShuffleData(request);
         result = response.getShuffleDataResult();
+        readSuccessful = true;
         break;
       } catch (Exception e) {
         LOG.warn("Failed to read shuffle data with " + shuffleServerClient.getClientInfo(), e);
       }
+    }
+    if (!readSuccessful) {
+      throw new RuntimeException("Failed to read shuffle data for appId[" + appId + "], shuffleId["
+          + shuffleId + "], partitionId[" + partitionId + "]");
     }
     return result;
   }

@@ -244,7 +244,8 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
   @Test
   public void getBlockIdsByPartitionIdTest() {
     ShuffleServerConf conf = new ShuffleServerConf();
-    ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(conf, null, null);
+    ShuffleTaskManager shuffleTaskManager = new ShuffleTaskManager(
+        conf, null, null, null);
 
     Roaring64NavigableMap expectedBlockIds = Roaring64NavigableMap.bitmapOf();
     int expectedPartitionId = 5;

@@ -54,7 +54,7 @@ public class GrpcServer implements ServerInterface {
 
   public void blockUntilShutdown() throws InterruptedException {
     if (server != null) {
-      server.awaitTermination(30, TimeUnit.SECONDS);
+      server.awaitTermination();
     }
   }
 

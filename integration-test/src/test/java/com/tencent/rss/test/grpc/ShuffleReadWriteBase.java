@@ -35,6 +35,14 @@ public abstract class ShuffleReadWriteBase extends IntegrationTestBase {
     return shuffleBlockInfoList;
   }
 
+  protected List<ShuffleBlockInfo> createShuffleBlockList(int shuffleId, int partitionId, long taskAttemptId,
+      int blockNum, int length, Roaring64NavigableMap blockIdBitmap, Map<Long, byte[]> dataMap) {
+    List<ShuffleServerInfo> shuffleServerInfoList =
+        Lists.newArrayList(new ShuffleServerInfo("id", "host", 0));
+    return createShuffleBlockList(
+        shuffleId, partitionId, taskAttemptId, blockNum, length, blockIdBitmap, dataMap, shuffleServerInfoList);
+  }
+
   protected boolean compareByte(byte[] expected, ByteBuffer buffer) {
     for (int i = 0; i < expected.length; i++) {
       if (expected[i] != buffer.get(i)) {

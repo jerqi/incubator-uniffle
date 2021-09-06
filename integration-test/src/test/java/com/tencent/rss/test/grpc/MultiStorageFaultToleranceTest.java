@@ -197,7 +197,8 @@ public class MultiStorageFaultToleranceTest extends ShuffleReadWriteBase {
     RssFinishShuffleRequest rf = new RssFinishShuffleRequest(appId, shuffle);
     shuffleServerClient.finishShuffle(rf);
     partitionToBlockIds.put(shuffle, new ArrayList<>(expectBlockIds));
-    RssReportShuffleResultRequest rrp = new RssReportShuffleResultRequest(appId, shuffle, taskAttemptId, partitionToBlockIds);
+    RssReportShuffleResultRequest rrp = new RssReportShuffleResultRequest(
+        appId, shuffle, taskAttemptId, partitionToBlockIds, 1);
     shuffleServerClient.reportShuffleResult(rrp);
   }
 

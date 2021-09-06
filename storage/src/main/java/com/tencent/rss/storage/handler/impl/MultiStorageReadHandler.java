@@ -9,8 +9,13 @@ import com.tencent.rss.storage.util.StorageType;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
 import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MultiStorageReadHandler extends AbstractFileClientReadHandler {
+
+  private static final Logger LOG = LoggerFactory.getLogger(MultiStorageReadHandler.class);
+
   private ClientReadHandler clientReadHandler;
   private CreateShuffleReadHandlerRequest fallbackRequest;
   private final Roaring64NavigableMap expectBlockIds;
@@ -34,11 +39,17 @@ public class MultiStorageReadHandler extends AbstractFileClientReadHandler {
 
   @Override
   public ShuffleDataResult readShuffleData(int segmentIndex) {
-    ShuffleDataResult result = clientReadHandler.readShuffleData(segmentIndex - offsetIndex);
+    ShuffleDataResult result = null;
+    try {
+      result = clientReadHandler.readShuffleData(segmentIndex - offsetIndex);
+    } catch (Exception e) {
+      LOG.info("Failed to read data from primary", e);
+    }
     if (result != null && !result.isEmpty()) {
       return result;
     } else {
       if (fallbackRequest != null && !checkBlocks()) {
+        LOG.info("Fallback to read data from secondary {}", fallbackRequest.getStorageType());
         clientReadHandler.close();
         clientReadHandler = createShuffleRemoteStorageReadHandler(fallbackRequest);
         offsetIndex = segmentIndex;

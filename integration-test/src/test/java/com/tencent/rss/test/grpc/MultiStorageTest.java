@@ -141,7 +141,8 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     Map<Integer, List<Long>> partitionToBlockIds = Maps.newHashMap();
     partitionToBlockIds.put(0, new ArrayList<>(expectedBlock1));
     partitionToBlockIds.put(1, new ArrayList<>(expectedBlock2));
-    RssReportShuffleResultRequest rrp1 = new RssReportShuffleResultRequest(appId, 0, 1L, partitionToBlockIds);
+    RssReportShuffleResultRequest rrp1 = new RssReportShuffleResultRequest(
+        appId, 0, 1L, partitionToBlockIds, 2);
     shuffleServerClient.reportShuffleResult(rrp1);
 
     DiskItem item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 0);
@@ -341,7 +342,8 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     shuffleServerClient.finishShuffle(rf1);
     Map<Integer, List<Long>> partitionToBlockIds = Maps.newHashMap();
     partitionToBlockIds.put(0, new ArrayList<>(expectedBlock1));
-    RssReportShuffleResultRequest rrp1 = new RssReportShuffleResultRequest(appId, 0, 1L, partitionToBlockIds);
+    RssReportShuffleResultRequest rrp1 = new RssReportShuffleResultRequest(
+        appId, 0, 1L, partitionToBlockIds, 1);
     shuffleServerClient.reportShuffleResult(rrp1);
 
     RssGetShuffleResultRequest rg1 = new RssGetShuffleResultRequest(appId, 0, 0);
@@ -456,18 +458,12 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
       assertTrue(re.getMessage().contains("Can't finish shuffle process"));
     }
     item.getLock(appId + "/" + 2).readLock().unlock();
-    Uninterruptibles.sleepUninterruptibly(3, TimeUnit.SECONDS);
+    Uninterruptibles.sleepUninterruptibly(6, TimeUnit.SECONDS);
     assertEquals(originSize, shuffleServers.get(0).getShuffleBufferManager().getCapacity());
     assertTrue(isException);
     RssGetShuffleResultRequest rg1 = new RssGetShuffleResultRequest(appId, 2, 0);
     shuffleServerClient.getShuffleResult(rg1);
-    isException = false;
-    try {
-      validateResult(appId, 2, 0, expectedData, getExpectBlockIds(blocks1));
-    } catch (RuntimeException re) {
-      isException = true;
-    }
-    assertTrue(isException);
+    validateResult(appId, 2, 0, expectedData, Sets.newHashSet());
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl("LOCALFILE_AND_HDFS",
         appId, 2, 0, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap1, Roaring64NavigableMap.bitmapOf(1), Lists.newArrayList(new ShuffleServerInfo("test", LOCALHOST, SHUFFLE_SERVER_PORT)), conf);
@@ -500,7 +496,8 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     RssFinishShuffleRequest rf = new RssFinishShuffleRequest(appId, shuffle);
     shuffleServerClient.finishShuffle(rf);
     partitionToBlockIds.put(shuffle, new ArrayList<>(expectBlockIds));
-    RssReportShuffleResultRequest rrp = new RssReportShuffleResultRequest(appId, shuffle, taskAttemptId, partitionToBlockIds);
+    RssReportShuffleResultRequest rrp = new RssReportShuffleResultRequest(
+        appId, shuffle, taskAttemptId, partitionToBlockIds, 1);
     shuffleServerClient.reportShuffleResult(rrp);
   }
 

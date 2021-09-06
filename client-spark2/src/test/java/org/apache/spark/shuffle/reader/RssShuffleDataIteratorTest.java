@@ -237,24 +237,4 @@ public class RssShuffleDataIteratorTest extends AbstractRssReaderTest {
     }
   }
 
-  /*@Test
-  public void readTest8() {
-    String basePath = HDFS_URI + "readTest8";
-    Map<String, String> expectedData = Maps.newHashMap();
-    Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
-    Roaring64NavigableMap taskIdBitmap = Roaring64NavigableMap.bitmapOf(0);
-    writeTestData(writeHandler, 2, 5, expectedData,
-        blockIdBitmap, "key", KRYO_SERIALIZER);
-    // there is no data for basePath
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(
-        StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
-        10, 10000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
-
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(
-        StorageType.HDFS.name(), "appId", 0, 1, 100, 2,
-        10, 10000, basePath, expectedBlockIds, Lists.newArrayList());
-    RssShuffleDataIterator rssShuffleDataIterator = new RssShuffleDataIterator(
-        KRYO_SERIALIZER, readClient, new ShuffleReadMetrics(), null);
-    assertFalse(rssShuffleDataIterator.hasNext());
-  }*/
 }

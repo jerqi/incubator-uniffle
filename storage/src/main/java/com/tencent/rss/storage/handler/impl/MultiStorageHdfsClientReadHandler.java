@@ -55,7 +55,7 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
     try {
       fs = ShuffleStorageUtils.getFileSystemForPath(baseFolder, hadoopConf);
     } catch (IOException ioe) {
-      LOG.warn("Can't get FileSystem for " + baseFolder);
+      LOG.warn("Can't get FileSystem for {}", baseFolder);
       return;
     }
     FileStatus[] indexFiles;
@@ -74,9 +74,9 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
       return;
     }
 
+    LOG.info("Find index {} files for shuffleId[{}], partitionId[{}]", indexFiles.length, shuffleId, partitionId);
     for (FileStatus status : indexFiles) {
-      LOG.info("Find index file for shuffleId[" + shuffleId + "], partitionId["
-          + partitionId + "] " + status.getPath());
+      LOG.debug("Find index file for shuffleId[{}], partitionId[{}] {}", shuffleId, partitionId, status.getPath());
       String fileNamePrefix = getFileNamePrefix(status.getPath().getName());
       try {
         dataReaderMap.put(fileNamePrefix,
@@ -92,10 +92,11 @@ public class MultiStorageHdfsClientReadHandler extends AbstractHdfsClientReadHan
 
   @Override
   protected void readAllIndexSegments() {
+    LOG.info("Read all index file for shuffleId[{}], partitionId[{}]", shuffleId, partitionId);
     for (Entry<String, HdfsFileReader> entry : indexReaderMap.entrySet()) {
       String path = entry.getKey();
       try {
-        LOG.info("Read index file for shuffleId[" + shuffleId + "], partitionId[" + partitionId + "] with " + path);
+        LOG.debug("Read index file for shuffleId[" + shuffleId + "], partitionId[" + partitionId + "] with " + path);
         HdfsFileReader reader = entry.getValue();
         ShuffleIndexHeader header = reader.readHeader();
         long start = System.currentTimeMillis();

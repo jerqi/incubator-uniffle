@@ -102,7 +102,7 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
     }
 
     if (status != StatusCode.SUCCESS) {
-      LOG.error("Fail to send heartbeat to {}:{} {}", host, port, status);
+      LOG.error("Fail to send heartbeat to {}:{} {}", this.host, this.port, status);
     }
 
     return response;

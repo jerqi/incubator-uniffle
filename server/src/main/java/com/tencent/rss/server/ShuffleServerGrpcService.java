@@ -281,7 +281,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
     int shuffleId = request.getShuffleId();
     long taskAttemptId = request.getTaskAttemptId();
     int bitmapNum = request.getBitmapNum();
-    Map<Integer, long[]> partitionToBlockIds = toPartionBlocksMap(request.getPartitionToBlockIdsList());
+    Map<Integer, long[]> partitionToBlockIds = toPartitionBlocksMap(request.getPartitionToBlockIdsList());
     StatusCode status = StatusCode.SUCCESS;
     String msg = "OK";
     ReportShuffleResultResponse reply;
