@@ -76,11 +76,11 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     waitForFlush(manager, "appId1", 1, 5);
     waitForFlush(manager, "appId1", 2, 10);
     validate("appId1", 1, 1, blocks1, 1, storageBasePath);
-    assertEquals(blocks1.size(), manager.getCommittedBlockCount("appId1", 1));
+    assertEquals(blocks1.size(), manager.getCommittedBlockIds("appId1", 1).getLongCardinality());
 
     blocks21.addAll(blocks22);
     validate("appId1", 2, 2, blocks21, 1, storageBasePath);
-    assertEquals(blocks21.size(), manager.getCommittedBlockCount("appId1", 2));
+    assertEquals(blocks21.size(), manager.getCommittedBlockIds("appId1", 2).getLongCardinality());
   }
 
   @Test
@@ -130,8 +130,8 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     manager.addToFlushQueue(event2);
     waitForFlush(manager, "appId1", 1, 5);
     waitForFlush(manager, "appId2", 1, 5);
-    assertEquals(5, manager.getCommittedBlockCount("appId1", 1));
-    assertEquals(5, manager.getCommittedBlockCount("appId2", 1));
+    assertEquals(5, manager.getCommittedBlockIds("appId1", 1).getLongCardinality());
+    assertEquals(5, manager.getCommittedBlockIds("appId2", 1).getLongCardinality());
     assertEquals(2, manager.getHandlers().size());
     FileStatus[] fileStatus = fs.listStatus(new Path(storageBasePath + "/appId1/"));
     assertTrue(fileStatus.length > 0);
@@ -142,11 +142,11 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     } catch (FileNotFoundException fnfe) {
       // expected exception
     }
-    assertEquals(0, manager.getCommittedBlockCount("appId1", 1));
-    assertEquals(5, manager.getCommittedBlockCount("appId2", 1));
+    assertEquals(0, manager.getCommittedBlockIds("appId1", 1).getLongCardinality());
+    assertEquals(5, manager.getCommittedBlockIds("appId2", 1).getLongCardinality());
     assertEquals(1, manager.getHandlers().size());
     manager.removeResources("appId2");
-    assertEquals(0, manager.getCommittedBlockCount("appId2", 1));
+    assertEquals(0, manager.getCommittedBlockIds("appId2", 1).getLongCardinality());
     assertEquals(0, manager.getHandlers().size());
   }
 
@@ -160,7 +160,7 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
         fail("Unexpected flush process");
       }
       retry++;
-      size = manager.getCommittedBlockCount(appId, shuffleId);
+      size = manager.getCommittedBlockIds(appId, shuffleId).getIntCardinality();
     } while (size < expectedBlockNum);
   }
 

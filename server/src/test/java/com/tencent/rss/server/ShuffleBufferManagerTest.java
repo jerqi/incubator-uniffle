@@ -17,6 +17,7 @@ import com.tencent.rss.storage.util.StorageType;
 import java.io.File;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -28,6 +29,7 @@ public class ShuffleBufferManagerTest {
 
   private ShuffleBufferManager shuffleBufferManager;
   private ShuffleFlushManager mockShuffleFlushManager;
+  private AtomicInteger atomicInt = new AtomicInteger(0);
 
   @Before
   public void setUp() {
@@ -264,9 +266,9 @@ public class ShuffleBufferManagerTest {
   private void waitForFlush(ShuffleFlushManager shuffleFlushManager,
       String appId, int shuffleId, int expectedBlockNum) throws Exception {
     int retry = 0;
-    int committedCount = 0;
+    long committedCount = 0;
     do {
-      committedCount = shuffleFlushManager.getCommittedBlockCount(appId, shuffleId);
+      committedCount = shuffleFlushManager.getCommittedBlockIds(appId, shuffleId).getLongCardinality();
       if (committedCount < expectedBlockNum) {
         Thread.sleep(500);
       }
@@ -280,7 +282,8 @@ public class ShuffleBufferManagerTest {
   private ShufflePartitionedData createData(int partitionId, int len) {
     byte[] buf = new byte[len];
     new Random().nextBytes(buf);
-    ShufflePartitionedBlock block = new ShufflePartitionedBlock(len, len, 1, 1, 0, buf);
+    ShufflePartitionedBlock block = new ShufflePartitionedBlock(
+        len, len, 1, atomicInt.incrementAndGet(), 0, buf);
     ShufflePartitionedData data = new ShufflePartitionedData(partitionId, new ShufflePartitionedBlock[]{block});
     return data;
   }

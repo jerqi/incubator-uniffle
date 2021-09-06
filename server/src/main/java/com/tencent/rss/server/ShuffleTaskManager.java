@@ -7,6 +7,7 @@ import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleDataResult;
+import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.common.util.RssUtils;
@@ -48,8 +49,8 @@ public class ShuffleTaskManager {
   private Map<String, Long> appIds = Maps.newConcurrentMap();
   // appId -> shuffleId -> commit count
   private Map<String, Map<Long, Integer>> commitCounts = Maps.newHashMap();
-  // appId -> shuffleId -> shuffle block count
-  private Map<String, Map<Long, Integer>> cachedBlockCount = Maps.newHashMap();
+  // appId -> shuffleId -> blockIds
+  private Map<String, Map<Integer, Roaring64NavigableMap>> cachedBlockIds = Maps.newConcurrentMap();
   private Map<Long, PreAllocatedBufferInfo> requireBufferIds = Maps.newConcurrentMap();
   private Runnable clearResourceThread;
   private BlockingQueue<String> expiredAppIdQueue = Queues.newLinkedBlockingQueue();
@@ -114,14 +115,23 @@ public class ShuffleTaskManager {
   public StatusCode commitShuffle(String appId, int shuffleId) throws Exception {
     long start = System.currentTimeMillis();
     refreshAppId(appId);
+    Roaring64NavigableMap cachedBlockIds = getCachedBlockIds(appId, shuffleId);
+    Roaring64NavigableMap cloneBlockIds;
+    synchronized (cachedBlockIds) {
+      cloneBlockIds = RssUtils.deserializeBitMap(RssUtils.serializeBitMap(cachedBlockIds));
+    }
+    long expectedCommitted = cloneBlockIds.getLongCardinality();
     shuffleBufferManager.commitShuffleTask(appId, shuffleId);
     long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
-    int expectedCommitted = getCachedBlockCount(appId, shuffleId);
-    int actualCommitted = 0;
+    Roaring64NavigableMap committedBlockIds;
+    Roaring64NavigableMap cloneCommittedBlockIds;
     while (true) {
-      int committedBlockCount = shuffleFlushManager.getCommittedBlockCount(appId, shuffleId);
-      if (committedBlockCount >= expectedCommitted) {
-        actualCommitted = committedBlockCount;
+      committedBlockIds = shuffleFlushManager.getCommittedBlockIds(appId, shuffleId);
+      synchronized (committedBlockIds) {
+        cloneCommittedBlockIds = RssUtils.deserializeBitMap(RssUtils.serializeBitMap(committedBlockIds));
+      }
+      cloneBlockIds.andNot(cloneCommittedBlockIds);
+      if (cloneBlockIds.isEmpty()) {
         break;
       }
       Thread.sleep(commitCheckInterval);
@@ -129,11 +139,12 @@ public class ShuffleTaskManager {
         throw new RuntimeException("Shuffle data commit timeout for " + commitTimeout + " ms");
       }
       LOG.info("Checking commit result for appId[" + appId + "], shuffleId[" + shuffleId
-          + "], expect committed[" + expectedCommitted + "], actual committed[" + committedBlockCount + "]");
+          + "], expect committed[" + expectedCommitted
+          + "], remain[" + cloneBlockIds.getLongCardinality() + "]");
     }
     LOG.info("Finish commit for appId[" + appId + "], shuffleId[" + shuffleId
-        + "] with expectedCommitted[" + expectedCommitted + "], actualCommitted["
-        + actualCommitted + "], cost " + (System.currentTimeMillis() - start) + " ms to check");
+        + "] with expectedCommitted[" + expectedCommitted + "], cost "
+        + (System.currentTimeMillis() - start) + " ms to check");
 
     return StatusCode.SUCCESS;
   }
@@ -172,26 +183,33 @@ public class ShuffleTaskManager {
     return commitNum;
   }
 
-  public synchronized void updateCachedBlockCount(String appId, long shuffleId, int blockNum) {
-    if (!cachedBlockCount.containsKey(appId)) {
-      cachedBlockCount.put(appId, Maps.newHashMap());
+  public void updateCachedBlockIds(String appId, int shuffleId, ShufflePartitionedBlock[] spbs) {
+    if (spbs == null || spbs.length == 0) {
+      return;
     }
-    Map<Long, Integer> cachedBlocks = cachedBlockCount.get(appId);
-    if (!cachedBlocks.containsKey(shuffleId)) {
-      cachedBlocks.put(shuffleId, 0);
+    cachedBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
+    Map<Integer, Roaring64NavigableMap> shuffleToBlockIds = cachedBlockIds.get(appId);
+    shuffleToBlockIds.putIfAbsent(shuffleId, Roaring64NavigableMap.bitmapOf());
+    Roaring64NavigableMap bitmap = shuffleToBlockIds.get(shuffleId);
+    synchronized (bitmap) {
+      for (ShufflePartitionedBlock spb : spbs) {
+        bitmap.addLong(spb.getBlockId());
+      }
     }
-    cachedBlocks.put(shuffleId, cachedBlocks.get(shuffleId) + blockNum);
   }
 
-  public int getCachedBlockCount(String appId, long shuffleId) {
-    if (!cachedBlockCount.containsKey(appId)) {
-      return 0;
+  public Roaring64NavigableMap getCachedBlockIds(String appId, int shuffleId) {
+    Map<Integer, Roaring64NavigableMap> shuffleIdToBlockIds = cachedBlockIds.get(appId);
+    if (shuffleIdToBlockIds == null) {
+      LOG.warn("Unexpected value when getCachedBlockIds for appId[" + appId + "]");
+      return Roaring64NavigableMap.bitmapOf();
     }
-    Map<Long, Integer> cachedBlocks = cachedBlockCount.get(appId);
-    if (!cachedBlocks.containsKey(shuffleId)) {
-      return 0;
+    Roaring64NavigableMap blockIds = shuffleIdToBlockIds.get(shuffleId);
+    if (blockIds == null) {
+      LOG.warn("Unexpected value when getCachedBlockIds for appId[" + appId + "], shuffleId[" + shuffleId + "]");
+      return Roaring64NavigableMap.bitmapOf();
     }
-    return cachedBlocks.get(shuffleId);
+    return blockIds;
   }
 
   public long requireBuffer(int requireSize) {
@@ -292,6 +310,7 @@ public class ShuffleTaskManager {
     appIds.remove(appId);
     serverReadHandlers.remove(appId);
     partitionsToBlockIds.remove(appId);
+    cachedBlockIds.remove(appId);
     shuffleBufferManager.removeBuffer(appId);
     shuffleFlushManager.removeResources(appId);
     LOG.info("Finish remove resource for appId[" + appId + "] cost " + (System.currentTimeMillis() - start) + " ms");

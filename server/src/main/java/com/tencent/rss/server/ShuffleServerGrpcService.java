@@ -138,8 +138,8 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
             // remove require bufferId, the memory should be updated already
             shuffleServer
                 .getShuffleTaskManager().removeRequireBufferId(requireBufferId);
-            shuffleServer.getShuffleTaskManager().updateCachedBlockCount(
-                appId, shuffleId, spd.getBlockList().length);
+            shuffleServer.getShuffleTaskManager().updateCachedBlockIds(
+                appId, shuffleId, spd.getBlockList());
           }
         } catch (Exception e) {
           String errorMsg = "Error happened when shuffleEngine.write for "
@@ -153,9 +153,7 @@ public class ShuffleServerGrpcService extends ShuffleServerImplBase {
       reply = SendShuffleDataResponse.newBuilder().setStatus(valueOf(ret)).setRetMsg(responseMessage).build();
       LOG.debug("Cache Shuffle Data for appId[" + appId + "], shuffleId[" + shuffleId
           + "], cost " + (System.currentTimeMillis() - start)
-          + " ms with " + shufflePartitionedData.size() + " blocks and " + requireSize
-          + " bytes, the current block num is about "
-          + shuffleServer.getShuffleTaskManager().getCachedBlockCount(appId, shuffleId));
+          + " ms with " + shufflePartitionedData.size() + " blocks and " + requireSize + " bytes");
     } else {
       reply = SendShuffleDataResponse
           .newBuilder()

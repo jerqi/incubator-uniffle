@@ -107,19 +107,19 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     PreAllocatedBufferInfo pabi = bufferIds.get(requireId);
     assertEquals(35, pabi.getRequireSize());
     StatusCode sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, true, partitionedData0);
-    shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 1);
+    shuffleTaskManager.updateCachedBlockIds(appId, shuffleId, partitionedData0.getBlockList());
     // the required id won't be removed in shuffleTaskManager, it is removed in Grpc service
     assertEquals(1, bufferIds.size());
     assertEquals(StatusCode.SUCCESS, sc);
     shuffleTaskManager.commitShuffle(appId, shuffleId);
-    assertEquals(1, shuffleFlushManager.getCommittedBlockCount(appId, shuffleId));
+    assertEquals(1, shuffleFlushManager.getCommittedBlockIds(appId, shuffleId).getLongCardinality());
 
     // flush for partition 1-1
     ShufflePartitionedData partitionedData1 = createPartitionedData(1, 2, 35);
     expectedBlocks1.addAll(Lists.newArrayList(partitionedData1.getBlockList()));
     shuffleTaskManager.requireBuffer(70);
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, true, partitionedData1);
-    shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 2);
+    shuffleTaskManager.updateCachedBlockIds(appId, shuffleId, partitionedData1.getBlockList());
     assertEquals(StatusCode.SUCCESS, sc);
     waitForFlush(shuffleFlushManager, appId, shuffleId, 2 + 1);
 
@@ -128,7 +128,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     expectedBlocks1.addAll(Lists.newArrayList(partitionedData2.getBlockList()));
     // receive un-preAllocation data
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, false, partitionedData2);
-    shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 1);
+    shuffleTaskManager.updateCachedBlockIds(appId, shuffleId, partitionedData2.getBlockList());
     assertEquals(StatusCode.SUCCESS, sc);
 
     // won't flush for partition 2-2
@@ -136,7 +136,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     expectedBlocks2.addAll(Lists.newArrayList(partitionedData3.getBlockList()));
     shuffleTaskManager.requireBuffer(30);
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, true, partitionedData3);
-    shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 1);
+    shuffleTaskManager.updateCachedBlockIds(appId, shuffleId, partitionedData3.getBlockList());
     assertEquals(StatusCode.SUCCESS, sc);
 
     // flush for partition 2-2
@@ -144,7 +144,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     expectedBlocks2.addAll(Lists.newArrayList(partitionedData4.getBlockList()));
     shuffleTaskManager.requireBuffer(35);
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, true, partitionedData4);
-    shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 1);
+    shuffleTaskManager.updateCachedBlockIds(appId, shuffleId, partitionedData4.getBlockList());
     assertEquals(StatusCode.SUCCESS, sc);
 
     shuffleTaskManager.commitShuffle(appId, shuffleId);
@@ -153,7 +153,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
 
     // flush for partition 1-1
     ShufflePartitionedData partitionedData5 = createPartitionedData(1, 2, 35);
-    shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 2);
+    shuffleTaskManager.updateCachedBlockIds(appId, shuffleId, partitionedData5.getBlockList());
     expectedBlocks1.addAll(Lists.newArrayList(partitionedData5.getBlockList()));
     shuffleTaskManager.requireBuffer(70);
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, true, partitionedData5);
@@ -169,7 +169,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
 
     // flush for partition 0-1
     ShufflePartitionedData partitionedData7 = createPartitionedData(1, 2, 35);
-    shuffleTaskManager.updateCachedBlockCount(appId, shuffleId, 2);
+    shuffleTaskManager.updateCachedBlockIds(appId, shuffleId, partitionedData7.getBlockList());
     shuffleTaskManager.requireBuffer(70);
     sc = shuffleTaskManager.cacheShuffleData(appId, shuffleId, true, partitionedData7);
     assertEquals(StatusCode.SUCCESS, sc);
@@ -217,12 +217,14 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     while (retry < 10) {
       Thread.sleep(1000);
       shuffleTaskManager.cacheShuffleData("clearTest1", shuffleId, false, partitionedData0);
+      shuffleTaskManager.updateCachedBlockIds("clearTest1", shuffleId, partitionedData0.getBlockList());
       shuffleTaskManager.refreshAppId("clearTest1");
       shuffleTaskManager.checkResourceStatus();
       retry++;
     }
     // application "clearTest2" was removed according to rss.server.app.expired.withoutHeartbeat
     assertEquals(Sets.newHashSet("clearTest1"), shuffleTaskManager.getAppIds().keySet());
+    assertEquals(1, shuffleTaskManager.getCachedBlockIds("clearTest1", shuffleId).getLongCardinality());
 
     // register again
     shuffleTaskManager.registerShuffle("clearTest2", shuffleId, Lists.newArrayList(new PartitionRange(0, 1)));
@@ -234,6 +236,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     // wait resource delete
     Thread.sleep(3000);
     assertEquals(Sets.newHashSet(), shuffleTaskManager.getAppIds().keySet());
+    assertTrue(shuffleTaskManager.getCachedBlockIds("clearTest1", shuffleId).isEmpty());
   }
 
   @Test
@@ -281,7 +284,7 @@ public class ShuffleTaskManagerTest extends HdfsTestBase {
     int retry = 0;
     while (true) {
       // remove flushed eventId to test timeout in commit
-      if (shuffleFlushManager.getCommittedBlockCount(appId, shuffleId) == expectedBlockNum) {
+      if (shuffleFlushManager.getCommittedBlockIds(appId, shuffleId).getIntCardinality() == expectedBlockNum) {
         break;
       }
       Thread.sleep(1000);

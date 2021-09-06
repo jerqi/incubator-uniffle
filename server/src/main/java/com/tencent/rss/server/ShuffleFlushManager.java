@@ -20,6 +20,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.hadoop.conf.Configuration;
+import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,8 +39,8 @@ public class ShuffleFlushManager {
   private Configuration hadoopConf;
   // appId -> shuffleId -> partitionId -> handlers
   private Map<String, Map<Integer, RangeMap<Integer, ShuffleWriteHandler>>> handlers = Maps.newConcurrentMap();
-  // appId -> shuffleId -> committed shuffle block data count
-  private Map<String, Map<Long, Integer>> committedBlockCount = Maps.newConcurrentMap();
+  // appId -> shuffleId -> committed shuffle blockIds
+  private Map<String, Map<Integer, Roaring64NavigableMap>> committedBlockIds = Maps.newConcurrentMap();
   private boolean isRunning;
   private Runnable processEventThread;
   private int retryMax;
@@ -117,7 +118,7 @@ public class ShuffleFlushManager {
             if (writeTime > writeSlowThreshold) {
               ShuffleServerMetrics.counterWriteSlow.inc();
             }
-            updateCommittedBlockCount(event.getAppId(), event.getShuffleId(), event.getShuffleBlocks().size());
+            updateCommittedBlockIds(event.getAppId(), event.getShuffleId(), blocks);
             writeSuccess = true;
             ShuffleServerMetrics.counterTotalWriteDataSize.inc(event.getSize());
             ShuffleServerMetrics.counterTotalWriteBlockSize.inc(event.getShuffleBlocks().size());
@@ -170,29 +171,38 @@ public class ShuffleFlushManager {
     return eventIdRangeMap.get(event.getStartPartition());
   }
 
-  private void updateCommittedBlockCount(String appId, long shuffleId, int blockNum) {
-    committedBlockCount.putIfAbsent(appId, Maps.newConcurrentMap());
-    Map<Long, Integer> committedBlocks = committedBlockCount.get(appId);
-    committedBlocks.putIfAbsent(shuffleId, 0);
-    synchronized (committedBlocks) {
-      committedBlocks.put(shuffleId, committedBlocks.get(shuffleId) + blockNum);
+  private void updateCommittedBlockIds(String appId, int shuffleId, List<ShufflePartitionedBlock> blocks) {
+    if (blocks == null || blocks.size() == 0) {
+      return;
+    }
+    committedBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
+    Map<Integer, Roaring64NavigableMap> shuffleToBlockIds = committedBlockIds.get(appId);
+    shuffleToBlockIds.putIfAbsent(shuffleId, Roaring64NavigableMap.bitmapOf());
+    Roaring64NavigableMap bitmap = shuffleToBlockIds.get(shuffleId);
+    synchronized (bitmap) {
+      for (ShufflePartitionedBlock spb : blocks) {
+        bitmap.addLong(spb.getBlockId());
+      }
     }
   }
 
-  public int getCommittedBlockCount(String appId, long shuffleId) {
-    if (!committedBlockCount.containsKey(appId)) {
-      return 0;
+  public Roaring64NavigableMap getCommittedBlockIds(String appId, Integer shuffleId) {
+    Map<Integer, Roaring64NavigableMap> shuffleIdToBlockIds = committedBlockIds.get(appId);
+    if (shuffleIdToBlockIds == null) {
+      LOG.warn("Unexpected value when getCommittedBlockIds for appId[" + appId + "]");
+      return Roaring64NavigableMap.bitmapOf();
     }
-    Map<Long, Integer> committedBlocks = committedBlockCount.get(appId);
-    if (!committedBlocks.containsKey(shuffleId)) {
-      return 0;
+    Roaring64NavigableMap blockIds = shuffleIdToBlockIds.get(shuffleId);
+    if (blockIds == null) {
+      LOG.warn("Unexpected value when getCommittedBlockIds for appId[" + appId + "], shuffleId[" + shuffleId + "]");
+      return Roaring64NavigableMap.bitmapOf();
     }
-    return committedBlocks.get(shuffleId);
+    return blockIds;
   }
 
   public void removeResources(String appId) {
     handlers.remove(appId);
-    committedBlockCount.remove(appId);
+    committedBlockIds.remove(appId);
     // delete shuffle data for application
     ShuffleDeleteHandler deleteHandler = ShuffleHandlerFactory.getInstance()
         .createShuffleDeleteHandler(new CreateShuffleDeleteHandlerRequest(storageType, hadoopConf));
