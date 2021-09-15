@@ -35,11 +35,11 @@ public class ShuffleBufferTest {
   @Test
   public void toFlushEventTest() {
     ShuffleBuffer shuffleBuffer = new ShuffleBuffer(100);
-    ShuffleDataFlushEvent event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
+    ShuffleDataFlushEvent event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1, null);
     assertNull(event);
     shuffleBuffer.append(createData(10));
     assertEquals(42, shuffleBuffer.getSize());
-    event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1);
+    event = shuffleBuffer.toFlushEvent("appId", 0, 0, 1, null);
     assertEquals(42, event.getSize());
     assertEquals(0, shuffleBuffer.getSize());
     assertEquals(0, shuffleBuffer.getBlocks().size());

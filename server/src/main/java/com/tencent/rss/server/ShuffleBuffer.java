@@ -4,6 +4,7 @@ import com.tencent.rss.common.ShufflePartitionedBlock;
 import com.tencent.rss.common.ShufflePartitionedData;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Supplier;
 
 public class ShuffleBuffer {
 
@@ -33,7 +34,7 @@ public class ShuffleBuffer {
   }
 
   public synchronized ShuffleDataFlushEvent toFlushEvent(
-      String appId, int shuffleId, int startPartition, int endPartition) {
+      String appId, int shuffleId, int startPartition, int endPartition, Supplier<Boolean> isValid) {
     if (blocks.isEmpty()) {
       return null;
     }
@@ -46,7 +47,8 @@ public class ShuffleBuffer {
         startPartition,
         endPartition,
         size,
-        spBlocks);
+        spBlocks,
+        isValid);
     blocks.clear();
     size = 0;
     return event;

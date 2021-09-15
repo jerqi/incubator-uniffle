@@ -121,7 +121,7 @@ public class ShuffleBufferManager {
   private void flushBuffer(ShuffleBuffer buffer, String appId,
       int shuffleId, int startPartition, int endPartition) {
     ShuffleDataFlushEvent event =
-        buffer.toFlushEvent(appId, shuffleId, startPartition, endPartition);
+        buffer.toFlushEvent(appId, shuffleId, startPartition, endPartition, () -> bufferPool.containsKey(appId));
     if (event != null) {
       inFlushSize.addAndGet(event.getSize());
       ShuffleServerMetrics.gaugeInFlushBufferSize.set(inFlushSize.get());

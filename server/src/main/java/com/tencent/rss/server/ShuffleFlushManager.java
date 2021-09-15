@@ -138,12 +138,19 @@ public class ShuffleFlushManager {
     try {
       if (blocks == null || blocks.isEmpty()) {
         LOG.info("There is no block to be flushed: " + event);
+      } else if (!event.isValid()) {
+        LOG.warn("AppId {} was removed already, event {} should be dropped", event.getAppId(), event);
       } else {
         ShuffleWriteHandler handler = getHandler(event);
         int retry = 0;
         while (!writeSuccess) {
           if (retry > retryMax) {
             LOG.error("Failed to write data for " + event + " in " + retryMax + " times, shuffle data will be lost");
+            break;
+          }
+          if (!event.isValid()) {
+            LOG.warn("AppId {} was removed already, event {} should be dropped, may leak one handler",
+                event.getAppId(), event);
             break;
           }
           ReadWriteLock lock = null;
@@ -234,7 +241,9 @@ public class ShuffleFlushManager {
     if (blocks == null || blocks.size() == 0) {
       return;
     }
-    committedBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
+    if (!committedBlockIds.containsKey(appId)) {
+      committedBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
+    }
     Map<Integer, Roaring64NavigableMap> shuffleToBlockIds = committedBlockIds.get(appId);
     shuffleToBlockIds.putIfAbsent(shuffleId, Roaring64NavigableMap.bitmapOf());
     Roaring64NavigableMap bitmap = shuffleToBlockIds.get(shuffleId);

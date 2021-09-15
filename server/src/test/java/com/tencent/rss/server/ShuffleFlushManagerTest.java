@@ -20,14 +20,17 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -65,15 +68,15 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     ShuffleFlushManager manager =
         new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null, null);
     ShuffleDataFlushEvent event1 =
-        createShuffleDataFlushEvent("appId1", 1, 1, 1);
+        createShuffleDataFlushEvent("appId1", 1, 1, 1, null);
     List<ShufflePartitionedBlock> blocks1 = event1.getShuffleBlocks();
     manager.addToFlushQueue(event1);
     ShuffleDataFlushEvent event21 =
-        createShuffleDataFlushEvent("appId1", 2, 2, 2);
+        createShuffleDataFlushEvent("appId1", 2, 2, 2, null);
     List<ShufflePartitionedBlock> blocks21 = event21.getShuffleBlocks();
     manager.addToFlushQueue(event21);
     ShuffleDataFlushEvent event22 =
-        createShuffleDataFlushEvent("appId1", 2, 2, 2);
+        createShuffleDataFlushEvent("appId1", 2, 2, 2, null);
     List<ShufflePartitionedBlock> blocks22 = event22.getShuffleBlocks();
     manager.addToFlushQueue(event22);
     // wait for write data
@@ -95,8 +98,8 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     List<ShuffleDataFlushEvent> flushEvents2 = Lists.newArrayList();
     ShuffleFlushManager manager = new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null, null);
     for (int i = 0; i < 30; i++) {
-      ShuffleDataFlushEvent flushEvent1 = createShuffleDataFlushEvent("appId4", 1, 1, 1);
-      ShuffleDataFlushEvent flushEvent2 = createShuffleDataFlushEvent("appId4", 1, 1, 1);
+      ShuffleDataFlushEvent flushEvent1 = createShuffleDataFlushEvent("appId4", 1, 1, 1, null);
+      ShuffleDataFlushEvent flushEvent2 = createShuffleDataFlushEvent("appId4", 1, 1, 1, null);
       expectedBlocks.addAll(flushEvent1.getShuffleBlocks());
       expectedBlocks.addAll(flushEvent2.getShuffleBlocks());
       flushEvents1.add(flushEvent1);
@@ -127,10 +130,10 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     ShuffleFlushManager manager =
         new ShuffleFlushManager(shuffleServerConf, "shuffleServerId", null, null);
     ShuffleDataFlushEvent event1 =
-        createShuffleDataFlushEvent("appId1", 1, 0, 1);
+        createShuffleDataFlushEvent("appId1", 1, 0, 1, null);
     manager.addToFlushQueue(event1);
     ShuffleDataFlushEvent event2 =
-        createShuffleDataFlushEvent("appId2", 1, 0, 1);
+        createShuffleDataFlushEvent("appId2", 1, 0, 1, null);
     manager.addToFlushQueue(event2);
     waitForFlush(manager, "appId1", 1, 5);
     waitForFlush(manager, "appId2", 1, 5);
@@ -146,12 +149,50 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
     } catch (FileNotFoundException fnfe) {
       // expected exception
     }
+
     assertEquals(0, manager.getCommittedBlockIds("appId1", 1).getLongCardinality());
     assertEquals(5, manager.getCommittedBlockIds("appId2", 1).getLongCardinality());
     assertEquals(1, manager.getHandlers().size());
     manager.removeResources("appId2");
     assertEquals(0, manager.getCommittedBlockIds("appId2", 1).getLongCardinality());
     assertEquals(0, manager.getHandlers().size());
+  }
+
+  @Test
+  public void clearLocalTest() throws Exception {
+    TemporaryFolder tmpDir = new TemporaryFolder();
+    tmpDir.create();
+    ShuffleServerConf serverConf = new ShuffleServerConf();
+    serverConf.setString("rss.storage.basePath", tmpDir.getRoot().getAbsolutePath());
+    serverConf.setString("rss.storage.type", "LOCALFILE");
+    ShuffleFlushManager manager =
+        new ShuffleFlushManager(serverConf, "shuffleServerId", null, null);
+    ShuffleDataFlushEvent event1 =
+        createShuffleDataFlushEvent("appId1", 1, 0, 1, null);
+    manager.addToFlushQueue(event1);
+    ShuffleDataFlushEvent event2 =
+        createShuffleDataFlushEvent("appId2", 1, 0, 1, null);
+    manager.addToFlushQueue(event2);
+    waitForFlush(manager, "appId1", 1, 5);
+    waitForFlush(manager, "appId2", 1, 5);
+    assertEquals(5, manager.getCommittedBlockIds("appId1", 1).getLongCardinality());
+    assertEquals(5, manager.getCommittedBlockIds("appId2", 1).getLongCardinality());
+    assertEquals(2, manager.getHandlers().size());
+    File file = new File(tmpDir.getRoot(), "appId1");
+    assertTrue(file.exists());
+    manager.removeResources("appId1");
+    assertFalse(file.exists());
+    ShuffleDataFlushEvent event3 =
+        createShuffleDataFlushEvent("app1", 1, 0, 1, () -> { return  false; });
+    manager.addToFlushQueue(event3);
+    Thread.sleep(1000);
+    assertEquals(0, manager.getCommittedBlockIds("appId1", 1).getLongCardinality());
+    assertEquals(5, manager.getCommittedBlockIds("appId2", 1).getLongCardinality());
+    assertEquals(1, manager.getHandlers().size());
+    manager.removeResources("appId2");
+    assertEquals(0, manager.getCommittedBlockIds("appId2", 1).getLongCardinality());
+    assertEquals(0, manager.getHandlers().size());
+    tmpDir.delete();
   }
 
   private void waitForFlush(ShuffleFlushManager manager,
@@ -169,10 +210,10 @@ public class ShuffleFlushManagerTest extends HdfsTestBase {
   }
 
   private ShuffleDataFlushEvent createShuffleDataFlushEvent(
-      String appId, int shuffleId, int startPartition, int endPartition) {
+      String appId, int shuffleId, int startPartition, int endPartition, Supplier<Boolean> isValid) {
     List<ShufflePartitionedBlock> spbs = createBlock(5, 32);
     return new ShuffleDataFlushEvent(ATOMIC_LONG.getAndIncrement(),
-        appId, shuffleId, startPartition, endPartition, 1, spbs);
+        appId, shuffleId, startPartition, endPartition, 1, spbs, isValid);
   }
 
   private List<ShufflePartitionedBlock> createBlock(int num, int length) {

@@ -23,7 +23,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
 import org.roaringbitmap.longlong.LongIterator;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
@@ -49,7 +51,8 @@ public class ShuffleTaskManager {
   private ShuffleBufferManager shuffleBufferManager;
   private Map<String, Long> appIds = Maps.newConcurrentMap();
   // appId -> shuffleId -> commit count
-  private Map<String, Map<Long, Integer>> commitCounts = Maps.newHashMap();
+  private Map<String, Map<Long, AtomicInteger>> commitCounts = Maps.newConcurrentMap();
+  private Map<String, Map<Integer, Object>> commitLocks = Maps.newConcurrentMap();
   // appId -> shuffleId -> blockIds
   private Map<String, Map<Integer, Roaring64NavigableMap>> cachedBlockIds = Maps.newConcurrentMap();
   private Map<Long, PreAllocatedBufferInfo> requireBufferIds = Maps.newConcurrentMap();
@@ -127,75 +130,80 @@ public class ShuffleTaskManager {
     refreshAppId(appId);
     Roaring64NavigableMap cachedBlockIds = getCachedBlockIds(appId, shuffleId);
     Roaring64NavigableMap cloneBlockIds;
-    synchronized (cachedBlockIds) {
-      cloneBlockIds = RssUtils.deserializeBitMap(RssUtils.serializeBitMap(cachedBlockIds));
-    }
-    long expectedCommitted = cloneBlockIds.getLongCardinality();
-    shuffleBufferManager.commitShuffleTask(appId, shuffleId);
-    long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
-    Roaring64NavigableMap committedBlockIds;
-    Roaring64NavigableMap cloneCommittedBlockIds;
-    long checkInterval = 1000L;
-    while (true) {
-      committedBlockIds = shuffleFlushManager.getCommittedBlockIds(appId, shuffleId);
-      // synchronized here will block flushManager to update committedBlockIds
-      // if too many rpcs call on commitShuffle, the performance will be impacted
-      // current solution is to increase checkInterval to increase interval of lock
-      synchronized (committedBlockIds) {
-        cloneCommittedBlockIds = RssUtils.deserializeBitMap(RssUtils.serializeBitMap(committedBlockIds));
-      }
-      cloneBlockIds.andNot(cloneCommittedBlockIds);
-      if (cloneBlockIds.isEmpty()) {
-        break;
-      }
-      Thread.sleep(checkInterval);
+    commitLocks.putIfAbsent(appId, Maps.newConcurrentMap());
+    Map<Integer, Object> shuffleLevelLocks = commitLocks.get(appId);
+    shuffleLevelLocks.putIfAbsent(shuffleId, new Object());
+    Object lock = shuffleLevelLocks.get(shuffleId);
+    synchronized (lock) {
+      long commitTimeout = conf.get(ShuffleServerConf.SERVER_COMMIT_TIMEOUT);
       if (System.currentTimeMillis() - start > commitTimeout) {
         throw new RuntimeException("Shuffle data commit timeout for " + commitTimeout + " ms");
       }
-      LOG.info("Checking commit result for appId[" + appId + "], shuffleId[" + shuffleId
-          + "], expect committed[" + expectedCommitted
-          + "], remain[" + cloneBlockIds.getLongCardinality() + "]");
-      checkInterval = Math.min(checkInterval * 2, commitCheckIntervalMax);
+      byte[] bitmapBytes;
+      synchronized (cachedBlockIds) {
+        bitmapBytes = RssUtils.serializeBitMap(cachedBlockIds);
+      }
+      cloneBlockIds = RssUtils.deserializeBitMap(bitmapBytes);
+      long expectedCommitted = cloneBlockIds.getLongCardinality();
+      shuffleBufferManager.commitShuffleTask(appId, shuffleId);
+      Roaring64NavigableMap committedBlockIds;
+      Roaring64NavigableMap cloneCommittedBlockIds;
+      long checkInterval = 1000L;
+      while (true) {
+        committedBlockIds = shuffleFlushManager.getCommittedBlockIds(appId, shuffleId);
+        synchronized (committedBlockIds) {
+          bitmapBytes = RssUtils.serializeBitMap(committedBlockIds);
+        }
+        cloneCommittedBlockIds = RssUtils.deserializeBitMap(bitmapBytes);
+        cloneBlockIds.andNot(cloneCommittedBlockIds);
+        if (cloneBlockIds.isEmpty()) {
+          break;
+        }
+        Thread.sleep(checkInterval);
+        if (System.currentTimeMillis() - start > commitTimeout) {
+          throw new RuntimeException("Shuffle data commit timeout for " + commitTimeout + " ms");
+        }
+        LOG.info("Checking commit result for appId[" + appId + "], shuffleId[" + shuffleId
+            + "], expect committed[" + expectedCommitted
+            + "], remain[" + cloneBlockIds.getLongCardinality() + "]");
+        checkInterval = Math.min(checkInterval * 2, commitCheckIntervalMax);
+      }
+      LOG.info("Finish commit for appId[" + appId + "], shuffleId[" + shuffleId
+          + "] with expectedCommitted[" + expectedCommitted + "], cost "
+          + (System.currentTimeMillis() - start) + " ms to check");
     }
-    LOG.info("Finish commit for appId[" + appId + "], shuffleId[" + shuffleId
-        + "] with expectedCommitted[" + expectedCommitted + "], cost "
-        + (System.currentTimeMillis() - start) + " ms to check");
-
     return StatusCode.SUCCESS;
   }
 
-  public synchronized void addFinishedBlockIds(
+  public void addFinishedBlockIds(
       String appId, Integer shuffleId, Map<Integer, long[]> partitionToBlockIds, int bitmapNum) {
     refreshAppId(appId);
     Map<Integer, Roaring64NavigableMap[]> shuffleIdToPartitions = partitionsToBlockIds.get(appId);
-    if (shuffleIdToPartitions.get(shuffleId) == null) {
+    if (!shuffleIdToPartitions.containsKey(shuffleId)) {
       Roaring64NavigableMap[] blockIds = new Roaring64NavigableMap[bitmapNum];
       for (int i = 0; i < bitmapNum; i++) {
         blockIds[i] = Roaring64NavigableMap.bitmapOf();
       }
-      shuffleIdToPartitions.put(shuffleId, blockIds);
+      shuffleIdToPartitions.putIfAbsent(shuffleId, blockIds);
     }
     Roaring64NavigableMap[] blockIds = shuffleIdToPartitions.get(shuffleId);
     for (Map.Entry<Integer, long[]> entry : partitionToBlockIds.entrySet()) {
       Integer partitionId = entry.getKey();
       Roaring64NavigableMap bitmap = blockIds[partitionId % bitmapNum];
-      for (long blockId : entry.getValue()) {
-        bitmap.addLong(blockId);
+      synchronized (bitmap) {
+        for (long blockId : entry.getValue()) {
+          bitmap.addLong(blockId);
+        }
       }
     }
   }
 
-  public synchronized int updateAndGetCommitCount(String appId, long shuffleId) {
-    if (!commitCounts.containsKey(appId)) {
-      commitCounts.put(appId, Maps.newHashMap());
-    }
-    Map<Long, Integer> shuffleCommit = commitCounts.get(appId);
-    if (!shuffleCommit.containsKey(shuffleId)) {
-      shuffleCommit.put(shuffleId, 0);
-    }
-    int commitNum = shuffleCommit.get(shuffleId) + 1;
-    shuffleCommit.put(shuffleId, commitNum);
-    return commitNum;
+  public int updateAndGetCommitCount(String appId, long shuffleId) {
+    commitCounts.putIfAbsent(appId, Maps.newConcurrentMap());
+    Map<Long, AtomicInteger> shuffleCommit = commitCounts.get(appId);
+    shuffleCommit.putIfAbsent(shuffleId, new AtomicInteger(0));
+    AtomicInteger commitNum = shuffleCommit.get(shuffleId);
+    return commitNum.incrementAndGet();
   }
 
   public void updateCachedBlockIds(String appId, int shuffleId, ShufflePartitionedBlock[] spbs) {
@@ -330,6 +338,8 @@ public class ShuffleTaskManager {
     serverReadHandlers.remove(appId);
     partitionsToBlockIds.remove(appId);
     cachedBlockIds.remove(appId);
+    commitCounts.remove(appId);
+    commitLocks.remove(appId);
     shuffleBufferManager.removeBuffer(appId);
     shuffleFlushManager.removeResources(appId);
     if (useMultiStorage && shuffleToPartitions != null) {
