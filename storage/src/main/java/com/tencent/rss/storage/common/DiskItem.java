@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
+import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
@@ -156,14 +157,21 @@ public class DiskItem {
     diskMetaData.addUploadedShufflePartitionList(shuffleKey, partitions);
   }
 
+  public long getDiskSize() {
+    return diskMetaData.getDiskSize().longValue();
+  }
+
   @VisibleForTesting
   DiskMetaData getDiskMetaData() {
     return diskMetaData;
   }
 
   public void removeResources(String shuffleKey) {
+    LOG.info("Start to remove resource of {}", shuffleKey);
     diskMetaData.updateDiskSize(-diskMetaData.getShuffleSize(shuffleKey));
     diskMetaData.remoteShuffle(shuffleKey);
+    LOG.info("Finish remove resource of {}, disk size is {} and {} shuffle metadata",
+        shuffleKey, diskMetaData.getDiskSize(), diskMetaData.getShuffleMetaSet().size());
   }
 
   public ReadWriteLock getLock(String shuffleKey) {
@@ -176,6 +184,10 @@ public class DiskItem {
 
   public List<String> getSortedShuffleKeys(boolean checkRead, int num) {
     return diskMetaData.getSortedShuffleKeys(checkRead, num);
+  }
+
+  public Set<String> getShuffleMetaSet() {
+    return diskMetaData.getShuffleMetaSet();
   }
 
   public void removeShuffle(String shuffleKey, long size, List<Integer> partitions) {

@@ -257,6 +257,7 @@ public class MultiStorageManager {
   }
 
   public void removeResources(String appId, Set<Integer> shuffleSet) {
+    LOG.info("Start to remove resource of appId: {}, shuffles: {}", appId, shuffleSet.toString());
     ShuffleDeleteHandler deleteHandler = ShuffleHandlerFactory.getInstance()
         .createShuffleDeleteHandler(new CreateShuffleDeleteHandlerRequest("HDFS", hadoopConf));
     deleteHandler.delete(new String[] {hdfsBathPath}, appId);

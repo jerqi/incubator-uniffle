@@ -215,7 +215,6 @@ public class ShuffleUploader {
         upload();
         long uploadTime = System.currentTimeMillis() - start;
         ShuffleServerMetrics.counterTotalUploadTimeS.inc(uploadTime / 1000.0);
-        LOG.info("{} upload use {}ms", Thread.currentThread().getName(), uploadTime);
 
         if (uploadTime < uploadIntervalMS) {
           Uninterruptibles.sleepUninterruptibly(uploadIntervalMS - uploadTime, TimeUnit.MILLISECONDS);
@@ -241,6 +240,8 @@ public class ShuffleUploader {
   void upload() {
 
     boolean forceUpload = !diskItem.canWrite();
+    LOG.debug("Upload force mode is {}, disk size is {}, shuffle keys are {}",
+        forceUpload, diskItem.getDiskSize(), diskItem.getShuffleMetaSet());
 
     List<ShuffleFileInfo> shuffleFileInfos = selectShuffleFiles(uploadThreadNum, forceUpload);
     if (shuffleFileInfos == null || shuffleFileInfos.isEmpty()) {
@@ -298,8 +299,9 @@ public class ShuffleUploader {
     }
 
     long uploadTimeoutS = calculateUploadTime(maxSize, totalSize);
-    LOG.info("Start to upload {} shuffle info maxSize {} totalSize {} and timeout is {} Seconds",
-        callableList.size(), maxSize, totalSize, uploadTimeoutS);
+    LOG.info("Start to upload {} shuffle info maxSize {} totalSize {} and timeout is {} Seconds and disk size is {}",
+        callableList.size(), maxSize, totalSize, uploadTimeoutS, diskItem.getDiskSize());
+    long startTimeMs = System.currentTimeMillis();
     try {
       List<Future<ShuffleUploadResult>> futures =
           executorService.invokeAll(callableList, uploadTimeoutS, TimeUnit.SECONDS);
@@ -335,6 +337,8 @@ public class ShuffleUploader {
       for (ReadWriteLock lock : locks) {
         lock.writeLock().unlock();
       }
+      LOG.info("{} upload use {}ms and disk size is {}",
+          Thread.currentThread().getName(), System.currentTimeMillis() - startTimeMs, diskItem.getDiskSize());
     }
   }
 
