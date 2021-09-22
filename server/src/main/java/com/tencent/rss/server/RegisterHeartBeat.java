@@ -8,6 +8,7 @@ import com.tencent.rss.client.request.RssSendHeartBeatRequest;
 import com.tencent.rss.client.response.ResponseStatusCode;
 import com.tencent.rss.client.response.RssSendHeartBeatResponse;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -62,7 +63,8 @@ public class RegisterHeartBeat {
             shuffleServer.getUsedMemory(),
             shuffleServer.getPreAllocatedMemory(),
             shuffleServer.getAvailableMemory(),
-            shuffleServer.getEventNumInFlush());
+            shuffleServer.getEventNumInFlush(),
+            shuffleServer.getTags());
       } catch (Exception e) {
         LOG.warn("Error happened when send heart beat to coordinator");
       }
@@ -72,10 +74,10 @@ public class RegisterHeartBeat {
 
   @VisibleForTesting
   boolean sendHeartBeat(String id, String ip, int port, long usedMemory,
-      long preAllocatedMemory, long availableMemory, int eventNumInFlush) {
+      long preAllocatedMemory, long availableMemory, int eventNumInFlush, Set<String> tags) {
     boolean sendSuccessfully = false;
     RssSendHeartBeatRequest request = new RssSendHeartBeatRequest(
-        id, ip, port, usedMemory, preAllocatedMemory, availableMemory, eventNumInFlush, heartBeatTimeout);
+        id, ip, port, usedMemory, preAllocatedMemory, availableMemory, eventNumInFlush, heartBeatTimeout, tags);
     List<Future<RssSendHeartBeatResponse>> respFutures = coordinatorClients
         .stream()
         .map(client -> heartBeatExecutorService.submit(() -> client.sendHeartBeat(request)))

@@ -1,7 +1,7 @@
 package com.tencent.rss.coordinator;
 
-import com.tencent.rss.proto.RssProtos.ShuffleServerHeartBeatRequest;
 import com.tencent.rss.proto.RssProtos.ShuffleServerId;
+import java.util.Set;
 
 public class ServerNode implements Comparable<ServerNode> {
 
@@ -13,9 +13,10 @@ public class ServerNode implements Comparable<ServerNode> {
   private long availableMemory;
   private int eventNumInFlush;
   private long timestamp;
+  private Set<String> tags;
 
   public ServerNode(String id, String ip, int port, long usedMemory, long preAllocatedMemory, long availableMemory,
-      int eventNumInFlush) {
+      int eventNumInFlush, Set<String> tags) {
     this.id = id;
     this.ip = ip;
     this.port = port;
@@ -24,18 +25,7 @@ public class ServerNode implements Comparable<ServerNode> {
     this.availableMemory = availableMemory;
     this.eventNumInFlush = eventNumInFlush;
     this.timestamp = System.currentTimeMillis();
-  }
-
-  public static ServerNode valueOf(ShuffleServerHeartBeatRequest request) {
-    ServerNode ret = new ServerNode(
-        request.getServerId().getId(),
-        request.getServerId().getIp(),
-        request.getServerId().getPort(),
-        request.getUsedMemory(),
-        request.getPreAllocatedMemory(),
-        request.getAvailableMemory(),
-        request.getEventNumInFlush());
-    return ret;
+    this.tags = tags;
   }
 
   public ShuffleServerId convertToGrpcProto() {
@@ -74,6 +64,10 @@ public class ServerNode implements Comparable<ServerNode> {
     return usedMemory;
   }
 
+  public Set<String> getTags() {
+    return tags;
+  }
+
   @Override
   public String toString() {
     return "ServerNode with id[" + id
@@ -83,7 +77,8 @@ public class ServerNode implements Comparable<ServerNode> {
         + "], preAllocatedMemory[" + preAllocatedMemory
         + "], availableMemory[" + availableMemory
         + "], eventNumInFlush[" + eventNumInFlush
-        + "], timestamp[" + timestamp + "]";
+        + "], timestamp[" + timestamp
+        + "], tags" + tags.toString() + "";
   }
 
   @Override

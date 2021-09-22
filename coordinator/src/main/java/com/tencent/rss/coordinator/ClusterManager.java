@@ -1,6 +1,7 @@
 package com.tencent.rss.coordinator;
 
 import java.util.List;
+import java.util.Set;
 
 public interface ClusterManager {
 
@@ -17,7 +18,7 @@ public interface ClusterManager {
    * @param expectedNum maximum number of servers to be gotten from the cluster
    * @return list of available server nodes
    */
-  List<ServerNode> getServerList(int expectedNum);
+  List<ServerNode> getServerList(int expectedNum, Set<String> requiredTags);
 
   /**
    * @return number of server nodes in the cluster

@@ -152,6 +152,7 @@ message ShuffleServerHeartBeatRequest {
   int64 preAllocatedMemory = 3;
   int64 availableMemory = 4;
   int32 eventNumInFlush = 5;
+  repeated string tags = 6;
 }
 
 message ShuffleServerHeartBeatResponse {
@@ -234,6 +235,7 @@ message GetShuffleServerRequest {
   int32 partitionNum = 6;
   int32 partitionNumPerRange = 7;
   int32 dataReplica = 8;
+  repeated string requireTags = 9;
 }
 
 message PartitionRangeAssignment {

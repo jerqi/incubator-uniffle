@@ -2,9 +2,11 @@ package com.tencent.rss.coordinator;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.Sets;
 import com.tencent.rss.common.PartitionRange;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.SortedMap;
 import org.junit.After;
 import org.junit.Before;
@@ -45,11 +47,14 @@ public class BasicAssignmentStrategyTest {
 
   @Test
   public void testAssign() {
+    Set<String> tags = Sets.newHashSet("test");
+
     for (int i = 0; i < 20; ++i) {
-      clusterManager.add(new ServerNode(String.valueOf(i), "", 0, 0, 0, 20 - i, 0));
+      clusterManager.add(new ServerNode(String.valueOf(i), "", 0, 0, 0,
+          20 - i, 0, tags));
     }
 
-    PartitionRangeAssignment pra = strategy.assign(100, 10, 2);
+    PartitionRangeAssignment pra = strategy.assign(100, 10, 2, tags);
     SortedMap<PartitionRange, List<ServerNode>> assignments = pra.getAssignments();
     assertEquals(10, assignments.size());
 

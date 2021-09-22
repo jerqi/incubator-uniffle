@@ -12,6 +12,7 @@ import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleAssignmentsInfo;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
+import com.tencent.rss.common.util.Constants;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
@@ -158,7 +159,8 @@ public class RssShuffleManager implements ShuffleManager {
         RssClientConfig.RSS_DATA_REPLICA_DEFAULT_VALUE);
     // get all register info according to coordinator's response
     ShuffleAssignmentsInfo response = shuffleWriteClient.getShuffleAssignments(
-        appId, shuffleId, dependency.partitioner().numPartitions(), partitionNumPerRange, dataReplica);
+        appId, shuffleId, dependency.partitioner().numPartitions(),
+        partitionNumPerRange, dataReplica, Sets.newHashSet(Constants.SHUFFLE_SERVER_VERSION));
     Map<Integer, List<ShuffleServerInfo>> partitionToServers = response.getPartitionToServers();
     final Set<ShuffleServerInfo> shuffleServerForResult = response.getShuffleServersForResult();
 

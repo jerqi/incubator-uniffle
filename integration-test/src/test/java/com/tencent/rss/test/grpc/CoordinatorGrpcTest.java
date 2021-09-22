@@ -17,7 +17,10 @@ import com.tencent.rss.client.response.RssGetShuffleAssignmentsResponse;
 import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleRegisterInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
+import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.coordinator.CoordinatorConf;
+import com.tencent.rss.coordinator.ServerNode;
+import com.tencent.rss.coordinator.SimpleClusterManager;
 import com.tencent.rss.proto.RssProtos;
 import com.tencent.rss.proto.RssProtos.GetShuffleAssignmentsResponse;
 import com.tencent.rss.proto.RssProtos.GetShuffleServerListResponse;
@@ -112,9 +115,11 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
 
   @Test
   public void getShuffleAssignmentsTest() throws Exception {
+    String appId = "getShuffleAssignmentsTest";
     waitForRegister(2);
     RssGetShuffleAssignmentsRequest request = new RssGetShuffleAssignmentsRequest(
-        "getShuffleAssignmentsTest", 1, 10, 4, 1);
+        appId, 1, 10, 4, 1,
+        Sets.newHashSet(Constants.SHUFFLE_SERVER_VERSION));
     RssGetShuffleAssignmentsResponse response = coordinatorClient.getShuffleAssignments(request);
     Set<Integer> expectedStart = Sets.newHashSet(0, 4, 8);
 
@@ -146,7 +151,8 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
     assertEquals(1, response.getShuffleServersForResult().size());
 
     request = new RssGetShuffleAssignmentsRequest(
-        "getShuffleAssignmentsTest", 1, 10, 4, 2);
+        appId, 1, 10, 4, 2,
+        Sets.newHashSet(Constants.SHUFFLE_SERVER_VERSION));
     response = coordinatorClient.getShuffleAssignments(request);
     serverToPartitionRanges = response.getServerToPartitionRanges();
     assertEquals(2, serverToPartitionRanges.size());
@@ -179,6 +185,16 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
     assertEquals(2, range0To3);
     assertEquals(2, range4To7);
     assertEquals(2, range8To11);
+
+    request = new RssGetShuffleAssignmentsRequest(
+        appId, 3, 2, 1, 1,
+        Sets.newHashSet("fake_version"));
+    try {
+      coordinatorClient.getShuffleAssignments(request);
+      fail("Exception should be thrown");
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("Empty assignment"));
+    }
   }
 
   @Test
@@ -207,7 +223,12 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
     waitForRegister(2);
     shuffleServers.get(0).stopServer();
     Thread.sleep(5000);
-    assertEquals(1, coordinators.get(0).getClusterManager().getNodesNum());
+    SimpleClusterManager scm = (SimpleClusterManager) coordinators.get(0).getClusterManager();
+    List<ServerNode> nodes = scm.getServerList(1, Sets.newHashSet(Constants.SHUFFLE_SERVER_VERSION));
+    assertEquals(1, nodes.size());
+    ServerNode node = nodes.get(0);
+    assertTrue(node.getTags().contains(Constants.SHUFFLE_SERVER_VERSION));
+    assertTrue(scm.getTagToNodes().get(Constants.SHUFFLE_SERVER_VERSION).contains(node));
     ShuffleServerConf shuffleServerConf = shuffleServers.get(0).getShuffleServerConf();
     shuffleServerConf.setInteger("rss.rpc.server.port", SHUFFLE_SERVER_PORT + 2);
     shuffleServerConf.setInteger("rss.jetty.http.port", 18082);

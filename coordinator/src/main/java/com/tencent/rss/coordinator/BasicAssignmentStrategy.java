@@ -6,6 +6,7 @@ import com.tencent.rss.common.PartitionRange;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import org.slf4j.Logger;
@@ -22,10 +23,11 @@ public class BasicAssignmentStrategy implements AssignmentStrategy {
   }
 
   @Override
-  public PartitionRangeAssignment assign(int totalPartitionNum, int partitionNumPerRange, int replica) {
+  public PartitionRangeAssignment assign(int totalPartitionNum, int partitionNumPerRange,
+      int replica, Set<String> requiredTags) {
     List<PartitionRange> ranges = generateRanges(totalPartitionNum, partitionNumPerRange);
     int hint = ranges.size() * replica;
-    List<ServerNode> servers = clusterManager.getServerList(hint);
+    List<ServerNode> servers = clusterManager.getServerList(hint, requiredTags);
 
     if (servers.isEmpty() || servers.size() < replica) {
       return new PartitionRangeAssignment(null);
@@ -50,8 +52,8 @@ public class BasicAssignmentStrategy implements AssignmentStrategy {
   }
 
   @Override
-  public List<ServerNode> assignServersForResult(int replica) {
-    List<ServerNode> servers = clusterManager.getServerList(replica);
+  public List<ServerNode> assignServersForResult(int replica, Set<String> requiredTags) {
+    List<ServerNode> servers = clusterManager.getServerList(replica, requiredTags);
     if (servers == null) {
       LOG.warn("Can't get shuffle servers for shuffle result, expected["
           + replica + "], got[0]");

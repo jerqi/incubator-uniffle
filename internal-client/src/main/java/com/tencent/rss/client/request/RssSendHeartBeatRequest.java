@@ -1,5 +1,7 @@
 package com.tencent.rss.client.request;
 
+import java.util.Set;
+
 public class RssSendHeartBeatRequest {
 
   private String shuffleServerId;
@@ -9,10 +11,11 @@ public class RssSendHeartBeatRequest {
   private long preAllocatedMemory;
   private long availableMemory;
   private int eventNumInFlush;
+  private Set<String> tags;
   private long timeout;
 
   public RssSendHeartBeatRequest(String shuffleServerId, String shuffleServerIp, int shuffleServerPort, long usedMemory,
-      long preAllocatedMemory, long availableMemory, int eventNumInFlush, long timeout) {
+      long preAllocatedMemory, long availableMemory, int eventNumInFlush, long timeout, Set<String> tags) {
     this.shuffleServerId = shuffleServerId;
     this.shuffleServerIp = shuffleServerIp;
     this.shuffleServerPort = shuffleServerPort;
@@ -20,6 +23,7 @@ public class RssSendHeartBeatRequest {
     this.preAllocatedMemory = preAllocatedMemory;
     this.availableMemory = availableMemory;
     this.eventNumInFlush = eventNumInFlush;
+    this.tags = tags;
     this.timeout = timeout;
   }
 
@@ -53,5 +57,9 @@ public class RssSendHeartBeatRequest {
 
   public int getEventNumInFlush() {
     return eventNumInFlush;
+  }
+
+  public Set<String> getTags() {
+    return tags;
   }
 }

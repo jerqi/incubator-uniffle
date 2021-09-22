@@ -71,7 +71,7 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
 
   public ShuffleServerHeartBeatResponse doSendHeartBeat(
       String id, String ip, int port, long usedMemory, long preAllocatedMemory,
-      long availableMemory, int eventNumInFlush, long timeout) {
+      long availableMemory, int eventNumInFlush, long timeout, Set<String> tags) {
     ShuffleServerId serverId =
         ShuffleServerId.newBuilder().setId(id).setIp(ip).setPort(port).build();
     ShuffleServerHeartBeatRequest request =
@@ -81,6 +81,7 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
             .setPreAllocatedMemory(preAllocatedMemory)
             .setAvailableMemory(availableMemory)
             .setEventNumInFlush(eventNumInFlush)
+            .addAllTags(tags)
             .build();
 
     StatusCode status;
@@ -109,7 +110,7 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
   }
 
   public RssProtos.GetShuffleAssignmentsResponse doGetShuffleAssignments(
-      String appId, int shuffleId, int numMaps, int partitionNumPerRange, int dataReplica) {
+      String appId, int shuffleId, int numMaps, int partitionNumPerRange, int dataReplica, Set<String> requiredTags) {
 
     RssProtos.GetShuffleServerRequest getServerRequest = RssProtos.GetShuffleServerRequest.newBuilder()
         .setApplicationId(appId)
@@ -117,6 +118,7 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
         .setPartitionNum(numMaps)
         .setPartitionNumPerRange(partitionNumPerRange)
         .setDataReplica(dataReplica)
+        .addAllRequireTags(requiredTags)
         .build();
 
     return blockingStub.getShuffleAssignments(getServerRequest);
@@ -132,7 +134,8 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
         request.getPreAllocatedMemory(),
         request.getAvailableMemory(),
         request.getEventNumInFlush(),
-        request.getTimeout());
+        request.getTimeout(),
+        request.getTags());
 
     RssSendHeartBeatResponse response;
     StatusCode statusCode = rpcResponse.getStatus();
@@ -175,7 +178,8 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
         request.getShuffleId(),
         request.getPartitionNum(),
         request.getPartitionNumPerRange(),
-        request.getDataReplica());
+        request.getDataReplica(),
+        request.getRequiredTags());
 
     RssGetShuffleAssignmentsResponse response;
     StatusCode statusCode = rpcResponse.getStatus();

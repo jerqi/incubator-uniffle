@@ -26,8 +26,8 @@ public interface ShuffleWriteClient {
   void reportShuffleResult(Set<ShuffleServerInfo> shuffleServerInfoSet,
       String appId, int shuffleId, long taskAttemptId, Map<Integer, List<Long>> partitionToBlockIds, int bitmapNum);
 
-  ShuffleAssignmentsInfo getShuffleAssignments(
-      String appId, int shuffleId, int partitionNum, int partitionNumPerRange, int dataReplica);
+  ShuffleAssignmentsInfo getShuffleAssignments(String appId, int shuffleId, int partitionNum,
+      int partitionNumPerRange, int dataReplica, Set<String> requiredTags);
 
   Roaring64NavigableMap getShuffleResult(String clientType, Set<ShuffleServerInfo> shuffleServerInfoSet,
       String appId, int shuffleId, int partitionId);

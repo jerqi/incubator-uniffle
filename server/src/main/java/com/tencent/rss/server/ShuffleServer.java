@@ -1,14 +1,17 @@
 package com.tencent.rss.server;
 
+import com.google.common.collect.Sets;
 import com.tencent.rss.common.Arguments;
 import com.tencent.rss.common.config.RssBaseConf;
 import com.tencent.rss.common.metrics.JvmMetrics;
 import com.tencent.rss.common.rpc.ServerInterface;
+import com.tencent.rss.common.util.Constants;
 import com.tencent.rss.common.util.RssUtils;
 import com.tencent.rss.common.web.CommonMetricsServlet;
 import com.tencent.rss.common.web.JettyServer;
 import com.tencent.rss.storage.util.StorageType;
 import io.prometheus.client.CollectorRegistry;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -30,14 +33,10 @@ public class ShuffleServer {
   private ShuffleFlushManager shuffleFlushManager;
   private ShuffleBufferManager shuffleBufferManager;
   private MultiStorageManager multiStorageManager;
+  private Set<String> tags = Sets.newHashSet();
 
   public ShuffleServer(ShuffleServerConf shuffleServerConf) throws Exception {
     this.shuffleServerConf = shuffleServerConf;
-    initialization();
-  }
-
-  public ShuffleServer(String configFile) throws Exception {
-    this.shuffleServerConf = new ShuffleServerConf(configFile);
     initialization();
   }
 
@@ -51,7 +50,8 @@ public class ShuffleServer {
     String configFile = arguments.getConfigFile();
     LOG.info("Start to init shuffle server using config {}", configFile);
 
-    final ShuffleServer shuffleServer = new ShuffleServer(configFile);
+    ShuffleServerConf shuffleServerConf = new ShuffleServerConf(configFile);
+    final ShuffleServer shuffleServer = new ShuffleServer(shuffleServerConf);
     shuffleServer.start();
 
     shuffleServer.blockUntilShutdown();
@@ -110,7 +110,7 @@ public class ShuffleServer {
       LOG.warn("StorageType LOCALFILE_HDFS will enable multistorage function");
     }
     if (useMultiStorage && !StorageType.LOCALFILE_AND_HDFS.name().equals(storageType)) {
-        throw new IllegalArgumentException("Only StorageType LOCALFILE_AND_HDFS support multiStorage function");
+      throw new IllegalArgumentException("Only StorageType LOCALFILE_AND_HDFS support multiStorage function");
     }
     if (useMultiStorage) {
       multiStorageManager = new MultiStorageManager(shuffleServerConf, id);
@@ -120,10 +120,13 @@ public class ShuffleServer {
     shuffleFlushManager = new ShuffleFlushManager(shuffleServerConf, id, this, multiStorageManager);
     shuffleBufferManager = new ShuffleBufferManager(shuffleServerConf, shuffleFlushManager);
     shuffleTaskManager = new ShuffleTaskManager(shuffleServerConf, shuffleFlushManager,
-      shuffleBufferManager, multiStorageManager);
+        shuffleBufferManager, multiStorageManager);
 
     RemoteServerFactory shuffleServerFactory = new RemoteServerFactory(this);
     server = shuffleServerFactory.getServer();
+
+    // it's the system tag for server's version
+    tags.add(Constants.SHUFFLE_SERVER_VERSION);
   }
 
   private void registerMetrics() {
@@ -199,7 +202,7 @@ public class ShuffleServer {
   }
 
   public long getAvailableMemory() {
-    return shuffleBufferManager.getCapacity() - shuffleBufferManager.getPreAllocatedSize();
+    return shuffleBufferManager.getCapacity() - shuffleBufferManager.getUsedMemory();
   }
 
   public int getEventNumInFlush() {
@@ -212,5 +215,9 @@ public class ShuffleServer {
 
   public MultiStorageManager getMultiStorageManager() {
     return multiStorageManager;
+  }
+
+  public Set<String> getTags() {
+    return tags;
   }
 }

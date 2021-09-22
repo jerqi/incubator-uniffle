@@ -200,10 +200,10 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
   }
 
   @Override
-  public ShuffleAssignmentsInfo getShuffleAssignments(
-      String appId, int shuffleId, int partitionNum, int partitionNumPerRange, int dataReplica) {
+  public ShuffleAssignmentsInfo getShuffleAssignments(String appId, int shuffleId, int partitionNum,
+      int partitionNumPerRange, int dataReplica, Set<String> requiredTags) {
     RssGetShuffleAssignmentsRequest request = new RssGetShuffleAssignmentsRequest(
-        appId, shuffleId, partitionNum, partitionNumPerRange, dataReplica);
+        appId, shuffleId, partitionNum, partitionNumPerRange, dataReplica, requiredTags);
 
     RssGetShuffleAssignmentsResponse response = new RssGetShuffleAssignmentsResponse(ResponseStatusCode.INTERNAL_ERROR);
     for (CoordinatorClient coordinatorClient : coordinatorClients) {

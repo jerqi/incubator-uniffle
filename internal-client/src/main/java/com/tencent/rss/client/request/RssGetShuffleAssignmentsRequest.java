@@ -1,5 +1,7 @@
 package com.tencent.rss.client.request;
 
+import java.util.Set;
+
 public class RssGetShuffleAssignmentsRequest {
 
   private String appId;
@@ -7,14 +9,16 @@ public class RssGetShuffleAssignmentsRequest {
   private int partitionNum;
   private int partitionNumPerRange;
   private int dataReplica;
+  private Set<String> requiredTags;
 
-  public RssGetShuffleAssignmentsRequest(
-      String appId, int shuffleId, int partitionNum, int partitionNumPerRange, int dataReplica) {
+  public RssGetShuffleAssignmentsRequest(String appId, int shuffleId, int partitionNum,
+      int partitionNumPerRange, int dataReplica, Set<String> requiredTags) {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.partitionNum = partitionNum;
     this.partitionNumPerRange = partitionNumPerRange;
     this.dataReplica = dataReplica;
+    this.requiredTags = requiredTags;
   }
 
   public String getAppId() {
@@ -35,5 +39,9 @@ public class RssGetShuffleAssignmentsRequest {
 
   public int getDataReplica() {
     return dataReplica;
+  }
+
+  public Set<String> getRequiredTags() {
+    return requiredTags;
   }
 }

@@ -1,5 +1,6 @@
 package com.tencent.rss.coordinator;
 
+import com.google.common.collect.Sets;
 import com.google.protobuf.Empty;
 import com.tencent.rss.proto.CoordinatorServerGrpc;
 import com.tencent.rss.proto.RssProtos.AppHeartBeatRequest;
@@ -19,6 +20,7 @@ import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,15 +75,16 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
     final int partitionNum = request.getPartitionNum();
     final int partitionNumPerRange = request.getPartitionNumPerRange();
     final int replica = request.getDataReplica();
+    final Set<String> requiredTags = Sets.newHashSet(request.getRequireTagsList());
 
     LOG.info("Request of getShuffleAssignments for appId[" + request.getApplicationId()
         + "], shuffleId[" + request.getShuffleId() + "], partitionNum[" + partitionNum
         + "], partitionNumPerRange[" + partitionNumPerRange + "], replica[" + replica + "]");
 
     final PartitionRangeAssignment pra =
-        coordinatorServer.getAssignmentStrategy().assign(partitionNum, partitionNumPerRange, replica);
+        coordinatorServer.getAssignmentStrategy().assign(partitionNum, partitionNumPerRange, replica, requiredTags);
     final List<ServerNode> serverNodes =
-        coordinatorServer.getAssignmentStrategy().assignServersForResult(replica);
+        coordinatorServer.getAssignmentStrategy().assignServersForResult(replica, requiredTags);
     final GetShuffleAssignmentsResponse response =
         CoordinatorUtils.toGetShuffleAssignmentsResponse(pra, serverNodes);
 
@@ -93,7 +96,7 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
   public void heartbeat(
       ShuffleServerHeartBeatRequest request,
       StreamObserver<ShuffleServerHeartBeatResponse> responseObserver) {
-    final ServerNode serverNode = ServerNode.valueOf(request);
+    final ServerNode serverNode = toServerNode(request);
     coordinatorServer.getClusterManager().add(serverNode);
     final ShuffleServerHeartBeatResponse response = ShuffleServerHeartBeatResponse
         .newBuilder()
@@ -159,4 +162,14 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
     responseObserver.onCompleted();
   }
 
+  private ServerNode toServerNode(ShuffleServerHeartBeatRequest request) {
+    return new ServerNode(request.getServerId().getId(),
+        request.getServerId().getIp(),
+        request.getServerId().getPort(),
+        request.getUsedMemory(),
+        request.getPreAllocatedMemory(),
+        request.getAvailableMemory(),
+        request.getEventNumInFlush(),
+        Sets.newHashSet(request.getTagsList()));
+  }
 }

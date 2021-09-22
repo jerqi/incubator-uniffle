@@ -26,6 +26,8 @@ public class SimpleClusterManager implements ClusterManager {
 
   private final Map<String, ServerNode> servers = Maps.newConcurrentMap();
   private Set<String> excludeNodes = Sets.newConcurrentHashSet();
+  // tag -> nodes
+  private Map<String, Set<ServerNode>> tagToNodes = Maps.newConcurrentMap();
   private AtomicLong excludeLastModify = new AtomicLong(0L);
   private long heartbeatTimeout;
   private ScheduledExecutorService scheduledExecutorService;
@@ -109,13 +111,23 @@ public class SimpleClusterManager implements ClusterManager {
   @Override
   public void add(ServerNode node) {
     servers.put(node.getId(), node);
+    Set<String> tags = node.getTags();
+    // remove node with all tags to deal with the situation of tag change
+    for (Set<ServerNode> nodes : tagToNodes.values()) {
+      nodes.remove(node);
+    }
+    // add node to related tags
+    for (String tag : tags) {
+      tagToNodes.putIfAbsent(tag, Sets.newConcurrentHashSet());
+      tagToNodes.get(tag).add(node);
+    }
   }
 
   @Override
-  public List<ServerNode> getServerList(int hint) {
+  public List<ServerNode> getServerList(int hint, Set<String> requiredTags) {
     List<ServerNode> availableNodes = Lists.newArrayList();
     for (ServerNode node : servers.values()) {
-      if (!excludeNodes.contains(node.getId())) {
+      if (!excludeNodes.contains(node.getId()) && node.getTags().containsAll(requiredTags)) {
         availableNodes.add(node);
       }
     }
@@ -126,6 +138,10 @@ public class SimpleClusterManager implements ClusterManager {
 
   public Set<String> getExcludeNodes() {
     return excludeNodes;
+  }
+
+  public Map<String, Set<ServerNode>> getTagToNodes() {
+    return tagToNodes;
   }
 
   @Override
