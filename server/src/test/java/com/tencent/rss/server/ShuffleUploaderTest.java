@@ -384,6 +384,7 @@ public class ShuffleUploaderTest  {
 
       ShuffleUploader uploader = spy(builder.build());
       when(uploader.getHandlerFactory()).thenReturn(mockFactory);
+      diskItem.createMetadataIfNotExist("key");
       diskItem.updateWrite("key", 70, Lists.newArrayList(1, 2, 3));
       File dir1 = new File(base.getAbsolutePath() + "/key/1-1/");
       dir1.mkdirs();

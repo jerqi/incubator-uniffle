@@ -1,9 +1,10 @@
 package com.tencent.rss.storage.common;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
+import java.util.Queue;
 import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.roaringbitmap.RoaringBitmap;
@@ -22,10 +23,12 @@ public class DiskItem {
   private final long capacity;
   private final String basePath;
   private final double cleanupThreshold;
+  private final long cleanIntervalMs;
   private final double highWaterMarkOfWrite;
   private final double lowWaterMarkOfWrite;
   private final long shuffleExpiredTimeoutMs;
   private final Thread cleaner;
+  private final Queue<String> expiredShuffleKeys = Queues.newLinkedBlockingQueue();
 
   private DiskMetaData diskMetaData = new DiskMetaData();
   private boolean canWrite = true;
@@ -34,6 +37,7 @@ public class DiskItem {
   private DiskItem(Builder builder) {
     this.basePath = builder.basePath;
     this.cleanupThreshold = builder.cleanupThreshold;
+    this.cleanIntervalMs = builder.cleanIntervalMs;
     this.highWaterMarkOfWrite = builder.highWaterMarkOfWrite;
     this.lowWaterMarkOfWrite = builder.lowWaterMarkOfWrite;
     this.capacity = builder.capacity;
@@ -64,7 +68,7 @@ public class DiskItem {
           try {
             clean();
             // todo: get sleepInterval from configuration
-            Uninterruptibles.sleepUninterruptibly(builder.cleanIntervalMs, TimeUnit.MILLISECONDS);
+            Uninterruptibles.sleepUninterruptibly(cleanIntervalMs, TimeUnit.MILLISECONDS);
           } catch (Exception e) {
             LOG.error(getName() + " happened exception: ", e);
           }
@@ -96,10 +100,14 @@ public class DiskItem {
     return basePath;
   }
 
+  public void createMetadataIfNotExist(String shuffleKey) {
+    diskMetaData.createMetadataIfNotExist(shuffleKey);
+  }
+
   public void updateWrite(String shuffleKey, long delta, List<Integer> partitionList) {
     diskMetaData.updateDiskSize(delta);
-    diskMetaData.updateShuffleSize(shuffleKey, delta);
     diskMetaData.addShufflePartitionList(shuffleKey, partitionList);
+    diskMetaData.updateShuffleSize(shuffleKey, delta);
   }
 
   public void prepareStartRead(String key) {
@@ -109,9 +117,15 @@ public class DiskItem {
   // todo: refactor DeleteHandler to support shuffleKey level deletion
   @VisibleForTesting
   void clean() {
+    for (String key = expiredShuffleKeys.poll(); key != null; key = expiredShuffleKeys.poll()) {
+      LOG.info("Remove expired shuffle {}", key);
+      removeResources(key);
+    }
+
     if (diskMetaData.getDiskSize().doubleValue() * 100 / capacity < cleanupThreshold) {
       return;
     }
+
     diskMetaData.getShuffleMetaSet().forEach((shuffleKey) -> {
       // If shuffle data is started to read, shuffle data won't be appended. When shuffle is
       // uploaded totally, the partitions which is not uploaded is empty.
@@ -123,6 +137,7 @@ public class DiskItem {
         try {
           File baseFolder = new File(shufflePath);
           FileUtils.deleteDirectory(baseFolder);
+          LOG.info("Clean shuffle {}", shuffleKey);
           removeResources(shuffleKey);
           LOG.info("Delete shuffle data for shuffle [" + shuffleKey + "] with " + shufflePath
               + " cost " + (System.currentTimeMillis() - start) + " ms");
@@ -166,12 +181,44 @@ public class DiskItem {
     return diskMetaData;
   }
 
-  public void removeResources(String shuffleKey) {
+  @VisibleForTesting
+  void setDiskMetaData(DiskMetaData diskMetaData) {
+    this.diskMetaData = diskMetaData;
+  }
+
+  public void addExpiredShuffleKey(String shuffleKey) {
+    expiredShuffleKeys.offer(shuffleKey);
+  }
+
+  // This is the only place to remove shuffle metadata, clean and gc thread may remove
+  // the shuffle metadata concurrently or serially. Force uploader thread may update the
+  // shuffle size so gc thread must acquire write lock before updating disk size, and force
+  // uploader thread will not get the lock if the shuffle is removed by gc thread, so
+  // add the shuffle key back to the expiredShuffleKeys if get lock but fail to acquire write lock.
+  void removeResources(String shuffleKey) {
     LOG.info("Start to remove resource of {}", shuffleKey);
-    diskMetaData.updateDiskSize(-diskMetaData.getShuffleSize(shuffleKey));
-    diskMetaData.remoteShuffle(shuffleKey);
-    LOG.info("Finish remove resource of {}, disk size is {} and {} shuffle metadata",
-        shuffleKey, diskMetaData.getDiskSize(), diskMetaData.getShuffleMetaSet().size());
+    ReadWriteLock lock = diskMetaData.getLock(shuffleKey);
+    if (lock == null) {
+      LOG.info("Ignore shuffle {} for its resource was removed already", shuffleKey);
+      return;
+    }
+
+    if (lock.writeLock().tryLock()) {
+      try {
+        diskMetaData.updateDiskSize(-diskMetaData.getShuffleSize(shuffleKey));
+        diskMetaData.remoteShuffle(shuffleKey);
+        LOG.info("Finish remove resource of {}, disk size is {} and {} shuffle metadata",
+            shuffleKey, diskMetaData.getDiskSize(), diskMetaData.getShuffleMetaSet().size());
+      } catch (Exception e) {
+        LOG.error("Fail to update disk size", e);
+        expiredShuffleKeys.offer(shuffleKey);
+      } finally {
+        lock.writeLock().unlock();
+      }
+    } else {
+      LOG.info("Fail to get write lock of {}, add it back to expired shuffle queue", shuffleKey);
+      expiredShuffleKeys.offer(shuffleKey);
+    }
   }
 
   public ReadWriteLock getLock(String shuffleKey) {
@@ -194,6 +241,10 @@ public class DiskItem {
     diskMetaData.removeShufflePartitionList(shuffleKey, partitions);
     diskMetaData.updateDiskSize(-size);
     diskMetaData.updateShuffleSize(shuffleKey, -size);
+  }
+
+  public Queue<String> getExpiredShuffleKeys() {
+    return expiredShuffleKeys;
   }
 
   public static class Builder {

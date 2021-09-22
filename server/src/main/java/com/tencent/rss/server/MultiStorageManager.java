@@ -262,8 +262,16 @@ public class MultiStorageManager {
         .createShuffleDeleteHandler(new CreateShuffleDeleteHandlerRequest("HDFS", hadoopConf));
     deleteHandler.delete(new String[] {hdfsBathPath}, appId);
     for (Integer shuffleId : shuffleSet) {
-      diskItems.forEach(item -> item.removeResources(generateKey(appId, shuffleId)));
+      diskItems.forEach(item -> item.addExpiredShuffleKey(generateKey(appId, shuffleId)));
     }
+  }
+
+  public void createMetadataIfNotExist(ShuffleDataFlushEvent event) {
+    DiskItem diskItem = getDiskItem(event);
+    String appId = event.getAppId();
+    int shuffleId = event.getShuffleId();
+    String key = generateKey(appId, shuffleId);
+    diskItem.createMetadataIfNotExist(key);
   }
 
   public ReadWriteLock getForceUploadLock(ShuffleDataFlushEvent event) {

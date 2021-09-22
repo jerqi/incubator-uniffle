@@ -65,6 +65,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     shuffleServerConf.setString("rss.storage.basePath", basePath);
     shuffleServerConf.setString(ShuffleServerConf.RSS_HDFS_BASE_PATH,  HDFS_URI + "rss/multi_storage");
     shuffleServerConf.setDouble(ShuffleServerConf.RSS_CLEANUP_THRESHOLD, 0.0);
+    shuffleServerConf.setLong(ShuffleServerConf.RSS_CLEANUP_INTERVAL_MS, 1000);
     shuffleServerConf.setDouble(ShuffleServerConf.RSS_HIGH_WATER_MARK_OF_WRITE, 100.0);
     shuffleServerConf.setLong(ShuffleServerConf.RSS_DISK_CAPACITY, 1024L * 1024L * 100);
     shuffleServerConf.setBoolean(ShuffleServerConf.RSS_UPLOADER_ENABLE, true);
@@ -445,6 +446,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
         2, 2, 2,9, 10 * 1024 * 1024, blockIdBitmap3, expectedData);
 
     DiskItem item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 2, 0);
+    item.createMetadataIfNotExist(appId + "/" + 2);
     item.getLock(appId + "/" + 2).readLock().lock();
     sendSinglePartitionToShuffleServer(appId, 2, 0, 1, blocks1);
     assertFalse(item.canWrite());
@@ -503,8 +505,8 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     sendSinglePartitionToShuffleServerWithoutReport(appId, 2, 2, 2, blocks1);
     sendSinglePartitionToShuffleServerWithoutReport(appId, 3, 1,2, blocks2);
     shuffleServers.get(0).getShuffleTaskManager().removeResources(appId);
-
     DiskItem item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 2, 0);
+    Uninterruptibles.sleepUninterruptibly(1500, TimeUnit.MILLISECONDS);
     Set<String> keys = item.getShuffleMetaSet();
     assertTrue(keys.isEmpty());
     item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 3, 1);
@@ -519,6 +521,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     sendSinglePartitionToShuffleServer(appId, 0, 0, 2, blocks1);
     shuffleServers.get(0).getShuffleTaskManager().removeResources(appId);
     item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 0);
+    Uninterruptibles.sleepUninterruptibly(1500, TimeUnit.MILLISECONDS);
     keys = item.getShuffleMetaSet();
     assertTrue(keys.isEmpty());
   }

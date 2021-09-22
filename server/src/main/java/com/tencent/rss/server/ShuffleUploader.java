@@ -257,6 +257,10 @@ public class ShuffleUploader {
         continue;
       }
       ReadWriteLock lock = diskItem.getLock(shuffleFileInfo.getKey());
+      if (lock == null) {
+        continue;
+      }
+
       boolean locked = false;
       if (forceUpload) {
         locked = lock.writeLock().tryLock();

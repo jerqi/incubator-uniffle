@@ -155,7 +155,13 @@ public class ShuffleFlushManager {
           }
           ReadWriteLock lock = null;
           if (useMultiStorage) {
+            multiStorageManager.createMetadataIfNotExist(event);
             lock = multiStorageManager.getForceUploadLock(event);
+            if (lock == null) {
+              LOG.warn("Shuffle metadata of event {}/{} has been removed, ignore this flush event",
+                  event.getAppId(), event.getShuffleId());
+              return;
+            }
             lock.readLock().lock();
           }
           try {

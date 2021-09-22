@@ -53,6 +53,10 @@ public class DiskItemTest {
       File dir2 = tmpDir.newFolder(testBaseDir.getName(), "app-1", "2");
       assertTrue(dir1.exists());
       assertTrue(dir2.exists());
+      item.createMetadataIfNotExist("app-1/1");
+      item.createMetadataIfNotExist("app-1/2");
+      item.updateWrite("app-1/1", 0, Lists.newArrayList());
+      item.updateWrite("app-1/2", 0, Lists.newArrayList());
       item.clean();
       assertTrue(dir1.exists());
       assertTrue(dir2.exists());
@@ -83,6 +87,70 @@ public class DiskItemTest {
       e.printStackTrace();
       fail();
     }
+  }
+
+  @Test
+  public void delayCleanTest() {
+    DiskItem item = DiskItem.newBuilder().basePath(testBaseDir.getAbsolutePath())
+        .cleanupThreshold(0)
+        .highWaterMarkOfWrite(100)
+        .lowWaterMarkOfWrite(100)
+        .capacity(100)
+        .cleanIntervalMs(1000)
+        .shuffleExpiredTimeoutMs(1)
+        .build();
+
+    item.createMetadataIfNotExist("key1");
+    item.createMetadataIfNotExist("key2");
+    item.createMetadataIfNotExist("key3");
+    item.updateWrite("key1", 100, Lists.newArrayList());
+    item.updateWrite("key2", 50, Lists.newArrayList());
+    item.updateWrite("key3", 95, Lists.newArrayList());
+    assertEquals(3, item.getDiskMetaData().getShuffleMetaSet().size());
+    assertEquals(100, item.getDiskMetaData().getShuffleSize("key1"));
+    assertEquals(50, item.getDiskMetaData().getShuffleSize("key2"));
+    assertEquals(95, item.getDiskMetaData().getShuffleSize("key3"));
+    assertEquals(245, item.getDiskMetaData().getDiskSize().intValue());
+
+    item.start();
+    item.getExpiredShuffleKeys().offer("key1");
+    item.getExpiredShuffleKeys().offer("key2");
+    assertEquals(2, item.getExpiredShuffleKeys().size());
+    Uninterruptibles.sleepUninterruptibly(1200, TimeUnit.MILLISECONDS);
+    assertEquals(1, item.getDiskMetaData().getShuffleMetaSet().size());
+    assertEquals(95, item.getDiskMetaData().getDiskSize().intValue());
+    assertEquals(95, item.getDiskMetaData().getShuffleSize("key3"));
+    assertEquals(0, item.getExpiredShuffleKeys().size());
+
+    item.getExpiredShuffleKeys().offer("key3");
+    assertEquals(1, item.getExpiredShuffleKeys().size());
+    Uninterruptibles.sleepUninterruptibly(1200, TimeUnit.MILLISECONDS);
+    assertEquals(0, item.getDiskMetaData().getShuffleMetaSet().size());
+    assertEquals(0, item.getDiskMetaData().getDiskSize().intValue());
+    assertEquals(0, item.getExpiredShuffleKeys().size());
+
+    item.createMetadataIfNotExist("key1");
+    item.createMetadataIfNotExist("key2");
+    item.updateWrite("key1", 100, Lists.newArrayList());
+    item.updateWrite("key2", 50, Lists.newArrayList());
+    assertEquals(100, item.getDiskMetaData().getShuffleSize("key1"));
+    assertEquals(50, item.getDiskMetaData().getShuffleSize("key2"));
+    assertEquals(150, item.getDiskMetaData().getDiskSize().intValue());
+
+    item.getDiskMetaData().prepareStartRead("key1");
+    item.getDiskMetaData().updateShuffleLastReadTs("key1");
+    Uninterruptibles.sleepUninterruptibly(1200, TimeUnit.MILLISECONDS);
+    item.getExpiredShuffleKeys().offer("key2");
+    assertEquals(50, item.getDiskMetaData().getDiskSize().intValue());
+    assertEquals(1, item.getDiskMetaData().getShuffleMetaSet().size());
+    assertEquals(0, item.getDiskMetaData().getShuffleSize("key1"));
+    assertEquals(50, item.getDiskMetaData().getShuffleSize("key2"));
+
+    Uninterruptibles.sleepUninterruptibly(1200, TimeUnit.MILLISECONDS);
+    assertEquals(0, item.getDiskMetaData().getShuffleMetaSet().size());
+    assertEquals(0, item.getDiskMetaData().getDiskSize().intValue());
+    assertEquals(0, item.getExpiredShuffleKeys().size());
+
   }
 
   @Test
@@ -127,6 +195,8 @@ public class DiskItemTest {
       partitionBitMap.add(2);
       partitionBitMap.add(1);
       List<Integer> partitionList = Lists.newArrayList(1, 2);
+      item.createMetadataIfNotExist("1/1");
+      item.createMetadataIfNotExist("1/2");
       item.updateWrite("1/1", 100, partitionList);
       item.updateWrite("1/2", 50, Lists.newArrayList());
       assertEquals(150L, item.getDiskMetaData().getDiskSize().get());
@@ -136,7 +206,51 @@ public class DiskItemTest {
       assertEquals(50L, item.getDiskMetaData().getDiskSize().get());
       assertEquals(0L, item.getDiskMetaData().getShuffleSize("1/1"));
       assertEquals(50L, item.getDiskMetaData().getShuffleSize("1/2"));
-      assertEquals(0, item.getDiskMetaData().getNotUploadedPartitions("1/1").getCardinality());
+      assertTrue(item.getDiskMetaData().getNotUploadedPartitions("1/1").isEmpty());
+    } catch (Exception e) {
+      e.printStackTrace();
+      fail();
+    }
+  }
+
+  @Test
+  public void concurrentRemoveResourcesTest() {
+    try {
+      DiskItem item = DiskItem.newBuilder().basePath(testBaseDir.getAbsolutePath())
+          .cleanupThreshold(50)
+          .highWaterMarkOfWrite(95)
+          .lowWaterMarkOfWrite(80)
+          .capacity(100)
+          .cleanIntervalMs(5000)
+          .build();
+      RoaringBitmap partitionBitMap = RoaringBitmap.bitmapOf();
+      partitionBitMap.add(1);
+      partitionBitMap.add(2);
+      partitionBitMap.add(1);
+      List<Integer> partitionList = Lists.newArrayList(1, 2);
+      item.createMetadataIfNotExist("1/1");
+      item.createMetadataIfNotExist("1/2");
+      item.updateWrite("1/1", 100, partitionList);
+      item.updateWrite("1/2", 50, Lists.newArrayList());
+      assertEquals(150L, item.getDiskMetaData().getDiskSize().get());
+      assertEquals(2, item.getDiskMetaData().getNotUploadedPartitions("1/1").getCardinality());
+      assertTrue(partitionBitMap.contains(item.getDiskMetaData().getNotUploadedPartitions("1/1")));
+
+      Runnable runnable = () -> item.removeResources("1/1");
+      List<Thread> testThreads = Lists.newArrayList(new Thread(runnable), new Thread(runnable), new Thread(runnable));
+      testThreads.forEach(Thread::start);
+      testThreads.forEach(t -> {
+        try {
+          t.join();
+        } catch (InterruptedException e) {
+
+        }
+      });
+
+      assertEquals(50L, item.getDiskMetaData().getDiskSize().get());
+      assertEquals(0L, item.getDiskMetaData().getShuffleSize("1/1"));
+      assertEquals(50L, item.getDiskMetaData().getShuffleSize("1/2"));
+      assertTrue(item.getDiskMetaData().getNotUploadedPartitions("1/1").isEmpty());
     } catch (Exception e) {
       e.printStackTrace();
       fail();
@@ -155,6 +269,8 @@ public class DiskItemTest {
     List<Integer> partitionList1 = Lists.newArrayList(1, 2, 3, 4, 5);
     List<Integer> partitionList2 = Lists.newArrayList(6, 7, 8, 9, 10);
     List<Integer> partitionList3 = Lists.newArrayList(1, 2, 3);
+    item.createMetadataIfNotExist("key1");
+    item.createMetadataIfNotExist("key2");
     item.updateWrite("key1", 10, partitionList1);
     item.updateWrite("key2", 30, partitionList2);
     item.updateUploadedShuffle("key1", 5, partitionList3);

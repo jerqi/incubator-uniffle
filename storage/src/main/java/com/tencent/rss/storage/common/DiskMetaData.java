@@ -53,6 +53,10 @@ public class DiskMetaData {
 
   public RoaringBitmap getNotUploadedPartitions(String shuffleKey) {
     ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
+    if (shuffleMeta == null) {
+      return RoaringBitmap.bitmapOf();
+    }
+
     RoaringBitmap partitionBitmap;
     RoaringBitmap uploadedPartitionBitmap;
     synchronized (shuffleMeta.partitionBitmap) {
@@ -68,7 +72,8 @@ public class DiskMetaData {
   }
 
   public long getNotUploadedSize(String shuffleKey) {
-    return getShuffleMeta(shuffleKey).getNotUploadedSize();
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
+    return shuffleMeta == null ? 0 : shuffleMeta.getNotUploadedSize();
   }
 
   public long updateDiskSize(long delta) {
@@ -76,35 +81,49 @@ public class DiskMetaData {
   }
 
   public long updateShuffleSize(String shuffleId, long delta) {
-    return getShuffleMeta(shuffleId).getSize().addAndGet(delta);
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleId);
+    return shuffleMeta == null ? 0 : shuffleMeta.getSize().addAndGet(delta);
   }
 
   public long updateUploadedShuffleSize(String shuffleKey, long delta) {
-    return getShuffleMeta(shuffleKey).uploadedSize.addAndGet(delta);
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
+    return shuffleMeta == null ? 0 : shuffleMeta.uploadedSize.addAndGet(delta);
   }
 
   public void addShufflePartitionList(String shuffleKey, List<Integer> partitions) {
-    RoaringBitmap bitmap = getShuffleMeta(shuffleKey).partitionBitmap;
-    synchronized (bitmap) {
-      partitions.forEach(p -> bitmap.add(p));
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
+    if (shuffleMeta != null) {
+      RoaringBitmap bitmap = shuffleMeta.partitionBitmap;
+      synchronized (bitmap) {
+        partitions.forEach(p -> bitmap.add(p));
+      }
     }
   }
 
   public void addUploadedShufflePartitionList(String shuffleKey, List<Integer> partitions) {
-    RoaringBitmap bitmap = getShuffleMeta(shuffleKey).uploadedPartitionBitmap;
-    synchronized (bitmap) {
-      partitions.forEach(p -> bitmap.add(p));
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
+    if (shuffleMeta != null) {
+      RoaringBitmap bitmap = shuffleMeta.uploadedPartitionBitmap;
+      synchronized (bitmap) {
+        partitions.forEach(p -> bitmap.add(p));
+      }
     }
   }
 
   public void prepareStartRead(String shuffleId) {
-    getShuffleMeta(shuffleId).markStartRead();
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleId);
+    if (shuffleMeta != null) {
+      shuffleMeta.markStartRead();
+    }
   }
 
   public void removeShufflePartitionList(String shuffleKey, List<Integer> partitions) {
-    RoaringBitmap bitmap = getShuffleMeta(shuffleKey).partitionBitmap;
-    synchronized (bitmap) {
-      partitions.forEach(p -> bitmap.remove(p));
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
+    if (shuffleMeta != null) {
+      RoaringBitmap bitmap = shuffleMeta.partitionBitmap;
+      synchronized (bitmap) {
+        partitions.forEach(p -> bitmap.remove(p));
+      }
     }
   }
 
@@ -117,11 +136,13 @@ public class DiskMetaData {
   }
 
   public long getShuffleSize(String shuffleKey) {
-    return getShuffleMeta(shuffleKey).getSize().get();
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
+    return shuffleMeta == null ? 0 : shuffleMeta.getSize().get();
   }
 
   public boolean isShuffleStartRead(String shuffleKey) {
-    return getShuffleMeta(shuffleKey).isStartRead();
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
+    return shuffleMeta != null && shuffleMeta.isStartRead();
   }
 
   public Set<String> getShuffleMetaSet() {
@@ -144,22 +165,37 @@ public class DiskMetaData {
    *  shuffleMetaMap.get(shuffleId) will return null.
    *  We need to guarantee that this method is thread safe, and won't return null.
    **/
-  private ShuffleMeta getShuffleMeta(String shuffleKey) {
+  public void createMetadataIfNotExist(String shuffleKey) {
     ShuffleMeta meta = new ShuffleMeta();
     ShuffleMeta oldMeta = shuffleMetaMap.putIfAbsent(shuffleKey, meta);
-    return (oldMeta == null) ? meta : oldMeta;
+    if (oldMeta == null) {
+      LOG.info("Create metadata of shuffle {}.", shuffleKey);
+    }
+  }
+
+  private ShuffleMeta getShuffleMeta(String shuffleKey) {
+    ShuffleMeta shuffleMeta = shuffleMetaMap.get(shuffleKey);
+    if (shuffleMeta == null) {
+      LOG.info("Shuffle {} metadta has been removed!", shuffleKey);
+    }
+    return shuffleMeta;
   }
 
   public long getShuffleLastReadTs(String shuffleKey) {
-    return getShuffleMeta(shuffleKey).getShuffleLastReadTs();
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
+    return shuffleMeta == null ? -1 : shuffleMeta.getShuffleLastReadTs();
   }
 
   public void updateShuffleLastReadTs(String shuffleKey) {
-    getShuffleMeta(shuffleKey).updateLastReadTs();
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
+    if (shuffleMeta != null) {
+      shuffleMeta.updateLastReadTs();
+    }
   }
 
   public ReadWriteLock getLock(String shuffleKey) {
-    return getShuffleMeta(shuffleKey).getLock();
+    ShuffleMeta shuffleMeta = getShuffleMeta(shuffleKey);
+    return shuffleMeta == null ? null : shuffleMeta.getLock();
   }
 
   // Consider that ShuffleMeta is a simple class, we keep the class ShuffleMeta as an inner class.
