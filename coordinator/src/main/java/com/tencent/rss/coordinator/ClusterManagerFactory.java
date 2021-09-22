@@ -9,7 +9,6 @@ public class ClusterManagerFactory {
   }
 
   public ClusterManager getClusterManager() {
-    long heartbeatTimeout = conf.getLong(CoordinatorConf.COORDINATOR_HEARTBEAT_TIMEOUT);
-    return new SimpleClusterManager(heartbeatTimeout);
+    return new SimpleClusterManager(conf);
   }
 }

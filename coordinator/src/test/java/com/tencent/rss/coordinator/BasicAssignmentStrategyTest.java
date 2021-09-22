@@ -17,7 +17,8 @@ public class BasicAssignmentStrategyTest {
 
   @Before
   public void setUp() {
-    clusterManager = new SimpleClusterManager(1000L);
+    CoordinatorConf ssc = new CoordinatorConf();
+    clusterManager = new SimpleClusterManager(ssc);
     strategy = new BasicAssignmentStrategy(clusterManager);
   }
 

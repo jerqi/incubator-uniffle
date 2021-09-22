@@ -1,8 +1,14 @@
 package com.tencent.rss.coordinator;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Sets;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 import java.util.List;
+import java.util.Set;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -15,7 +21,9 @@ public class SimpleClusterManagerTest {
 
   @Test
   public void getServerListTest() {
-    SimpleClusterManager clusterManager = new SimpleClusterManager(30 * 1000L);
+    CoordinatorConf ssc = new CoordinatorConf();
+    ssc.setLong(CoordinatorConf.COORDINATOR_HEARTBEAT_TIMEOUT, 30 * 1000L);
+    SimpleClusterManager clusterManager = new SimpleClusterManager(ssc);
     ServerNode sn1 = new ServerNode("sn1", "ip", 0, 100L, 50L, 20, 10);
     ServerNode sn2 = new ServerNode("sn2", "ip", 0, 100L, 50L, 21, 10);
     ServerNode sn3 = new ServerNode("sn3", "ip", 0, 100L, 50L, 20, 11);
@@ -43,7 +51,9 @@ public class SimpleClusterManagerTest {
 
   @Test
   public void heartbeatTimeoutTest() throws Exception {
-    SimpleClusterManager clusterManager = new SimpleClusterManager(3 * 100L);
+    CoordinatorConf ssc = new CoordinatorConf();
+    ssc.setLong(CoordinatorConf.COORDINATOR_HEARTBEAT_TIMEOUT, 300L);
+    SimpleClusterManager clusterManager = new SimpleClusterManager(ssc);
     Thread t = new Thread(() -> {
       for (int i = 0; i < 3; i++) {
         if (i == 2) {
@@ -75,5 +85,75 @@ public class SimpleClusterManagerTest {
     Thread.sleep(500);
     serverNodes = clusterManager.getServerList(2);
     assertEquals(0, serverNodes.size());
+  }
+
+  @Test
+  public void updateExcludeNodesTest() throws Exception {
+    String excludeNodesFolder = (new File(ClassLoader.getSystemResource("empty").getFile())).getParent();
+    String excludeNodesPath = excludeNodesFolder + "/excludeNodes";
+    CoordinatorConf ssc = new CoordinatorConf();
+    ssc.setString(CoordinatorConf.COORDINATOR_EXCLUDE_NODES_FILE_PATH, excludeNodesPath);
+    ssc.setLong(CoordinatorConf.COORDINATOR_EXCLUDE_NODES_CHECK_INTERVAL, 2000);
+
+    Set<String> nodes = Sets.newHashSet("node1-1999", "node2-1999");
+    writeExcludeHosts(excludeNodesPath, nodes);
+
+    SimpleClusterManager scm = new SimpleClusterManager(ssc);
+    scm.add(new ServerNode("node1-1999", "ip", 0, 100L, 50L, 20, 10));
+    scm.add(new ServerNode("node2-1999", "ip", 0, 100L, 50L, 20, 10));
+    scm.add(new ServerNode("node3-1999", "ip", 0, 100L, 50L, 20, 10));
+    scm.add(new ServerNode("node4-1999", "ip", 0, 100L, 50L, 20, 10));
+    assertEquals(0, scm.getExcludeNodes().size());
+    Thread.sleep(3000);
+    assertEquals(nodes, scm.getExcludeNodes());
+    List<ServerNode> availableNodes = scm.getServerList(10);
+    assertEquals(2, availableNodes.size());
+    Set<String> remainNodes = Sets.newHashSet("node3-1999", "node4-1999");
+    for (ServerNode node : availableNodes) {
+      remainNodes.remove(node.getId());
+    }
+    assertEquals(0, remainNodes.size());
+
+    nodes = Sets.newHashSet("node3-1999", "node4-1999");
+    writeExcludeHosts(excludeNodesPath, nodes);
+    Thread.sleep(3000);
+    assertEquals(nodes, scm.getExcludeNodes());
+
+    Set<String> excludeNodes = scm.getExcludeNodes();
+    Thread.sleep(3000);
+    // excludeNodes shouldn't be update if file has no change
+    assertTrue(excludeNodes == scm.getExcludeNodes());
+
+    writeExcludeHosts(excludeNodesPath, Sets.newHashSet());
+    Thread.sleep(3000);
+    // excludeNodes is an empty file, set should be empty
+    assertEquals(0, scm.getExcludeNodes().size());
+
+    nodes = Sets.newHashSet("node1-1999");
+    writeExcludeHosts(excludeNodesPath, nodes);
+    Thread.sleep(3000);
+
+    File blacklistFile = new File(excludeNodesPath);
+    blacklistFile.delete();
+    Thread.sleep(3000);
+    // excludeNodes is deleted, set should be empty
+    assertEquals(0, scm.getExcludeNodes().size());
+
+    remainNodes = Sets.newHashSet("node1-1999", "node2-1999", "node3-1999", "node4-1999");
+    availableNodes = scm.getServerList(10);
+    for (ServerNode node : availableNodes) {
+      remainNodes.remove(node.getId());
+    }
+    assertEquals(0, remainNodes.size());
+  }
+
+  private void writeExcludeHosts(String path, Set<String> values) throws Exception {
+    try (PrintWriter pw = new PrintWriter(new FileWriter(path))) {
+      // have empty line as value
+      pw.write("\n");
+      for (String value : values) {
+        pw.write(value + "\n");
+      }
+    }
   }
 }
