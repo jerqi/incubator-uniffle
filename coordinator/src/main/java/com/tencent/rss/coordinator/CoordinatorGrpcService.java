@@ -2,6 +2,7 @@ package com.tencent.rss.coordinator;
 
 import com.google.common.collect.Sets;
 import com.google.protobuf.Empty;
+import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.proto.CoordinatorServerGrpc;
 import com.tencent.rss.proto.RssProtos.AppHeartBeatRequest;
 import com.tencent.rss.proto.RssProtos.AppHeartBeatResponse;
@@ -20,7 +21,9 @@ import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,13 +75,15 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
   public void getShuffleAssignments(
       GetShuffleServerRequest request,
       StreamObserver<GetShuffleAssignmentsResponse> responseObserver) {
+    final String appId = request.getApplicationId();
+    final int shuffleId = request.getShuffleId();
     final int partitionNum = request.getPartitionNum();
     final int partitionNumPerRange = request.getPartitionNumPerRange();
     final int replica = request.getDataReplica();
     final Set<String> requiredTags = Sets.newHashSet(request.getRequireTagsList());
 
-    LOG.info("Request of getShuffleAssignments for appId[" + request.getApplicationId()
-        + "], shuffleId[" + request.getShuffleId() + "], partitionNum[" + partitionNum
+    LOG.info("Request of getShuffleAssignments for appId[" + appId
+        + "], shuffleId[" + shuffleId + "], partitionNum[" + partitionNum
         + "], partitionNumPerRange[" + partitionNumPerRange + "], replica[" + replica + "]");
 
     final PartitionRangeAssignment pra =
@@ -87,6 +92,7 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
         coordinatorServer.getAssignmentStrategy().assignServersForResult(replica, requiredTags);
     final GetShuffleAssignmentsResponse response =
         CoordinatorUtils.toGetShuffleAssignmentsResponse(pra, serverNodes);
+    logAssignmentResult(appId, shuffleId, pra, serverNodes);
 
     responseObserver.onNext(response);
     responseObserver.onCompleted();
@@ -104,7 +110,7 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
         .setRetMsg("")
         .setStatus(StatusCode.SUCCESS)
         .build();
-    LOG.info("Got heartbeat from " + serverNode);
+    LOG.debug("Got heartbeat from " + serverNode);
     responseObserver.onNext(response);
     responseObserver.onCompleted();
   }
@@ -160,6 +166,27 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
 
     responseObserver.onNext(response);
     responseObserver.onCompleted();
+  }
+
+  private void logAssignmentResult(String appId, int shuffleId, PartitionRangeAssignment pra,
+      List<ServerNode> serverNodesForResult) {
+    SortedMap<PartitionRange, List<ServerNode>> assignments = pra.getAssignments();
+    if (assignments != null) {
+      Set<String> nodeIds = Sets.newHashSet();
+      for (Map.Entry<PartitionRange, List<ServerNode>> entry : assignments.entrySet()) {
+        for (ServerNode node : entry.getValue()) {
+          nodeIds.add(node.getId());
+        }
+      }
+      if (!nodeIds.isEmpty()) {
+        Set<String> nodeIdsForResult = Sets.newHashSet();
+        for (ServerNode node : serverNodesForResult) {
+          nodeIdsForResult.add(node.getId());
+        }
+        LOG.info("Shuffle Servers of assignment for appId[" + appId + "], shuffleId["
+            + shuffleId + "] are " + nodeIds + ", the servers for result are " + nodeIdsForResult);
+      }
+    }
   }
 
   private ServerNode toServerNode(ShuffleServerHeartBeatRequest request) {

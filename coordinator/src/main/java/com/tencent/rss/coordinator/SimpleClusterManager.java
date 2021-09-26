@@ -8,7 +8,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,10 +29,12 @@ public class SimpleClusterManager implements ClusterManager {
   private Map<String, Set<ServerNode>> tagToNodes = Maps.newConcurrentMap();
   private AtomicLong excludeLastModify = new AtomicLong(0L);
   private long heartbeatTimeout;
+  private int shuffleNodesMax;
   private ScheduledExecutorService scheduledExecutorService;
   private ScheduledExecutorService checkNodesExecutorService;
 
   public SimpleClusterManager(CoordinatorConf conf) {
+    this.shuffleNodesMax = conf.getInteger(CoordinatorConf.COORDINATOR_SHUFFLE_NODES_MAX);
     this.heartbeatTimeout = conf.getLong(CoordinatorConf.COORDINATOR_HEARTBEAT_TIMEOUT);
     // the thread for checking if shuffle server report heartbeat in time
     scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(
@@ -124,16 +125,14 @@ public class SimpleClusterManager implements ClusterManager {
   }
 
   @Override
-  public List<ServerNode> getServerList(int hint, Set<String> requiredTags) {
+  public List<ServerNode> getServerList(Set<String> requiredTags) {
     List<ServerNode> availableNodes = Lists.newArrayList();
     for (ServerNode node : servers.values()) {
       if (!excludeNodes.contains(node.getId()) && node.getTags().containsAll(requiredTags)) {
         availableNodes.add(node);
       }
     }
-    List<ServerNode> orderServers = Lists.newArrayList(availableNodes);
-    Collections.sort(orderServers);
-    return orderServers.subList(0, Math.min(hint, orderServers.size()));
+    return availableNodes;
   }
 
   public Set<String> getExcludeNodes() {
@@ -162,5 +161,10 @@ public class SimpleClusterManager implements ClusterManager {
   @Override
   public void shutdown() {
     scheduledExecutorService.shutdown();
+  }
+
+  @Override
+  public int getShuffleNodesMax() {
+    return shuffleNodesMax;
   }
 }

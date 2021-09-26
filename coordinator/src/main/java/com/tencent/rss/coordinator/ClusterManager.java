@@ -13,12 +13,12 @@ public interface ClusterManager {
   void add(ServerNode shuffleServerInfo);
 
   /**
-   * Get list of servers from the cluster, the list size if smaller or equal than hint.
+   * Get available nodes from the cluster
    *
-   * @param expectedNum maximum number of servers to be gotten from the cluster
+   * @param requiredTags tags for filter
    * @return list of available server nodes
    */
-  List<ServerNode> getServerList(int expectedNum, Set<String> requiredTags);
+  List<ServerNode> getServerList(Set<String> requiredTags);
 
   /**
    * @return number of server nodes in the cluster
@@ -29,6 +29,8 @@ public interface ClusterManager {
    * @return list all server nodes in the cluster
    */
   List<ServerNode> list();
+
+  int getShuffleNodesMax();
 
   void shutdown();
 }

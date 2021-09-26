@@ -20,13 +20,10 @@ public class ServerNodeTest {
         10, tags);
     ServerNode sn3 = new ServerNode("sn3", "ip", 0, 100L, 50L, 20,
         11, tags);
-    ServerNode sn4 = new ServerNode("sn4", "ip", 0, 100L, 51L, 20,
-        10, tags);
-    List<ServerNode> nodes = Lists.newArrayList(sn1, sn2, sn3, sn4);
+    List<ServerNode> nodes = Lists.newArrayList(sn1, sn2, sn3);
     Collections.sort(nodes);
     assertEquals("sn2", nodes.get(0).getId());
-    assertEquals("sn3", nodes.get(1).getId());
-    assertEquals("sn1", nodes.get(2).getId());
-    assertEquals("sn4", nodes.get(3).getId());
+    assertEquals("sn1", nodes.get(1).getId());
+    assertEquals("sn3", nodes.get(2).getId());
   }
 }

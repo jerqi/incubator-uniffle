@@ -39,6 +39,11 @@ public class CoordinatorConf extends RssBaseConf {
       .longType()
       .defaultValue(60 * 1000L)
       .withDescription("Application expired time (ms), the heartbeat interval must be less than it");
+  static final ConfigOption<Integer> COORDINATOR_SHUFFLE_NODES_MAX = ConfigOptions
+      .key("rss.coordinator.shuffle.nodes.max")
+      .intType()
+      .defaultValue(9)
+      .withDescription("The max number of shuffle server when do the assignment");
 
   public CoordinatorConf() {
   }

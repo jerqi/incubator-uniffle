@@ -1,9 +1,9 @@
 package com.tencent.rss.coordinator;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.tencent.rss.common.PartitionRange;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -26,8 +26,8 @@ public class BasicAssignmentStrategy implements AssignmentStrategy {
   public PartitionRangeAssignment assign(int totalPartitionNum, int partitionNumPerRange,
       int replica, Set<String> requiredTags) {
     List<PartitionRange> ranges = generateRanges(totalPartitionNum, partitionNumPerRange);
-    int hint = ranges.size() * replica;
-    List<ServerNode> servers = clusterManager.getServerList(hint, requiredTags);
+    int shuffleNodesMax = clusterManager.getShuffleNodesMax();
+    List<ServerNode> servers = getRequiredServers(requiredTags, shuffleNodesMax);
 
     if (servers.isEmpty() || servers.size() < replica) {
       return new PartitionRangeAssignment(null);
@@ -53,16 +53,25 @@ public class BasicAssignmentStrategy implements AssignmentStrategy {
 
   @Override
   public List<ServerNode> assignServersForResult(int replica, Set<String> requiredTags) {
-    List<ServerNode> servers = clusterManager.getServerList(replica, requiredTags);
-    if (servers == null) {
-      LOG.warn("Can't get shuffle servers for shuffle result, expected["
-          + replica + "], got[0]");
-      return Lists.newArrayList();
-    } else if (servers.size() < replica) {
+    List<ServerNode> servers = getRequiredServers(requiredTags, replica);
+    if (servers.size() < replica) {
       LOG.warn("Can't get expected shuffle servers for shuffle result, expected["
           + replica + "], got[" + servers.size() + "] with " + servers);
     }
     return servers;
+  }
+
+  private List<ServerNode> getRequiredServers(Set<String> requiredTags, int expectedNum) {
+    List<ServerNode> servers = clusterManager.getServerList(requiredTags);
+    // shuffle server update the status according to heartbeat, if every server is in initial status,
+    // random the order of list to avoid always pick same nodes
+    Collections.shuffle(servers);
+    Collections.sort(servers);
+    if (expectedNum > servers.size()) {
+      LOG.warn("Can't get expected servers [" + expectedNum + "] and found only [" + servers.size() + "]");
+      return servers;
+    }
+    return servers.subList(0, expectedNum);
   }
 
   @VisibleForTesting

@@ -33,44 +33,32 @@ public class SimpleClusterManagerTest {
         10, testTags);
     ServerNode sn3 = new ServerNode("sn3", "ip", 0, 100L, 50L, 20,
         11, testTags);
-    ServerNode sn4 = new ServerNode("sn4", "ip", 0, 100L, 51L, 20,
-        10, testTags);
     clusterManager.add(sn1);
     clusterManager.add(sn2);
     clusterManager.add(sn3);
-    clusterManager.add(sn4);
-    List<ServerNode> serverNodes = clusterManager.getServerList(1, testTags);
-    assertEquals(1, serverNodes.size());
-    assertEquals("sn2", serverNodes.get(0).getId());
-    serverNodes = clusterManager.getServerList(4, testTags);
-    assertEquals(4, serverNodes.size());
-    assertEquals("sn2", serverNodes.get(0).getId());
-    assertEquals("sn3", serverNodes.get(1).getId());
-    assertEquals("sn1", serverNodes.get(2).getId());
-    assertEquals("sn4", serverNodes.get(3).getId());
-    serverNodes = clusterManager.getServerList(5, testTags);
-    assertEquals(4, serverNodes.size());
-    assertEquals("sn2", serverNodes.get(0).getId());
-    assertEquals("sn3", serverNodes.get(1).getId());
-    assertEquals("sn1", serverNodes.get(2).getId());
-    assertEquals("sn4", serverNodes.get(3).getId());
+    List<ServerNode> serverNodes = clusterManager.getServerList(testTags);
+    assertEquals(3, serverNodes.size());
+    Set<String> expectedIds = Sets.newHashSet("sn1", "sn2", "sn3");
+    for (ServerNode node : serverNodes) {
+      expectedIds.remove(node.getId());
+    }
+    assertEquals(0, expectedIds.size());
 
     // tag changes
     sn1 = new ServerNode("sn1", "ip", 0, 100L, 50L, 20,
         10, Sets.newHashSet("new_tag"));
     sn2 = new ServerNode("sn2", "ip", 0, 100L, 50L, 21,
         10, Sets.newHashSet("test", "new_tag"));
-    ServerNode sn5 = new ServerNode("sn5", "ip", 0, 100L, 51L, 20,
+    ServerNode sn4 = new ServerNode("sn4", "ip", 0, 100L, 51L, 20,
         10, testTags);
     clusterManager.add(sn1);
     clusterManager.add(sn2);
-    clusterManager.add(sn5);
-    serverNodes = clusterManager.getServerList(5, testTags);
-    assertEquals(4, serverNodes.size());
+    clusterManager.add(sn4);
+    serverNodes = clusterManager.getServerList(testTags);
+    assertEquals(3, serverNodes.size());
     assertTrue(serverNodes.contains(sn2));
     assertTrue(serverNodes.contains(sn3));
     assertTrue(serverNodes.contains(sn4));
-    assertTrue(serverNodes.contains(sn5));
 
     Map<String, Set<ServerNode>> tagToNodes = clusterManager.getTagToNodes();
     assertEquals(2, tagToNodes.size());
@@ -81,11 +69,10 @@ public class SimpleClusterManagerTest {
     assertTrue(newTagNodes.contains(sn2));
 
     Set<ServerNode> testTagNodes = tagToNodes.get("test");
-    assertEquals(4, testTagNodes.size());
+    assertEquals(3, testTagNodes.size());
     assertTrue(testTagNodes.contains(sn2));
     assertTrue(testTagNodes.contains(sn3));
     assertTrue(testTagNodes.contains(sn4));
-    assertTrue(testTagNodes.contains(sn5));
   }
 
   @Test
@@ -114,16 +101,19 @@ public class SimpleClusterManagerTest {
     t.start();
 
     Thread.sleep(10);
-    List<ServerNode> serverNodes = clusterManager.getServerList(2, testTags);
+    List<ServerNode> serverNodes = clusterManager.getServerList(testTags);
     assertEquals(2, serverNodes.size());
-    assertEquals("sn0", serverNodes.get(0).getId());
-    assertEquals("sn1", serverNodes.get(1).getId());
+    Set<String> expectedIds = Sets.newHashSet("sn0", "sn1");
+    for (ServerNode node : serverNodes) {
+      expectedIds.remove(node.getId());
+    }
+    assertEquals(0, expectedIds.size());
     Thread.sleep(1000);
-    serverNodes = clusterManager.getServerList(2, testTags);
+    serverNodes = clusterManager.getServerList(testTags);
     assertEquals(1, serverNodes.size());
     assertEquals("sn2", serverNodes.get(0).getId());
     Thread.sleep(500);
-    serverNodes = clusterManager.getServerList(2, testTags);
+    serverNodes = clusterManager.getServerList(testTags);
     assertEquals(0, serverNodes.size());
   }
 
@@ -150,7 +140,7 @@ public class SimpleClusterManagerTest {
     assertEquals(0, scm.getExcludeNodes().size());
     Thread.sleep(3000);
     assertEquals(nodes, scm.getExcludeNodes());
-    List<ServerNode> availableNodes = scm.getServerList(10, testTags);
+    List<ServerNode> availableNodes = scm.getServerList(testTags);
     assertEquals(2, availableNodes.size());
     Set<String> remainNodes = Sets.newHashSet("node3-1999", "node4-1999");
     for (ServerNode node : availableNodes) {
@@ -184,7 +174,7 @@ public class SimpleClusterManagerTest {
     assertEquals(0, scm.getExcludeNodes().size());
 
     remainNodes = Sets.newHashSet("node1-1999", "node2-1999", "node3-1999", "node4-1999");
-    availableNodes = scm.getServerList(10, testTags);
+    availableNodes = scm.getServerList(testTags);
     for (ServerNode node : availableNodes) {
       remainNodes.remove(node.getId());
     }

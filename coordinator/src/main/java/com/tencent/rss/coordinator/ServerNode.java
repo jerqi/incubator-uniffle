@@ -87,14 +87,6 @@ public class ServerNode implements Comparable<ServerNode> {
       return -1;
     } else if (availableMemory < other.getAvailableMemory()) {
       return 1;
-    } else if (eventNumInFlush > other.getEventNumInFlush()) {
-      return -1;
-    } else if (eventNumInFlush < other.getEventNumInFlush()) {
-      return 1;
-    } else if (preAllocatedMemory < other.getPreAllocatedMemory()) {
-      return -1;
-    } else if (preAllocatedMemory > other.getPreAllocatedMemory()) {
-      return 1;
     }
     return 0;
   }

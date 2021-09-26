@@ -224,7 +224,7 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
     shuffleServers.get(0).stopServer();
     Thread.sleep(5000);
     SimpleClusterManager scm = (SimpleClusterManager) coordinators.get(0).getClusterManager();
-    List<ServerNode> nodes = scm.getServerList(1, Sets.newHashSet(Constants.SHUFFLE_SERVER_VERSION));
+    List<ServerNode> nodes = scm.getServerList(Sets.newHashSet(Constants.SHUFFLE_SERVER_VERSION));
     assertEquals(1, nodes.size());
     ServerNode node = nodes.get(0);
     assertTrue(node.getTags().contains(Constants.SHUFFLE_SERVER_VERSION));
