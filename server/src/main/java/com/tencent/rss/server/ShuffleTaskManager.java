@@ -25,7 +25,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.roaringbitmap.longlong.LongIterator;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 import org.slf4j.Logger;
@@ -37,6 +36,8 @@ public class ShuffleTaskManager {
   private final ShuffleFlushManager shuffleFlushManager;
   private final ScheduledExecutorService scheduledExecutorService;
   private final ScheduledExecutorService expiredAppCleanupExecutorService;
+  private final MultiStorageManager multiStorageManager;
+  private final boolean useMultiStorage;
   private AtomicLong requireBufferId = new AtomicLong(0);
   private ShuffleServerConf conf;
   private long appExpiredWithoutHB;
@@ -60,8 +61,6 @@ public class ShuffleTaskManager {
   private BlockingQueue<String> expiredAppIdQueue = Queues.newLinkedBlockingQueue();
   // appId -> shuffleId -> serverReadHandler
   private Map<String, Map<String, ServerReadHandler>> serverReadHandlers = Maps.newConcurrentMap();
-  private final MultiStorageManager multiStorageManager;
-  private final boolean useMultiStorage;
 
   public ShuffleTaskManager(
       ShuffleServerConf conf,
@@ -316,15 +315,16 @@ public class ShuffleTaskManager {
 
   public void checkResourceStatus() {
     try {
-      Set<String> removed = Sets.newHashSet(appIds.keySet());
-      // remove applications not in coordinator's list and timeout according to rss.server.app.expired.withoutHeartbeat
-      for (String appId : removed) {
+      Set<String> appNames = Sets.newHashSet(appIds.keySet());
+      // remove applications which is timeout according to rss.server.app.expired.withoutHeartbeat
+      for (String appId : appNames) {
         if (System.currentTimeMillis() - appIds.get(appId) > appExpiredWithoutHB) {
           LOG.info("Detect expired appId[" + appId + "] according "
               + "to rss.server.app.expired.withoutHeartbeat");
           expiredAppIdQueue.add(appId);
         }
       }
+      ShuffleServerMetrics.gaugeAppNum.set(appIds.size());
     } catch (Exception e) {
       LOG.warn("Error happened in checkResourceStatus", e);
     }

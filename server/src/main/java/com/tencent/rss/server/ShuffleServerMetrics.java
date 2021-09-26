@@ -20,6 +20,7 @@ public class ShuffleServerMetrics {
   private static final String TOTAL_WRITE_EXCEPTION = "total_write_exception";
   private static final String TOTAL_WRITE_SLOW = "total_write_slow";
   private static final String TOTAL_WRITE_NUM = "total_write_num";
+  private static final String APP_NUM_WITH_NODE = "app_num_with_node";
   private static final String EVENT_SIZE_THRESHOLD_LEVEL1 = "event_size_threshold_level1";
   private static final String EVENT_SIZE_THRESHOLD_LEVEL2 = "event_size_threshold_level2";
   private static final String EVENT_SIZE_THRESHOLD_LEVEL3 = "event_size_threshold_level3";
@@ -67,6 +68,7 @@ public class ShuffleServerMetrics {
   static Gauge gaugeUsedBufferSize;
   static Gauge gaugeWriteHandler;
   static Gauge gaugeEventQueueSize;
+  static Gauge gaugeAppNum;
 
   private static MetricsManager metricsManager;
   private static boolean isRegister = false;
@@ -117,6 +119,7 @@ public class ShuffleServerMetrics {
     gaugeUsedBufferSize = metricsManager.addGauge(USED_BUFFER_SIZE);
     gaugeWriteHandler = metricsManager.addGauge(TOTAL_WRITE_HANDLER);
     gaugeEventQueueSize = metricsManager.addGauge(EVENT_QUEUE_SIZE);
+    gaugeAppNum = metricsManager.addGauge(APP_NUM_WITH_NODE);
   }
 
 }

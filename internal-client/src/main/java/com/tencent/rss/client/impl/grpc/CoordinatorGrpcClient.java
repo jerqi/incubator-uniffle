@@ -142,7 +142,6 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
     switch (statusCode) {
       case SUCCESS:
         response = new RssSendHeartBeatResponse(ResponseStatusCode.SUCCESS);
-        response.setAppIds(Sets.newHashSet(rpcResponse.getAppIdList()));
         break;
       case TIMEOUT:
         response = new RssSendHeartBeatResponse(ResponseStatusCode.TIMEOUT);

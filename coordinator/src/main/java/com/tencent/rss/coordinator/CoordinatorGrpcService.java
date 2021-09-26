@@ -106,7 +106,6 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
     coordinatorServer.getClusterManager().add(serverNode);
     final ShuffleServerHeartBeatResponse response = ShuffleServerHeartBeatResponse
         .newBuilder()
-        .addAllAppId(coordinatorServer.getApplicationManager().getAppIds())
         .setRetMsg("")
         .setStatus(StatusCode.SUCCESS)
         .build();
