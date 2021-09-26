@@ -11,10 +11,15 @@ CONF_FILE="./conf/coordinator.conf "
 MAIN_CLASS="com.tencent.rss.coordinator.CoordinatorServer"
 
 source "${COORDINATOR_HOME}/bin/rss-env.sh"
+source "${COORDINATOR_HOME}/bin/utils.sh"
+
+echo "Check process existence"
+is_jvm_process_running $JPS $MAIN_CLASS
 
 cd $COORDINATOR_HOME
 
 JAR_DIR="./jars"
+CLASSPATH=""
 
 for file in $(ls ${JAR_DIR}/coordinator/*.jar 2>/dev/null); do
   CLASSPATH=$CLASSPATH:$file
@@ -30,6 +35,7 @@ JVM_ARGS=" -server \
           -XX:ConcGCThreads=5 \
           -XX:InitiatingHeapOccupancyPercent=45 "
 
+ARGS=""
 if [ -f ./conf/log4j.properties ]; then
   ARGS="$ARGS -Dlog4j.configuration=file:./conf/log4j.properties"
 else
@@ -37,6 +43,6 @@ else
   exit 1
 fi
 
-$RUNNER $ARGS $JVM_ARGS $JAVA_LIB_PATH -cp $CLASSPATH $MAIN_CLASS --conf $CONF_FILE $@ &
+$RUNNER $ARGS $JVM_ARGS -cp $CLASSPATH $MAIN_CLASS --conf $CONF_FILE $@ &
 
 echo $! >$COORDINATOR_HOME/currentpid

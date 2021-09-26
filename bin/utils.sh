@@ -79,3 +79,19 @@ function kill_process_with_retry {
    fi
 }
 
+#---
+# is_jvm_process_running: Checks if a jvm process is running
+# args: jps path, main class of the jvm process
+# exit 1 if process is running
+#---
+function is_jvm_process_running {
+  local cmd=$1
+  local main_class=$2
+  local tmp=$($cmd -l 2>/dev/null | grep "${main_class}" | cut -d' ' -f2)
+
+  if [[ "$tmp" == "${main_class}" ]]; then
+    echo "$main_class already exist"
+    exit 1
+  fi
+
+}

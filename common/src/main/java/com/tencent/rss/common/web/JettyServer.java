@@ -2,7 +2,9 @@ package com.tencent.rss.common.web;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tencent.rss.common.config.RssBaseConf;
+import com.tencent.rss.common.util.ExitUtils;
 import java.io.FileNotFoundException;
+import java.net.BindException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -28,7 +30,7 @@ import org.slf4j.LoggerFactory;
 
 public class JettyServer {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(JettyServer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JettyServer.class);
 
   private Server server;
   private ServletContextHandler servletContextHandler;
@@ -84,7 +86,7 @@ public class JettyServer {
 
   private void addHttpsConnector(
       HttpConfiguration httpConfig, RssBaseConf conf) throws FileNotFoundException {
-    LOGGER.info("Create https connector");
+    LOG.info("Create https connector");
     Path keystorePath = Paths.get(conf.get(RssBaseConf.JETTY_SSL_KEYSTORE_PATH)).toAbsolutePath();
     if (!Files.exists(keystorePath)) {
       throw new FileNotFoundException(keystorePath.toString());
@@ -121,8 +123,12 @@ public class JettyServer {
   }
 
   public void start() throws Exception {
-    server.start();
-    LOGGER.info("Jetty http server started, listening on port {}", httpPort);
+    try {
+      server.start();
+    } catch (BindException e) {
+      ExitUtils.terminate(1, "Fail to start jetty http server", e, LOG);
+    }
+    LOG.info("Jetty http server started, listening on port {}", httpPort);
   }
 
   public void stop() throws Exception {

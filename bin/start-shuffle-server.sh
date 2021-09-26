@@ -11,6 +11,7 @@ SHUFFLE_SERVER_HOME="$(
 cd $SHUFFLE_SERVER_HOME
 
 source "${SHUFFLE_SERVER_HOME}/bin/rss-env.sh"
+source "${SHUFFLE_SERVER_HOME}/bin/utils.sh"
 
 HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
 HADOOP_DEPENDENCY=$HADOOP_HOME/etc/hadoop:$HADOOP_HOME/share/hadoop/common/lib/*:$HADOOP_HOME/share/hadoop/common/*:$HADOOP_HOME/share/hadoop/hdfs:$HADOOP_HOME/share/hadoop/hdfs/lib/*:$HADOOP_HOME/share/hadoop/hdfs/*:$HADOOP_HOME/share/hadoop/yarn/lib/*:$HADOOP_HOME/share/hadoop/yarn/*:$HADOOP_HOME/share/hadoop/mapreduce/lib/*:$HADOOP_HOME/share/hadoop/mapreduce/*
@@ -18,7 +19,11 @@ HADOOP_DEPENDENCY=$HADOOP_HOME/etc/hadoop:$HADOOP_HOME/share/hadoop/common/lib/*
 CONF_FILE="./conf/server.conf "
 MAIN_CLASS="com.tencent.rss.server.ShuffleServer"
 
+echo "Check process existence"
+is_jvm_process_running $JPS $MAIN_CLASS
+
 JAR_DIR="./jars"
+CLASSPATH=""
 
 for file in $(ls ${JAR_DIR}/server/*.jar 2>/dev/null); do
   CLASSPATH=$CLASSPATH:$file
@@ -62,6 +67,7 @@ JVM_ARGS=" -server \
           -XX:+PrintGCDetails \
           -Xloggc:./logs/gc.log"
 
+ARGS=""
 if [ -f ./conf/log4j.properties ]; then
   ARGS="$ARGS -Dlog4j.configuration=file:./conf/log4j.properties"
 else

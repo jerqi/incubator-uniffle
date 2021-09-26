@@ -3,6 +3,7 @@ package com.tencent.rss.common.rpc;
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.tencent.rss.common.config.RssBaseConf;
+import com.tencent.rss.common.util.ExitUtils;
 import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -42,7 +43,11 @@ public class GrpcServer implements ServerInterface {
   }
 
   public void start() throws IOException {
-    server.start();
+    try {
+      server.start();
+    } catch (IOException e) {
+      ExitUtils.terminate(1, "Fail to start grpc server", e, LOG);
+    }
     LOG.info("Grpc server started, listening on {}.", port);
   }
 

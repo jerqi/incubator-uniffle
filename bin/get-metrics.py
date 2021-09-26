@@ -1,9 +1,5 @@
 # -*-coding: utf-8-*-
 
-"""
-usage: python get-metrics.py [fileName] [port] [metricsName]
-"""
-
 import json
 import sys
 import urllib2
@@ -11,7 +7,12 @@ import urllib2
 URL_BASE = "http://%s:%s/metrics/server"
 
 def usage():
-  print "usage: python get-metrics.py [fileName] [port] [metricsName]"
+  print """Usage: python get-metrics.py [serverListFile] [jettyPort] [metricName]
+Description: Extract server ip from line in the serverListFile, which contains
+    lines of server node and the format is $IP-$PORT. The ip and port are server's
+    rpc ip and port respectively, the port is useless here so we only extract the
+    ip and assemble the url with jetty http port to get metrics and extract the
+    value of the metric specified by metricName."""
 
 def httpGet(url):
   try:
