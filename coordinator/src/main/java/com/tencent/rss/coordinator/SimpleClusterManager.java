@@ -103,7 +103,7 @@ public class SimpleClusterManager implements ClusterManager {
       // update exclude nodes and last modify time
       excludeNodes = nodes;
       excludeLastModify.set(excludeNodesFile.lastModified());
-      LOG.info("Update exclude nodes and " + excludeNodes.size() + " nodes was found");
+      LOG.info("Update exclude nodes and " + excludeNodes.size() + " nodes was marked as exclude nodes");
     } catch (Exception e) {
       LOG.warn("Error when parse file " + excludeNodesFile.getAbsolutePath(), e);
     }

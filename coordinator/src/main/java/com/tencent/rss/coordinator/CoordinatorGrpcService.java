@@ -150,7 +150,7 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
       StreamObserver<AppHeartBeatResponse> responseObserver) {
     String appId = request.getAppId();
     coordinatorServer.getApplicationManager().refreshAppId(appId);
-    LOG.info("Got heartbeat from application: " + appId);
+    LOG.debug("Got heartbeat from application: " + appId);
     AppHeartBeatResponse response = AppHeartBeatResponse
         .newBuilder()
         .setRetMsg("")

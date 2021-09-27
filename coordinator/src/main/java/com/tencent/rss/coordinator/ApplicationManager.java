@@ -40,7 +40,7 @@ public class ApplicationManager {
 
   private void statusCheck() {
     try {
-      LOG.info("Start to check application status for " + appIds);
+      LOG.info("Start to check status for " + appIds.size() + " applications");
       long current = System.currentTimeMillis();
       Set<String> expiredAppIds = Sets.newHashSet();
       for (Map.Entry<String, Long> entry : appIds.entrySet()) {
