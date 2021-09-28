@@ -271,6 +271,28 @@
       </dependency>
 
       <dependency>
+        <groupId>com.tencent.rss</groupId>
+        <artifactId>rss-client</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
+        <type>test-jar</type>
+      </dependency>
+
+      <dependency>
+        <groupId>com.tencent.rss</groupId>
+        <artifactId>rss-common</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
+        <type>test-jar</type>
+        <exclusions>
+          <exclusion>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient_jetty</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-common</artifactId>
         <version>${hadoop.version}</version>

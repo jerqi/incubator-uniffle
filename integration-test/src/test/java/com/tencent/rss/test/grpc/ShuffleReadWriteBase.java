@@ -1,10 +1,16 @@
 package com.tencent.rss.test.grpc;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.io.Files;
+import com.tencent.rss.client.TestUtils;
+import com.tencent.rss.client.api.ShuffleReadClient;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.test.IntegrationTestBase;
+
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +41,28 @@ public abstract class ShuffleReadWriteBase extends IntegrationTestBase {
     return shuffleBlockInfoList;
   }
 
+  protected Map<Integer, List<ShuffleBlockInfo>> createTestData(
+      Roaring64NavigableMap[] bitmaps,
+      Map<Long, byte[]> expectedData) {
+    for (int i = 0; i < 4; i++) {
+      bitmaps[i] = Roaring64NavigableMap.bitmapOf();
+    }
+    List<ShuffleBlockInfo> blocks1 = createShuffleBlockList(
+        0, 0, 0, 3, 25, bitmaps[0], expectedData, mockSSI);
+    List<ShuffleBlockInfo> blocks2 = createShuffleBlockList(
+        0, 1, 1, 5, 25, bitmaps[1], expectedData, mockSSI);
+    List<ShuffleBlockInfo> blocks3 = createShuffleBlockList(
+        0, 2, 2, 4, 25, bitmaps[2], expectedData, mockSSI);
+    List<ShuffleBlockInfo> blocks4 = createShuffleBlockList(
+        0, 3, 3, 1, 25, bitmaps[3], expectedData, mockSSI);
+    Map<Integer, List<ShuffleBlockInfo>> partitionToBlocks = Maps.newHashMap();
+    partitionToBlocks.put(0, blocks1);
+    partitionToBlocks.put(1, blocks2);
+    partitionToBlocks.put(2, blocks3);
+    partitionToBlocks.put(3, blocks4);
+    return partitionToBlocks;
+  }
+
   protected List<ShuffleBlockInfo> createShuffleBlockList(int shuffleId, int partitionId, long taskAttemptId,
       int blockNum, int length, Roaring64NavigableMap blockIdBitmap, Map<Long, byte[]> dataMap) {
     List<ShuffleServerInfo> shuffleServerInfoList =
@@ -44,12 +72,19 @@ public abstract class ShuffleReadWriteBase extends IntegrationTestBase {
   }
 
   protected boolean compareByte(byte[] expected, ByteBuffer buffer) {
-    for (int i = 0; i < expected.length; i++) {
-      if (expected[i] != buffer.get(i)) {
-        return false;
-      }
-    }
-    return true;
+    return TestUtils.compareByte(expected, buffer);
   }
 
+  protected void validateResult(ShuffleReadClient readClient, Map<Long, byte[]> expectedData) {
+    TestUtils.validateResult(readClient, expectedData);
+  }
+
+  protected static String generateBasePath() {
+    File tmpDir = Files.createTempDir();
+    File dataDir1 = new File(tmpDir, "data1");
+    File dataDir2 = new File(tmpDir, "data2");
+    tmpDir.deleteOnExit();
+    String basePath = dataDir1.getAbsolutePath() + "," + dataDir2.getAbsolutePath();
+    return basePath;
+  }
 }

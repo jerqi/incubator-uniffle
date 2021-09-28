@@ -61,22 +61,12 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
     rrsr = new RssRegisterShuffleRequest(appId, 0, Lists.newArrayList(new PartitionRange(2, 3)));
     shuffleServerClient.registerShuffle(rrsr);
 
+    Roaring64NavigableMap[] bitmaps = new Roaring64NavigableMap[4];
     Map<Long, byte[]> expectedData = Maps.newHashMap();
-    Roaring64NavigableMap blockIdBitmap1 = Roaring64NavigableMap.bitmapOf();
-    Roaring64NavigableMap blockIdBitmap2 = Roaring64NavigableMap.bitmapOf();
-    Roaring64NavigableMap blockIdBitmap3 = Roaring64NavigableMap.bitmapOf();
-    Roaring64NavigableMap blockIdBitmap4 = Roaring64NavigableMap.bitmapOf();
-    List<ShuffleBlockInfo> blocks1 = createShuffleBlockList(
-        0, 0, 0, 3, 25, blockIdBitmap1, expectedData, mockSSI);
-    List<ShuffleBlockInfo> blocks2 = createShuffleBlockList(
-        0, 1, 1, 5, 25, blockIdBitmap2, expectedData, mockSSI);
-    List<ShuffleBlockInfo> blocks3 = createShuffleBlockList(
-        0, 2, 2, 4, 25, blockIdBitmap3, expectedData, mockSSI);
-    List<ShuffleBlockInfo> blocks4 = createShuffleBlockList(
-        0, 3, 3, 1, 25, blockIdBitmap4, expectedData, mockSSI);
+    Map<Integer, List<ShuffleBlockInfo>>  dataBlocks = createTestData(bitmaps, expectedData);
     Map<Integer, List<ShuffleBlockInfo>> partitionToBlocks = Maps.newHashMap();
-    partitionToBlocks.put(0, blocks1);
-    partitionToBlocks.put(1, blocks2);
+    partitionToBlocks.put(0, dataBlocks.get(0));
+    partitionToBlocks.put(1, dataBlocks.get(1));
 
     Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleToBlocks = Maps.newHashMap();
     shuffleToBlocks.put(0, partitionToBlocks);
@@ -91,12 +81,12 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
 
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
         appId, 0, 0, 100, 2, 10, 1000,
-        dataBasePath, blockIdBitmap1, Roaring64NavigableMap.bitmapOf(0), Lists.newArrayList(), new Configuration());
+        dataBasePath, bitmaps[0], Roaring64NavigableMap.bitmapOf(0), Lists.newArrayList(), new Configuration());
     assertNull(readClient.readShuffleBlockData());
     shuffleServerClient.finishShuffle(rfsr);
 
     partitionToBlocks.clear();
-    partitionToBlocks.put(2, blocks3);
+    partitionToBlocks.put(2, dataBlocks.get(2));
     shuffleToBlocks.clear();
     shuffleToBlocks.put(0, partitionToBlocks);
     rssdr = new RssSendShuffleDataRequest(appId, 3, 1000, shuffleToBlocks);
@@ -108,7 +98,7 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
     shuffleServerClient.finishShuffle(rfsr);
 
     partitionToBlocks.clear();
-    partitionToBlocks.put(3, blocks4);
+    partitionToBlocks.put(3, dataBlocks.get(3));
     shuffleToBlocks.clear();
     shuffleToBlocks.put(0, partitionToBlocks);
     rssdr = new RssSendShuffleDataRequest(appId, 3, 1000, shuffleToBlocks);
@@ -120,23 +110,23 @@ public class ShuffleServerWithHdfsTest extends ShuffleReadWriteBase {
 
     readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
         appId, 0, 0, 100, 2, 10, 1000,
-        dataBasePath, blockIdBitmap1, Roaring64NavigableMap.bitmapOf(0), Lists.newArrayList(), new Configuration());
-    validateResult(readClient, expectedData, blockIdBitmap1);
+        dataBasePath, bitmaps[0], Roaring64NavigableMap.bitmapOf(0), Lists.newArrayList(), new Configuration());
+    validateResult(readClient, expectedData, bitmaps[0]);
 
     readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
         appId, 0, 1, 100, 2, 10, 1000,
-        dataBasePath, blockIdBitmap2, Roaring64NavigableMap.bitmapOf(1), Lists.newArrayList(), new Configuration());
-    validateResult(readClient, expectedData, blockIdBitmap2);
+        dataBasePath, bitmaps[1], Roaring64NavigableMap.bitmapOf(1), Lists.newArrayList(), new Configuration());
+    validateResult(readClient, expectedData, bitmaps[1]);
 
     readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
         appId, 0, 2, 100, 2, 10, 1000,
-        dataBasePath, blockIdBitmap3, Roaring64NavigableMap.bitmapOf(2), Lists.newArrayList(), new Configuration());
-    validateResult(readClient, expectedData, blockIdBitmap3);
+        dataBasePath, bitmaps[2], Roaring64NavigableMap.bitmapOf(2), Lists.newArrayList(), new Configuration());
+    validateResult(readClient, expectedData, bitmaps[2]);
 
     readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(),
         appId, 0, 3, 100, 2, 10, 1000,
-        dataBasePath, blockIdBitmap4, Roaring64NavigableMap.bitmapOf(3), Lists.newArrayList(), new Configuration());
-    validateResult(readClient, expectedData, blockIdBitmap4);
+        dataBasePath, bitmaps[3], Roaring64NavigableMap.bitmapOf(3), Lists.newArrayList(), new Configuration());
+    validateResult(readClient, expectedData, bitmaps[3]);
   }
 
   protected void validateResult(ShuffleReadClientImpl readClient, Map<Long, byte[]> expectedData,

@@ -77,19 +77,8 @@ public class SparkClientWithLocalTest extends ShuffleReadWriteBase {
     Map<Long, byte[]> expectedData = Maps.newHashMap();
     Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
     Roaring64NavigableMap taskIdBitmap = Roaring64NavigableMap.bitmapOf(0);
-
-    List<ShuffleBlockInfo> blocks = createShuffleBlockList(
-        0, 0, 0, 3, 25, blockIdBitmap, expectedData, mockSSI);
-    sendTestData(testAppId, blocks);
-
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.LOCALFILE.name(), testAppId, 0, 0, 100, 1,
-        10, 1000, "", blockIdBitmap, taskIdBitmap,
-        shuffleServerInfo, null);
-
-    validateResult(readClient, expectedData);
-    readClient.checkProcessedBlockIds();
-    readClient.close();
-
+    createTestData(testAppId, expectedData, blockIdBitmap, taskIdBitmap);
+    ShuffleReadClientImpl readClient;
     blockIdBitmap.addLong(-1L);
     readClient = new ShuffleReadClientImpl(StorageType.LOCALFILE.name(), testAppId, 0, 0, 100, 1,
         10, 1000, "", blockIdBitmap, taskIdBitmap, shuffleServerInfo, null);
@@ -104,6 +93,7 @@ public class SparkClientWithLocalTest extends ShuffleReadWriteBase {
       readClient.close();
     }
   }
+
 
   @Test
   public void readTest2() {
@@ -308,19 +298,10 @@ public class SparkClientWithLocalTest extends ShuffleReadWriteBase {
     Roaring64NavigableMap blockIdBitmap = Roaring64NavigableMap.bitmapOf();
     Roaring64NavigableMap taskIdBitmap = Roaring64NavigableMap.bitmapOf(0);
 
-    List<ShuffleBlockInfo> blocks = createShuffleBlockList(
-        0, 0, 0, 3, 25, blockIdBitmap, expectedData, mockSSI);
-    sendTestData(testAppId, blocks);
+    List<ShuffleBlockInfo> blocks;
+    ShuffleReadClientImpl readClient;
 
-    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.LOCALFILE.name(), testAppId, 0, 0, 100, 1,
-        10, 1000, "", blockIdBitmap, taskIdBitmap,
-        shuffleServerInfo, null);
-
-    // do the first read, shuffle server will create cache for index file
-    validateResult(readClient, expectedData);
-    readClient.checkProcessedBlockIds();
-    readClient.close();
-
+    createTestData(testAppId, expectedData, blockIdBitmap, taskIdBitmap);
     Roaring64NavigableMap beforeAdded = RssUtils.deserializeBitMap(RssUtils.serializeBitMap(blockIdBitmap));
     // write data by another task, read data again, the cache for index file should be updated
     blocks = createShuffleBlockList(
@@ -364,27 +345,31 @@ public class SparkClientWithLocalTest extends ShuffleReadWriteBase {
     shuffleServerClient.finishShuffle(rfsr);
   }
 
-  protected void validateResult(ShuffleReadClient readClient,
-      Map<Long, byte[]> expectedData) {
-    ByteBuffer data = readClient.readShuffleBlockData().getByteBuffer();
-    int blockNum = 0;
-    while (data != null) {
-      blockNum++;
-      boolean match = false;
-      for (byte[] expected : expectedData.values()) {
-        if (compareByte(expected, data)) {
-          match = true;
-        }
-      }
-      assertTrue(match);
-      CompressedShuffleBlock csb = readClient.readShuffleBlockData();
-      if (csb == null) {
-        data = null;
-      } else {
-        data = csb.getByteBuffer();
-      }
-    }
-    assertEquals(expectedData.size(), blockNum);
-  }
+  private void createTestData(
+      String testAppId,
+      Map<Long, byte[]> expectedData,
+      Roaring64NavigableMap blockIdBitmap,
+      Roaring64NavigableMap taskIdBitmap) {
+    List<ShuffleBlockInfo> blocks = createShuffleBlockList(
+        0, 0, 0, 3, 25, blockIdBitmap, expectedData, mockSSI);
+    sendTestData(testAppId, blocks);
 
+    ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(
+        StorageType.LOCALFILE.name(),
+        testAppId,
+        0,
+        0,
+        100,
+        1,
+        10,
+        1000,
+        "",
+        blockIdBitmap,
+        taskIdBitmap,
+        shuffleServerInfo,
+        null);
+    validateResult(readClient, expectedData);
+    readClient.checkProcessedBlockIds();
+    readClient.close();
+  }
 }

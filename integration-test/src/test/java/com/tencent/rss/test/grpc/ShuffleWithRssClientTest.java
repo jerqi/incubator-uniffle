@@ -173,27 +173,4 @@ public class ShuffleWithRssClientTest extends ShuffleReadWriteBase {
     assertFalse(commitResult);
   }
 
-  protected void validateResult(ShuffleReadClient readClient,
-      Map<Long, byte[]> expectedData) {
-    ByteBuffer data = readClient.readShuffleBlockData().getByteBuffer();
-    int blockNum = 0;
-    while (data != null) {
-      blockNum++;
-      boolean match = false;
-      for (byte[] expected : expectedData.values()) {
-        if (compareByte(expected, data)) {
-          match = true;
-        }
-      }
-      assertTrue(match);
-      CompressedShuffleBlock csb = readClient.readShuffleBlockData();
-      if (csb == null) {
-        data = null;
-      } else {
-        data = csb.getByteBuffer();
-      }
-    }
-    assertEquals(expectedData.size(), blockNum);
-  }
-
 }

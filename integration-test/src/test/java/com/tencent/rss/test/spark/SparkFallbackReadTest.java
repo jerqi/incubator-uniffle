@@ -1,6 +1,5 @@
 package com.tencent.rss.test.spark;
 
-import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.tencent.rss.coordinator.CoordinatorConf;
@@ -11,8 +10,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.shuffle.RssClientConfig;
 import org.apache.spark.sql.SparkSession;
 import org.junit.BeforeClass;
@@ -67,17 +64,7 @@ public class SparkFallbackReadTest extends SparkIntegrationTestBase {
   Map runTest(SparkSession spark, String fileName) throws Exception {
     Uninterruptibles.sleepUninterruptibly(3, TimeUnit.SECONDS);
     JavaSparkContext jsc = new JavaSparkContext(spark.sparkContext());
-    JavaPairRDD<String, Integer> javaPairRDD1 = jsc.parallelizePairs(Lists.newArrayList(
-        new Tuple2<>("cat", 11), new Tuple2<>("dog", 22),
-        new Tuple2<>("cat", 33), new Tuple2<>("pig", 44),
-        new Tuple2<>("duck", 55), new Tuple2<>("cat", 66)), 2);
-    JavaPairRDD<String, Tuple2<Integer, Integer>> javaPairRDD = javaPairRDD1
-        .combineByKey((Function<Integer, Tuple2<Integer, Integer>>) i -> new Tuple2<>(1, i),
-            (Function2<Tuple2<Integer, Integer>, Integer, Tuple2<Integer, Integer>>) (tuple, i) ->
-                new Tuple2<>(tuple._1 + 1, tuple._2 + i),
-            (Function2<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>) (tuple1, tuple2) ->
-                new Tuple2<>(tuple1._1 + tuple2._1, tuple1._2 + tuple2._2)
-        );
+    JavaPairRDD<String, Tuple2<Integer, Integer>> javaPairRDD = TestUtils.combineByKeyRDD(TestUtils.getRDD(jsc));
     final long  ts = System.currentTimeMillis();
     javaPairRDD.foreach(partition -> {
       long local = System.currentTimeMillis();

@@ -14,6 +14,8 @@ import com.tencent.rss.client.response.RssSendShuffleDataResponse;
 import com.tencent.rss.client.response.SendShuffleDataResult;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
+
+import java.nio.ByteBuffer;
 import java.util.List;
 import org.junit.Test;
 

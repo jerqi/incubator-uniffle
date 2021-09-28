@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.tencent.rss.storage.common.DiskItem;
 import com.tencent.rss.storage.common.ShuffleFileInfo;
-import com.tencent.rss.storage.common.ShuffleInfo;
 import com.tencent.rss.storage.factory.ShuffleUploadHandlerFactory;
 import com.tencent.rss.storage.handler.api.ShuffleUploadHandler;
 import com.tencent.rss.storage.util.ShuffleUploadResult;
@@ -213,10 +212,7 @@ public class ShuffleUploaderTest  {
       List<ShuffleFileInfo> shuffleFileInfos = shuffleUploader.selectShuffleFiles(4, false);
       assertEquals(1, shuffleFileInfos.size());
       ShuffleFileInfo shuffleFileInfo = shuffleFileInfos.get(0);
-      for (int i = 0; i < 3; ++i) {
-        assertEquals(dataFiles.get(i).getAbsolutePath(), shuffleFileInfo.getDataFiles().get(i).getAbsolutePath());
-        assertEquals(indexFiles.get(i).getAbsolutePath(), shuffleFileInfo.getIndexFiles().get(i).getAbsolutePath());
-      }
+      assertResult3(dataFiles, indexFiles, shuffleFileInfo);
       shuffleUploader = new ShuffleUploader.Builder()
           .diskItem(mockDiskItem)
           .uploadThreadNum(2)
@@ -231,18 +227,10 @@ public class ShuffleUploaderTest  {
           .build();
       shuffleFileInfos = shuffleUploader.selectShuffleFiles(4, false);
       assertEquals(3, shuffleFileInfos.size());
-      for (int i = 0; i < 3; ++i) {
-        assertEquals(dataFiles.get(i).getAbsolutePath(), shuffleFileInfos.get(i).getDataFiles().get(0).getAbsolutePath());
-        assertEquals(indexFiles.get(i).getAbsolutePath(), shuffleFileInfos.get(i).getIndexFiles().get(0).getAbsolutePath());
-        assertEquals(shuffleFileInfos.get(i).getSize(), 10L);
-      }
+      assertResult1(dataFiles, indexFiles, shuffleFileInfos);
       shuffleFileInfos = shuffleUploader.selectShuffleFiles(1, false);
       assertEquals(3, shuffleFileInfos.size());
-      for (int i = 0; i < 3; ++i) {
-        assertEquals(dataFiles.get(i).getAbsolutePath(), shuffleFileInfos.get(i).getDataFiles().get(0).getAbsolutePath());
-        assertEquals(indexFiles.get(i).getAbsolutePath(), shuffleFileInfos.get(i).getIndexFiles().get(0).getAbsolutePath());
-        assertEquals(shuffleFileInfos.get(i).getSize(), 10L);
-      }
+      assertResult1(dataFiles, indexFiles, shuffleFileInfos);
       shuffleUploader = new ShuffleUploader.Builder()
           .diskItem(mockDiskItem)
           .uploadThreadNum(2)
@@ -258,10 +246,7 @@ public class ShuffleUploaderTest  {
       shuffleFileInfos = shuffleUploader.selectShuffleFiles(4, false);
       assertEquals(1, shuffleFileInfos.size());
       shuffleFileInfo = shuffleFileInfos.get(0);
-      for (int i = 0; i < 3; ++i) {
-        assertEquals(dataFiles.get(i).getAbsolutePath(), shuffleFileInfo.getDataFiles().get(i).getAbsolutePath());
-        assertEquals(indexFiles.get(i).getAbsolutePath(), shuffleFileInfo.getIndexFiles().get(i).getAbsolutePath());
-      }
+      assertResult3(dataFiles, indexFiles, shuffleFileInfo);
       shuffleUploader = new ShuffleUploader.Builder()
           .diskItem(mockDiskItem)
           .uploadThreadNum(2)
@@ -275,15 +260,7 @@ public class ShuffleUploaderTest  {
           .hadoopConf(new Configuration())
           .build();
       shuffleFileInfos = shuffleUploader.selectShuffleFiles(4, false);
-      assertEquals(2, shuffleFileInfos.size());
-      assertEquals(20, shuffleFileInfos.get(0).getSize());
-      assertEquals(10, shuffleFileInfos.get(1).getSize());
-      assertEquals(dataFiles.get(0).getAbsolutePath(), shuffleFileInfos.get(0).getDataFiles().get(0).getAbsolutePath());
-      assertEquals(indexFiles.get(0).getAbsolutePath(), shuffleFileInfos.get(0).getIndexFiles().get(0).getAbsolutePath());
-      assertEquals(dataFiles.get(1).getAbsolutePath(), shuffleFileInfos.get(0).getDataFiles().get(1).getAbsolutePath());
-      assertEquals(indexFiles.get(1).getAbsolutePath(), shuffleFileInfos.get(0).getIndexFiles().get(1).getAbsolutePath());
-      assertEquals(dataFiles.get(2).getAbsolutePath(), shuffleFileInfos.get(1).getDataFiles().get(0).getAbsolutePath());
-      assertEquals(indexFiles.get(2).getAbsolutePath(), shuffleFileInfos.get(1).getIndexFiles().get(0).getAbsolutePath());
+      assertResult2(dataFiles, indexFiles, shuffleFileInfos);
       shuffleUploader = new ShuffleUploader.Builder()
           .diskItem(mockDiskItem)
           .uploadThreadNum(2)
@@ -297,18 +274,37 @@ public class ShuffleUploaderTest  {
           .hadoopConf(new Configuration())
           .build();
       shuffleFileInfos = shuffleUploader.selectShuffleFiles(4, false);
-      assertEquals(2, shuffleFileInfos.size());
-      assertEquals(20, shuffleFileInfos.get(0).getSize());
-      assertEquals(10, shuffleFileInfos.get(1).getSize());
-      assertEquals(dataFiles.get(0).getAbsolutePath(), shuffleFileInfos.get(0).getDataFiles().get(0).getAbsolutePath());
-      assertEquals(indexFiles.get(0).getAbsolutePath(), shuffleFileInfos.get(0).getIndexFiles().get(0).getAbsolutePath());
-      assertEquals(dataFiles.get(1).getAbsolutePath(), shuffleFileInfos.get(0).getDataFiles().get(1).getAbsolutePath());
-      assertEquals(indexFiles.get(1).getAbsolutePath(), shuffleFileInfos.get(0).getIndexFiles().get(1).getAbsolutePath());
-      assertEquals(dataFiles.get(2).getAbsolutePath(), shuffleFileInfos.get(1).getDataFiles().get(0).getAbsolutePath());
-      assertEquals(indexFiles.get(2).getAbsolutePath(), shuffleFileInfos.get(1).getIndexFiles().get(0).getAbsolutePath());
+      assertResult2(dataFiles, indexFiles, shuffleFileInfos);
     } catch (Exception e) {
       e.printStackTrace();
       fail(e.getMessage());
+    }
+  }
+
+  private void assertResult1(List<File> dataFiles, List<File> indexFiles, List<ShuffleFileInfo> shuffleFileInfos) {
+    for (int i = 0; i < 3; ++i) {
+      assertEquals(dataFiles.get(i).getAbsolutePath(), shuffleFileInfos.get(i).getDataFiles().get(0).getAbsolutePath());
+      assertEquals(indexFiles.get(i).getAbsolutePath(), shuffleFileInfos.get(i).getIndexFiles().get(0).getAbsolutePath());
+      assertEquals(shuffleFileInfos.get(i).getSize(), 10L);
+    }
+  }
+
+  private void assertResult2(List<File> dataFiles, List<File> indexFiles, List<ShuffleFileInfo> shuffleFileInfos) {
+    assertEquals(2, shuffleFileInfos.size());
+    assertEquals(20, shuffleFileInfos.get(0).getSize());
+    assertEquals(10, shuffleFileInfos.get(1).getSize());
+    assertEquals(dataFiles.get(0).getAbsolutePath(), shuffleFileInfos.get(0).getDataFiles().get(0).getAbsolutePath());
+    assertEquals(indexFiles.get(0).getAbsolutePath(), shuffleFileInfos.get(0).getIndexFiles().get(0).getAbsolutePath());
+    assertEquals(dataFiles.get(1).getAbsolutePath(), shuffleFileInfos.get(0).getDataFiles().get(1).getAbsolutePath());
+    assertEquals(indexFiles.get(1).getAbsolutePath(), shuffleFileInfos.get(0).getIndexFiles().get(1).getAbsolutePath());
+    assertEquals(dataFiles.get(2).getAbsolutePath(), shuffleFileInfos.get(1).getDataFiles().get(0).getAbsolutePath());
+    assertEquals(indexFiles.get(2).getAbsolutePath(), shuffleFileInfos.get(1).getIndexFiles().get(0).getAbsolutePath());
+  }
+
+  private void assertResult3(List<File> dataFiles, List<File> indexFiles, ShuffleFileInfo shuffleFileInfo) {
+    for (int i = 0; i < 3; ++i) {
+      assertEquals(dataFiles.get(i).getAbsolutePath(), shuffleFileInfo.getDataFiles().get(i).getAbsolutePath());
+      assertEquals(indexFiles.get(i).getAbsolutePath(), shuffleFileInfo.getIndexFiles().get(i).getAbsolutePath());
     }
   }
 

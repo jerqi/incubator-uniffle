@@ -117,17 +117,5 @@ public class HdfsHandlerTest extends HdfsTestBase {
     return result;
   }
 
-  private void compareBytes(List<byte[]> expected, List<ByteBuffer> actual) {
-    assertEquals(expected.size(), actual.size());
-
-    for (int i = 0; i < expected.size(); i++) {
-      byte[] expectedI = expected.get(i);
-      ByteBuffer bb = actual.get(i);
-      for (int j = 0; j < expectedI.length; j++) {
-        assertEquals(expectedI[j], bb.get(j));
-      }
-    }
-  }
-
 }
 

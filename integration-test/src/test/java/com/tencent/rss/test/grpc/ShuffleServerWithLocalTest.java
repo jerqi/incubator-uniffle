@@ -28,6 +28,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import com.tencent.rss.test.spark.TestUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -75,29 +77,14 @@ public class ShuffleServerWithLocalTest extends ShuffleReadWriteBase {
     shuffleServerClient.registerShuffle(rrsr);
 
     Map<Long, byte[]> expectedData = Maps.newHashMap();
-    Roaring64NavigableMap blockIdBitmap1 = Roaring64NavigableMap.bitmapOf();
-    Roaring64NavigableMap blockIdBitmap2 = Roaring64NavigableMap.bitmapOf();
-    Roaring64NavigableMap blockIdBitmap3 = Roaring64NavigableMap.bitmapOf();
-    Roaring64NavigableMap blockIdBitmap4 = Roaring64NavigableMap.bitmapOf();
 
-    List<ShuffleBlockInfo> blocks1 = createShuffleBlockList(
-        0, 0, 0, 3, 25, blockIdBitmap1, expectedData, mockSSI);
-    List<ShuffleBlockInfo> blocks2 = createShuffleBlockList(
-        0, 1, 1, 5, 25, blockIdBitmap2, expectedData, mockSSI);
-    List<ShuffleBlockInfo> blocks3 = createShuffleBlockList(
-        0, 2, 2, 4, 25, blockIdBitmap3, expectedData, mockSSI);
-    List<ShuffleBlockInfo> blocks4 = createShuffleBlockList(
-        0, 3, 3, 1, 25, blockIdBitmap4, expectedData, mockSSI);
-    Map<Integer, List<ShuffleBlockInfo>> partitionToBlocks = Maps.newHashMap();
-    partitionToBlocks.put(0, blocks1);
-    partitionToBlocks.put(1, blocks2);
-    partitionToBlocks.put(2, blocks3);
-    partitionToBlocks.put(3, blocks4);
+    Roaring64NavigableMap[] bitmaps = new Roaring64NavigableMap[4];
+    Map<Integer, List<ShuffleBlockInfo>> partitionToBlocks = createTestData(bitmaps, expectedData);
 
-    Set<Long> expectedBlockIds1 = transBitmapToSet(blockIdBitmap1);
-    Set<Long> expectedBlockIds2 = transBitmapToSet(blockIdBitmap2);
-    Set<Long> expectedBlockIds3 = transBitmapToSet(blockIdBitmap3);
-    Set<Long> expectedBlockIds4 = transBitmapToSet(blockIdBitmap4);
+    Set<Long> expectedBlockIds1 = transBitmapToSet(bitmaps[0]);
+    Set<Long> expectedBlockIds2 = transBitmapToSet(bitmaps[1]);
+    Set<Long> expectedBlockIds3 = transBitmapToSet(bitmaps[2]);
+    Set<Long> expectedBlockIds4 = transBitmapToSet(bitmaps[3]);
 
     Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleToBlocks = Maps.newHashMap();
     shuffleToBlocks.put(0, partitionToBlocks);

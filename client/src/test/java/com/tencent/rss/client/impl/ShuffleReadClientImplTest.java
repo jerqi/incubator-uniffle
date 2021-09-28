@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.tencent.rss.client.TestUtils;
 import com.tencent.rss.client.api.ShuffleReadClient;
 import com.tencent.rss.client.response.CompressedShuffleBlock;
 import com.tencent.rss.common.ShufflePartitionedBlock;
@@ -30,6 +31,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.roaringbitmap.longlong.LongIterator;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
+import com.tencent.rss.client.TestUtils;
 
 public class ShuffleReadClientImplTest extends HdfsTestBase {
 
@@ -53,14 +55,14 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 100, 1,
         10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
 
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
     readClient.close();
 
     blockIdBitmap.addLong(-1L);
     readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 100, 1,
         10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     try {
       // can't find all expected block id, data loss
       readClient.checkProcessedBlockIds();
@@ -90,7 +92,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
         "appId", 0, 1, 100, 2, 10, 1000,
         basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
 
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
     readClient.close();
   }
@@ -124,7 +126,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
         "appId", 0, 1, 100, 2, 10, 1000,
         basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
 
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
     readClient.close();
   }
@@ -210,11 +212,11 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
     ShuffleReadClientImpl readClient2 = new ShuffleReadClientImpl(StorageType.HDFS.name(),
         "appId", 0, 1, 100, 2, 10, 100,
         basePath, blockIdBitmap2, taskIdBitmap, Lists.newArrayList(), new Configuration());
-    validateResult(readClient1, expectedData1);
+    TestUtils.validateResult(readClient1, expectedData1);
     readClient1.checkProcessedBlockIds();
     readClient1.close();
 
-    validateResult(readClient2, expectedData2);
+    TestUtils.validateResult(readClient2, expectedData2);
     readClient2.checkProcessedBlockIds();
     readClient2.close();
   }
@@ -303,35 +305,35 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 1, 1,
         10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
 
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
     readClient.close();
 
     readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 2, 1,
         10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
 
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
     readClient.close();
 
     readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 3, 1,
         10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
 
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
     readClient.close();
 
     readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 10, 1,
         10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
 
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
     readClient.close();
 
     readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 11, 1,
         10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
 
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     readClient.checkProcessedBlockIds();
     readClient.close();
   }
@@ -353,7 +355,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 100, 1,
         10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
 
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     assertEquals(15, readClient.getProcessedBlockIds().getLongCardinality());
     readClient.checkProcessedBlockIds();
     readClient.close();
@@ -379,7 +381,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 100, 1,
         10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
 
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     assertEquals(20, readClient.getProcessedBlockIds().getLongCardinality());
     readClient.checkProcessedBlockIds();
     readClient.close();
@@ -402,7 +404,7 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
     ShuffleReadClientImpl readClient = new ShuffleReadClientImpl(StorageType.HDFS.name(), "appId", 0, 1, 100, 1,
         10, 1000, basePath, blockIdBitmap, taskIdBitmap, Lists.newArrayList(), new Configuration());
 
-    validateResult(readClient, expectedData);
+    TestUtils.validateResult(readClient, expectedData);
     assertEquals(15, readClient.getProcessedBlockIds().getLongCardinality());
     readClient.checkProcessedBlockIds();
     readClient.close();
@@ -444,37 +446,5 @@ public class ShuffleReadClientImplTest extends HdfsTestBase {
       blockIdBitmap.addLong(blockId);
     }
     writeHandler.write(blocks);
-  }
-
-  protected void validateResult(ShuffleReadClient readClient,
-      Map<Long, byte[]> expectedData) {
-    ByteBuffer data = readClient.readShuffleBlockData().getByteBuffer();
-    int blockNum = 0;
-    while (data != null) {
-      blockNum++;
-      boolean match = false;
-      for (byte[] expected : expectedData.values()) {
-        if (compareByte(expected, data)) {
-          match = true;
-        }
-      }
-      assertTrue(match);
-      CompressedShuffleBlock csb = readClient.readShuffleBlockData();
-      if (csb == null) {
-        data = null;
-      } else {
-        data = csb.getByteBuffer();
-      }
-    }
-    assertEquals(expectedData.size(), blockNum);
-  }
-
-  private boolean compareByte(byte[] expected, ByteBuffer buffer) {
-    for (int i = 0; i < expected.length; i++) {
-      if (expected[i] != buffer.get(i)) {
-        return false;
-      }
-    }
-    return true;
   }
 }

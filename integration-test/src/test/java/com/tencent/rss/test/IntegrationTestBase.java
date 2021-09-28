@@ -7,6 +7,8 @@ import com.tencent.rss.server.ShuffleServer;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.storage.HdfsTestBase;
 import com.tencent.rss.storage.util.StorageType;
+
+import java.io.IOException;
 import java.util.List;
 import org.junit.AfterClass;
 
@@ -83,5 +85,13 @@ abstract public class IntegrationTestBase extends HdfsTestBase {
 
   protected static void createShuffleServer(ShuffleServerConf serverConf) throws Exception {
     shuffleServers.add(new ShuffleServer(serverConf));
+  }
+
+  protected static void createAndStartServers(
+      ShuffleServerConf shuffleServerConf,
+      CoordinatorConf coordinatorConf) throws Exception {
+    createCoordinatorServer(coordinatorConf);
+    createShuffleServer(shuffleServerConf);
+    startServers();
   }
 }

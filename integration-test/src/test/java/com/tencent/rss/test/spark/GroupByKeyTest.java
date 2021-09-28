@@ -1,37 +1,19 @@
 package com.tencent.rss.test.spark;
 
 import com.google.common.collect.Lists;
-import com.tencent.rss.coordinator.CoordinatorConf;
-import com.tencent.rss.server.ShuffleServerConf;
+
 import java.util.Map;
-import org.apache.spark.SparkConf;
+
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.shuffle.RssClientConfig;
 import org.apache.spark.sql.SparkSession;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import scala.Tuple2;
 
-public class GroupByKeyTest extends SparkIntegrationTestBase {
-
-  @BeforeClass
-  public static void setupServers() throws Exception {
-    CoordinatorConf coordinatorConf = getCoordinatorConf();
-    createCoordinatorServer(coordinatorConf);
-    ShuffleServerConf shuffleServerConf = getShuffleServerConf();
-    createShuffleServer(shuffleServerConf);
-    startServers();
-  }
-
-  @Override
-  public void updateSparkConfCustomer(SparkConf sparkConf) {
-    sparkConf.set(RssClientConfig.RSS_STORAGE_TYPE, "HDFS");
-    sparkConf.set(RssClientConfig.RSS_BASE_PATH, HDFS_URI + "rss/test");
-  }
+public class GroupByKeyTest extends SimpleTestBase {
 
   @Test
-  public void resultCompareTest() throws Exception {
+  public void groupByTest() throws Exception {
     run();
   }
 

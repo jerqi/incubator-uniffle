@@ -183,25 +183,7 @@ public class DiskItemTest {
   @Test
   public void removeResourcesTest() {
     try {
-      DiskItem item = DiskItem.newBuilder().basePath(testBaseDir.getAbsolutePath())
-          .cleanupThreshold(50)
-          .highWaterMarkOfWrite(95)
-          .lowWaterMarkOfWrite(80)
-          .capacity(100)
-          .cleanIntervalMs(5000)
-          .build();
-      RoaringBitmap partitionBitMap = RoaringBitmap.bitmapOf();
-      partitionBitMap.add(1);
-      partitionBitMap.add(2);
-      partitionBitMap.add(1);
-      List<Integer> partitionList = Lists.newArrayList(1, 2);
-      item.createMetadataIfNotExist("1/1");
-      item.createMetadataIfNotExist("1/2");
-      item.updateWrite("1/1", 100, partitionList);
-      item.updateWrite("1/2", 50, Lists.newArrayList());
-      assertEquals(150L, item.getDiskMetaData().getDiskSize().get());
-      assertEquals(2, item.getDiskMetaData().getNotUploadedPartitions("1/1").getCardinality());
-      assertTrue(partitionBitMap.contains(item.getDiskMetaData().getNotUploadedPartitions("1/1")));
+      DiskItem item = prepareDiskItem();
       item.removeResources("1/1");
       assertEquals(50L, item.getDiskMetaData().getDiskSize().get());
       assertEquals(0L, item.getDiskMetaData().getShuffleSize("1/1"));
@@ -213,29 +195,33 @@ public class DiskItemTest {
     }
   }
 
+  private DiskItem prepareDiskItem() {
+    DiskItem item = DiskItem.newBuilder().basePath(testBaseDir.getAbsolutePath())
+        .cleanupThreshold(50)
+        .highWaterMarkOfWrite(95)
+        .lowWaterMarkOfWrite(80)
+        .capacity(100)
+        .cleanIntervalMs(5000)
+        .build();
+    RoaringBitmap partitionBitMap = RoaringBitmap.bitmapOf();
+    partitionBitMap.add(1);
+    partitionBitMap.add(2);
+    partitionBitMap.add(1);
+    List<Integer> partitionList = Lists.newArrayList(1, 2);
+    item.createMetadataIfNotExist("1/1");
+    item.createMetadataIfNotExist("1/2");
+    item.updateWrite("1/1", 100, partitionList);
+    item.updateWrite("1/2", 50, Lists.newArrayList());
+    assertEquals(150L, item.getDiskMetaData().getDiskSize().get());
+    assertEquals(2, item.getDiskMetaData().getNotUploadedPartitions("1/1").getCardinality());
+    assertTrue(partitionBitMap.contains(item.getDiskMetaData().getNotUploadedPartitions("1/1")));
+    return item;
+  }
+
   @Test
   public void concurrentRemoveResourcesTest() {
     try {
-      DiskItem item = DiskItem.newBuilder().basePath(testBaseDir.getAbsolutePath())
-          .cleanupThreshold(50)
-          .highWaterMarkOfWrite(95)
-          .lowWaterMarkOfWrite(80)
-          .capacity(100)
-          .cleanIntervalMs(5000)
-          .build();
-      RoaringBitmap partitionBitMap = RoaringBitmap.bitmapOf();
-      partitionBitMap.add(1);
-      partitionBitMap.add(2);
-      partitionBitMap.add(1);
-      List<Integer> partitionList = Lists.newArrayList(1, 2);
-      item.createMetadataIfNotExist("1/1");
-      item.createMetadataIfNotExist("1/2");
-      item.updateWrite("1/1", 100, partitionList);
-      item.updateWrite("1/2", 50, Lists.newArrayList());
-      assertEquals(150L, item.getDiskMetaData().getDiskSize().get());
-      assertEquals(2, item.getDiskMetaData().getNotUploadedPartitions("1/1").getCardinality());
-      assertTrue(partitionBitMap.contains(item.getDiskMetaData().getNotUploadedPartitions("1/1")));
-
+      DiskItem item = prepareDiskItem();
       Runnable runnable = () -> item.removeResources("1/1");
       List<Thread> testThreads = Lists.newArrayList(new Thread(runnable), new Thread(runnable), new Thread(runnable));
       testThreads.forEach(Thread::start);

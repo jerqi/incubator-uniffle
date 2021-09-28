@@ -8,7 +8,6 @@ import static org.junit.Assert.fail;
 import com.google.common.collect.Lists;
 import com.tencent.rss.common.util.ChecksumUtils;
 import com.tencent.rss.storage.HdfsTestBase;
-import com.tencent.rss.storage.handler.api.ShuffleUploadHandler;
 import com.tencent.rss.storage.util.ShuffleStorageUtils;
 import com.tencent.rss.storage.util.ShuffleUploadResult;
 import java.io.EOFException;
@@ -16,14 +15,12 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Random;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+
 import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -65,20 +62,7 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
     File indexFile1 = File.createTempFile("uploadTestCombine1", ".index", tmpDir.getRoot());
     File indexFile2 = File.createTempFile("uploadTestCombine2", ".index", tmpDir.getRoot());
 
-    try (OutputStream out = new FileOutputStream(indexFile1)) {
-      out.write(new byte[5]);
-    }
-
-    try (OutputStream out = new FileOutputStream(indexFile2)) {
-      out.write(new byte[15]);
-    }
-
-    ShuffleUploadResult ret = handler.upload(
-        Lists.newArrayList(dataFile1, dataFile2),
-        Lists.newArrayList(indexFile1, indexFile2),
-        Lists.newArrayList(1, 2));
-    assertEquals(40L, ret.getSize());
-    assertEquals(Lists.newArrayList(1, 2), ret.getPartitions());
+    writeAndAssertResult(handler, dataFile1, dataFile2, indexFile1, indexFile2);
 
 
     String id = handler.getHdfsFilePrefixBase().split("-")[1];
@@ -123,6 +107,23 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
     }
   }
 
+  private void writeAndAssertResult(
+      HdfsShuffleUploadHandler handler,
+      File dataFile1,
+      File dataFile2,
+      File indexFile1,
+      File indexFile2) throws IOException {
+    writeData(indexFile1, 5);
+    writeData(indexFile2, 15);
+    uploadAndVerify(
+        handler,
+        Lists.newArrayList(dataFile1, dataFile2),
+        Lists.newArrayList(indexFile1, indexFile2),
+        Lists.newArrayList(1, 2),
+        40L,
+        Lists.newArrayList(1, 2));
+  }
+
   @Test
   public void uploadTestOneByOne() throws IOException, IllegalStateException {
     String basePath = HDFS_URI + "test_base";
@@ -146,20 +147,7 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
     File indexFile1 = File.createTempFile("uploadTestOneByOne1", ".index", tmpDir.getRoot());
     File indexFile2 = File.createTempFile("uploadTestOneByOne2", ".index", tmpDir.getRoot());
 
-    try (OutputStream out = new FileOutputStream(indexFile1)) {
-      out.write(new byte[5]);
-    }
-
-    try (OutputStream out = new FileOutputStream(indexFile2)) {
-      out.write(new byte[15]);
-    }
-
-    ShuffleUploadResult ret = handler.upload(
-        Lists.newArrayList(dataFile1, dataFile2),
-        Lists.newArrayList(indexFile1, indexFile2),
-        Lists.newArrayList(1, 2));
-    assertEquals(40L, ret.getSize());
-    assertEquals(Lists.newArrayList(1, 2), ret.getPartitions());
+    writeAndAssertResult(handler, dataFile1, dataFile2, indexFile1, indexFile2);
 
     String id = handler.getHdfsFilePrefixBase().split("-")[1];
     String ts = handler.getHdfsFilePrefixBase().split("-")[2];
@@ -240,16 +228,7 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
     File indexFile2 = new File(indexFile1.getAbsolutePath() + "null");
     File indexFile3 = new File(indexFile1.getAbsolutePath() + "null");
 
-    try (OutputStream out = new FileOutputStream(indexFile1)) {
-      out.write(new byte[5]);
-    }
-
-    ShuffleUploadResult ret = handler.upload(
-        Lists.newArrayList(dataFile1, dataFile2, dataFile3),
-        Lists.newArrayList(indexFile1, indexFile2, indexFile3),
-        Lists.newArrayList(1, 2, 3));
-    assertEquals(10L, ret.getSize());
-    assertEquals(Lists.newArrayList(1), ret.getPartitions());
+    writeAndAssert2(handler, indexFile1, 5, Lists.newArrayList(dataFile1, dataFile2, dataFile3), Lists.newArrayList(indexFile1, indexFile2, indexFile3), Lists.newArrayList(1, 2, 3), 10L, Lists.newArrayList(1));
 
     String id = handler.getHdfsFilePrefixBase().split("-")[1];
     String ts = handler.getHdfsFilePrefixBase().split("-")[2];
@@ -319,16 +298,7 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
     File indexFile2 = new File(indexFile1.getAbsolutePath() + "null");
     File indexFile3 = new File(indexFile1.getAbsolutePath() + "null");
 
-    try (OutputStream out = new FileOutputStream(indexFile1)) {
-      out.write(new byte[5]);
-    }
-
-    ShuffleUploadResult ret = handler.upload(
-        Lists.newArrayList(dataFile1, dataFile2, dataFile3),
-        Lists.newArrayList(indexFile1, indexFile2, indexFile3),
-        Lists.newArrayList(1, 2, 3));
-    assertEquals(10L, ret.getSize());
-    assertEquals(Lists.newArrayList(1), ret.getPartitions());
+    writeAndAssert2(handler, indexFile1, 5, Lists.newArrayList(dataFile1, dataFile2, dataFile3), Lists.newArrayList(indexFile1, indexFile2, indexFile3), Lists.newArrayList(1, 2, 3), 10L, Lists.newArrayList(1));
 
     String id = handler.getHdfsFilePrefixBase().split("-")[1];
     String ts = handler.getHdfsFilePrefixBase().split("-")[2];
@@ -376,6 +346,40 @@ public class HdfsShuffleUploadHandlerTest extends HdfsTestBase {
 
     }
 
+  }
+
+  private void writeAndAssert2(
+      HdfsShuffleUploadHandler handler,
+      File indexFile,
+      int length,
+      ArrayList<File> indexFiles,
+      ArrayList<File> dataFiles,
+      ArrayList<Integer> partitions,
+      long successSize,
+      ArrayList<Integer> successPartitions) throws IOException {
+    writeData(indexFile, length);
+    uploadAndVerify(handler, indexFiles, dataFiles, partitions, successSize, successPartitions);
+  }
+
+  private void uploadAndVerify(
+      HdfsShuffleUploadHandler handler,
+      ArrayList<File> indexFiles,
+      ArrayList<File> dataFiles,
+      ArrayList<Integer> partitions,
+      long successSize,
+      ArrayList<Integer> successPartitions) {
+    ShuffleUploadResult ret = handler.upload(
+        indexFiles,
+        dataFiles,
+        partitions);
+    assertEquals(successSize, ret.getSize());
+    assertEquals(successPartitions, ret.getPartitions());
+  }
+
+  private void writeData(File file, int length) throws IOException {
+    try (OutputStream out = new FileOutputStream(file)) {
+      out.write(new byte[length]);
+    }
   }
 
   @Test

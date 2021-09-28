@@ -54,13 +54,8 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
   @BeforeClass
   public static void setupServers() throws Exception {
     CoordinatorConf coordinatorConf = getCoordinatorConf();
-    createCoordinatorServer(coordinatorConf);
+    String basePath = generateBasePath();
     ShuffleServerConf shuffleServerConf = getShuffleServerConf();
-    File tmpDir = Files.createTempDir();
-    File dataDir1 = new File(tmpDir, "data1");
-    File dataDir2 = new File(tmpDir, "data2");
-    tmpDir.deleteOnExit();
-    String basePath = dataDir1.getAbsolutePath() + "," + dataDir2.getAbsolutePath();
     shuffleServerConf.setString("rss.storage.type", StorageType.LOCALFILE_AND_HDFS.name());
     shuffleServerConf.setString("rss.storage.basePath", basePath);
     shuffleServerConf.setString(ShuffleServerConf.RSS_HDFS_BASE_PATH,  HDFS_URI + "rss/multi_storage");
@@ -76,8 +71,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     shuffleServerConf.setLong(ShuffleServerConf.SERVER_COMMIT_TIMEOUT, 20L * 1000L);
     shuffleServerConf.setLong(ShuffleServerConf.RSS_PENDING_EVENT_TIMEOUT_SEC, 1);
     shuffleServerConf.setBoolean(ShuffleServerConf.RSS_USE_MULTI_STORAGE, true);
-    createShuffleServer(shuffleServerConf);
-    startServers();
+    createAndStartServers(shuffleServerConf, coordinatorConf);
   }
 
   @Before
@@ -179,30 +173,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
     RssGetShuffleDataRequest rd2 = new RssGetShuffleDataRequest(appId, 0, 1, 1, 10, 100, 0);
     shuffleServerClient.getShuffleData(rd2);
 
-    do {
-      try {
-        RssAppHeartBeatRequest ra = new RssAppHeartBeatRequest(appId, 1000);
-        shuffleServerClient.sendHeartBeat(ra);
-        boolean uploadFinished = true;
-        for (int i = 0; i < 4; i++) {
-          DiskItem diskItem = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 0);
-          String path = ShuffleStorageUtils.getFullShuffleDataFolder(diskItem.getBasePath(),
-              ShuffleStorageUtils.getShuffleDataPath(appId, 0, i, i));
-          File file = new File(path);
-          if (file.exists()) {
-            uploadFinished = false;
-            break;
-          }
-        }
-        if (uploadFinished) {
-          break;
-        }
-        Thread.sleep(1000);
-      } catch (Exception e) {
-        e.printStackTrace();
-        fail();
-      }
-    } while(true);
+    wait(appId);
 
     item = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 0);
     assertTrue(item.canWrite());
@@ -244,6 +215,33 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
         appId, 0, 3, 100, 1, 10, 1000, HDFS_URI + "rss/multi_storage",
         blockIdBitmap4, Roaring64NavigableMap.bitmapOf(3), Lists.newArrayList(), conf);
     validateResult(readClient, expectedData, blockIdBitmap4);
+  }
+
+  private void wait(String appId) {
+    do {
+      try {
+        RssAppHeartBeatRequest ra = new RssAppHeartBeatRequest(appId, 1000);
+        shuffleServerClient.sendHeartBeat(ra);
+        boolean uploadFinished = true;
+        for (int i = 0; i < 4; i++) {
+          DiskItem diskItem = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 0);
+          String path = ShuffleStorageUtils.getFullShuffleDataFolder(diskItem.getBasePath(),
+              ShuffleStorageUtils.getShuffleDataPath(appId, 0, i, i));
+          File file = new File(path);
+          if (file.exists()) {
+            uploadFinished = false;
+            break;
+          }
+        }
+        if (uploadFinished) {
+          break;
+        }
+        Thread.sleep(1000);
+      } catch (Exception e) {
+        e.printStackTrace();
+        fail();
+      }
+    } while (true);
   }
 
   @Test
@@ -363,30 +361,7 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
         matched.addLong(entry.getKey());
       }
     }
-    do {
-      try {
-        RssAppHeartBeatRequest ra = new RssAppHeartBeatRequest(appId, 1000);
-        shuffleServerClient.sendHeartBeat(ra);
-        boolean uploadFinished = true;
-        for (int i = 0; i < 4; i++) {
-          DiskItem diskItem = shuffleServers.get(0).getMultiStorageManager().getDiskItem(appId, 0, 0);
-          String path = ShuffleStorageUtils.getFullShuffleDataFolder(diskItem.getBasePath(),
-              ShuffleStorageUtils.getShuffleDataPath(appId, 0, i, i));
-          File file = new File(path);
-          if (file.exists()) {
-            uploadFinished = false;
-            break;
-          }
-        }
-        if (uploadFinished) {
-          break;
-        }
-        Thread.sleep(1000);
-      } catch (Exception e) {
-        e.printStackTrace();
-        fail();
-      }
-    } while(true);
+    wait(appId);
 
     csb = readClient.readShuffleBlockData();
     while (csb != null && csb.getByteBuffer() != null) {
@@ -550,8 +525,6 @@ public class MultiStorageTest extends ShuffleReadWriteBase {
       long taskAttemptId, List<ShuffleBlockInfo> blocks) {
     Map<Integer, List<ShuffleBlockInfo>> partitionToBlocks = Maps.newHashMap();
     Map<Integer, Map<Integer, List<ShuffleBlockInfo>>> shuffleToBlocks = Maps.newHashMap();
-    Map<Integer, List<Long>> partitionToBlockIds = Maps.newHashMap();
-    Set<Long> expectBlockIds = getExpectBlockIds(blocks);
     partitionToBlocks.put(partition, blocks);
     shuffleToBlocks.put(shuffle, partitionToBlocks);
     RssSendShuffleDataRequest rs = new RssSendShuffleDataRequest(appId, 3, 1000, shuffleToBlocks);
