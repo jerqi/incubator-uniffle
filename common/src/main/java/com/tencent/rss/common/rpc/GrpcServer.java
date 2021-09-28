@@ -53,7 +53,8 @@ public class GrpcServer implements ServerInterface {
 
   public void stop() throws InterruptedException {
     if (server != null) {
-      server.shutdown().awaitTermination(30, TimeUnit.SECONDS);
+      server.shutdown().awaitTermination(10, TimeUnit.SECONDS);
+      LOG.info("GRPC server stopped!");
     }
   }
 

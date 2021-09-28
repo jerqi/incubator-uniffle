@@ -84,7 +84,7 @@ public class DiskItem {
 
   public void stop() {
     isStopped = true;
-    Uninterruptibles.joinUninterruptibly(cleaner);
+    Uninterruptibles.joinUninterruptibly(cleaner, 10, TimeUnit.SECONDS);
   }
 
   public boolean canWrite() {

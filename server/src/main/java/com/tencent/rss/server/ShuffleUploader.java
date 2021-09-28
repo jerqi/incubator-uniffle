@@ -231,8 +231,8 @@ public class ShuffleUploader {
 
   public void stop() {
     isStopped = true;
-    Uninterruptibles.joinUninterruptibly(daemonThread);
     executorService.shutdownNow();
+    Uninterruptibles.joinUninterruptibly(daemonThread, 5, TimeUnit.SECONDS);
   }
 
   // upload is a blocked until uploading success or timeout exception

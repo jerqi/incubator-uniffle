@@ -45,7 +45,7 @@ function kill_process_with_retry {
    local pid="$1"
    local pname="$2"
    local maxattempt="$3"
-   local sleeptime=5
+   local sleeptime=30
 
    if ! is_process_running $pid ; then
      echo "ERROR: process name ${pname} with pid: ${pid} not found"
@@ -54,8 +54,10 @@ function kill_process_with_retry {
 
    for try in $(seq 1 $maxattempt); do
       echo "Killing $pname. [pid: $pid], attempt: $try"
-      kill ${pid}
-      sleep 5
+      if is_process_running $pid; then
+        kill ${pid}
+      fi
+      sleep 30
       if is_process_running $pid; then
         echo "$pname is not dead [pid: $pid]"
         echo "sleeping for $sleeptime seconds before retry"

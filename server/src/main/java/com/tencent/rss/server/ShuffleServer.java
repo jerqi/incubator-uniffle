@@ -80,14 +80,18 @@ public class ShuffleServer {
   public void stopServer() throws Exception {
     if (jettyServer != null) {
       jettyServer.stop();
+      LOG.info("Jetty Server Stopped!");
     }
     if (registerHeartBeat != null) {
       registerHeartBeat.shutdown();
+      LOG.info("HeartBeat Stopped!");
     }
     if (multiStorageManager != null) {
       multiStorageManager.stop();
+      LOG.info("MultiStorage Stopped!");
     }
     server.stop();
+    LOG.info("RPC Server Stopped!");
   }
 
   private void initialization() throws Exception {
