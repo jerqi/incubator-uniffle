@@ -627,10 +627,11 @@
               <java.awt.headless>true</java.awt.headless>
               <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
               <project.version>${project.version}</project.version>
+              <jacoco-agent.destfile>target/jacoco.exec</jacoco-agent.destfile>
             </systemProperties>
             <redirectTestOutputToFile>${test.redirectToFile}</redirectTestOutputToFile>
             <useFile>${test.redirectToFile}</useFile>
-            <argLine>-ea -Xmx3g</argLine>
+            <argLine>${argLine} -ea -Xmx3g</argLine>
             <failIfNoTests>false</failIfNoTests>
           </configuration>
         </plugin>
@@ -655,6 +656,12 @@
             <doctitle>Remote Shuffle Service ${project.version} Java API</doctitle>
             <windowtitle>Remove Shuffle Service ${project.version} JavaDoc</windowtitle>
           </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.jacoco</groupId>
+          <artifactId>jacoco-maven-plugin</artifactId>
+          <version>0.8.3</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -801,6 +808,25 @@
         </executions>
       </plugin>
 
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
 
     <testResources>
