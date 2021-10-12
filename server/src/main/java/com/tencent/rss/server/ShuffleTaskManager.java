@@ -104,6 +104,7 @@ public class ShuffleTaskManager {
   }
 
   public StatusCode registerShuffle(String appId, int shuffleId, List<PartitionRange> partitionRanges) {
+    refreshAppId(appId);
     partitionsToBlockIds.putIfAbsent(appId, Maps.newConcurrentMap());
     for (PartitionRange partitionRange : partitionRanges) {
       shuffleBufferManager.registerBuffer(appId, shuffleId, partitionRange.getStart(), partitionRange.getEnd());
