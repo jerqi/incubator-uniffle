@@ -222,17 +222,35 @@ public class ShuffleWriteClientImpl implements ShuffleWriteClient {
         + "], numMaps[" + partitionNum + "], partitionNumPerRange[" + partitionNumPerRange + "] to coordinator";
     throwExceptionIfNecessary(response, msg);
 
-    return new ShuffleAssignmentsInfo(response.getPartitionToServers(), response.getServerToPartitionRanges(),
-        response.getShuffleServersForResult());
+    return new ShuffleAssignmentsInfo(response.getPartitionToServers(), response.getServerToPartitionRanges());
   }
 
   @Override
-  public void reportShuffleResult(Set<ShuffleServerInfo> shuffleServerInfoSet,
-      String appId, int shuffleId, long taskAttemptId, Map<Integer, List<Long>> partitionToBlockIds, int bitmapNum) {
-    RssReportShuffleResultRequest request = new RssReportShuffleResultRequest(
-        appId, shuffleId, taskAttemptId, partitionToBlockIds, bitmapNum);
+  public void reportShuffleResult(
+      Map<Integer, List<ShuffleServerInfo>> partitionToServers,
+      String appId,
+      int shuffleId,
+      long taskAttemptId,
+      Map<Integer, List<Long>> partitionToBlockIds,
+      int bitmapNum) {
     boolean isSuccessful = true;
-    for (ShuffleServerInfo ssi : shuffleServerInfoSet) {
+    Map<ShuffleServerInfo, List<Integer>> groupedPartitions = Maps.newConcurrentMap();
+    for (Map.Entry<Integer, List<ShuffleServerInfo>> entry : partitionToServers.entrySet()) {
+      for (ShuffleServerInfo ssi : entry.getValue()) {
+        if (!groupedPartitions.containsKey(ssi)) {
+          groupedPartitions.putIfAbsent(ssi, Lists.newArrayList());
+        }
+        groupedPartitions.get(ssi).add(entry.getKey());
+      }
+    }
+    for (Map.Entry<ShuffleServerInfo, List<Integer>> entry : groupedPartitions.entrySet()) {
+      Map<Integer, List<Long>> requestBlockIds = Maps.newHashMap();
+      for (Integer partitionId : entry.getValue()) {
+        requestBlockIds.put(partitionId, partitionToBlockIds.get(partitionId));
+      }
+      RssReportShuffleResultRequest request = new RssReportShuffleResultRequest(
+          appId, shuffleId, taskAttemptId, requestBlockIds, bitmapNum);
+      ShuffleServerInfo ssi = entry.getKey();
       try {
         RssReportShuffleResultResponse response = getShuffleServerClient(ssi).reportShuffleResult(request);
         if (response.getStatusCode() == ResponseStatusCode.SUCCESS) {

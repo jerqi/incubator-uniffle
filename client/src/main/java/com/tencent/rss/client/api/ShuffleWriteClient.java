@@ -23,8 +23,13 @@ public interface ShuffleWriteClient {
 
   void registerCoordinators(String coordinators);
 
-  void reportShuffleResult(Set<ShuffleServerInfo> shuffleServerInfoSet,
-      String appId, int shuffleId, long taskAttemptId, Map<Integer, List<Long>> partitionToBlockIds, int bitmapNum);
+  void reportShuffleResult(
+      Map<Integer, List<ShuffleServerInfo>> partitionToServers,
+      String appId,
+      int shuffleId,
+      long taskAttemptId,
+      Map<Integer, List<Long>> partitionToBlockIds,
+      int bitmapNum);
 
   ShuffleAssignmentsInfo getShuffleAssignments(String appId, int shuffleId, int partitionNum,
       int partitionNumPerRange, int dataReplica, Set<String> requiredTags);

@@ -247,7 +247,6 @@ message PartitionRangeAssignment {
 message GetShuffleAssignmentsResponse {
   StatusCode status = 1;
   repeated PartitionRangeAssignment assignments = 2;
-  repeated ShuffleServerId serverForResult = 3;
 }
 
 message ReportShuffleClientOpRequest {

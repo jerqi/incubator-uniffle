@@ -88,11 +88,9 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
 
     final PartitionRangeAssignment pra =
         coordinatorServer.getAssignmentStrategy().assign(partitionNum, partitionNumPerRange, replica, requiredTags);
-    final List<ServerNode> serverNodes =
-        coordinatorServer.getAssignmentStrategy().assignServersForResult(replica, requiredTags);
     final GetShuffleAssignmentsResponse response =
-        CoordinatorUtils.toGetShuffleAssignmentsResponse(pra, serverNodes);
-    logAssignmentResult(appId, shuffleId, pra, serverNodes);
+        CoordinatorUtils.toGetShuffleAssignmentsResponse(pra);
+    logAssignmentResult(appId, shuffleId, pra);
 
     responseObserver.onNext(response);
     responseObserver.onCompleted();
@@ -167,8 +165,7 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
     responseObserver.onCompleted();
   }
 
-  private void logAssignmentResult(String appId, int shuffleId, PartitionRangeAssignment pra,
-      List<ServerNode> serverNodesForResult) {
+  private void logAssignmentResult(String appId, int shuffleId, PartitionRangeAssignment pra) {
     SortedMap<PartitionRange, List<ServerNode>> assignments = pra.getAssignments();
     if (assignments != null) {
       Set<String> nodeIds = Sets.newHashSet();
@@ -178,12 +175,8 @@ public class CoordinatorGrpcService extends CoordinatorServerGrpc.CoordinatorSer
         }
       }
       if (!nodeIds.isEmpty()) {
-        Set<String> nodeIdsForResult = Sets.newHashSet();
-        for (ServerNode node : serverNodesForResult) {
-          nodeIdsForResult.add(node.getId());
-        }
         LOG.info("Shuffle Servers of assignment for appId[" + appId + "], shuffleId["
-            + shuffleId + "] are " + nodeIds + ", the servers for result are " + nodeIdsForResult);
+            + shuffleId + "] are " + nodeIds);
       }
     }
   }

@@ -188,10 +188,8 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
         // get all register info according to coordinator's response
         Map<ShuffleServerInfo, List<PartitionRange>> serverToPartitionRanges = getServerToPartitionRanges(rpcResponse);
         Map<Integer, List<ShuffleServerInfo>> partitionToServers = getPartitionToServers(rpcResponse);
-        Set<ShuffleServerInfo> shuffleServersForResult = getServersForResult(rpcResponse);
         response.setServerToPartitionRanges(serverToPartitionRanges);
         response.setPartitionToServers(partitionToServers);
-        response.setShuffleServersForResult(shuffleServersForResult);
         break;
       case TIMEOUT:
         response = new RssGetShuffleAssignmentsResponse(ResponseStatusCode.TIMEOUT);
@@ -249,17 +247,5 @@ public class CoordinatorGrpcClient extends GrpcClient implements CoordinatorClie
       }
     }
     return serverToPartitionRanges;
-  }
-
-  private Set<ShuffleServerInfo> getServersForResult(RssProtos.GetShuffleAssignmentsResponse response) {
-    List<ShuffleServerId> shuffleServerIds = response.getServerForResultList();
-    if (shuffleServerIds == null || shuffleServerIds.isEmpty()) {
-      throw new RuntimeException("Failed to get shuffle server for report shuffle result");
-    }
-    Set<ShuffleServerInfo> shuffleServerInfoSet = Sets.newHashSet();
-    for (ShuffleServerId ssi : shuffleServerIds) {
-      shuffleServerInfoSet.add(new ShuffleServerInfo(ssi.getId(), ssi.getIp(), ssi.getPort()));
-    }
-    return shuffleServerInfoSet;
   }
 }

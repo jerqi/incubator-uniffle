@@ -13,21 +13,20 @@ public class RssShuffleHandle<K, V, C> extends ShuffleHandle {
   private int numMaps;
   private ShuffleDependency<K, V, C> dependency;
   private Map<Integer, List<ShuffleServerInfo>> partitionToServers;
-  // shuffle servers which store the information of partition -> blockIds
-  private Set<ShuffleServerInfo> shuffleServersForResult;
   // shuffle servers which is for store shuffle data
   private Set<ShuffleServerInfo> shuffleServersForData;
 
-  public RssShuffleHandle(int shuffleId, String appId, int numMaps,
+  public RssShuffleHandle(
+      int shuffleId,
+      String appId,
+      int numMaps,
       ShuffleDependency<K, V, C> dependency,
-      Map<Integer, List<ShuffleServerInfo>> partitionToServers,
-      Set<ShuffleServerInfo> shuffleServersForResult) {
+      Map<Integer, List<ShuffleServerInfo>> partitionToServers) {
     super(shuffleId);
     this.appId = appId;
     this.numMaps = numMaps;
     this.dependency = dependency;
     this.partitionToServers = partitionToServers;
-    this.shuffleServersForResult = shuffleServersForResult;
     shuffleServersForData = Sets.newHashSet();
     for (List<ShuffleServerInfo> ssis : partitionToServers.values()) {
       shuffleServersForData.addAll(ssis);
@@ -52,10 +51,6 @@ public class RssShuffleHandle<K, V, C> extends ShuffleHandle {
 
   public int getShuffleId() {
     return shuffleId();
-  }
-
-  public Set<ShuffleServerInfo> getShuffleServersForResult() {
-    return shuffleServersForResult;
   }
 
   public Set<ShuffleServerInfo> getShuffleServersForData() {

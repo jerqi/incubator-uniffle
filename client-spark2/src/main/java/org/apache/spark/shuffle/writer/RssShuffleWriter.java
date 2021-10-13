@@ -59,10 +59,10 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private long sendCheckInterval;
   private long sendSizeLimit;
   // they will be used in commit phase
-  private Set<ShuffleServerInfo> shuffleServersForData;
-  private Map<Integer, Set<Long>> partitionToBlockIds;
-  private ShuffleWriteClient shuffleWriteClient;
-  private Set<ShuffleServerInfo> shuffleServerInfoForResult;
+  private final Set<ShuffleServerInfo> shuffleServersForData;
+  private final Map<Integer, Set<Long>> partitionToBlockIds;
+  private final ShuffleWriteClient shuffleWriteClient;
+  private final Map<Integer, List<ShuffleServerInfo>> partitionToServers;
 
   public RssShuffleWriter(
       String appId,
@@ -86,7 +86,6 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.partitioner = shuffleDependency.partitioner();
     this.numPartitions = partitioner.numPartitions();
     this.shuffleManager = shuffleManager;
-    this.shuffleServerInfoForResult = rssHandle.getShuffleServersForResult();
     this.shouldPartition = partitioner.numPartitions() > 1;
     this.sendCheckTimeout = sparkConf.getLong(RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT,
         RssClientConfig.RSS_WRITER_SEND_CHECK_TIMEOUT_DEFAULT_VALUE);
@@ -101,6 +100,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     this.partitionToBlockIds = Maps.newConcurrentMap();
     this.shuffleWriteClient = shuffleWriteClient;
     this.shuffleServersForData = rssHandle.getShuffleServersForData();
+    this.partitionToServers = rssHandle.getPartitionToServers();
   }
 
   /**
@@ -276,7 +276,7 @@ public class RssShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         }
         long start = System.currentTimeMillis();
         int bitmapNum = ClientUtils.getBitmapNum(numMaps, numPartitions, blockNumPerTaskPartition, blockNumPerBitmap);
-        shuffleWriteClient.reportShuffleResult(shuffleServerInfoForResult, appId, shuffleId, taskAttemptId, ptb,
+        shuffleWriteClient.reportShuffleResult(partitionToServers, appId, shuffleId, taskAttemptId, ptb,
             bitmapNum);
         LOG.info("Report shuffle result for task[" + taskAttemptId + "] with bitmapNum[" + bitmapNum + "] cost "
             + (System.currentTimeMillis() - start) + " ms");

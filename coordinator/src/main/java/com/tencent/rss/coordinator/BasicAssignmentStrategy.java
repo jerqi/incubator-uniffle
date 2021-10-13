@@ -51,16 +51,6 @@ public class BasicAssignmentStrategy implements AssignmentStrategy {
     return new PartitionRangeAssignment(assignments);
   }
 
-  @Override
-  public List<ServerNode> assignServersForResult(int replica, Set<String> requiredTags) {
-    List<ServerNode> servers = getRequiredServers(requiredTags, replica);
-    if (servers.size() < replica) {
-      LOG.warn("Can't get expected shuffle servers for shuffle result, expected["
-          + replica + "], got[" + servers.size() + "] with " + servers);
-    }
-    return servers;
-  }
-
   private List<ServerNode> getRequiredServers(Set<String> requiredTags, int expectedNum) {
     List<ServerNode> servers = clusterManager.getServerList(requiredTags);
     // shuffle server update the status according to heartbeat, if every server is in initial status,

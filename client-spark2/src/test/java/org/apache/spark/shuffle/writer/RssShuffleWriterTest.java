@@ -65,8 +65,6 @@ public class RssShuffleWriterTest {
     ShuffleDependency mockDependency = mock(ShuffleDependency.class);
     RssShuffleHandle mockHandle = mock(RssShuffleHandle.class);
     when(mockHandle.getDependency()).thenReturn(mockDependency);
-    when(mockHandle.getShuffleServersForResult()).thenReturn(
-        Sets.newHashSet(new ShuffleServerInfo("id100", "0.0.0.100", 100)));
     when(mockDependency.partitioner()).thenReturn(mockPartitioner);
     when(mockPartitioner.numPartitions()).thenReturn(2);
     when(mockHandle.getPartitionToServers()).thenReturn(Maps.newHashMap());
@@ -146,8 +144,6 @@ public class RssShuffleWriterTest {
     ShuffleWriteClient mockShuffleWriteClient = mock(ShuffleWriteClient.class);
     RssShuffleHandle mockHandle = mock(RssShuffleHandle.class);
     when(mockHandle.getDependency()).thenReturn(mockDependency);
-    when(mockHandle.getShuffleServersForResult()).thenReturn(
-        Sets.newHashSet(new ShuffleServerInfo("id100", "0.0.0.100", 100)));
     Serializer kryoSerializer = new KryoSerializer(conf);
     when(mockDependency.serializer()).thenReturn(kryoSerializer);
     when(mockDependency.partitioner()).thenReturn(mockPartitioner);
@@ -253,8 +249,6 @@ public class RssShuffleWriterTest {
     when(mockShuffleManager.getEventLoop()).thenReturn(eventLoop);
     RssShuffleHandle mockHandle = mock(RssShuffleHandle.class);
     when(mockHandle.getDependency()).thenReturn(mockDependency);
-    when(mockHandle.getShuffleServersForResult()).thenReturn(
-        Sets.newHashSet(new ShuffleServerInfo("id100", "0.0.0.100", 100)));
     ShuffleWriteClient mockWriteClient = mock(ShuffleWriteClient.class);
     SparkConf conf = new SparkConf();
     conf.set(RssClientConfig.RSS_CLIENT_SEND_SIZE_LIMIT, "64");

@@ -162,14 +162,12 @@ public class RssShuffleManager implements ShuffleManager {
         appId, shuffleId, dependency.partitioner().numPartitions(),
         partitionNumPerRange, dataReplica, Sets.newHashSet(Constants.SHUFFLE_SERVER_VERSION));
     Map<Integer, List<ShuffleServerInfo>> partitionToServers = response.getPartitionToServers();
-    final Set<ShuffleServerInfo> shuffleServerForResult = response.getShuffleServersForResult();
 
     registerShuffleServers(appId, shuffleId, response.getServerToPartitionRanges());
     startHeartbeat();
 
-    LOG.info("RegisterShuffle with ShuffleId[" + shuffleId + "], partitionNum[" + partitionToServers.size()
-        + "], shuffleServerForResult:" + shuffleServerForResult);
-    return new RssShuffleHandle(shuffleId, appId, numMaps, dependency, partitionToServers, shuffleServerForResult);
+    LOG.info("RegisterShuffle with ShuffleId[" + shuffleId + "], partitionNum[" + partitionToServers.size() + "]");
+    return new RssShuffleHandle(shuffleId, appId, numMaps, dependency, partitionToServers);
   }
 
   private void startHeartbeat() {
@@ -272,8 +270,9 @@ public class RssShuffleManager implements ShuffleManager {
           + taskIdBitmap.getLongCardinality() + " tasks for shuffleId[" + shuffleId + "], partitionId["
           + startPartition + "]");
       start = System.currentTimeMillis();
+      Map<Integer, List<ShuffleServerInfo>> partitionToServers =  rssShuffleHandle.getPartitionToServers();
       Roaring64NavigableMap blockIdBitmap = shuffleWriteClient.getShuffleResult(
-          clientType, rssShuffleHandle.getShuffleServersForResult(),
+          clientType, Sets.newHashSet(partitionToServers.get(startPartition)),
           rssShuffleHandle.getAppId(), shuffleId, startPartition);
       LOG.info("Get shuffle blockId cost " + (System.currentTimeMillis() - start) + " ms, and get "
           + blockIdBitmap.getLongCardinality() + " blockIds for shuffleId[" + shuffleId + "], partitionId["

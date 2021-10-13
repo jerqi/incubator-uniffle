@@ -148,7 +148,6 @@ public class CoordinatorGrpcTest extends IntegrationTestBase {
       }
     }
     assertTrue(expectedStart.isEmpty());
-    assertEquals(1, response.getShuffleServersForResult().size());
 
     request = new RssGetShuffleAssignmentsRequest(
         appId, 1, 10, 4, 2,

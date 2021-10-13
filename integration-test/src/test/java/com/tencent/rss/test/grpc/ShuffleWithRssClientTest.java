@@ -9,12 +9,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
-import com.tencent.rss.client.api.ShuffleReadClient;
 import com.tencent.rss.client.impl.ShuffleReadClientImpl;
 import com.tencent.rss.client.impl.ShuffleWriteClientImpl;
-import com.tencent.rss.client.response.CompressedShuffleBlock;
 import com.tencent.rss.client.response.SendShuffleDataResult;
 import com.tencent.rss.client.util.ClientType;
+import com.tencent.rss.client.util.ClientUtils;
 import com.tencent.rss.common.PartitionRange;
 import com.tencent.rss.common.ShuffleBlockInfo;
 import com.tencent.rss.common.ShuffleServerInfo;
@@ -22,7 +21,6 @@ import com.tencent.rss.coordinator.CoordinatorConf;
 import com.tencent.rss.server.ShuffleServerConf;
 import com.tencent.rss.storage.util.StorageType;
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import org.junit.After;
@@ -108,11 +106,77 @@ public class ShuffleWithRssClientTest extends ShuffleReadWriteBase {
     Map<Integer, List<Long>> ptb = Maps.newHashMap();
     ptb.put(1, Lists.newArrayList(1L));
     try {
-      shuffleWriteClientImpl.reportShuffleResult(Sets.newHashSet(
-          shuffleServerInfo1, fakeShuffleServerInfo), testAppId, 0, 0, ptb, 2);
+      Map<Integer, List<ShuffleServerInfo>> partitionToServers = Maps.newHashMap();
+      partitionToServers.put(1, Lists.newArrayList(
+          shuffleServerInfo1, fakeShuffleServerInfo));
+      shuffleWriteClientImpl.reportShuffleResult(partitionToServers, testAppId, 0, 0, ptb, 2);
       fail(EXPECTED_EXCEPTION_MESSAGE);
     } catch (Exception e) {
       assertTrue(e.getMessage().contains("Report shuffle result is failed for"));
+    }
+  }
+
+  @Test
+  public void reportMultipleServerTest() throws Exception {
+    String testAppId = "reportMultipleServerTest";
+
+    shuffleWriteClientImpl.registerShuffle(shuffleServerInfo1,
+        testAppId, 1, Lists.newArrayList(new PartitionRange(1, 1)));
+
+    shuffleWriteClientImpl.registerShuffle(shuffleServerInfo2,
+        testAppId, 1, Lists.newArrayList(new PartitionRange(2, 2)));
+
+    Map<Integer, List<ShuffleServerInfo>> partitionToServers = Maps.newHashMap();
+    partitionToServers.putIfAbsent(1, Lists.newArrayList(shuffleServerInfo1));
+    partitionToServers.putIfAbsent(2, Lists.newArrayList(shuffleServerInfo2));
+    Map<Integer, List<Long>> partitionToBlocks = Maps.newHashMap();
+    List<Long> blockIds = Lists.newArrayList();
+    for (int i = 0; i < 5; i++ ) {
+      blockIds.add(ClientUtils.getBlockId(1, 0, i));
+    }
+    partitionToBlocks.put(1, blockIds);
+    blockIds = Lists.newArrayList();
+    for (int i = 0; i < 7; i++ ) {
+      blockIds.add(ClientUtils.getBlockId(2, 0, i));
+    }
+    partitionToBlocks.put(2, blockIds);
+    shuffleWriteClientImpl
+        .reportShuffleResult(partitionToServers, testAppId, 1, 0, partitionToBlocks, 1);
+
+    Roaring64NavigableMap bitmap = shuffleWriteClientImpl
+        .getShuffleResult("GRPC", Sets.newHashSet(shuffleServerInfo1), testAppId,
+        1, 0);
+    assertTrue(bitmap.isEmpty());
+
+    bitmap = shuffleWriteClientImpl
+        .getShuffleResult("GRPC", Sets.newHashSet(shuffleServerInfo1), testAppId,
+        1, 1);
+    assertEquals(5, bitmap.getLongCardinality());
+    for (int i = 0; i < 5; i++) {
+      assertTrue(bitmap.contains(partitionToBlocks.get(1).get(i)));
+    }
+
+    bitmap = shuffleWriteClientImpl
+        .getShuffleResult("GRPC", Sets.newHashSet(shuffleServerInfo1), testAppId,
+        1, 2);
+    assertTrue(bitmap.isEmpty());
+
+    bitmap = shuffleWriteClientImpl
+        .getShuffleResult("GRPC", Sets.newHashSet(shuffleServerInfo2), testAppId,
+        1, 0);
+    assertTrue(bitmap.isEmpty());
+
+    bitmap = shuffleWriteClientImpl
+        .getShuffleResult("GRPC", Sets.newHashSet(shuffleServerInfo2), testAppId,
+        1, 1);
+    assertTrue(bitmap.isEmpty());
+
+    bitmap = shuffleWriteClientImpl
+        .getShuffleResult("GRPC", Sets.newHashSet(shuffleServerInfo2), testAppId,
+        1, 2);
+    assertEquals(7, bitmap.getLongCardinality());
+    for (int i = 0; i < 7; i++) {
+      assertTrue(bitmap.contains(partitionToBlocks.get(2).get(i)));
     }
   }
 
