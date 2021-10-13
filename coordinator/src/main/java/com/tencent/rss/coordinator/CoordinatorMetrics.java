@@ -10,8 +10,10 @@ public class CoordinatorMetrics {
   private static final String TOTAL_SERVER_NUM = "total_server_num";
   private static final String RUNNING_APP_NUM = "running_app_num";
   private static final String TOTAL_APP_NUM = "total_app_num";
+  private static final String EXCLUDE_SERVER_NUM = "exclude_server_num";
 
   static Gauge gaugeTotalServerNum;
+  static Gauge gaugeExcludeServerNum;
   static Gauge gaugeRunningAppNum;
   static Counter counterTotalAppNum;
 
@@ -36,6 +38,7 @@ public class CoordinatorMetrics {
 
   private static void setUpMetrics() {
     gaugeTotalServerNum = metricsManager.addGauge(TOTAL_SERVER_NUM);
+    gaugeExcludeServerNum = metricsManager.addGauge(EXCLUDE_SERVER_NUM);
     gaugeRunningAppNum = metricsManager.addGauge(RUNNING_APP_NUM);
     counterTotalAppNum = metricsManager.addCounter(TOTAL_APP_NUM);
   }

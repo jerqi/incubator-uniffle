@@ -84,6 +84,7 @@ public class SimpleClusterManager implements ClusterManager {
       } else {
         excludeNodes = Sets.newConcurrentHashSet();
       }
+      CoordinatorMetrics.gaugeExcludeServerNum.set(excludeNodes.size());
     } catch (Exception e) {
       LOG.warn("Error when update exclude nodes", e);
     }
