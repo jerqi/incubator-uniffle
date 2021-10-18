@@ -213,7 +213,7 @@ public class ShuffleServerConf extends RssBaseConf {
   public static final ConfigOption<Long> RSS_REFERENCE_UPLOAD_SPEED_MBS = ConfigOptions
       .key("rss.server.uploader.references.speed.mbps")
       .longType()
-      .defaultValue(32L)
+      .defaultValue(8L)
       .withDescription("The speed for the uploader");
 
   public static final ConfigOption<Long> RSS_DISK_CAPACITY = ConfigOptions
@@ -244,7 +244,7 @@ public class ShuffleServerConf extends RssBaseConf {
   public static final ConfigOption<Long> RSS_SHUFFLE_MAX_UPLOAD_SIZE = ConfigOptions
       .key("rss.server.shuffle.max.upload.size")
       .longType()
-      .defaultValue(1024L * 1024L * 256)
+      .defaultValue(1024L * 1024L * 1024L)
       .withDescription("The max value of upload shuffle size");
 
   public ShuffleServerConf() {
@@ -275,9 +275,7 @@ public class ShuffleServerConf extends RssBaseConf {
           set(config, ConfigUtils.convertValue(v, config.getClazz()));
         }
       });
-      if (RPC_SERVER_TYPE.key().equalsIgnoreCase(k)) {
-        set(RPC_SERVER_TYPE, v.toUpperCase());
-      }
+
       if (k.startsWith(PREFIX_HADOOP_CONF)) {
         setString(k, v);
       }
