@@ -66,10 +66,12 @@ def process_line(line, output, is_process):
           f.write(app_id + "," + status + "\n")
         if status != "not found" and status != "SUCCEEDED":
           TOTAL_FAIL_APP_NUM_DIR[DEFAULT_METRIC_NAME] += 1
+          """
           try:
             commands.getoutput("echo " + app_id + " | python get-amlog.py ")
           except:
             return ""
+          """
         return ""
       else:
         return app_id

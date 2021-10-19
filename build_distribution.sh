@@ -85,7 +85,6 @@ cp $CLIENT_JAR ${CLIENT_JAR_DIR}
 
 cp -r bin $DISTDIR
 cp -r conf $DISTDIR
-cp -r tencent-bin $DISTDIR
 
 rm -rf "rss-$VERSION.tgz"
 tar czf "rss-$VERSION.tgz" $DISTDIR
