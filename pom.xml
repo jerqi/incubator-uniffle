@@ -799,6 +799,8 @@
           <linkXRef>false</linkXRef>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
+          <failOnViolation>true</failOnViolation>
+          <violationSeverity>warning</violationSeverity>
         </configuration>
         <dependencies>
           <dependency>
