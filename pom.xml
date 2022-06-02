@@ -795,7 +795,7 @@
           <suppressionsLocation>checkstyle-suppressions.xml</suppressionsLocation>
           <encoding>UTF-8</encoding>
           <consoleOutput>true</consoleOutput>
-          <failsOnError>false</failsOnError>
+          <failsOnError>true</failsOnError>
           <linkXRef>false</linkXRef>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
